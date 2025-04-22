@@ -81,9 +81,14 @@ func (sub TxSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.DB) (e
 		ctxs = append(ctxs, ctx)
 
 		// grep addresses for account tx
+		addrs, err := grepAddressesFromTx(res.Events)
+		if err != nil {
+			return err
+		}
+
 		// initialize account list
 		accountMap[txHash] = make(map[string]interface{})
-		for _, addr := range grepAddressesFromTx(res.Events) {
+		for _, addr := range addrs {
 			accountMap[txHash][addr] = nil
 		}
 	}

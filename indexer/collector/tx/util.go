@@ -11,14 +11,13 @@ import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	evmtypes "github.com/initia-labs/minievm/x/evm/types"
-	indexertypes "github.com/initia-labs/rollytics/indexer/types"
 	"github.com/initia-labs/rollytics/types"
 	"gorm.io/gorm"
 )
 
 const (
 	InitBech32Regex = "^init1(?:[a-z0-9]{38}|[a-z0-9]{58})$"
-	InitHexRegex    = "0x(?:[a-f1-9][a-f0-9]*){1,64}"
+	InitHexRegex    = "0x(?:[a-f1-9][a-f0-9]){1,64}"
 	transferTopic   = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
 )
 
@@ -83,19 +82,7 @@ func convertContractAddressToBech32(addr string) (string, error) {
 	return accAddr.String(), nil
 }
 
-func parseEvent(event abci.Event) indexertypes.ParsedEvent {
-	attrMap := make(map[string]string)
-	for _, attr := range event.Attributes {
-		attrMap[attr.Key] = attr.Value
-	}
-
-	return indexertypes.ParsedEvent{
-		Type:       event.Type,
-		Attributes: attrMap,
-	}
-}
-
-func grepAddressesFromTx(events []abci.Event) (grepped []string) {
+func grepAddressesFromTx(events []abci.Event) (grepped []string, err error) {
 	for _, event := range events {
 		for _, attr := range event.Attributes {
 			var addrs []string
@@ -104,13 +91,13 @@ func grepAddressesFromTx(events []abci.Event) (grepped []string) {
 			case event.Type == evmtypes.EventTypeEVM && attr.Key == evmtypes.AttributeKeyLog:
 				contractAddrs, err := extractAddressesFromEVMLog(attr.Value)
 				if err != nil {
-					continue
+					return grepped, err
 				}
 				addrs = append(addrs, contractAddrs...)
 			case isEvmModuleEvent(event.Type) && attr.Key == evmtypes.AttributeKeyContract:
 				addr, err := convertContractAddressToBech32(attr.Value)
 				if err != nil {
-					continue
+					return grepped, err
 				}
 				addrs = append(addrs, addr)
 			default:
@@ -121,7 +108,7 @@ func grepAddressesFromTx(events []abci.Event) (grepped []string) {
 			for _, addr := range addrs {
 				accAddr, err := accAddressFromString(addr)
 				if err != nil {
-					continue
+					return grepped, err
 				}
 				grepped = append(grepped, accAddr.String())
 			}
@@ -149,11 +136,13 @@ func extractAddressesFromEVMLog(attrVal string) (addrs []string, err error) {
 	if err = json.Unmarshal([]byte(attrVal), &log); err != nil {
 		return
 	}
+
 	var addr string
 	addr, err = convertContractAddressToBech32(log.Address)
-	if err == nil {
-		addrs = append(addrs, addr)
+	if err != nil {
+		return addrs, err
 	}
+	addrs = append(addrs, addr)
 
 	// if the topic is about transfer, we need to extract the addresses from the topics.
 	if log.Topics == nil { // no topic
@@ -173,19 +162,10 @@ func extractAddressesFromEVMLog(attrVal string) (addrs []string, err error) {
 		}
 		addr, err = convertContractAddressToBech32(log.Topics[i])
 		if err != nil {
-			continue
+			return addrs, err
 		}
 		addrs = append(addrs, addr)
 	}
 
 	return
-}
-
-func uniqueAppend(slice []string, elem string) []string {
-	for _, e := range slice {
-		if e == elem {
-			return slice
-		}
-	}
-	return append(slice, elem)
 }
