@@ -18,8 +18,7 @@ const (
 type Scrapper struct {
 	cfg      *config.Config
 	logger   *slog.Logger
-	synced   bool
-	BlockMap map[int64]types.ScrappedBlock
+	blockMap map[int64]types.ScrappedBlock
 	mtx      sync.Mutex
 }
 
@@ -27,8 +26,7 @@ func New(cfg *config.Config, logger *slog.Logger) *Scrapper {
 	return &Scrapper{
 		cfg:      cfg,
 		logger:   logger.With("module", "scrapper"),
-		synced:   false,
-		BlockMap: make(map[int64]types.ScrappedBlock),
+		blockMap: make(map[int64]types.ScrappedBlock),
 	}
 }
 
@@ -43,8 +41,27 @@ func (s *Scrapper) Run(height int64) {
 	s.slowSync(client, syncedHeight+1)
 }
 
+func (s *Scrapper) GetBlock(height int64) (types.ScrappedBlock, bool) {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+	block, ok := s.blockMap[height]
+	return block, ok
+}
+
+func (s *Scrapper) SetBlock(block types.ScrappedBlock) {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+	s.blockMap[block.Height] = block
+}
+
 func (s *Scrapper) DeleteBlock(height int64) {
 	s.mtx.Lock()
-	delete(s.BlockMap, height)
-	s.mtx.Unlock()
+	defer s.mtx.Unlock()
+	delete(s.blockMap, height)
+}
+
+func (s *Scrapper) GetBlockMapSize() int {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+	return len(s.blockMap)
 }

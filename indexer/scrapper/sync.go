@@ -1,10 +1,12 @@
 package scrapper
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -12,35 +14,55 @@ import (
 )
 
 func (s *Scrapper) fastSync(client *fiber.Client, height int64) int64 {
-	syncedHeight := height
+	var (
+		syncedHeight = height
+		mtx          sync.Mutex
+	)
 
-	for !s.synced {
-		if len(s.BlockMap) > 100 {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return syncedHeight
+		default:
+		}
+
+		if s.GetBlockMapSize() > 100 {
 			time.Sleep(1 * time.Second)
 			continue
 		}
 
 		// spin up new goroutine for scrapping block with incrementing height
-		go func(h int64, errCount int) {
+		h := height
+		go func(errCount int) {
 			for {
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
+
 				block, err := scrapBlock(client, h, s.cfg)
 
 				// if no error, cache the scrapped block to block map and return
 				if err == nil {
 					s.logger.Info("scrapped block", slog.Int64("height", block.Height))
-					s.BlockMap[block.Height] = block
+					s.SetBlock(block)
 
-					s.mtx.Lock()
+					mtx.Lock()
 					if block.Height > syncedHeight {
 						syncedHeight = block.Height
 					}
-					s.mtx.Unlock()
+					mtx.Unlock()
+
 					return
 				}
 
 				// stop fast syncing after reaching latest height
 				if reachedLatestHeight(fmt.Sprintf("%+v", err)) {
-					s.synced = true
+					cancel()
 					return
 				}
 
@@ -53,42 +75,44 @@ func (s *Scrapper) fastSync(client *fiber.Client, height int64) int64 {
 				s.logger.Info("error while scrapping block", slog.Int64("height", h), slog.Any("error", err))
 				time.Sleep(s.cfg.GetCoolingDuration())
 			}
-		}(height, 0)
+		}(0)
 
 		height++
 		time.Sleep(s.cfg.GetCoolingDuration())
 	}
-
-	return syncedHeight
 }
 
 func (s *Scrapper) slowSync(client *fiber.Client, height int64) {
 	for {
-		var results []ScrapResult
-		var g errgroup.Group
+		var (
+			results []ScrapResult
+			g       errgroup.Group
+			mtx     sync.Mutex
+		)
 
 		for i := range batchScrapSize {
-			g.Go(func(h int64) func() error {
-				return func() error {
-					block, err := scrapBlock(client, h, s.cfg)
-					s.mtx.Lock()
-					results = append(results, ScrapResult{
-						Height: h,
-						Err:    err,
-					})
-					s.mtx.Unlock()
-
-					if err == nil {
-						s.logger.Info("scrapped block", slog.Int64("height", block.Height))
-						s.BlockMap[block.Height] = block
-					} else if !reachedLatestHeight(fmt.Sprintf("%+v", err)) {
-						// log only if it is not related to reached latest height error
-						s.logger.Info("error while scrapping block", slog.Int64("height", h), slog.Any("error", err))
-					}
-
-					return nil
+			h := height + int64(i)
+			g.Go(func() error {
+				block, err := scrapBlock(client, h, s.cfg)
+				result := ScrapResult{
+					Height: h,
+					Err:    err,
 				}
-			}(height + int64(i)))
+
+				mtx.Lock()
+				results = append(results, result)
+				mtx.Unlock()
+
+				if err == nil {
+					s.logger.Info("scrapped block", slog.Int64("height", block.Height))
+					s.SetBlock(block)
+				} else if !reachedLatestHeight(fmt.Sprintf("%+v", err)) {
+					// log only if it is not related to reached latest height error
+					s.logger.Info("error while scrapping block", slog.Int64("height", h), slog.Any("error", err))
+				}
+
+				return nil
+			})
 		}
 
 		if err := g.Wait(); err != nil {
@@ -101,24 +125,20 @@ func (s *Scrapper) slowSync(client *fiber.Client, height int64) {
 			return results[i].Height < results[j].Height
 		})
 
-		s.mtx.Lock()
-		lowestHeightWithError := int64(0)
-		allSucceeded := true
+		// update height
+		var errorHeight int64 = -1
 		for _, res := range results {
 			if res.Err != nil {
-				allSucceeded = false
-				lowestHeightWithError = res.Height
+				errorHeight = res.Height
 				break
 			}
 		}
-
-		if allSucceeded {
+		if errorHeight == -1 {
 			height += batchScrapSize
 		} else {
-			height = lowestHeightWithError
+			height = errorHeight
 		}
 
-		s.mtx.Unlock()
 		time.Sleep(s.cfg.GetCoolingDuration())
 	}
 }

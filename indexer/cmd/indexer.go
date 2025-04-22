@@ -81,7 +81,7 @@ func (i Indexer) Run() {
 	go i.Scrapper.Run(i.height)
 
 	for {
-		block, ok := i.Scrapper.BlockMap[i.height]
+		block, ok := i.Scrapper.GetBlock(i.height)
 		if !ok {
 			time.Sleep(i.cfg.GetCoolingDuration())
 			continue
