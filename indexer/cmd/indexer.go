@@ -6,10 +6,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/cosmos/cosmos-sdk/client"
-	minievmapp "github.com/initia-labs/minievm/app"
-	minimoveapp "github.com/initia-labs/minimove/app"
-	miniwasmapp "github.com/initia-labs/miniwasm/app"
 	"github.com/initia-labs/rollytics/indexer/collector"
 	"github.com/initia-labs/rollytics/indexer/config"
 	"github.com/initia-labs/rollytics/indexer/scrapper"
@@ -69,29 +65,6 @@ func newIndexer(cfg *config.Config, logger *slog.Logger) (*Indexer, error) {
 	if res.Error != nil && !errors.Is(res.Error, gorm.ErrRecordNotFound) {
 		logger.Error("failed to get the last block from db", slog.Any("error", res.Error))
 		return nil, errors.New("failed to get the last block from db")
-	}
-
-	var txConfig client.TxConfig
-	// var encodingCfg *params.EncodingConfig
-	// var decoder sdk.TxDecoder
-	// var encoder sdk.TxEncoder
-
-	switch cfg.GetChainConfig().VmType {
-	case types.MoveVM:
-		txConfig = minimoveapp.MakeEncodingConfig().TxConfig
-		// encodingCfg := minimoveapp.MakeEncodingConfig()
-		// decoder = encodingCfg.TxConfig.TxDecoder()
-		// encoder = encodingCfg.TxConfig.TxJSONEncoder()
-	case types.WasmVM:
-		txConfig = miniwasmapp.MakeEncodingConfig().TxConfig
-		// encodingCfg := miniwasmapp.MakeEncodingConfig()
-		// decoder = encodingCfg.TxConfig.TxDecoder()
-		// encoder = encodingCfg.TxConfig.TxJSONEncoder()
-	case types.EVM:
-		txConfig = minievmapp.MakeEncodingConfig().TxConfig
-		// encodingCfg := minievmapp.MakeEncodingConfig()
-		// decoder = encodingCfg.TxConfig.TxDecoder()
-		// encoder = encodingCfg.TxConfig.TxJSONEncoder()
 	}
 
 	return &Indexer{
