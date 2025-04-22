@@ -5,10 +5,10 @@ go 1.23.6
 replace github.com/initia-labs/rollytics => ../common
 
 require (
+	github.com/CosmWasm/wasmd v0.53.2
 	github.com/cometbft/cometbft v0.38.17
 	github.com/cosmos/cosmos-sdk v0.50.13
 	github.com/gofiber/fiber/v2 v2.52.6
-	github.com/initia-labs/initia v1.0.0
 	github.com/initia-labs/minievm v1.0.0
 	github.com/initia-labs/minimove v1.0.0
 	github.com/initia-labs/miniwasm v1.0.0
@@ -47,7 +47,6 @@ require (
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/99designs/go-keychain v0.0.0-20191008050251-8e49817e8af4 // indirect
 	github.com/99designs/keyring v1.2.2 // indirect
-	github.com/CosmWasm/wasmd v0.53.2 // indirect
 	github.com/CosmWasm/wasmvm/v2 v2.1.4 // indirect
 	github.com/DataDog/datadog-go v3.2.0+incompatible // indirect
 	github.com/DataDog/zstd v1.5.5 // indirect
@@ -169,6 +168,7 @@ require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/initia-labs/OPinit v1.0.0 // indirect
 	github.com/initia-labs/OPinit/api v1.0.0 // indirect
+	github.com/initia-labs/initia v1.0.0 // indirect
 	github.com/initia-labs/kvindexer v0.1.13 // indirect
 	github.com/initia-labs/kvindexer/submodules/block v0.1.3 // indirect
 	github.com/initia-labs/kvindexer/submodules/evm-nft v0.1.9 // indirect

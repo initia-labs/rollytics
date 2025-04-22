@@ -73,7 +73,7 @@ func newIndexer(cfg *config.Config, logger *slog.Logger) (*Indexer, error) {
 		logger:    logger,
 		db:        db,
 		Scrapper:  scrapper.New(cfg, logger),
-		Collector: collector.New(logger, db, txConfig),
+		Collector: collector.New(logger, db),
 	}, nil
 }
 

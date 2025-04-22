@@ -4,13 +4,16 @@ import (
 	"fmt"
 	"log/slog"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"golang.org/x/sync/errgroup"
 )
 
-func (s *Scrapper) fastSync(client *fiber.Client, height int64) (syncedHeight int64) {
+func (s *Scrapper) fastSync(client *fiber.Client, height int64) int64 {
+	syncedHeight := height
+
 	for !s.synced {
 		if len(s.BlockMap) > 100 {
 			time.Sleep(1 * time.Second)
@@ -37,9 +40,7 @@ func (s *Scrapper) fastSync(client *fiber.Client, height int64) (syncedHeight in
 
 				// stop fast syncing after reaching latest height
 				if reachedLatestHeight(fmt.Sprintf("%+v", err)) {
-					s.mtx.Lock()
 					s.synced = true
-					s.mtx.Unlock()
 					return
 				}
 
@@ -58,7 +59,7 @@ func (s *Scrapper) fastSync(client *fiber.Client, height int64) (syncedHeight in
 		time.Sleep(s.cfg.GetCoolingDuration())
 	}
 
-	return
+	return syncedHeight
 }
 
 func (s *Scrapper) slowSync(client *fiber.Client, height int64) {
@@ -120,4 +121,8 @@ func (s *Scrapper) slowSync(client *fiber.Client, height int64) {
 		s.mtx.Unlock()
 		time.Sleep(s.cfg.GetCoolingDuration())
 	}
+}
+
+func reachedLatestHeight(errString string) bool {
+	return strings.HasPrefix(errString, "current height") || strings.HasPrefix(errString, "could not find")
 }

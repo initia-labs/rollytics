@@ -25,13 +25,5 @@ func New(logger *slog.Logger, txConfig client.TxConfig) *TxSubmodule {
 }
 
 func (sub TxSubmodule) Collect(block types.ScrappedBlock, tx *gorm.DB) error {
-	if err := sub.collectTx(block, tx); err != nil {
-		return err
-	}
-
-	if err := sub.collectAccountTx(block, tx); err != nil {
-		return err
-	}
-
-	return nil
+	return sub.collect(block, tx)
 }

@@ -3,7 +3,6 @@ package collector
 import (
 	"log/slog"
 
-	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/initia-labs/rollytics/indexer/collector/block"
 	"github.com/initia-labs/rollytics/indexer/collector/tx"
 	"github.com/initia-labs/rollytics/indexer/types"
@@ -12,20 +11,18 @@ import (
 )
 
 type Collector struct {
-	logger   *slog.Logger
-	db       *orm.Database
-	txConfig client.TxConfig
-	block    types.Submodule
-	tx       types.Submodule
+	logger *slog.Logger
+	db     *orm.Database
+	block  types.Submodule
+	tx     types.Submodule
 }
 
-func New(logger *slog.Logger, db *orm.Database, txConfig client.TxConfig) *Collector {
+func New(logger *slog.Logger, db *orm.Database) *Collector {
 	return &Collector{
-		logger:   logger.With("module", "collector"),
-		db:       db,
-		txConfig: txConfig,
-		block:    block.New(logger, txConfig),
-		tx:       tx.New(logger, txConfig),
+		logger: logger.With("module", "collector"),
+		db:     db,
+		block:  block.New(logger, txConfig),
+		tx:     tx.New(logger, txConfig),
 	}
 }
 
