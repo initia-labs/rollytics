@@ -6,18 +6,30 @@ import (
 	"log/slog"
 	"sort"
 	"strings"
-	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/initia-labs/rollytics/indexer/types"
 	"golang.org/x/sync/errgroup"
 )
 
-func (s *Scrapper) fastSync(client *fiber.Client, height int64) int64 {
+func (s *Scrapper) fastSync(client *fiber.Client, height int64, blockChan chan<- types.ScrappedBlock, controlChan <-chan string) int64 {
 	var (
 		syncedHeight = height
-		mtx          sync.Mutex
+		paused       atomic.Bool
 	)
+
+	go func() {
+		for signal := range controlChan {
+			switch signal {
+			case "stop":
+				paused.Store(true)
+			case "start":
+				paused.Store(false)
+			}
+		}
+	}()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -29,7 +41,8 @@ func (s *Scrapper) fastSync(client *fiber.Client, height int64) int64 {
 		default:
 		}
 
-		if s.GetBlockMapSize() > 100 {
+		// continue if paused
+		if paused.Load() {
 			time.Sleep(1 * time.Second)
 			continue
 		}
@@ -49,13 +62,13 @@ func (s *Scrapper) fastSync(client *fiber.Client, height int64) int64 {
 				// if no error, cache the scrapped block to block map and return
 				if err == nil {
 					s.logger.Info("scrapped block", slog.Int64("height", block.Height))
-					s.SetBlock(block)
+					blockChan <- block
 
-					mtx.Lock()
+					s.mtx.Lock()
 					if block.Height > syncedHeight {
 						syncedHeight = block.Height
 					}
-					mtx.Unlock()
+					s.mtx.Unlock()
 
 					return
 				}
@@ -82,12 +95,11 @@ func (s *Scrapper) fastSync(client *fiber.Client, height int64) int64 {
 	}
 }
 
-func (s *Scrapper) slowSync(client *fiber.Client, height int64) {
+func (s *Scrapper) slowSync(client *fiber.Client, height int64, blockChan chan<- types.ScrappedBlock) {
 	for {
 		var (
 			results []ScrapResult
 			g       errgroup.Group
-			mtx     sync.Mutex
 		)
 
 		for i := range batchScrapSize {
@@ -99,13 +111,13 @@ func (s *Scrapper) slowSync(client *fiber.Client, height int64) {
 					Err:    err,
 				}
 
-				mtx.Lock()
+				s.mtx.Lock()
 				results = append(results, result)
-				mtx.Unlock()
+				s.mtx.Unlock()
 
 				if err == nil {
 					s.logger.Info("scrapped block", slog.Int64("height", block.Height))
-					s.SetBlock(block)
+					blockChan <- block
 				} else if !reachedLatestHeight(fmt.Sprintf("%+v", err)) {
 					// log only if it is not related to reached latest height error
 					s.logger.Info("error while scrapping block", slog.Int64("height", h), slog.Any("error", err))

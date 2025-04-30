@@ -8,7 +8,7 @@ import (
 	"gorm.io/gorm"
 )
 
-const submoduleName = "block"
+const SubmoduleName = "block"
 
 var _ types.Submodule = BlockSubmodule{}
 
@@ -19,9 +19,17 @@ type BlockSubmodule struct {
 
 func New(logger *slog.Logger, txConfig client.TxConfig) *BlockSubmodule {
 	return &BlockSubmodule{
-		logger:   logger.With("submodule", submoduleName),
+		logger:   logger.With("submodule", SubmoduleName),
 		txConfig: txConfig,
 	}
+}
+
+func (sub BlockSubmodule) Name() string {
+	return SubmoduleName
+}
+
+func (sub BlockSubmodule) Prepare(block types.ScrappedBlock) error {
+	return nil
 }
 
 func (sub BlockSubmodule) Collect(block types.ScrappedBlock, tx *gorm.DB) error {

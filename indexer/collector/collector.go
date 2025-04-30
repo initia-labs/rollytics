@@ -1,32 +1,50 @@
 package collector
 
 import (
+	"fmt"
 	"log/slog"
+	"sync"
 
 	"github.com/initia-labs/rollytics/indexer/collector/block"
 	"github.com/initia-labs/rollytics/indexer/collector/tx"
 	"github.com/initia-labs/rollytics/indexer/types"
 	"github.com/initia-labs/rollytics/orm"
+	"golang.org/x/sync/errgroup"
 	"gorm.io/gorm"
 )
 
 type Collector struct {
-	logger *slog.Logger
-	db     *orm.Database
-	block  types.Submodule
-	tx     types.Submodule
+	logger     *slog.Logger
+	db         *orm.Database
+	submodules map[string]types.Submodule
+	mtx        sync.Mutex
 }
 
 func New(logger *slog.Logger, db *orm.Database) *Collector {
 	return &Collector{
 		logger: logger.With("module", "collector"),
 		db:     db,
-		block:  block.New(logger, txConfig),
-		tx:     tx.New(logger, txConfig),
+		submodules: map[string]types.Submodule{
+			block.SubmoduleName: block.New(logger, txConfig),
+			tx.SubmoduleName:    tx.New(logger, txConfig),
+		},
 	}
 }
 
-func (c Collector) Run(block types.ScrappedBlock) (err error) {
+func (c *Collector) Prepare(block types.ScrappedBlock) (err error) {
+	var g errgroup.Group
+
+	for _, sub := range c.submodules {
+		s := sub
+		g.Go(func() error {
+			return s.Prepare(block)
+		})
+	}
+
+	return g.Wait()
+}
+
+func (c *Collector) Run(block types.ScrappedBlock) (err error) {
 	tx := c.db.Begin()
 	defer func() {
 		if err != nil {
@@ -39,14 +57,11 @@ func (c Collector) Run(block types.ScrappedBlock) (err error) {
 	}()
 
 	return tx.Transaction(func(tx *gorm.DB) error {
-		if err := c.block.Collect(block, tx); err != nil {
-			c.logger.Error("failed to collect block", slog.Int64("height", block.Height), slog.Any("error", err))
-			return err
-		}
-
-		if err := c.tx.Collect(block, tx); err != nil {
-			c.logger.Error("failed to collect tx", slog.Int64("height", block.Height), slog.Any("error", err))
-			return err
+		for _, sub := range c.submodules {
+			if err := sub.Collect(block, tx); err != nil {
+				c.logger.Error(fmt.Sprintf("failed to collect %s", sub.Name()), slog.Int64("height", block.Height), slog.Any("error", err))
+				return err
+			}
 		}
 
 		return nil

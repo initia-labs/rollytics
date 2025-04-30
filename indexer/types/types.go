@@ -9,6 +9,8 @@ import (
 )
 
 type Submodule interface {
+	Name() string
+	Prepare(block ScrappedBlock) error
 	Collect(block ScrappedBlock, tx *gorm.DB) error
 }
 

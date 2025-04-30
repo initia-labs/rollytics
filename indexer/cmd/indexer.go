@@ -4,11 +4,13 @@ import (
 	"errors"
 	"log/slog"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/initia-labs/rollytics/indexer/collector"
 	"github.com/initia-labs/rollytics/indexer/config"
 	"github.com/initia-labs/rollytics/indexer/scrapper"
+	indexertypes "github.com/initia-labs/rollytics/indexer/types"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
 	"github.com/rs/zerolog"
@@ -46,8 +48,9 @@ type Indexer struct {
 	cfg       *config.Config
 	logger    *slog.Logger
 	db        *orm.Database
-	Scrapper  *scrapper.Scrapper
-	Collector *collector.Collector
+	scrapper  *scrapper.Scrapper
+	collector *collector.Collector
+	blockMap  map[int64]indexertypes.ScrappedBlock
 }
 
 func newIndexer(cfg *config.Config, logger *slog.Logger) (*Indexer, error) {
@@ -72,28 +75,70 @@ func newIndexer(cfg *config.Config, logger *slog.Logger) (*Indexer, error) {
 		cfg:       cfg,
 		logger:    logger,
 		db:        db,
-		Scrapper:  scrapper.New(cfg, logger),
-		Collector: collector.New(logger, db),
+		scrapper:  scrapper.New(cfg, logger),
+		collector: collector.New(logger, db),
+		blockMap:  make(map[int64]indexertypes.ScrappedBlock),
 	}, nil
 }
 
-func (i Indexer) Run() {
-	go i.Scrapper.Run(i.height)
+func (i *Indexer) Run() {
+	var (
+		blockChan   = make(chan indexertypes.ScrappedBlock)
+		controlChan = make(chan string)
+		mtx         sync.Mutex
+	)
 
+	go i.scrapper.Run(i.height, blockChan, controlChan)
+
+	go func() {
+		for block := range blockChan {
+			if block.Height < i.height {
+				continue
+			}
+
+			b := block
+			i.logger.Info("prepared data for block", slog.Int64("height", b.Height))
+
+			go func() {
+				if err := i.collector.Prepare(b); err != nil {
+					i.logger.Error("failed to prepare data for block", slog.Int64("height", b.Height), slog.Any("error", err))
+					panic(err)
+				}
+
+				mtx.Lock()
+				i.blockMap[b.Height] = b
+				mtx.Unlock()
+			}()
+		}
+	}()
+
+	paused := false
 	for {
-		block, ok := i.Scrapper.GetBlock(i.height)
+		mtx.Lock()
+
+		if len(i.blockMap) > 100 && !paused {
+			controlChan <- "stop"
+			paused = true
+		} else if len(i.blockMap) < 50 && paused {
+			controlChan <- "start"
+			paused = false
+		}
+
+		block, ok := i.blockMap[i.height]
 		if !ok {
 			time.Sleep(i.cfg.GetCoolingDuration())
+			mtx.Unlock()
 			continue
 		}
 
-		if err := i.Collector.Run(block); err != nil {
+		if err := i.collector.Run(block); err != nil {
 			i.logger.Error("failed to collect data for block", slog.Int64("height", i.height), slog.Any("error", err))
 			panic(err)
 		}
 
 		i.logger.Info("indexed block", slog.Int64("height", i.height))
-		i.Scrapper.DeleteBlock(i.height)
+		delete(i.blockMap, i.height)
 		i.height++
+		mtx.Unlock()
 	}
 }
