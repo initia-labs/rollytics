@@ -27,14 +27,16 @@ type CollectedBlock struct {
 	GasWanted int64           `gorm:"type:bigint"`
 	TxCount   int             `gorm:"type:bigint"`
 	TotalFee  json.RawMessage `gorm:"type:jsonb"`
+	Txs       []CollectedTx   `gorm:"foreignKey:ChainId,Height"`
 }
 
 type CollectedTx struct {
-	ChainId  string          `gorm:"type:text;primaryKey"`
-	Hash     string          `gorm:"type:text;primaryKey;index:tx_hash"`
-	Height   int64           `gorm:"type:bigint;primaryKey;autoIncrement:false;index:tx_height"`
-	Sequence uint64          `gorm:"type:bigint;index:tx_sequence"`
-	Data     json.RawMessage `gorm:"type:jsonb"`
+	ChainId    string               `gorm:"type:text;primaryKey"`
+	Hash       string               `gorm:"type:text;primaryKey;index:tx_hash"`
+	Height     int64                `gorm:"type:bigint;primaryKey;autoIncrement:false;index:tx_height"`
+	Sequence   uint64               `gorm:"type:bigint;index:tx_sequence"`
+	Data       json.RawMessage      `gorm:"type:jsonb"`
+	AccountTxs []CollectedAccountTx `gorm:"foreignKey:ChainId,Hash,Height"`
 }
 
 type CollectedAccountTx struct {
@@ -46,22 +48,24 @@ type CollectedAccountTx struct {
 }
 
 type CollectedNftCollection struct {
-	ChainId    string          `gorm:"type:text;primaryKey;index:nft_collection_chainid_object_addr"`
-	Height     int64           `gorm:"type:bigint;index:nft_collection_height"`
-	ObjectAddr string          `gorm:"type:text;primaryKey;index:nft_collection_chainid_object_addr;index:nft_collection_object_addr"`
-	Data       json.RawMessage `gorm:"type:jsonb"` // NftCollectionData should be stored here
-	Timestamp  time.Time       `gorm:"type:timestamptz;index:nft_collection_timestamp_desc,sort:desc"`
-	Nfts       []CollectedNft  `gorm:"foreignKey:ChainId,CollectionAddr"`
+	ChainId     string         `gorm:"type:text;primaryKey"`
+	Addr        string         `gorm:"type:text;primaryKey;index:nft_collection_addr"`
+	Height      int64          `gorm:"type:bigint;index:nft_collection_height"`
+	Name        string         `gorm:"type:text;index:nft_collection_name"`
+	Creator     string         `gorm:"type:text"`
+	Description string         `gorm:"type:text"`
+	NftCount    int64          `gorm:"type:bigint"`
+	Nfts        []CollectedNft `gorm:"foreignKey:ChainId,CollectionAddr"`
 }
 
 type CollectedNft struct {
-	ChainId        string          `gorm:"type:text;primaryKey;index:nft_chainid_object_addr"`
-	Height         int64           `gorm:"type:bigint;index:nft_height"`
-	Owner          string          `gorm:"type:text;index:nft_owner;index:nft_owner_collection_addr;index:nft_owner_object_addr"`
-	CollectionAddr string          `gorm:"type:text;index:nft_collection_addr;index:nft_owner_collection_addr"`
-	ObjectAddr     string          `gorm:"type:text;primaryKey;index:nft_object_addr;index:nft_owner_object_addr;index:nft_chainid_object_addr"`
-	Data           json.RawMessage `gorm:"type:jsonb"` // NftData should be stored here
-	Timestamp      time.Time       `gorm:"type:timestamptz;index:nft_timestamp_desc,sort:desc"`
+	ChainId        string `gorm:"type:text;primaryKey"`
+	CollectionAddr string `gorm:"type:text;primaryKey;index:nft_collection_addr"`
+	TokenId        string `gorm:"type:text;primaryKey;index:nft_token_id"`
+	Height         int64  `gorm:"type:bigint;index:nft_height"`
+	Owner          string `gorm:"type:text;index:nft_owner"`
+	Description    string `gorm:"type:text"`
+	Uri            string `gorm:"type:text"`
 }
 
 type CollectedNftPair struct {
@@ -87,12 +91,12 @@ func (CollectedAccountTx) TableName() string {
 	return "account_tx"
 }
 
-func (CollectedNft) TableName() string {
-	return "nft"
-}
-
 func (CollectedNftCollection) TableName() string {
 	return "nft_collection"
+}
+
+func (CollectedNft) TableName() string {
+	return "nft"
 }
 
 func (CollectedNftPair) TableName() string {

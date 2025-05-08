@@ -76,7 +76,7 @@ func newIndexer(cfg *config.Config, logger *slog.Logger) (*Indexer, error) {
 		logger:    logger,
 		db:        db,
 		scrapper:  scrapper.New(cfg, logger),
-		collector: collector.New(logger, db),
+		collector: collector.New(logger, db, cfg.GetChainConfig()),
 		blockMap:  make(map[int64]indexertypes.ScrappedBlock),
 	}, nil
 }
@@ -97,11 +97,11 @@ func (i *Indexer) Run() {
 			}
 
 			b := block
-			i.logger.Info("prepared data for block", slog.Int64("height", b.Height))
+			i.logger.Info("prepared data", slog.Int64("height", b.Height))
 
 			go func() {
 				if err := i.collector.Prepare(b); err != nil {
-					i.logger.Error("failed to prepare data for block", slog.Int64("height", b.Height), slog.Any("error", err))
+					i.logger.Error("failed to prepare data", slog.Int64("height", b.Height), slog.Any("error", err))
 					panic(err)
 				}
 
@@ -132,7 +132,7 @@ func (i *Indexer) Run() {
 		}
 
 		if err := i.collector.Run(block); err != nil {
-			i.logger.Error("failed to collect data for block", slog.Int64("height", i.height), slog.Any("error", err))
+			i.logger.Error("failed to collect data", slog.Int64("height", i.height), slog.Any("error", err))
 			panic(err)
 		}
 
