@@ -27,16 +27,14 @@ type CollectedBlock struct {
 	GasWanted int64           `gorm:"type:bigint"`
 	TxCount   int             `gorm:"type:bigint"`
 	TotalFee  json.RawMessage `gorm:"type:jsonb"`
-	Txs       []CollectedTx   `gorm:"foreignKey:ChainId,Height"`
 }
 
 type CollectedTx struct {
-	ChainId    string               `gorm:"type:text;primaryKey"`
-	Hash       string               `gorm:"type:text;primaryKey;index:tx_hash"`
-	Height     int64                `gorm:"type:bigint;primaryKey;autoIncrement:false;index:tx_height"`
-	Sequence   uint64               `gorm:"type:bigint;index:tx_sequence"`
-	Data       json.RawMessage      `gorm:"type:jsonb"`
-	AccountTxs []CollectedAccountTx `gorm:"foreignKey:ChainId,Hash,Height"`
+	ChainId  string          `gorm:"type:text;primaryKey"`
+	Hash     string          `gorm:"type:text;primaryKey;index:tx_hash"`
+	Height   int64           `gorm:"type:bigint;primaryKey;autoIncrement:false;index:tx_height"`
+	Sequence uint64          `gorm:"type:bigint;index:tx_sequence"`
+	Data     json.RawMessage `gorm:"type:jsonb"`
 }
 
 type CollectedAccountTx struct {
@@ -48,14 +46,13 @@ type CollectedAccountTx struct {
 }
 
 type CollectedNftCollection struct {
-	ChainId     string         `gorm:"type:text;primaryKey"`
-	Addr        string         `gorm:"type:text;primaryKey;index:nft_collection_addr"`
-	Height      int64          `gorm:"type:bigint;index:nft_collection_height"`
-	Name        string         `gorm:"type:text;index:nft_collection_name"`
-	Creator     string         `gorm:"type:text"`
-	Description string         `gorm:"type:text"`
-	NftCount    int64          `gorm:"type:bigint"`
-	Nfts        []CollectedNft `gorm:"foreignKey:ChainId,CollectionAddr"`
+	ChainId     string `gorm:"type:text;primaryKey"`
+	Addr        string `gorm:"type:text;primaryKey;index:nft_collection_addr"`
+	Height      int64  `gorm:"type:bigint;index:nft_collection_height"`
+	Name        string `gorm:"type:text;index:nft_collection_name"`
+	Creator     string `gorm:"type:text"`
+	Description string `gorm:"type:text"`
+	NftCount    int64  `gorm:"type:bigint"`
 }
 
 type CollectedNft struct {

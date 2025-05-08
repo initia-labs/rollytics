@@ -33,5 +33,10 @@ func (sub TxSubmodule) Prepare(block types.ScrappedBlock) error {
 }
 
 func (sub TxSubmodule) Collect(block types.ScrappedBlock, tx *gorm.DB) error {
-	return sub.collect(block, tx)
+	if err := sub.collect(block, tx); err != nil {
+		sub.logger.Error("failed to collect data", slog.Int64("height", block.Height), slog.Any("error", err))
+		return err
+	}
+
+	return nil
 }

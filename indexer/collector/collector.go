@@ -1,7 +1,6 @@
 package collector
 
 import (
-	"fmt"
 	"log/slog"
 	"sync"
 
@@ -40,16 +39,16 @@ func (c *Collector) Prepare(block types.ScrappedBlock) (err error) {
 	for _, sub := range c.submodules {
 		s := sub
 		g.Go(func() error {
-			if err := s.Prepare(block); err != nil {
-				c.logger.Error("failed to prepare data", slog.Int64("height", block.Height), slog.Any("error", err))
-				return err
-			}
-
-			return nil
+			return s.Prepare(block)
 		})
 	}
 
-	return g.Wait()
+	if err = g.Wait(); err != nil {
+		return err
+	}
+
+	c.logger.Info("prepared data", slog.Int64("height", block.Height))
+	return nil
 }
 
 func (c *Collector) Run(block types.ScrappedBlock) (err error) {
@@ -67,11 +66,11 @@ func (c *Collector) Run(block types.ScrappedBlock) (err error) {
 	return tx.Transaction(func(tx *gorm.DB) error {
 		for _, sub := range c.submodules {
 			if err := sub.Collect(block, tx); err != nil {
-				c.logger.Error(fmt.Sprintf("failed to collect %s", sub.Name()), slog.Int64("height", block.Height), slog.Any("error", err))
 				return err
 			}
 		}
 
+		c.logger.Info("indexed block", slog.Int64("height", block.Height))
 		return nil
 	})
 }

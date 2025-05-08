@@ -97,11 +97,8 @@ func (i *Indexer) Run() {
 			}
 
 			b := block
-			i.logger.Info("prepared data", slog.Int64("height", b.Height))
-
 			go func() {
 				if err := i.collector.Prepare(b); err != nil {
-					i.logger.Error("failed to prepare data", slog.Int64("height", b.Height), slog.Any("error", err))
 					panic(err)
 				}
 
@@ -132,11 +129,9 @@ func (i *Indexer) Run() {
 		}
 
 		if err := i.collector.Run(block); err != nil {
-			i.logger.Error("failed to collect data", slog.Int64("height", i.height), slog.Any("error", err))
 			panic(err)
 		}
 
-		i.logger.Info("indexed block", slog.Int64("height", i.height))
 		delete(i.blockMap, i.height)
 		i.height++
 		mtx.Unlock()
