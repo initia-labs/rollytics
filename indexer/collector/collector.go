@@ -21,14 +21,14 @@ type Collector struct {
 	mtx        sync.Mutex
 }
 
-func New(logger *slog.Logger, db *orm.Database, chainConfig *config.ChainConfig) *Collector {
+func New(logger *slog.Logger, db *orm.Database, cfg *config.Config) *Collector {
 	return &Collector{
 		logger: logger.With("module", "collector"),
 		db:     db,
 		submodules: map[string]types.Submodule{
 			block.SubmoduleName: block.New(logger, txConfig),
 			tx.SubmoduleName:    tx.New(logger, txConfig),
-			nft.SubmoduleName:   nft.New(logger, chainConfig),
+			nft.SubmoduleName:   nft.New(logger, cfg),
 		},
 	}
 }

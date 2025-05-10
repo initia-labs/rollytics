@@ -76,7 +76,7 @@ func newIndexer(cfg *config.Config, logger *slog.Logger) (*Indexer, error) {
 		logger:    logger,
 		db:        db,
 		scrapper:  scrapper.New(cfg, logger),
-		collector: collector.New(logger, db, cfg.GetChainConfig()),
+		collector: collector.New(logger, db, cfg),
 		blockMap:  make(map[int64]indexertypes.ScrappedBlock),
 	}, nil
 }

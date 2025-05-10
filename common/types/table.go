@@ -59,6 +59,7 @@ type CollectedNft struct {
 	ChainId        string `gorm:"type:text;primaryKey"`
 	CollectionAddr string `gorm:"type:text;primaryKey;index:nft_collection_addr"`
 	TokenId        string `gorm:"type:text;primaryKey;index:nft_token_id"`
+	Addr           string `gorm:"type:text;uniqueIndex:nft_addr"`
 	Height         int64  `gorm:"type:bigint;index:nft_height"`
 	Owner          string `gorm:"type:text;index:nft_owner"`
 	Description    string `gorm:"type:text"`

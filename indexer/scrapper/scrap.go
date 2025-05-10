@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"time"
 
+	abci "github.com/cometbft/cometbft/abci/types"
 	cbjson "github.com/cometbft/cometbft/libs/json"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/gofiber/fiber/v2"
@@ -115,13 +116,30 @@ func parseScrappedBlock(block GetBlockResponse, blockResults GetBlockResultsResp
 		return scrappedBlock, err
 	}
 
+	var beginEvts []abci.Event
+	var endEvts []abci.Event
+	for _, evt := range blockResults.Result.FinalizeBlockEvents {
+		lastAttr := evt.Attributes[len(evt.Attributes)-1]
+		if lastAttr.Key != "mode" {
+			continue
+		}
+
+		if lastAttr.Value == "BeginBlock" {
+			beginEvts = append(beginEvts, evt)
+		} else if lastAttr.Value == "EndBlock" {
+			endEvts = append(endEvts, evt)
+		}
+	}
+
 	return types.ScrappedBlock{
-		ChainId:   block.Result.Block.Header.ChainId,
-		Height:    height,
-		Timestamp: timestamp,
-		Hash:      block.Result.BlockId.Hash,
-		Proposer:  proposer.String(),
-		Txs:       block.Result.Block.Data.Txs,
-		TxResults: blockResults.Result.TxsResults,
+		ChainId:    block.Result.Block.Header.ChainId,
+		Height:     height,
+		Timestamp:  timestamp,
+		Hash:       block.Result.BlockId.Hash,
+		Proposer:   proposer.String(),
+		Txs:        block.Result.Block.Data.Txs,
+		TxResults:  blockResults.Result.TxsResults,
+		BeginBlock: beginEvts,
+		EndBlock:   endEvts,
 	}, nil
 }

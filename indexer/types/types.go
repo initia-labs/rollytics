@@ -15,13 +15,15 @@ type Submodule interface {
 }
 
 type ScrappedBlock struct {
-	ChainId   string
-	Height    int64
-	Timestamp time.Time
-	Hash      string
-	Proposer  string
-	Txs       []string
-	TxResults []abci.ExecTxResult
+	ChainId    string
+	Height     int64
+	Timestamp  time.Time
+	Hash       string
+	Proposer   string
+	Txs        []string
+	TxResults  []abci.ExecTxResult
+	BeginBlock []abci.Event
+	EndBlock   []abci.Event
 }
 
 type TxResult struct {

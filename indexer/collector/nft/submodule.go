@@ -13,16 +13,16 @@ const SubmoduleName = "nft"
 var _ types.Submodule = NftSubmodule{}
 
 type NftSubmodule struct {
-	logger      *slog.Logger
-	chainConfig *config.ChainConfig
-	dataMap     map[int64]string
+	logger  *slog.Logger
+	cfg     *config.Config
+	dataMap map[int64]CacheData
 }
 
-func New(logger *slog.Logger, chainConfig *config.ChainConfig) *NftSubmodule {
+func New(logger *slog.Logger, cfg *config.Config) *NftSubmodule {
 	return &NftSubmodule{
-		logger:      logger.With("submodule", SubmoduleName),
-		chainConfig: chainConfig,
-		dataMap:     make(map[int64]string),
+		logger:  logger.With("submodule", SubmoduleName),
+		cfg:     cfg,
+		dataMap: make(map[int64]CacheData),
 	}
 }
 
