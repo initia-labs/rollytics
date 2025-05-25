@@ -1,11 +1,6 @@
-package nft
+package move
 
 import "strings"
-
-type CacheData struct {
-	CollectionMap map[string]string
-	NftMap        map[string]string
-}
 
 type QueryMoveResourceResponse struct {
 	Resource struct {
@@ -14,21 +9,6 @@ type QueryMoveResourceResponse struct {
 		MoveResource string `json:"move_resource"`
 		RawBytes     string `json:"raw_bytes"`
 	} `json:"resource"`
-}
-
-type QueryCallResponse struct {
-	Response string `json:"response"`
-	Error    string `json:"error"`
-}
-
-type QueryTokenUriData struct {
-	CollectionAddr string
-	TokenId        string
-}
-
-type ErrorResponse struct {
-	Code    int64  `json:"code"`
-	Message string `json:"message"`
 }
 
 type NftMintAndBurnEventData struct {

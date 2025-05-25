@@ -1,6 +1,8 @@
-package nft
+package wasm
 
 import (
+	abci "github.com/cometbft/cometbft/abci/types"
+	"github.com/initia-labs/rollytics/indexer/config"
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
@@ -8,8 +10,8 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-func (sub NftSubmodule) collectWasm(block indexertypes.ScrappedBlock, tx *gorm.DB) (err error) {
-	batchSize := sub.cfg.GetDBConfig().BatchSize
+func Collect(block indexertypes.ScrappedBlock, cfg *config.Config, tx *gorm.DB) (err error) {
+	batchSize := cfg.GetDBConfig().BatchSize
 	mintColMap := make(map[string]types.CollectedNftCollection)
 	mintNftMap := make(map[string]map[string]types.CollectedNft)
 	transferMap := make(map[string]map[string]types.CollectedNft)
@@ -159,4 +161,35 @@ func (sub NftSubmodule) collectWasm(block indexertypes.ScrappedBlock, tx *gorm.D
 	// TODO: handle NftCount
 
 	return nil
+}
+
+func extractEvents(block indexertypes.ScrappedBlock) []indexertypes.ParsedEvent {
+	events := parseEvents(block.BeginBlock)
+
+	for _, res := range block.TxResults {
+		events = append(events, parseEvents(res.Events)...)
+	}
+
+	events = append(events, parseEvents(block.EndBlock)...)
+
+	return events
+}
+
+func parseEvents(evts []abci.Event) (parsedEvts []indexertypes.ParsedEvent) {
+	for _, evt := range evts {
+		parsedEvts = append(parsedEvts, parseEvent(evt))
+	}
+
+	return
+}
+
+func parseEvent(evt abci.Event) indexertypes.ParsedEvent {
+	attributes := make(map[string]string)
+	for _, attr := range evt.Attributes {
+		attributes[attr.Key] = attr.Value
+	}
+	return indexertypes.ParsedEvent{
+		Type:       evt.Type,
+		Attributes: attributes,
+	}
 }

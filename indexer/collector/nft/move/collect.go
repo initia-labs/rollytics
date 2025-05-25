@@ -1,74 +1,22 @@
-package nft
+package move
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 
-	"github.com/gofiber/fiber/v2"
+	abci "github.com/cometbft/cometbft/abci/types"
+	nfttypes "github.com/initia-labs/rollytics/indexer/collector/nft/types"
+	"github.com/initia-labs/rollytics/indexer/config"
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
 	"github.com/initia-labs/rollytics/indexer/util"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
-	"golang.org/x/sync/errgroup"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
-func (sub NftSubmodule) prepareMove(block indexertypes.ScrappedBlock) (err error) {
-	client := fiber.AcquireClient()
-	defer fiber.ReleaseClient(client)
-
-	colAddrs, nftAddrs, err := filterMoveData(block)
-	if err != nil {
-		return err
-	}
-
-	var g errgroup.Group
-	getCollectionsRes := make(chan map[string]string, 1)
-	getNftsRes := make(chan map[string]string, 1)
-
-	g.Go(func() error {
-		defer close(getCollectionsRes)
-		collectionMap, err := getCollections(colAddrs, client, sub.cfg, block.Height)
-		if err != nil {
-			return err
-		}
-		getCollectionsRes <- collectionMap
-		return nil
-	})
-
-	g.Go(func() error {
-		defer close(getNftsRes)
-		nftMap, err := getNfts(nftAddrs, client, sub.cfg, block.Height)
-		if err != nil {
-			return err
-		}
-		getNftsRes <- nftMap
-		return nil
-	})
-
-	if err := g.Wait(); err != nil {
-		return err
-	}
-
-	collectionMap := <-getCollectionsRes
-	nftMap := <-getNftsRes
-	sub.dataMap[block.Height] = CacheData{
-		CollectionMap: collectionMap,
-		NftMap:        nftMap,
-	}
-
-	return nil
-}
-
-func (sub NftSubmodule) collectMove(block indexertypes.ScrappedBlock, tx *gorm.DB) (err error) {
-	batchSize := sub.cfg.GetDBConfig().BatchSize
-	data, ok := sub.dataMap[block.Height]
-	if !ok {
-		return errors.New("data is not prepared")
-	}
-
+func Collect(block indexertypes.ScrappedBlock, data nfttypes.CacheData, cfg *config.Config, tx *gorm.DB) (err error) {
+	batchSize := cfg.GetDBConfig().BatchSize
 	mintMap := make(map[string]map[string]interface{})
 	transferMap := make(map[string]string)
 	mutMap := make(map[string]interface{})
@@ -233,54 +181,33 @@ func (sub NftSubmodule) collectMove(block indexertypes.ScrappedBlock, tx *gorm.D
 	return nil
 }
 
-func filterMoveData(block indexertypes.ScrappedBlock) (colAddrs []string, nftAddrs []string, err error) {
-	collectionAddrMap := make(map[string]interface{})
-	nftAddrMap := make(map[string]interface{})
-	for _, event := range extractEvents(block) {
-		if event.Type != "move" {
-			continue
-		}
+func extractEvents(block indexertypes.ScrappedBlock) []indexertypes.ParsedEvent {
+	events := parseEvents(block.BeginBlock)
 
-		typeTag, found := event.Attributes["type_tag"]
-		if !found {
-			continue
-		}
-		data, found := event.Attributes["data"]
-		if !found {
-			continue
-		}
-
-		switch typeTag {
-		case "0x1::collection::MintEvent":
-			var event NftMintAndBurnEventData
-			if err := json.Unmarshal([]byte(data), &event); err != nil {
-				return colAddrs, nftAddrs, err
-			}
-			collectionAddrMap[event.Collection] = nil
-			nftAddrMap[event.Nft] = nil
-		case "0x1::nft::MutationEvent":
-			var event NftMutationEventData
-			if err := json.Unmarshal([]byte(data), &event); err != nil {
-				return colAddrs, nftAddrs, err
-			}
-			nftAddrMap[event.Nft] = nil
-		case "0x1::collection::BurnEvent":
-			var event NftMintAndBurnEventData
-			if err := json.Unmarshal([]byte(data), &event); err != nil {
-				return colAddrs, nftAddrs, err
-			}
-			delete(nftAddrMap, event.Nft)
-		default:
-			continue
-		}
+	for _, res := range block.TxResults {
+		events = append(events, parseEvents(res.Events)...)
 	}
 
-	for addr := range collectionAddrMap {
-		colAddrs = append(colAddrs, addr)
-	}
-	for addr := range nftAddrMap {
-		nftAddrs = append(nftAddrs, addr)
+	events = append(events, parseEvents(block.EndBlock)...)
+
+	return events
+}
+
+func parseEvents(evts []abci.Event) (parsedEvts []indexertypes.ParsedEvent) {
+	for _, evt := range evts {
+		parsedEvts = append(parsedEvts, parseEvent(evt))
 	}
 
 	return
+}
+
+func parseEvent(evt abci.Event) indexertypes.ParsedEvent {
+	attributes := make(map[string]string)
+	for _, attr := range evt.Attributes {
+		attributes[attr.Key] = attr.Value
+	}
+	return indexertypes.ParsedEvent{
+		Type:       evt.Type,
+		Attributes: attributes,
+	}
 }

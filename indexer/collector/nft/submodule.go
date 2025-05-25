@@ -3,6 +3,7 @@ package nft
 import (
 	"log/slog"
 
+	nfttypes "github.com/initia-labs/rollytics/indexer/collector/nft/types"
 	"github.com/initia-labs/rollytics/indexer/config"
 	"github.com/initia-labs/rollytics/indexer/types"
 	"gorm.io/gorm"
@@ -15,14 +16,14 @@ var _ types.Submodule = NftSubmodule{}
 type NftSubmodule struct {
 	logger  *slog.Logger
 	cfg     *config.Config
-	dataMap map[int64]CacheData
+	dataMap map[int64]nfttypes.CacheData
 }
 
 func New(logger *slog.Logger, cfg *config.Config) *NftSubmodule {
 	return &NftSubmodule{
 		logger:  logger.With("submodule", SubmoduleName),
 		cfg:     cfg,
-		dataMap: make(map[int64]CacheData),
+		dataMap: make(map[int64]nfttypes.CacheData),
 	}
 }
 
