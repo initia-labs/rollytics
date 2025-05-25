@@ -1,16 +1,13 @@
 package tx
 
 import (
-	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"regexp"
-	"strings"
 
 	abci "github.com/cometbft/cometbft/abci/types"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	evmtypes "github.com/initia-labs/minievm/x/evm/types"
+	"github.com/initia-labs/rollytics/indexer/util"
 	"github.com/initia-labs/rollytics/types"
 	"gorm.io/gorm"
 )
@@ -51,37 +48,6 @@ func findAllHexAddress(attr string) []string {
 	return regexHex.FindAllString(attr, -1)
 }
 
-func accAddressFromString(addrStr string) (addr sdk.AccAddress, err error) {
-	if strings.HasPrefix(addrStr, "0x") {
-		addrStr = strings.TrimPrefix(addrStr, "0x")
-
-		// add padding
-		if len(addrStr) <= 40 {
-			addrStr = strings.Repeat("0", 40-len(addrStr)) + addrStr
-		} else if len(addrStr) <= 64 {
-			addrStr = strings.Repeat("0", 64-len(addrStr)) + addrStr
-		} else {
-			return nil, fmt.Errorf("invalid address string: %s", addrStr)
-		}
-
-		if addr, err = hex.DecodeString(addrStr); err != nil {
-			return
-		}
-	} else if addr, err = sdk.AccAddressFromBech32(addrStr); err != nil {
-		return
-	}
-
-	return
-}
-
-func convertContractAddressToBech32(addr string) (string, error) {
-	accAddr, err := sdk.AccAddressFromHexUnsafe(strings.ToLower(strings.TrimPrefix(strings.TrimPrefix(addr, "0x"), "000000000000000000000000")))
-	if err != nil {
-		return "", err
-	}
-	return accAddr.String(), nil
-}
-
 func grepAddressesFromTx(events []abci.Event) (grepped []string, err error) {
 	for _, event := range events {
 		for _, attr := range event.Attributes {
@@ -95,18 +61,14 @@ func grepAddressesFromTx(events []abci.Event) (grepped []string, err error) {
 				}
 				addrs = append(addrs, contractAddrs...)
 			case isEvmModuleEvent(event.Type) && attr.Key == evmtypes.AttributeKeyContract:
-				addr, err := convertContractAddressToBech32(attr.Value)
-				if err != nil {
-					return grepped, err
-				}
-				addrs = append(addrs, addr)
+				addrs = append(addrs, attr.Value)
 			default:
 				addrs = findAllBech32Address(attr.Value)
 				addrs = append(addrs, findAllHexAddress(attr.Value)...)
 			}
 
 			for _, addr := range addrs {
-				accAddr, err := accAddressFromString(addr)
+				accAddr, err := util.AccAddressFromString(addr)
 				if err != nil {
 					return grepped, err
 				}
@@ -137,12 +99,11 @@ func extractAddressesFromEVMLog(attrVal string) (addrs []string, err error) {
 		return
 	}
 
-	var addr string
-	addr, err = convertContractAddressToBech32(log.Address)
+	addr, err := util.AccAddressFromString(log.Address)
 	if err != nil {
 		return addrs, err
 	}
-	addrs = append(addrs, addr)
+	addrs = append(addrs, addr.String())
 
 	// if the topic is about transfer, we need to extract the addresses from the topics.
 	if log.Topics == nil { // no topic
@@ -160,11 +121,11 @@ func extractAddressesFromEVMLog(attrVal string) (addrs []string, err error) {
 		if i == 3 { // if index is 3, it means index indicates the amount, not address. need break
 			break
 		}
-		addr, err = convertContractAddressToBech32(log.Topics[i])
+		addr, err := util.AccAddressFromString(log.Topics[i])
 		if err != nil {
 			return addrs, err
 		}
-		addrs = append(addrs, addr)
+		addrs = append(addrs, addr.String())
 	}
 
 	return

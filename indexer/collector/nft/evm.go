@@ -9,6 +9,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	evmtypes "github.com/initia-labs/minievm/x/evm/types"
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
+	"github.com/initia-labs/rollytics/indexer/util"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
 	"golang.org/x/sync/errgroup"
@@ -109,6 +110,10 @@ func (sub NftSubmodule) collectEvm(block indexertypes.ScrappedBlock, tx *gorm.DB
 			collectionAddr := log.Address
 			from := log.Topics[1]
 			to := log.Topics[2]
+			toAddr, err := util.AccAddressFromString(to)
+			if err != nil {
+				return err
+			}
 			tokenId, err := convertHexStringToDecString(log.Topics[3])
 			if err != nil {
 				return err
@@ -119,14 +124,14 @@ func (sub NftSubmodule) collectEvm(block indexertypes.ScrappedBlock, tx *gorm.DB
 				if _, ok := mintMap[collectionAddr]; !ok {
 					mintMap[collectionAddr] = make(map[string]string)
 				}
-				mintMap[collectionAddr][tokenId] = to // TODO: change to bech32
+				mintMap[collectionAddr][tokenId] = toAddr.String()
 				delete(burnMap[collectionAddr], tokenId)
 			} else if from != emptyAddr && to != emptyAddr {
 				// handle transfer
 				if _, ok := transferMap[collectionAddr]; !ok {
 					transferMap[collectionAddr] = make(map[string]string)
 				}
-				transferMap[collectionAddr][tokenId] = to // TODO: change to bech32
+				transferMap[collectionAddr][tokenId] = toAddr.String()
 			} else if from != emptyAddr && to == emptyAddr {
 				// handle burn
 				if _, ok := burnMap[collectionAddr]; !ok {
@@ -142,7 +147,7 @@ func (sub NftSubmodule) collectEvm(block indexertypes.ScrappedBlock, tx *gorm.DB
 	// batch insert collections and nfts
 	var mintedCols []types.CollectedNftCollection
 	var mintedNfts []types.CollectedNft
-	for collectionAddr, mintNftMap := range mintMap {
+	for collectionAddr, nftMap := range mintMap {
 		name, ok := data.CollectionMap[collectionAddr]
 		if !ok {
 			return fmt.Errorf("collection name info not found for collection address %s", collectionAddr)
@@ -156,7 +161,7 @@ func (sub NftSubmodule) collectEvm(block indexertypes.ScrappedBlock, tx *gorm.DB
 		}
 		mintedCols = append(mintedCols, col)
 
-		for tokenId, to := range mintNftMap {
+		for tokenId, owner := range nftMap {
 			nftAddr := fmt.Sprintf("%s%s", collectionAddr, tokenId)
 			tokenUri, ok := data.NftMap[nftAddr]
 			if !ok {
@@ -168,7 +173,7 @@ func (sub NftSubmodule) collectEvm(block indexertypes.ScrappedBlock, tx *gorm.DB
 				TokenId:        tokenId,
 				Addr:           nftAddr,
 				Height:         block.Height,
-				Owner:          to,
+				Owner:          owner,
 				Uri:            tokenUri,
 			}
 			mintedNfts = append(mintedNfts, nft)
@@ -183,13 +188,13 @@ func (sub NftSubmodule) collectEvm(block indexertypes.ScrappedBlock, tx *gorm.DB
 
 	// batch update transferred nfts
 	var transferredNfts []types.CollectedNft
-	for collectionAddr, transferNftMap := range transferMap {
-		for tokenId, transferTo := range transferNftMap {
+	for collectionAddr, nftMap := range transferMap {
+		for tokenId, owner := range nftMap {
 			nft := types.CollectedNft{
 				ChainId:        block.ChainId,
 				CollectionAddr: collectionAddr,
 				TokenId:        tokenId,
-				Owner:          transferTo,
+				Owner:          owner,
 				Height:         block.Height,
 			}
 			transferredNfts = append(transferredNfts, nft)

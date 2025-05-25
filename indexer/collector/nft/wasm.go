@@ -20,7 +20,7 @@ func (sub NftSubmodule) collectWasm(block indexertypes.ScrappedBlock, tx *gorm.D
 			continue
 		}
 
-		contractAddr, found := event.Attributes["_contract_address"]
+		collectionAddr, found := event.Attributes["_contract_address"]
 		if !found {
 			continue
 		}
@@ -40,9 +40,9 @@ func (sub NftSubmodule) collectWasm(block indexertypes.ScrappedBlock, tx *gorm.D
 				continue
 			}
 
-			mintColMap[contractAddr] = types.CollectedNftCollection{
+			mintColMap[collectionAddr] = types.CollectedNftCollection{
 				ChainId: block.ChainId,
-				Addr:    contractAddr,
+				Addr:    collectionAddr,
 				Height:  block.Height,
 				Name:    name,
 				Creator: creator,
@@ -62,18 +62,18 @@ func (sub NftSubmodule) collectWasm(block indexertypes.ScrappedBlock, tx *gorm.D
 				continue
 			}
 
-			if _, ok := mintNftMap[contractAddr]; !ok {
-				mintNftMap[contractAddr] = make(map[string]types.CollectedNft)
+			if _, ok := mintNftMap[collectionAddr]; !ok {
+				mintNftMap[collectionAddr] = make(map[string]types.CollectedNft)
 			}
-			mintNftMap[contractAddr][tokenId] = types.CollectedNft{
+			mintNftMap[collectionAddr][tokenId] = types.CollectedNft{
 				ChainId:        block.ChainId,
-				CollectionAddr: contractAddr,
+				CollectionAddr: collectionAddr,
 				TokenId:        tokenId,
 				Height:         block.Height,
 				Owner:          owner,
 				Uri:            uri,
 			}
-			delete(burnMap[contractAddr], tokenId)
+			delete(burnMap[collectionAddr], tokenId)
 
 		case "transfer_nft", "send_nft":
 			tokenId, found := event.Attributes["token_id"]
@@ -85,12 +85,12 @@ func (sub NftSubmodule) collectWasm(block indexertypes.ScrappedBlock, tx *gorm.D
 				continue
 			}
 
-			if _, ok := transferMap[contractAddr]; !ok {
-				transferMap[contractAddr] = make(map[string]types.CollectedNft)
+			if _, ok := transferMap[collectionAddr]; !ok {
+				transferMap[collectionAddr] = make(map[string]types.CollectedNft)
 			}
-			transferMap[contractAddr][tokenId] = types.CollectedNft{
+			transferMap[collectionAddr][tokenId] = types.CollectedNft{
 				ChainId:        block.ChainId,
-				CollectionAddr: contractAddr,
+				CollectionAddr: collectionAddr,
 				TokenId:        tokenId,
 				Height:         block.Height,
 				Owner:          recipient,
@@ -102,12 +102,12 @@ func (sub NftSubmodule) collectWasm(block indexertypes.ScrappedBlock, tx *gorm.D
 				continue
 			}
 
-			if _, ok := burnMap[contractAddr]; !ok {
-				burnMap[contractAddr] = make(map[string]interface{})
+			if _, ok := burnMap[collectionAddr]; !ok {
+				burnMap[collectionAddr] = make(map[string]interface{})
 			}
-			burnMap[contractAddr][tokenId] = nil
-			delete(mintNftMap[contractAddr], tokenId)
-			delete(transferMap[contractAddr], tokenId)
+			burnMap[collectionAddr][tokenId] = nil
+			delete(mintNftMap[collectionAddr], tokenId)
+			delete(transferMap[collectionAddr], tokenId)
 		}
 	}
 

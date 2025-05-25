@@ -7,6 +7,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
+	"github.com/initia-labs/rollytics/indexer/util"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
 	"golang.org/x/sync/errgroup"
@@ -106,7 +107,11 @@ func (sub NftSubmodule) collectMove(block indexertypes.ScrappedBlock, tx *gorm.D
 			if err := json.Unmarshal(dataBytes, &data); err != nil {
 				return err
 			}
-			transferMap[data.Object] = data.To
+			toAddr, err := util.AccAddressFromString(data.To)
+			if err != nil {
+				return err
+			}
+			transferMap[data.Object] = toAddr.String()
 
 		case "0x1::nft::MutationEvent":
 			mutation := NftMutationEventData{}
@@ -130,28 +135,32 @@ func (sub NftSubmodule) collectMove(block indexertypes.ScrappedBlock, tx *gorm.D
 	// batch insert collections and nfts
 	var mintedCols []types.CollectedNftCollection
 	var mintedNfts []types.CollectedNft
-	for mintCol, mintNftMap := range mintMap {
-		colResource, ok := data.CollectionMap[mintCol]
+	for collectionAddr, nftMap := range mintMap {
+		colResource, ok := data.CollectionMap[collectionAddr]
 		if !ok {
-			return fmt.Errorf("move resource not found for collection address %s", mintCol)
+			return fmt.Errorf("move resource not found for collection address %s", collectionAddr)
 		}
 		var colInfo NftCollectionData
 		if err := json.Unmarshal([]byte(colResource), &colInfo); err != nil {
 			return err
 		}
+		creator, err := util.AccAddressFromString(colInfo.Data.Creator)
+		if err != nil {
+			return err
+		}
 		col := types.CollectedNftCollection{
 			ChainId: block.ChainId,
-			Addr:    mintCol,
+			Addr:    collectionAddr,
 			Height:  block.Height,
 			Name:    colInfo.Data.Name,
-			Creator: colInfo.Data.Creator,
+			Creator: creator.String(),
 		}
 		mintedCols = append(mintedCols, col)
 
-		for mintNft := range mintNftMap {
-			nftResource, ok := data.NftMap[mintNft]
+		for nftAddr := range nftMap {
+			nftResource, ok := data.NftMap[nftAddr]
 			if !ok {
-				return fmt.Errorf("move resource not found for nft address %s", mintNft)
+				return fmt.Errorf("move resource not found for nft address %s", nftAddr)
 			}
 			var nftInfo NftData
 			if err := json.Unmarshal([]byte(nftResource), &nftInfo); err != nil {
@@ -160,11 +169,11 @@ func (sub NftSubmodule) collectMove(block indexertypes.ScrappedBlock, tx *gorm.D
 			nftInfo.Trim()
 			nft := types.CollectedNft{
 				ChainId:        block.ChainId,
-				CollectionAddr: mintCol,
+				CollectionAddr: collectionAddr,
 				TokenId:        nftInfo.Data.TokenId,
-				Addr:           mintNft,
+				Addr:           nftAddr,
 				Height:         block.Height,
-				Owner:          colInfo.Data.Creator,
+				Owner:          creator.String(),
 				Uri:            nftInfo.Data.Uri,
 			}
 			mintedNfts = append(mintedNfts, nft)
@@ -178,18 +187,18 @@ func (sub NftSubmodule) collectMove(block indexertypes.ScrappedBlock, tx *gorm.D
 	}
 
 	// update transferred nfts
-	for transferNft, transferTo := range transferMap {
-		if res := tx.Model(&types.CollectedNft{}).Where("chain_id = ? AND addr = ?", block.ChainId, transferNft).Updates(map[string]interface{}{"height": block.Height, "owner": transferTo}); res.Error != nil {
+	for nftAddr, owner := range transferMap {
+		if res := tx.Model(&types.CollectedNft{}).Where("chain_id = ? AND addr = ?", block.ChainId, nftAddr).Updates(map[string]interface{}{"height": block.Height, "owner": owner}); res.Error != nil {
 			return res.Error
 		}
 	}
 
 	// batch update mutated nfts
 	var mutatedNfts []types.CollectedNft
-	for mutNft := range mutMap {
-		nftResource, ok := data.NftMap[mutNft]
+	for nftAddr := range mutMap {
+		nftResource, ok := data.NftMap[nftAddr]
 		if !ok {
-			return fmt.Errorf("move resource not found for nft address %s", mutNft)
+			return fmt.Errorf("move resource not found for nft address %s", nftAddr)
 		}
 		var nftInfo NftData
 		if err := json.Unmarshal([]byte(nftResource), &nftInfo); err != nil {
@@ -197,7 +206,7 @@ func (sub NftSubmodule) collectMove(block indexertypes.ScrappedBlock, tx *gorm.D
 		}
 		nft := types.CollectedNft{
 			ChainId: block.ChainId,
-			Addr:    mutNft,
+			Addr:    nftAddr,
 			Height:  block.Height,
 			Uri:     nftInfo.Data.Uri,
 		}
@@ -212,8 +221,8 @@ func (sub NftSubmodule) collectMove(block indexertypes.ScrappedBlock, tx *gorm.D
 
 	// batch delete burned nfts
 	var burnedNfts []string
-	for burnNft := range burnMap {
-		burnedNfts = append(burnedNfts, burnNft)
+	for nftAddr := range burnMap {
+		burnedNfts = append(burnedNfts, nftAddr)
 	}
 	if res := tx.Where("chain_id = ? AND addr IN ?", block.ChainId, burnedNfts).Delete(&types.CollectedNft{}); res.Error != nil {
 		return res.Error
