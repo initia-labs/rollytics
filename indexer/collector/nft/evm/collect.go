@@ -20,6 +20,7 @@ func Collect(block indexertypes.ScrappedBlock, data nfttypes.CacheData, cfg *con
 	mintMap := make(map[string]map[string]string)
 	transferMap := make(map[string]map[string]string)
 	burnMap := make(map[string]map[string]interface{})
+	updateCountMap := make(map[string]interface{})
 
 	for _, event := range getEvents(block) {
 		if event.Type != "evm" {
@@ -59,6 +60,7 @@ func Collect(block indexertypes.ScrappedBlock, data nfttypes.CacheData, cfg *con
 				}
 				mintMap[collectionAddr][tokenId] = toAddr.String()
 				delete(burnMap[collectionAddr], tokenId)
+				updateCountMap[collectionAddr] = nil
 			} else if from != emptyAddr && to != emptyAddr {
 				// handle transfer
 				if _, ok := transferMap[collectionAddr]; !ok {
@@ -73,6 +75,7 @@ func Collect(block indexertypes.ScrappedBlock, data nfttypes.CacheData, cfg *con
 				burnMap[collectionAddr][tokenId] = nil
 				delete(mintMap[collectionAddr], tokenId)
 				delete(transferMap[collectionAddr], tokenId)
+				updateCountMap[collectionAddr] = nil
 			}
 		}
 	}
@@ -151,7 +154,16 @@ func Collect(block indexertypes.ScrappedBlock, data nfttypes.CacheData, cfg *con
 		}
 	}
 
-	// TODO: handle NftCount
+	// update nft count
+	for collectionAddr := range updateCountMap {
+		var nftCount int64
+		if res := tx.Model(&types.CollectedNft{}).Where("chain_id = ? AND collection_addr = ?", block.ChainId, collectionAddr).Count(&nftCount); res.Error != nil {
+			return err
+		}
+		if res := tx.Model(&types.CollectedNftCollection{}).Where("chain_id = ? AND addr = ?", block.ChainId, collectionAddr).Updates(map[string]interface{}{"nft_count": nftCount}); res.Error != nil {
+			return err
+		}
+	}
 
 	return nil
 }
