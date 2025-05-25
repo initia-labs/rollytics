@@ -57,7 +57,15 @@ func (d Database) Migrate() error {
 		return nil
 	}
 
-	return d.AutoMigrate(&types.CollectedSeqInfo{}, &types.CollectedBlock{}, &types.CollectedTx{}, &types.CollectedAccountTx{})
+	return d.AutoMigrate(
+		&types.CollectedSeqInfo{},
+		&types.CollectedBlock{},
+		&types.CollectedTx{},
+		&types.CollectedAccountTx{},
+		&types.CollectedNftCollection{},
+		&types.CollectedNft{},
+		&types.CollectedNftTx{},
+	)
 }
 
 func (d Database) Close() error {

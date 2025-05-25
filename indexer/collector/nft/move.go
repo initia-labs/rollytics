@@ -70,9 +70,8 @@ func (sub NftSubmodule) collectMove(block indexertypes.ScrappedBlock, tx *gorm.D
 
 	mintMap := make(map[string]map[string]interface{})
 	transferMap := make(map[string]string)
-	mutColMap := make(map[string]interface{})
-	mutNftMap := make(map[string]interface{})
-	burnNftMap := make(map[string]interface{})
+	mutMap := make(map[string]interface{})
+	burnMap := make(map[string]interface{})
 
 	for _, event := range extractEvents(block) {
 		if event.Type != "move" {
@@ -99,8 +98,9 @@ func (sub NftSubmodule) collectMove(block indexertypes.ScrappedBlock, tx *gorm.D
 				mintMap[data.Collection] = make(map[string]interface{})
 			}
 			mintMap[data.Collection][data.Nft] = nil
-			delete(burnNftMap, data.Nft)
+			delete(burnMap, data.Nft)
 
+		// NOTE: this might not be related to nft transfer event
 		case "0x1::object::TransferEvent":
 			data := NftTransferEventData{}
 			if err := json.Unmarshal(dataBytes, &data); err != nil {
@@ -108,30 +108,22 @@ func (sub NftSubmodule) collectMove(block indexertypes.ScrappedBlock, tx *gorm.D
 			}
 			transferMap[data.Object] = data.To
 
-		case "0x1::nft::MutationEvent", "0x1::collection::MutationEvent":
-			mutation := MutationEventData{}
+		case "0x1::nft::MutationEvent":
+			mutation := NftMutationEventData{}
 			if err := json.Unmarshal(dataBytes, &mutation); err != nil {
 				return err
 			}
-			if mutation.Collection != "" {
-				mutColMap[mutation.Collection] = nil
-			} else if mutation.Nft != "" {
-				mutNftMap[mutation.Nft] = nil
-			} else {
-				return fmt.Errorf("unknown mutation event: %s", mutation)
-			}
+			mutMap[mutation.Nft] = nil
 
 		case "0x1::collection::BurnEvent":
 			burnt := NftMintAndBurnEventData{}
 			if err := json.Unmarshal(dataBytes, &burnt); err != nil {
 				return err
 			}
-			burnNftMap[burnt.Nft] = nil
-			for _, mintNftMap := range mintMap {
-				delete(mintNftMap, burnt.Nft)
-			}
+			burnMap[burnt.Nft] = nil
+			delete(mintMap[burnt.Collection], burnt.Nft)
 			delete(transferMap, burnt.Nft)
-			delete(mutNftMap, burnt.Nft)
+			delete(mutMap, burnt.Nft)
 		}
 	}
 
@@ -148,12 +140,11 @@ func (sub NftSubmodule) collectMove(block indexertypes.ScrappedBlock, tx *gorm.D
 			return err
 		}
 		col := types.CollectedNftCollection{
-			ChainId:     block.ChainId,
-			Addr:        mintCol,
-			Height:      block.Height,
-			Name:        colInfo.Data.Name,
-			Creator:     colInfo.Data.Creator,
-			Description: colInfo.Data.Description,
+			ChainId: block.ChainId,
+			Addr:    mintCol,
+			Height:  block.Height,
+			Name:    colInfo.Data.Name,
+			Creator: colInfo.Data.Creator,
 		}
 		mintedCols = append(mintedCols, col)
 
@@ -174,69 +165,28 @@ func (sub NftSubmodule) collectMove(block indexertypes.ScrappedBlock, tx *gorm.D
 				Addr:           mintNft,
 				Height:         block.Height,
 				Owner:          colInfo.Data.Creator,
-				Description:    nftInfo.Data.Description,
 				Uri:            nftInfo.Data.Uri,
 			}
 			mintedNfts = append(mintedNfts, nft)
 		}
 	}
-	if res := tx.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "chain_id"}, {Name: "addr"}},
-		DoUpdates: clause.AssignmentColumns([]string{"height", "name", "creator", "description"}),
-	}).CreateInBatches(mintedCols, batchSize); res.Error != nil {
+	if res := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(mintedCols, batchSize); res.Error != nil {
 		return res.Error
 	}
 	if res := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(mintedNfts, batchSize); res.Error != nil {
 		return res.Error
 	}
 
-	// batch update transferred nfts
-	var transferredNfts []types.CollectedNft
+	// update transferred nfts
 	for transferNft, transferTo := range transferMap {
-		nft := types.CollectedNft{
-			ChainId: block.ChainId,
-			Addr:    transferNft,
-			Owner:   transferTo,
-			Height:  block.Height,
+		if res := tx.Model(&types.CollectedNft{}).Where("chain_id = ? AND addr = ?", block.ChainId, transferNft).Updates(map[string]interface{}{"height": block.Height, "owner": transferTo}); res.Error != nil {
+			return res.Error
 		}
-		transferredNfts = append(transferredNfts, nft)
-	}
-	if res := tx.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "addr"}},
-		DoUpdates: clause.AssignmentColumns([]string{"height", "owner"}),
-	}).CreateInBatches(transferredNfts, batchSize); res.Error != nil {
-		return res.Error
-	}
-
-	// batch update mutated collections
-	var mutatedCols []types.CollectedNftCollection
-	for mutCol := range mutColMap {
-		colResource, ok := data.CollectionMap[mutCol]
-		if !ok {
-			return fmt.Errorf("move resource not found for collection address %s", mutCol)
-		}
-		var colInfo NftCollectionData
-		if err := json.Unmarshal([]byte(colResource), &colInfo); err != nil {
-			return err
-		}
-		col := types.CollectedNftCollection{
-			ChainId:     block.ChainId,
-			Addr:        mutCol,
-			Height:      block.Height,
-			Description: colInfo.Data.Description,
-		}
-		mutatedCols = append(mutatedCols, col)
-	}
-	if res := tx.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "chain_id"}, {Name: "addr"}},
-		DoUpdates: clause.AssignmentColumns([]string{"height", "description"}),
-	}).CreateInBatches(mutatedCols, batchSize); res.Error != nil {
-		return res.Error
 	}
 
 	// batch update mutated nfts
 	var mutatedNfts []types.CollectedNft
-	for mutNft := range mutNftMap {
+	for mutNft := range mutMap {
 		nftResource, ok := data.NftMap[mutNft]
 		if !ok {
 			return fmt.Errorf("move resource not found for nft address %s", mutNft)
@@ -246,31 +196,82 @@ func (sub NftSubmodule) collectMove(block indexertypes.ScrappedBlock, tx *gorm.D
 			return err
 		}
 		nft := types.CollectedNft{
-			ChainId:     block.ChainId,
-			Addr:        mutNft,
-			Height:      block.Height,
-			Description: nftInfo.Data.Description,
-			Uri:         nftInfo.Data.Uri,
+			ChainId: block.ChainId,
+			Addr:    mutNft,
+			Height:  block.Height,
+			Uri:     nftInfo.Data.Uri,
 		}
 		mutatedNfts = append(mutatedNfts, nft)
 	}
 	if res := tx.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "addr"}},
-		DoUpdates: clause.AssignmentColumns([]string{"height", "description", "uri"}),
+		Columns:   []clause.Column{{Name: "chain_id"}, {Name: "addr"}},
+		DoUpdates: clause.AssignmentColumns([]string{"height", "uri"}),
 	}).CreateInBatches(mutatedNfts, batchSize); res.Error != nil {
 		return res.Error
 	}
 
 	// batch delete burned nfts
 	var burnedNfts []string
-	for burnNft := range burnNftMap {
+	for burnNft := range burnMap {
 		burnedNfts = append(burnedNfts, burnNft)
 	}
-	if res := tx.Where("addr IN ?", burnedNfts).Delete(&types.CollectedNft{}); res.Error != nil {
+	if res := tx.Where("chain_id = ? AND addr IN ?", block.ChainId, burnedNfts).Delete(&types.CollectedNft{}); res.Error != nil {
 		return res.Error
 	}
 
 	// TODO: handle NftCount
 
 	return nil
+}
+
+func filterMoveData(block indexertypes.ScrappedBlock) (colAddrs []string, nftAddrs []string, err error) {
+	collectionAddrMap := make(map[string]interface{})
+	nftAddrMap := make(map[string]interface{})
+	for _, event := range extractEvents(block) {
+		if event.Type != "move" {
+			continue
+		}
+
+		typeTag, found := event.Attributes["type_tag"]
+		if !found {
+			continue
+		}
+		data, found := event.Attributes["data"]
+		if !found {
+			continue
+		}
+
+		switch typeTag {
+		case "0x1::collection::MintEvent":
+			var event NftMintAndBurnEventData
+			if err := json.Unmarshal([]byte(data), &event); err != nil {
+				return colAddrs, nftAddrs, err
+			}
+			collectionAddrMap[event.Collection] = nil
+			nftAddrMap[event.Nft] = nil
+		case "0x1::nft::MutationEvent":
+			var event NftMutationEventData
+			if err := json.Unmarshal([]byte(data), &event); err != nil {
+				return colAddrs, nftAddrs, err
+			}
+			nftAddrMap[event.Nft] = nil
+		case "0x1::collection::BurnEvent":
+			var event NftMintAndBurnEventData
+			if err := json.Unmarshal([]byte(data), &event); err != nil {
+				return colAddrs, nftAddrs, err
+			}
+			delete(nftAddrMap, event.Nft)
+		default:
+			continue
+		}
+	}
+
+	for addr := range collectionAddrMap {
+		colAddrs = append(colAddrs, addr)
+	}
+	for addr := range nftAddrMap {
+		nftAddrs = append(nftAddrs, addr)
+	}
+
+	return
 }

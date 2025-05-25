@@ -16,6 +16,16 @@ type QueryMoveResourceResponse struct {
 	} `json:"resource"`
 }
 
+type QueryCallResponse struct {
+	Response string `json:"response"`
+	Error    string `json:"error"`
+}
+
+type QueryTokenUriData struct {
+	CollectionAddr string
+	TokenId        string
+}
+
 type ErrorResponse struct {
 	Code    int64  `json:"code"`
 	Message string `json:"message"`
@@ -33,9 +43,8 @@ type NftTransferEventData struct {
 	To     string `json:"to"`
 }
 
-type MutationEventData struct {
+type NftMutationEventData struct {
 	Nft              string `json:"nft,omitempty"`
-	Collection       string `json:"collection,omitempty"`
 	MutatedFieldName string `json:"mutated_field_name"`
 	OldValue         string `json:"old_value,omitempty"`
 	NewValue         string `json:"new_value,omitempty"`

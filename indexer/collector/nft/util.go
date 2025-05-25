@@ -1,7 +1,9 @@
 package nft
 
 import (
-	"encoding/json"
+	"errors"
+	"math/big"
+	"strings"
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/initia-labs/rollytics/indexer/types"
@@ -40,58 +42,12 @@ func parseEvent(evt abci.Event) types.ParsedEvent {
 	}
 }
 
-func filterMoveData(block types.ScrappedBlock) (colAddrs []string, nftAddrs []string, err error) {
-	collectionAddrMap := make(map[string]interface{})
-	nftAddrMap := make(map[string]interface{})
-	for _, event := range extractEvents(block) {
-		if event.Type != "move" {
-			continue
-		}
-
-		typeTag, found := event.Attributes["type_tag"]
-		if !found {
-			continue
-		}
-		data, found := event.Attributes["data"]
-		if !found {
-			continue
-		}
-
-		switch typeTag {
-		case "0x1::collection::MintEvent":
-			var event NftMintAndBurnEventData
-			if err := json.Unmarshal([]byte(data), &event); err != nil {
-				return colAddrs, nftAddrs, err
-			}
-			collectionAddrMap[event.Collection] = nil
-			nftAddrMap[event.Nft] = nil
-		case "0x1::nft::MutationEvent", "0x1::collection::MutationEvent":
-			var event MutationEventData
-			if err := json.Unmarshal([]byte(data), &event); err != nil {
-				return colAddrs, nftAddrs, err
-			}
-			if event.Collection != "" {
-				collectionAddrMap[event.Collection] = nil
-			} else if event.Nft != "" {
-				nftAddrMap[event.Nft] = nil
-			}
-		case "0x1::collection::BurnEvent":
-			var event NftMintAndBurnEventData
-			if err := json.Unmarshal([]byte(data), &event); err != nil {
-				return colAddrs, nftAddrs, err
-			}
-			delete(nftAddrMap, event.Nft)
-		default:
-			continue
-		}
+// NOTE: non-hexadecimal input causes unexpected results
+func convertHexStringToDecString(hex string) (string, error) {
+	hex = strings.TrimPrefix(hex, "0x")
+	bi, ok := new(big.Int).SetString(hex, 16)
+	if !ok {
+		return "", errors.New("failed to convert hex to dec")
 	}
-
-	for addr := range collectionAddrMap {
-		colAddrs = append(colAddrs, addr)
-	}
-	for addr := range nftAddrMap {
-		nftAddrs = append(nftAddrs, addr)
-	}
-
-	return
+	return bi.String(), nil
 }

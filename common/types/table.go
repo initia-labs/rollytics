@@ -46,31 +46,32 @@ type CollectedAccountTx struct {
 }
 
 type CollectedNftCollection struct {
-	ChainId     string `gorm:"type:text;primaryKey"`
-	Addr        string `gorm:"type:text;primaryKey;index:nft_collection_addr"`
-	Height      int64  `gorm:"type:bigint;index:nft_collection_height"`
-	Name        string `gorm:"type:text;index:nft_collection_name"`
-	Creator     string `gorm:"type:text"`
-	Description string `gorm:"type:text"`
-	NftCount    int64  `gorm:"type:bigint"`
+	ChainId    string `gorm:"type:text;primaryKey"`
+	Addr       string `gorm:"type:text;primaryKey;index:nft_collection_addr"`
+	Height     int64  `gorm:"type:bigint;index:nft_collection_height"`
+	Name       string `gorm:"type:text;index:nft_collection_name"`
+	OriginName string `gorm:"type:text;index:nft_collection_origin_name"`
+	Creator    string `gorm:"type:text"`
+	NftCount   int64  `gorm:"type:bigint"`
 }
 
 type CollectedNft struct {
 	ChainId        string `gorm:"type:text;primaryKey"`
 	CollectionAddr string `gorm:"type:text;primaryKey;index:nft_collection_addr"`
 	TokenId        string `gorm:"type:text;primaryKey;index:nft_token_id"`
-	Addr           string `gorm:"type:text;uniqueIndex:nft_addr"`
+	Addr           string `gorm:"type:text;uniqueIndex:nft_addr"` // only used in move
 	Height         int64  `gorm:"type:bigint;index:nft_height"`
 	Owner          string `gorm:"type:text;index:nft_owner"`
-	Description    string `gorm:"type:text"`
 	Uri            string `gorm:"type:text"`
 }
 
-type CollectedNftPair struct {
-	L1Collection string `gorm:"type:text;primaryKey"`
-	L2Collection string `gorm:"type:text;primaryKey"`
-	L2ChainId    string `gorm:"type:text;primaryKey"`
-	Path         string `gorm:"type:text;primaryKey"`
+type CollectedNftTx struct {
+	ChainId        string `gorm:"type:text;primaryKey"`
+	Hash           string `gorm:"type:text;primaryKey;index:nft_tx_hash"`
+	CollectionAddr string `gorm:"type:text;primaryKey;index:nft_tx_collection_addr"`
+	TokenId        string `gorm:"type:text;primaryKey;index:nft_tx_token_id"`
+	Height         int64  `gorm:"type:bigint;primaryKey;autoIncrement:false;index:nft_tx_height"`
+	Sequence       uint64 `gorm:"type:bigint;index:nft_tx_sequence"`
 }
 
 func (CollectedSeqInfo) TableName() string {
@@ -97,6 +98,6 @@ func (CollectedNft) TableName() string {
 	return "nft"
 }
 
-func (CollectedNftPair) TableName() string {
-	return "nft_pair"
+func (CollectedNftTx) TableName() string {
+	return "nft_tx"
 }

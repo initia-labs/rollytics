@@ -19,7 +19,7 @@ func getTotalFee(txs []string, txConfig client.TxConfig) (fee []byte, err error)
 	var feeCoins sdk.Coins
 	txDecoder := txConfig.TxDecoder()
 
-	for txIndex, txRaw := range txs {
+	for _, txRaw := range txs {
 		txByte, err := base64.StdEncoding.DecodeString(txRaw)
 		if err != nil {
 			return fee, err
@@ -27,9 +27,6 @@ func getTotalFee(txs []string, txConfig client.TxConfig) (fee []byte, err error)
 
 		decoded, err := txDecoder(txByte)
 		if err != nil {
-			if txIndex == 0 {
-				continue
-			}
 			return nil, err
 		}
 

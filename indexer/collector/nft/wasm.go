@@ -1,8 +1,6 @@
 package nft
 
 import (
-	"fmt"
-
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
@@ -13,9 +11,9 @@ import (
 func (sub NftSubmodule) collectWasm(block indexertypes.ScrappedBlock, tx *gorm.DB) (err error) {
 	batchSize := sub.cfg.GetDBConfig().BatchSize
 	mintColMap := make(map[string]types.CollectedNftCollection)
-	mintNftMap := make(map[string]types.CollectedNft)
-	transferMap := make(map[string]types.CollectedNft)
-	burnMap := make(map[string]interface{})
+	mintNftMap := make(map[string]map[string]types.CollectedNft)
+	transferMap := make(map[string]map[string]types.CollectedNft)
+	burnMap := make(map[string]map[string]interface{})
 
 	for _, event := range extractEvents(block) {
 		if event.Type != "wasm" {
@@ -63,18 +61,19 @@ func (sub NftSubmodule) collectWasm(block indexertypes.ScrappedBlock, tx *gorm.D
 			if !found {
 				continue
 			}
-			addr := fmt.Sprintf("%s%s", contractAddr, tokenId)
 
-			mintNftMap[addr] = types.CollectedNft{
+			if _, ok := mintNftMap[contractAddr]; !ok {
+				mintNftMap[contractAddr] = make(map[string]types.CollectedNft)
+			}
+			mintNftMap[contractAddr][tokenId] = types.CollectedNft{
 				ChainId:        block.ChainId,
 				CollectionAddr: contractAddr,
 				TokenId:        tokenId,
-				Addr:           addr,
 				Height:         block.Height,
 				Owner:          owner,
 				Uri:            uri,
 			}
-			delete(burnMap, addr)
+			delete(burnMap[contractAddr], tokenId)
 
 		case "transfer_nft", "send_nft":
 			tokenId, found := event.Attributes["token_id"]
@@ -85,13 +84,14 @@ func (sub NftSubmodule) collectWasm(block indexertypes.ScrappedBlock, tx *gorm.D
 			if !found {
 				continue
 			}
-			addr := fmt.Sprintf("%s%s", contractAddr, tokenId)
 
-			transferMap[addr] = types.CollectedNft{
+			if _, ok := transferMap[contractAddr]; !ok {
+				transferMap[contractAddr] = make(map[string]types.CollectedNft)
+			}
+			transferMap[contractAddr][tokenId] = types.CollectedNft{
 				ChainId:        block.ChainId,
 				CollectionAddr: contractAddr,
 				TokenId:        tokenId,
-				Addr:           addr,
 				Height:         block.Height,
 				Owner:          recipient,
 			}
@@ -101,11 +101,13 @@ func (sub NftSubmodule) collectWasm(block indexertypes.ScrappedBlock, tx *gorm.D
 			if !found {
 				continue
 			}
-			addr := fmt.Sprintf("%s%s", contractAddr, tokenId)
 
-			burnMap[addr] = nil
-			delete(mintNftMap, addr)
-			delete(transferMap, addr)
+			if _, ok := burnMap[contractAddr]; !ok {
+				burnMap[contractAddr] = make(map[string]interface{})
+			}
+			burnMap[contractAddr][tokenId] = nil
+			delete(mintNftMap[contractAddr], tokenId)
+			delete(transferMap[contractAddr], tokenId)
 		}
 	}
 
@@ -120,8 +122,10 @@ func (sub NftSubmodule) collectWasm(block indexertypes.ScrappedBlock, tx *gorm.D
 
 	// batch insert nfts
 	var mintedNfts []types.CollectedNft
-	for _, nft := range mintNftMap {
-		mintedNfts = append(mintedNfts, nft)
+	for _, nftMap := range mintNftMap {
+		for _, nft := range nftMap {
+			mintedNfts = append(mintedNfts, nft)
+		}
 	}
 	if res := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(mintedNfts, batchSize); res.Error != nil {
 		return res.Error
@@ -129,23 +133,27 @@ func (sub NftSubmodule) collectWasm(block indexertypes.ScrappedBlock, tx *gorm.D
 
 	// batch update transferred nfts
 	var transferredNfts []types.CollectedNft
-	for _, nft := range transferMap {
-		transferredNfts = append(transferredNfts, nft)
+	for _, nftMap := range transferMap {
+		for _, nft := range nftMap {
+			transferredNfts = append(transferredNfts, nft)
+		}
 	}
 	if res := tx.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "addr"}},
+		Columns:   []clause.Column{{Name: "chain_id"}, {Name: "collection_addr"}, {Name: "token_id"}},
 		DoUpdates: clause.AssignmentColumns([]string{"height", "owner"}),
 	}).CreateInBatches(transferredNfts, batchSize); res.Error != nil {
 		return res.Error
 	}
 
 	// batch delete burned nfts
-	var burnedNfts []string
-	for nft := range burnMap {
-		burnedNfts = append(burnedNfts, nft)
-	}
-	if res := tx.Where("addr IN ?", burnedNfts).Delete(&types.CollectedNft{}); res.Error != nil {
-		return res.Error
+	for collectionAddr, nftMap := range burnMap {
+		var tokenIds []string
+		for tokenId := range nftMap {
+			tokenIds = append(tokenIds, tokenId)
+		}
+		if res := tx.Where("chain_id = ? AND collection_addr = ? AND token_id IN ?", block.ChainId, collectionAddr, tokenIds).Delete(&types.CollectedNft{}); res.Error != nil {
+			return res.Error
+		}
 	}
 
 	// TODO: handle NftCount
