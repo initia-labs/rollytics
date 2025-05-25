@@ -103,7 +103,7 @@ func filterEvmData(block indexertypes.ScrappedBlock) (targetMap map[string]map[s
 				continue
 			}
 
-			collectionAddr := log.Address
+			collectionAddr := strings.ToLower(log.Address)
 			from := log.Topics[1]
 			to := log.Topics[2]
 			tokenId, err := convertHexStringToDecString(log.Topics[3])

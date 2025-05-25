@@ -3,6 +3,7 @@ package evm
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	evmtypes "github.com/initia-labs/minievm/x/evm/types"
 	nfttypes "github.com/initia-labs/rollytics/indexer/collector/nft/types"
@@ -47,7 +48,7 @@ func Collect(block indexertypes.ScrappedBlock, data nfttypes.CacheData, cfg *con
 				continue
 			}
 
-			collectionAddr := log.Address
+			collectionAddr := strings.ToLower(log.Address)
 			from := log.Topics[1]
 			to := log.Topics[2]
 			toAddr, err := util.AccAddressFromString(to)
