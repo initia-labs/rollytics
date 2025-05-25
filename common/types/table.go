@@ -38,11 +38,10 @@ type CollectedTx struct {
 }
 
 type CollectedAccountTx struct {
-	ChainId  string `gorm:"type:text;primaryKey"`
-	Hash     string `gorm:"type:text;primaryKey;index:account_tx_hash"`
-	Account  string `gorm:"type:text;primaryKey;index:account_tx_account"`
-	Height   int64  `gorm:"type:bigint;primaryKey;autoIncrement:false;index:account_tx_height"`
-	Sequence uint64 `gorm:"type:bigint;index:account_tx_sequence"`
+	ChainId string `gorm:"type:text;primaryKey"`
+	Hash    string `gorm:"type:text;primaryKey;index:account_tx_hash"`
+	Account string `gorm:"type:text;primaryKey;index:account_tx_account"`
+	Height  int64  `gorm:"type:bigint;primaryKey;autoIncrement:false;index:account_tx_height"`
 }
 
 type CollectedNftCollection struct {
@@ -65,13 +64,13 @@ type CollectedNft struct {
 	Uri            string `gorm:"type:text"`
 }
 
+// only for wasm and evm
 type CollectedNftTx struct {
 	ChainId        string `gorm:"type:text;primaryKey"`
 	Hash           string `gorm:"type:text;primaryKey;index:nft_tx_hash"`
 	CollectionAddr string `gorm:"type:text;primaryKey;index:nft_tx_collection_addr"`
 	TokenId        string `gorm:"type:text;primaryKey;index:nft_tx_token_id"`
 	Height         int64  `gorm:"type:bigint;primaryKey;autoIncrement:false;index:nft_tx_height"`
-	Sequence       uint64 `gorm:"type:bigint;index:nft_tx_sequence"`
 }
 
 func (CollectedSeqInfo) TableName() string {

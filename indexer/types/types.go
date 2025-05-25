@@ -36,6 +36,7 @@ type TxResult struct {
 }
 
 type ParsedEvent struct {
+	TxHash     string
 	Type       string
 	Attributes map[string]string
 }

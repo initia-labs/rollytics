@@ -22,10 +22,6 @@ func (sub TxSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.DB) (e
 	if err != nil {
 		return err
 	}
-	acctxSeqInfo, err := getSeqInfo(chainId, "account_tx", tx)
-	if err != nil {
-		return err
-	}
 
 	var ctxs []types.CollectedTx
 	var acctxs []types.CollectedAccountTx
@@ -96,13 +92,11 @@ func (sub TxSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.DB) (e
 	// collect account txs
 	for txHash, accounts := range accountMap {
 		for account := range accounts {
-			acctxSeqInfo.Sequence++
 			acctxs = append(acctxs, types.CollectedAccountTx{
-				Hash:     txHash,
-				Account:  account,
-				ChainId:  chainId,
-				Height:   height,
-				Sequence: acctxSeqInfo.Sequence,
+				Hash:    txHash,
+				Account: account,
+				ChainId: chainId,
+				Height:  height,
 			})
 		}
 	}
@@ -118,7 +112,7 @@ func (sub TxSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.DB) (e
 	}
 
 	// update seq info
-	if res := tx.Clauses(orm.UpdateAllWhenConflict).Create([]types.CollectedSeqInfo{txSeqInfo, acctxSeqInfo}); res.Error != nil {
+	if res := tx.Clauses(orm.UpdateAllWhenConflict).Create([]types.CollectedSeqInfo{txSeqInfo}); res.Error != nil {
 		return res.Error
 	}
 

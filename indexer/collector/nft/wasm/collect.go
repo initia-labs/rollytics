@@ -1,7 +1,11 @@
 package wasm
 
 import (
+	"encoding/base64"
+	"fmt"
+
 	abci "github.com/cometbft/cometbft/abci/types"
+	"github.com/cometbft/cometbft/crypto/tmhash"
 	"github.com/initia-labs/rollytics/indexer/config"
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
 	"github.com/initia-labs/rollytics/orm"
@@ -17,8 +21,14 @@ func Collect(block indexertypes.ScrappedBlock, cfg *config.Config, tx *gorm.DB) 
 	transferMap := make(map[string]map[string]types.CollectedNft)
 	burnMap := make(map[string]map[string]interface{})
 	updateCountMap := make(map[string]interface{})
+	nftTxMap := make(map[string]map[string]map[string]interface{})
 
-	for _, event := range extractEvents(block) {
+	events, err := extractEvents(block)
+	if err != nil {
+		return err
+	}
+
+	for _, event := range events {
 		if event.Type != "wasm" {
 			continue
 		}
@@ -79,6 +89,13 @@ func Collect(block indexertypes.ScrappedBlock, cfg *config.Config, tx *gorm.DB) 
 			delete(burnMap[collectionAddr], tokenId)
 			updateCountMap[collectionAddr] = nil
 
+			if _, ok := nftTxMap[event.TxHash]; !ok {
+				nftTxMap[event.TxHash] = make(map[string]map[string]interface{})
+			}
+			if _, ok := nftTxMap[event.TxHash][collectionAddr]; !ok {
+				nftTxMap[event.TxHash][collectionAddr] = make(map[string]interface{})
+			}
+			nftTxMap[event.TxHash][collectionAddr][tokenId] = nil
 		case "transfer_nft", "send_nft":
 			tokenId, found := event.Attributes["token_id"]
 			if !found {
@@ -100,6 +117,13 @@ func Collect(block indexertypes.ScrappedBlock, cfg *config.Config, tx *gorm.DB) 
 				Owner:          recipient,
 			}
 
+			if _, ok := nftTxMap[event.TxHash]; !ok {
+				nftTxMap[event.TxHash] = make(map[string]map[string]interface{})
+			}
+			if _, ok := nftTxMap[event.TxHash][collectionAddr]; !ok {
+				nftTxMap[event.TxHash][collectionAddr] = make(map[string]interface{})
+			}
+			nftTxMap[event.TxHash][collectionAddr][tokenId] = nil
 		case "burn":
 			tokenId, found := event.Attributes["token_id"]
 			if !found {
@@ -113,6 +137,14 @@ func Collect(block indexertypes.ScrappedBlock, cfg *config.Config, tx *gorm.DB) 
 			delete(mintNftMap[collectionAddr], tokenId)
 			delete(transferMap[collectionAddr], tokenId)
 			updateCountMap[collectionAddr] = nil
+
+			if _, ok := nftTxMap[event.TxHash]; !ok {
+				nftTxMap[event.TxHash] = make(map[string]map[string]interface{})
+			}
+			if _, ok := nftTxMap[event.TxHash][collectionAddr]; !ok {
+				nftTxMap[event.TxHash][collectionAddr] = make(map[string]interface{})
+			}
+			nftTxMap[event.TxHash][collectionAddr][tokenId] = nil
 		}
 	}
 
@@ -172,35 +204,61 @@ func Collect(block indexertypes.ScrappedBlock, cfg *config.Config, tx *gorm.DB) 
 		}
 	}
 
+	// batch insert nft txs
+	var nftTxs []types.CollectedNftTx
+	for txHash, collectionMap := range nftTxMap {
+		for collectionAddr, nftMap := range collectionMap {
+			for tokenId := range nftMap {
+				nftTxs = append(nftTxs, types.CollectedNftTx{
+					ChainId:        block.ChainId,
+					Hash:           txHash,
+					CollectionAddr: collectionAddr,
+					TokenId:        tokenId,
+					Height:         block.Height,
+				})
+			}
+		}
+	}
+	if res := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(nftTxs, batchSize); res.Error != nil {
+		return res.Error
+	}
+
 	return nil
 }
 
-func extractEvents(block indexertypes.ScrappedBlock) []indexertypes.ParsedEvent {
-	events := parseEvents(block.BeginBlock)
+func extractEvents(block indexertypes.ScrappedBlock) (events []indexertypes.ParsedEvent, err error) {
+	events = parseEvents(block.BeginBlock, "")
 
-	for _, res := range block.TxResults {
-		events = append(events, parseEvents(res.Events)...)
+	for txIndex, txRaw := range block.Txs {
+		txByte, err := base64.StdEncoding.DecodeString(txRaw)
+		if err != nil {
+			return events, err
+		}
+		txHash := fmt.Sprintf("%X", tmhash.Sum(txByte))
+		txRes := block.TxResults[txIndex]
+		events = append(events, parseEvents(txRes.Events, txHash)...)
 	}
 
-	events = append(events, parseEvents(block.EndBlock)...)
+	events = append(events, parseEvents(block.EndBlock, "")...)
 
-	return events
+	return events, nil
 }
 
-func parseEvents(evts []abci.Event) (parsedEvts []indexertypes.ParsedEvent) {
+func parseEvents(evts []abci.Event, txHash string) (parsedEvts []indexertypes.ParsedEvent) {
 	for _, evt := range evts {
-		parsedEvts = append(parsedEvts, parseEvent(evt))
+		parsedEvts = append(parsedEvts, parseEvent(evt, txHash))
 	}
 
 	return
 }
 
-func parseEvent(evt abci.Event) indexertypes.ParsedEvent {
+func parseEvent(evt abci.Event, txHash string) indexertypes.ParsedEvent {
 	attributes := make(map[string]string)
 	for _, attr := range evt.Attributes {
 		attributes[attr.Key] = attr.Value
 	}
 	return indexertypes.ParsedEvent{
+		TxHash:     txHash,
 		Type:       evt.Type,
 		Attributes: attributes,
 	}

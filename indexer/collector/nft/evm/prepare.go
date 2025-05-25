@@ -1,12 +1,14 @@
 package evm
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math/big"
 	"strings"
 
-	abci "github.com/cometbft/cometbft/abci/types"
+	"github.com/cometbft/cometbft/crypto/tmhash"
 	"github.com/gofiber/fiber/v2"
 	evmtypes "github.com/initia-labs/minievm/x/evm/types"
 	"github.com/initia-labs/rollytics/indexer/collector/nft/types"
@@ -77,7 +79,12 @@ func Prepare(block indexertypes.ScrappedBlock, cfg *config.Config) (data types.C
 func filterEvmData(block indexertypes.ScrappedBlock) (targetMap map[string]map[string]interface{}, err error) {
 	targetMap = make(map[string]map[string]interface{}) // collection addr -> token id
 
-	for _, event := range getEvents(block) {
+	events, err := getEvents(block)
+	if err != nil {
+		return targetMap, err
+	}
+
+	for _, event := range events {
 		if event.Type != "evm" {
 			continue
 		}
@@ -120,16 +127,37 @@ func filterEvmData(block indexertypes.ScrappedBlock) (targetMap map[string]map[s
 	return
 }
 
-func getEvents(block indexertypes.ScrappedBlock) []abci.Event {
-	events := block.BeginBlock
-
-	for _, res := range block.TxResults {
-		events = append(events, res.Events...)
+func getEvents(block indexertypes.ScrappedBlock) (events []EventWithHash, err error) {
+	for _, event := range block.BeginBlock {
+		events = append(events, EventWithHash{
+			TxHash: "",
+			Event:  event,
+		})
 	}
 
-	events = append(events, block.EndBlock...)
+	for txIndex, txRaw := range block.Txs {
+		txByte, err := base64.StdEncoding.DecodeString(txRaw)
+		if err != nil {
+			return events, err
+		}
+		txHash := fmt.Sprintf("%X", tmhash.Sum(txByte))
+		txRes := block.TxResults[txIndex]
+		for _, event := range txRes.Events {
+			events = append(events, EventWithHash{
+				TxHash: txHash,
+				Event:  event,
+			})
+		}
+	}
 
-	return events
+	for _, event := range block.EndBlock {
+		events = append(events, EventWithHash{
+			TxHash: "",
+			Event:  event,
+		})
+	}
+
+	return events, nil
 }
 
 func isEvmNftLog(log evmtypes.Log) bool {
