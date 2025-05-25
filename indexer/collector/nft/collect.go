@@ -5,6 +5,7 @@ import (
 
 	"github.com/initia-labs/rollytics/indexer/collector/nft/evm"
 	"github.com/initia-labs/rollytics/indexer/collector/nft/move"
+	"github.com/initia-labs/rollytics/indexer/collector/nft/pair"
 	"github.com/initia-labs/rollytics/indexer/collector/nft/wasm"
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
 	"github.com/initia-labs/rollytics/types"
@@ -20,15 +21,23 @@ func (sub NftSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.DB) (
 		if !dataOk {
 			return errors.New("data is not prepared")
 		}
-		return move.Collect(block, data, sub.cfg, tx)
+		if err = move.Collect(block, data, sub.cfg, tx); err != nil {
+			return err
+		}
 	case types.WasmVM:
-		return wasm.Collect(block, sub.cfg, tx)
+		if err = wasm.Collect(block, sub.cfg, tx); err != nil {
+			return err
+		}
 	case types.EVM:
 		if !dataOk {
 			return errors.New("data is not prepared")
 		}
-		return evm.Collect(block, data, sub.cfg, tx)
+		if err = evm.Collect(block, data, sub.cfg, tx); err != nil {
+			return err
+		}
 	default:
 		return errors.New("invalid vm type")
 	}
+
+	return pair.Collect(block, sub.cfg, tx)
 }
