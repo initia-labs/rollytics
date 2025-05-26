@@ -2,20 +2,17 @@ package evm
 
 import (
 	"encoding/hex"
-	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 	"sync"
-	"time"
 
 	cbjson "github.com/cometbft/cometbft/libs/json"
 	"github.com/gofiber/fiber/v2"
 	movetypes "github.com/initia-labs/initia/x/move/types"
 	"github.com/initia-labs/minievm/x/evm/contracts/erc721"
 	vmtypes "github.com/initia-labs/movevm/types"
-	"github.com/initia-labs/rollytics/indexer/collector/nft/types"
 	"github.com/initia-labs/rollytics/indexer/config"
+	"github.com/initia-labs/rollytics/indexer/util"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -134,7 +131,7 @@ func getTokenUri(collectionAddr, tokenId string, client *fiber.Client, cfg *conf
 }
 
 func evmCall(sender, contractAddr string, input []byte, client *fiber.Client, cfg *config.Config, height int64) (response []byte, err error) {
-	payload := map[string]string{
+	payload := map[string]interface{}{
 		"sender":       sender,
 		"contract_add": contractAddr,
 		"input":        fmt.Sprintf("0x%s", hex.EncodeToString(input)),
@@ -142,7 +139,7 @@ func evmCall(sender, contractAddr string, input []byte, client *fiber.Client, cf
 	}
 	headers := map[string]string{"x-cosmos-block-height": fmt.Sprintf("%d", height)}
 	path := "/minievm/evm/v1/call"
-	body, err := post(client, cfg, path, payload, headers)
+	body, err := util.Post(client, cfg, path, payload, headers)
 	if err != nil {
 		return response, err
 	}
@@ -157,65 +154,4 @@ func evmCall(sender, contractAddr string, input []byte, client *fiber.Client, cf
 	}
 
 	return hex.DecodeString(strings.TrimPrefix(callRes.Response, "0x"))
-}
-
-func post(client *fiber.Client, cfg *config.Config, path string, payload map[string]string, headers map[string]string) ([]byte, error) {
-	retryCount := 0
-	for retryCount <= maxRetries {
-		body, err := postRaw(client, cfg, path, payload, headers)
-		if err == nil {
-			return body, nil
-		}
-
-		// handle case of querying future height
-		if strings.HasPrefix(fmt.Sprintf("%+v", err), "invalid height") {
-			time.Sleep(cfg.GetCoolingDuration())
-			continue
-		}
-
-		retryCount++
-		if retryCount > maxRetries {
-			return nil, err
-		}
-		time.Sleep(cfg.GetCoolingDuration())
-	}
-
-	return nil, fmt.Errorf("failed to post data after %d retries", maxRetries)
-}
-
-func postRaw(client *fiber.Client, cfg *config.Config, path string, payload map[string]string, headers map[string]string) (body []byte, err error) {
-	baseUrl := fmt.Sprintf("%s%s", cfg.GetChainConfig().RestUrl, path)
-	req := client.Post(baseUrl)
-
-	// set payload
-	if payload != nil {
-		req = req.JSON(payload)
-	}
-
-	// set header
-	for key, value := range headers {
-		req.Set(key, value)
-	}
-
-	code, body, errs := req.Timeout(5 * time.Second).Bytes()
-	if err := errors.Join(errs...); err != nil {
-		return nil, err
-	}
-
-	if code != fiber.StatusOK {
-		if code == fiber.StatusInternalServerError {
-			var res types.ErrorResponse
-			if err := json.Unmarshal(body, &res); err != nil {
-				return body, err
-			}
-
-			if res.Message == "codespace sdk code 26: invalid height: cannot query with height in the future; please provide a valid height" {
-				return nil, fmt.Errorf("invalid height")
-			}
-		}
-
-		return nil, fmt.Errorf("http response: %d, body: %s", code, string(body))
-	}
-
-	return body, nil
 }

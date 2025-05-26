@@ -36,7 +36,7 @@ type GetBlockResultsResponse struct {
 	} `json:"result"`
 }
 
-type ErrorResponse struct {
+type RpcErrorResponse struct {
 	Error struct {
 		Code    int64  `json:"code"`
 		Message string `json:"message"`

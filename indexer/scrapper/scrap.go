@@ -81,7 +81,7 @@ func fetchFromRpc(client *fiber.Client, url string) (body []byte, err error) {
 
 	if code != fiber.StatusOK {
 		if code == fiber.StatusInternalServerError {
-			var res ErrorResponse
+			var res RpcErrorResponse
 			if err := json.Unmarshal(body, &res); err != nil {
 				return body, err
 			}

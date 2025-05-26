@@ -27,7 +27,7 @@ func New(logger *slog.Logger, db *orm.Database, cfg *config.Config) *Collector {
 		db:     db,
 		submodules: map[string]types.Submodule{
 			block.SubmoduleName: block.New(logger, txConfig),
-			tx.SubmoduleName:    tx.New(logger, txConfig),
+			tx.SubmoduleName:    tx.New(logger, cfg, txConfig),
 			nft.SubmoduleName:   nft.New(logger, cfg),
 		},
 	}

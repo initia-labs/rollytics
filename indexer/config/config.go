@@ -24,10 +24,11 @@ type Config struct {
 }
 
 type ChainConfig struct {
-	ChainId string
-	VmType  types.VMType
-	RpcUrl  string
-	RestUrl string
+	ChainId    string
+	VmType     types.VMType
+	RpcUrl     string
+	RestUrl    string
+	JsonRpcUrl string
 }
 
 func setDefaults() {
@@ -67,10 +68,11 @@ func GetConfig() (*Config, error) {
 	}
 
 	cc := &ChainConfig{
-		ChainId: viper.GetString("CHAIN_ID"),
-		VmType:  vmType,
-		RpcUrl:  viper.GetString("RPC_URL"),
-		RestUrl: viper.GetString("REST_URL"),
+		ChainId:    viper.GetString("CHAIN_ID"),
+		VmType:     vmType,
+		RpcUrl:     viper.GetString("RPC_URL"),
+		RestUrl:    viper.GetString("REST_URL"),
+		JsonRpcUrl: viper.GetString("JSON_RPC_URL"),
 	}
 
 	config := &Config{
@@ -156,6 +158,14 @@ func (cc ChainConfig) Validate() error {
 	}
 	if _, err := url.Parse(cc.RestUrl); err != nil {
 		return fmt.Errorf("REST_URL(%s) is invalid: %s", cc.RestUrl, err)
+	}
+	if cc.VmType == types.EVM {
+		if len(cc.JsonRpcUrl) == 0 {
+			return fmt.Errorf("JSON_RPC_URL is required")
+		}
+		if _, err := url.Parse(cc.JsonRpcUrl); err != nil {
+			return fmt.Errorf("JSON_RPC_URL(%s) is invalid: %s", cc.JsonRpcUrl, err)
+		}
 	}
 	return nil
 }

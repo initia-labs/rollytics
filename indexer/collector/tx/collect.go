@@ -3,11 +3,13 @@ package tx
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/cometbft/cometbft/crypto/tmhash"
 	cbjson "github.com/cometbft/cometbft/libs/json"
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
+	"github.com/initia-labs/rollytics/indexer/util"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
 	"gorm.io/gorm"
@@ -18,7 +20,7 @@ func (sub TxSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.DB) (e
 	height := block.Height
 	txDecode := sub.txConfig.TxDecoder()
 	jsonEncoder := sub.txConfig.TxJSONEncoder()
-	txSeqInfo, err := getSeqInfo(chainId, "tx", tx)
+	seqInfo, err := getSeqInfo(chainId, "tx", tx)
 	if err != nil {
 		return err
 	}
@@ -66,12 +68,12 @@ func (sub TxSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.DB) (e
 			return err
 		}
 
-		txSeqInfo.Sequence++
+		seqInfo.Sequence++
 		ctx := types.CollectedTx{
 			Hash:     fmt.Sprintf("%X", tmhash.Sum(txByte)),
 			ChainId:  chainId,
 			Height:   height,
-			Sequence: txSeqInfo.Sequence,
+			Sequence: seqInfo.Sequence,
 			Data:     json.RawMessage(txByHeightRecordJSON),
 		}
 		ctxs = append(ctxs, ctx)
@@ -112,7 +114,83 @@ func (sub TxSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.DB) (e
 	}
 
 	// update seq info
-	if res := tx.Clauses(orm.UpdateAllWhenConflict).Create([]types.CollectedSeqInfo{txSeqInfo}); res.Error != nil {
+	if res := tx.Clauses(orm.UpdateAllWhenConflict).Create([]types.CollectedSeqInfo{seqInfo}); res.Error != nil {
+		return res.Error
+	}
+
+	return sub.collectEvm(block, tx)
+}
+
+func (sub TxSubmodule) collectEvm(block indexertypes.ScrappedBlock, tx *gorm.DB) (err error) {
+	if sub.cfg.GetChainConfig().VmType != types.EVM {
+		return nil
+	}
+
+	seqInfo, err := getSeqInfo(block.ChainId, "evm_tx", tx)
+	if err != nil {
+		return err
+	}
+
+	evmTxs, ok := sub.evmTxMap[block.Height]
+	if !ok {
+		return errors.New("data is not prepared")
+	}
+
+	var cetxs []types.CollectedEvmTx
+	var acetxs []types.CollectedEvmAccountTx
+	accountMap := make(map[string]map[string]interface{})
+
+	for _, evmTx := range evmTxs {
+		txJSON, err := json.Marshal(evmTx)
+		if err != nil {
+			return err
+		}
+
+		seqInfo.Sequence++
+		cetxs = append(cetxs, types.CollectedEvmTx{
+			ChainId:  block.ChainId,
+			Hash:     evmTx.TxHash,
+			Height:   block.Height,
+			Sequence: seqInfo.Sequence,
+			Data:     json.RawMessage(txJSON),
+		})
+
+		from, err := util.AccAddressFromString(evmTx.From)
+		if err != nil {
+			return err
+		}
+		to, err := util.AccAddressFromString(evmTx.To)
+		if err != nil {
+			return err
+		}
+		accountMap[evmTx.TxHash] = make(map[string]interface{})
+		accountMap[evmTx.TxHash][from.String()] = nil
+		accountMap[evmTx.TxHash][to.String()] = nil
+	}
+
+	for txHash, accounts := range accountMap {
+		for account := range accounts {
+			acetxs = append(acetxs, types.CollectedEvmAccountTx{
+				ChainId: block.ChainId,
+				Hash:    txHash,
+				Account: account,
+				Height:  block.Height,
+			})
+		}
+	}
+
+	// insert evm txs
+	if res := tx.Clauses(orm.DoNothingWhenConflict).Create(cetxs); res.Error != nil {
+		return res.Error
+	}
+
+	// insert evm account txs
+	if res := tx.Clauses(orm.DoNothingWhenConflict).Create(acetxs); res.Error != nil {
+		return res.Error
+	}
+
+	// update seq info
+	if res := tx.Clauses(orm.UpdateAllWhenConflict).Create([]types.CollectedSeqInfo{seqInfo}); res.Error != nil {
 		return res.Error
 	}
 

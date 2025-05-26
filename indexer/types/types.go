@@ -52,3 +52,8 @@ type TxByHeightRecord struct {
 	Tx        json.RawMessage `json:"tx"`
 	Events    json.RawMessage `json:"events"`
 }
+
+type ErrorResponse struct {
+	Code    int64  `json:"code"`
+	Message string `json:"message"`
+}

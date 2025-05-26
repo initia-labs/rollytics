@@ -44,6 +44,21 @@ type CollectedAccountTx struct {
 	Height  int64  `gorm:"type:bigint;primaryKey;autoIncrement:false;index:account_tx_height"`
 }
 
+type CollectedEvmTx struct {
+	ChainId  string          `gorm:"type:text;primaryKey"`
+	Hash     string          `gorm:"type:text;primaryKey;index:evm_tx_hash"`
+	Height   int64           `gorm:"type:bigint;primaryKey;autoIncrement:false;index:evm_tx_height"`
+	Sequence uint64          `gorm:"type:bigint;index:evm_tx_sequence"`
+	Data     json.RawMessage `gorm:"type:jsonb"`
+}
+
+type CollectedEvmAccountTx struct {
+	ChainId string `gorm:"type:text;primaryKey"`
+	Hash    string `gorm:"type:text;primaryKey;index:evm_account_tx_hash"`
+	Account string `gorm:"type:text;primaryKey;index:evm_account_tx_account"`
+	Height  int64  `gorm:"type:bigint;primaryKey;autoIncrement:false;index:evm_account_tx_height"`
+}
+
 type CollectedNftCollection struct {
 	ChainId    string `gorm:"type:text;primaryKey"`
 	Addr       string `gorm:"type:text;primaryKey;index:nft_collection_addr"`
