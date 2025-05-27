@@ -2,6 +2,7 @@ package nft
 
 import (
 	"log/slog"
+	"sync"
 
 	nfttypes "github.com/initia-labs/rollytics/indexer/collector/nft/types"
 	"github.com/initia-labs/rollytics/indexer/config"
@@ -11,12 +12,13 @@ import (
 
 const SubmoduleName = "nft"
 
-var _ types.Submodule = NftSubmodule{}
+var _ types.Submodule = &NftSubmodule{}
 
 type NftSubmodule struct {
 	logger  *slog.Logger
 	cfg     *config.Config
 	dataMap map[int64]nfttypes.CacheData
+	mtx     sync.Mutex
 }
 
 func New(logger *slog.Logger, cfg *config.Config) *NftSubmodule {
@@ -27,11 +29,11 @@ func New(logger *slog.Logger, cfg *config.Config) *NftSubmodule {
 	}
 }
 
-func (sub NftSubmodule) Name() string {
+func (sub *NftSubmodule) Name() string {
 	return SubmoduleName
 }
 
-func (sub NftSubmodule) Prepare(block types.ScrappedBlock) error {
+func (sub *NftSubmodule) Prepare(block types.ScrappedBlock) error {
 	if err := sub.prepare(block); err != nil {
 		sub.logger.Error("failed to prepare data", slog.Int64("height", block.Height), slog.Any("error", err))
 		return err
@@ -40,7 +42,7 @@ func (sub NftSubmodule) Prepare(block types.ScrappedBlock) error {
 	return nil
 }
 
-func (sub NftSubmodule) Collect(block types.ScrappedBlock, tx *gorm.DB) error {
+func (sub *NftSubmodule) Collect(block types.ScrappedBlock, tx *gorm.DB) error {
 	if err := sub.collect(block, tx); err != nil {
 		sub.logger.Error("failed to collect data", slog.Int64("height", block.Height), slog.Any("error", err))
 		return err

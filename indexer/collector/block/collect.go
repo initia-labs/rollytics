@@ -7,7 +7,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func (sub BlockSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.DB) (err error) {
+func (sub *BlockSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.DB) (err error) {
 	var cb types.CollectedBlock
 	cb.ChainId = block.ChainId
 	cb.Height = block.Height

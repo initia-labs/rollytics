@@ -5,14 +5,18 @@ package collector
 
 import (
 	"github.com/cosmos/cosmos-sdk/client"
+	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/initia-labs/minimove/app"
 )
 
 var txConfig client.TxConfig
+var cdc codec.Codec
 
 func init() {
-	txConfig = app.MakeEncodingConfig().TxConfig
+	cfg := app.MakeEncodingConfig()
+	txConfig = cfg.TxConfig
+	cdc = cfg.Codec
 	sdkConfig := sdk.GetConfig()
 	sdkConfig.SetCoinType(app.CoinType)
 	accountPubKeyPrefix := app.AccountAddressPrefix + "pub"

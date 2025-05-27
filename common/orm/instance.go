@@ -62,6 +62,8 @@ func (d Database) Migrate() error {
 		&types.CollectedBlock{},
 		&types.CollectedTx{},
 		&types.CollectedAccountTx{},
+		&types.CollectedEvmTx{},
+		&types.CollectedEvmAccountTx{},
 		&types.CollectedNftCollection{},
 		&types.CollectedNft{},
 		&types.CollectedNftTx{},

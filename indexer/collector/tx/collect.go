@@ -8,6 +8,9 @@ import (
 
 	"github.com/cometbft/cometbft/crypto/tmhash"
 	cbjson "github.com/cometbft/cometbft/libs/json"
+	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
 	"github.com/initia-labs/rollytics/indexer/util"
 	"github.com/initia-labs/rollytics/orm"
@@ -15,7 +18,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func (sub TxSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.DB) (err error) {
+func (sub *TxSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.DB) (err error) {
 	chainId := block.ChainId
 	height := block.Height
 	txDecode := sub.txConfig.TxDecoder()
@@ -41,6 +44,30 @@ func (sub TxSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.DB) (e
 			}
 			return decodeErr
 		}
+
+		p, ok := decoded.(intoAny)
+		if !ok {
+			return fmt.Errorf("expecting a type implementing intoAny, got :%+v", decoded)
+		}
+		asAny := p.AsAny()
+		cachedVal := asAny.GetCachedValue()
+		if cachedVal == nil {
+			return errors.New("cached transaction is nil")
+		}
+
+		protoTx, ok := cachedVal.(*txtypes.Tx)
+		if !ok {
+			return fmt.Errorf("failed to convert to proto transaction: unexpected type %+v", cachedVal)
+		}
+
+		authInfo := protoTx.GetAuthInfo()
+		pubkey := authInfo.SignerInfos[0].PublicKey
+
+		var pk cryptotypes.PubKey
+		if err = sub.cdc.UnpackAny(pubkey, &pk); err != nil {
+			return err
+		}
+		signer := sdk.AccAddress(pk.Address()).String()
 
 		txJSON, _ := jsonEncoder(decoded)
 		res := block.TxResults[txIndex]
@@ -74,6 +101,7 @@ func (sub TxSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.DB) (e
 			ChainId:  chainId,
 			Height:   height,
 			Sequence: seqInfo.Sequence,
+			Signer:   signer,
 			Data:     json.RawMessage(txByHeightRecordJSON),
 		}
 		ctxs = append(ctxs, ctx)
@@ -121,7 +149,7 @@ func (sub TxSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.DB) (e
 	return sub.collectEvm(block, tx)
 }
 
-func (sub TxSubmodule) collectEvm(block indexertypes.ScrappedBlock, tx *gorm.DB) (err error) {
+func (sub *TxSubmodule) collectEvm(block indexertypes.ScrappedBlock, tx *gorm.DB) (err error) {
 	if sub.cfg.GetChainConfig().VmType != types.EVM {
 		return nil
 	}
@@ -131,7 +159,9 @@ func (sub TxSubmodule) collectEvm(block indexertypes.ScrappedBlock, tx *gorm.DB)
 		return err
 	}
 
+	sub.mtx.Lock()
 	evmTxs, ok := sub.evmTxMap[block.Height]
+	sub.mtx.Unlock()
 	if !ok {
 		return errors.New("data is not prepared")
 	}
@@ -155,17 +185,21 @@ func (sub TxSubmodule) collectEvm(block indexertypes.ScrappedBlock, tx *gorm.DB)
 			Data:     json.RawMessage(txJSON),
 		})
 
-		from, err := util.AccAddressFromString(evmTx.From)
-		if err != nil {
-			return err
-		}
-		to, err := util.AccAddressFromString(evmTx.To)
-		if err != nil {
-			return err
-		}
 		accountMap[evmTx.TxHash] = make(map[string]interface{})
-		accountMap[evmTx.TxHash][from.String()] = nil
-		accountMap[evmTx.TxHash][to.String()] = nil
+		if evmTx.From != "" {
+			from, err := util.AccAddressFromString(evmTx.From)
+			if err != nil {
+				return err
+			}
+			accountMap[evmTx.TxHash][from.String()] = nil
+		}
+		if evmTx.To != "" {
+			to, err := util.AccAddressFromString(evmTx.To)
+			if err != nil {
+				return err
+			}
+			accountMap[evmTx.TxHash][to.String()] = nil
+		}
 	}
 
 	for txHash, accounts := range accountMap {
@@ -193,6 +227,10 @@ func (sub TxSubmodule) collectEvm(block indexertypes.ScrappedBlock, tx *gorm.DB)
 	if res := tx.Clauses(orm.UpdateAllWhenConflict).Create([]types.CollectedSeqInfo{seqInfo}); res.Error != nil {
 		return res.Error
 	}
+
+	sub.mtx.Lock()
+	delete(sub.evmTxMap, block.Height)
+	sub.mtx.Unlock()
 
 	return nil
 }

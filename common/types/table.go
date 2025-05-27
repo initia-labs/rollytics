@@ -34,6 +34,7 @@ type CollectedTx struct {
 	Hash     string          `gorm:"type:text;primaryKey;index:tx_hash"`
 	Height   int64           `gorm:"type:bigint;primaryKey;autoIncrement:false;index:tx_height"`
 	Sequence uint64          `gorm:"type:bigint;index:tx_sequence"`
+	Signer   string          `gorm:"type:text"`
 	Data     json.RawMessage `gorm:"type:jsonb"`
 }
 
@@ -102,6 +103,14 @@ func (CollectedTx) TableName() string {
 
 func (CollectedAccountTx) TableName() string {
 	return "account_tx"
+}
+
+func (CollectedEvmTx) TableName() string {
+	return "evm_tx"
+}
+
+func (CollectedEvmAccountTx) TableName() string {
+	return "evm_account_tx"
 }
 
 func (CollectedNftCollection) TableName() string {

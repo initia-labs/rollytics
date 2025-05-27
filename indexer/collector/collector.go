@@ -2,7 +2,6 @@ package collector
 
 import (
 	"log/slog"
-	"sync"
 
 	"github.com/initia-labs/rollytics/indexer/collector/block"
 	"github.com/initia-labs/rollytics/indexer/collector/nft"
@@ -18,7 +17,6 @@ type Collector struct {
 	logger     *slog.Logger
 	db         *orm.Database
 	submodules map[string]types.Submodule
-	mtx        sync.Mutex
 }
 
 func New(logger *slog.Logger, db *orm.Database, cfg *config.Config) *Collector {
@@ -27,7 +25,7 @@ func New(logger *slog.Logger, db *orm.Database, cfg *config.Config) *Collector {
 		db:     db,
 		submodules: map[string]types.Submodule{
 			block.SubmoduleName: block.New(logger, txConfig),
-			tx.SubmoduleName:    tx.New(logger, cfg, txConfig),
+			tx.SubmoduleName:    tx.New(logger, cfg, txConfig, cdc),
 			nft.SubmoduleName:   nft.New(logger, cfg),
 		},
 	}

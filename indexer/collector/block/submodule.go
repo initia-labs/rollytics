@@ -10,7 +10,7 @@ import (
 
 const SubmoduleName = "block"
 
-var _ types.Submodule = BlockSubmodule{}
+var _ types.Submodule = &BlockSubmodule{}
 
 type BlockSubmodule struct {
 	logger   *slog.Logger
@@ -24,15 +24,15 @@ func New(logger *slog.Logger, txConfig client.TxConfig) *BlockSubmodule {
 	}
 }
 
-func (sub BlockSubmodule) Name() string {
+func (sub *BlockSubmodule) Name() string {
 	return SubmoduleName
 }
 
-func (sub BlockSubmodule) Prepare(block types.ScrappedBlock) error {
+func (sub *BlockSubmodule) Prepare(block types.ScrappedBlock) error {
 	return nil
 }
 
-func (sub BlockSubmodule) Collect(block types.ScrappedBlock, tx *gorm.DB) error {
+func (sub *BlockSubmodule) Collect(block types.ScrappedBlock, tx *gorm.DB) error {
 	if err := sub.collect(block, tx); err != nil {
 		sub.logger.Error("failed to collect data", slog.Int64("height", block.Height), slog.Any("error", err))
 		return err

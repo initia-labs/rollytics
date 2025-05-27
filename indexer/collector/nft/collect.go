@@ -12,9 +12,10 @@ import (
 	"gorm.io/gorm"
 )
 
-func (sub NftSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.DB) (err error) {
+func (sub *NftSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.DB) (err error) {
+	sub.mtx.Lock()
 	data, dataOk := sub.dataMap[block.Height]
-	defer delete(sub.dataMap, block.Height)
+	sub.mtx.Unlock()
 
 	switch sub.cfg.GetChainConfig().VmType {
 	case types.MoveVM:
@@ -38,6 +39,10 @@ func (sub NftSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.DB) (
 	default:
 		return errors.New("invalid vm type")
 	}
+
+	sub.mtx.Lock()
+	delete(sub.dataMap, block.Height)
+	sub.mtx.Unlock()
 
 	return pair.Collect(block, sub.cfg, tx)
 }

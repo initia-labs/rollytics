@@ -6,7 +6,7 @@ import (
 	"github.com/initia-labs/rollytics/types"
 )
 
-func (sub TxSubmodule) prepare(block indexertypes.ScrappedBlock) (err error) {
+func (sub *TxSubmodule) prepare(block indexertypes.ScrappedBlock) (err error) {
 	if sub.cfg.GetChainConfig().VmType != types.EVM {
 		return nil
 	}
@@ -19,6 +19,9 @@ func (sub TxSubmodule) prepare(block indexertypes.ScrappedBlock) (err error) {
 		return err
 	}
 
+	sub.mtx.Lock()
 	sub.evmTxMap[block.Height] = evmTxs
+	sub.mtx.Unlock()
+
 	return nil
 }

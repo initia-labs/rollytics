@@ -1,5 +1,7 @@
 package tx
 
+import codectypes "github.com/cosmos/cosmos-sdk/codec/types"
+
 type QueryEvmTxsResponse struct {
 	Result []EvmTx `json:"result"`
 }
@@ -31,4 +33,8 @@ type EvmLog struct {
 	BlockHash   string   `json:"blockHash"`
 	LogIndex    string   `json:"logIndex"`
 	Removed     bool     `json:"removed"`
+}
+
+type intoAny interface {
+	AsAny() *codectypes.Any
 }
