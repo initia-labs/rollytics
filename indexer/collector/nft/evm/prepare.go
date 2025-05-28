@@ -67,6 +67,10 @@ func Prepare(block indexertypes.ScrappedBlock, cfg *config.Config) (data types.C
 		return nil
 	})
 
+	if err := g.Wait(); err != nil {
+		return data, err
+	}
+
 	nameMap := <-getCollectionNamesRes
 	uriMap := <-getTokenUrisRes
 

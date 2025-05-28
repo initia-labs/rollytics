@@ -16,7 +16,7 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-func Collect(block indexertypes.ScrappedBlock, data nfttypes.CacheData, cfg *config.Config, tx *gorm.DB) (err error) {
+func Collect(block indexertypes.ScrappedBlock, cacheData nfttypes.CacheData, cfg *config.Config, tx *gorm.DB) (err error) {
 	batchSize := cfg.GetDBConfig().BatchSize
 	mintMap := make(map[string]map[string]string)
 	transferMap := make(map[string]map[string]string)
@@ -102,7 +102,7 @@ func Collect(block indexertypes.ScrappedBlock, data nfttypes.CacheData, cfg *con
 	var mintedCols []types.CollectedNftCollection
 	var mintedNfts []types.CollectedNft
 	for collectionAddr, nftMap := range mintMap {
-		name, ok := data.CollectionMap[collectionAddr]
+		name, ok := cacheData.CollectionMap[collectionAddr]
 		if !ok {
 			return fmt.Errorf("collection name info not found for collection address %s", collectionAddr)
 		}
@@ -117,7 +117,7 @@ func Collect(block indexertypes.ScrappedBlock, data nfttypes.CacheData, cfg *con
 
 		for tokenId, owner := range nftMap {
 			nftAddr := fmt.Sprintf("%s%s", collectionAddr, tokenId)
-			tokenUri, ok := data.NftMap[nftAddr]
+			tokenUri, ok := cacheData.NftMap[nftAddr]
 			if !ok {
 				return fmt.Errorf("token uri info not found for collection address %s and token id %s", collectionAddr, tokenId)
 			}

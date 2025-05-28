@@ -12,7 +12,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
-	"github.com/initia-labs/rollytics/indexer/util"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
 	"gorm.io/gorm"
@@ -185,23 +184,20 @@ func (sub *TxSubmodule) collectEvm(block indexertypes.ScrappedBlock, tx *gorm.DB
 			Data:     json.RawMessage(txJSON),
 		})
 
-		accountMap[evmTx.TxHash] = make(map[string]interface{})
-		if evmTx.From != "" {
-			from, err := util.AccAddressFromString(evmTx.From)
-			if err != nil {
-				return err
-			}
-			accountMap[evmTx.TxHash][from.String()] = nil
+		// grep addresses for account tx
+		addrs, err := grepAddressesFromEvmTx(evmTx)
+		if err != nil {
+			return err
 		}
-		if evmTx.To != "" {
-			to, err := util.AccAddressFromString(evmTx.To)
-			if err != nil {
-				return err
-			}
-			accountMap[evmTx.TxHash][to.String()] = nil
+
+		// initialize account list
+		accountMap[evmTx.TxHash] = make(map[string]interface{})
+		for _, addr := range addrs {
+			accountMap[evmTx.TxHash][addr] = nil
 		}
 	}
 
+	// collect account txs
 	for txHash, accounts := range accountMap {
 		for account := range accounts {
 			acetxs = append(acetxs, types.CollectedEvmAccountTx{

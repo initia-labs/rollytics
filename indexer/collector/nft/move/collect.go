@@ -15,11 +15,11 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-func Collect(block indexertypes.ScrappedBlock, data nfttypes.CacheData, cfg *config.Config, tx *gorm.DB) (err error) {
+func Collect(block indexertypes.ScrappedBlock, cacheData nfttypes.CacheData, cfg *config.Config, tx *gorm.DB) (err error) {
 	batchSize := cfg.GetDBConfig().BatchSize
 	mintMap := make(map[string]map[string]interface{})
 	transferMap := make(map[string]string)
-	mutMap := make(map[string]interface{})
+	mutMap := make(map[string]string)
 	burnMap := make(map[string]interface{})
 	updateCountMap := make(map[string]interface{})
 
@@ -68,7 +68,9 @@ func Collect(block indexertypes.ScrappedBlock, data nfttypes.CacheData, cfg *con
 			if err := json.Unmarshal(dataBytes, &mutation); err != nil {
 				return err
 			}
-			mutMap[mutation.Nft] = nil
+			if mutation.MutatedFieldName == "uri" {
+				mutMap[mutation.Nft] = mutation.NewValue
+			}
 
 		case "0x1::collection::BurnEvent":
 			burnt := NftMintAndBurnEventData{}
@@ -87,7 +89,7 @@ func Collect(block indexertypes.ScrappedBlock, data nfttypes.CacheData, cfg *con
 	var mintedCols []types.CollectedNftCollection
 	var mintedNfts []types.CollectedNft
 	for collectionAddr, nftMap := range mintMap {
-		colResource, ok := data.CollectionMap[collectionAddr]
+		colResource, ok := cacheData.CollectionMap[collectionAddr]
 		if !ok {
 			return fmt.Errorf("move resource not found for collection address %s", collectionAddr)
 		}
@@ -109,7 +111,7 @@ func Collect(block indexertypes.ScrappedBlock, data nfttypes.CacheData, cfg *con
 		mintedCols = append(mintedCols, col)
 
 		for nftAddr := range nftMap {
-			nftResource, ok := data.NftMap[nftAddr]
+			nftResource, ok := cacheData.NftMap[nftAddr]
 			if !ok {
 				return fmt.Errorf("move resource not found for nft address %s", nftAddr)
 			}
@@ -146,20 +148,12 @@ func Collect(block indexertypes.ScrappedBlock, data nfttypes.CacheData, cfg *con
 
 	// batch update mutated nfts
 	var mutatedNfts []types.CollectedNft
-	for nftAddr := range mutMap {
-		nftResource, ok := data.NftMap[nftAddr]
-		if !ok {
-			return fmt.Errorf("move resource not found for nft address %s", nftAddr)
-		}
-		var nftInfo NftData
-		if err := json.Unmarshal([]byte(nftResource), &nftInfo); err != nil {
-			return err
-		}
+	for nftAddr, uri := range mutMap {
 		nft := types.CollectedNft{
 			ChainId: block.ChainId,
 			Addr:    nftAddr,
 			Height:  block.Height,
-			Uri:     nftInfo.Data.Uri,
+			Uri:     uri,
 		}
 		mutatedNfts = append(mutatedNfts, nft)
 	}

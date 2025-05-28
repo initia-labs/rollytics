@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"regexp"
+	"strings"
 
 	abci "github.com/cometbft/cometbft/abci/types"
+	movetypes "github.com/initia-labs/initia/x/move/types"
 	evmtypes "github.com/initia-labs/minievm/x/evm/types"
 	"github.com/initia-labs/rollytics/indexer/util"
 	"github.com/initia-labs/rollytics/types"
@@ -14,13 +16,14 @@ import (
 
 const (
 	InitBech32Regex = "^init1(?:[a-z0-9]{38}|[a-z0-9]{58})$"
-	InitHexRegex    = "0x(?:[a-f1-9][a-f0-9]){1,64}"
-	transferTopic   = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+	InitHexRegex    = "^0x(?:[a-fA-F0-9]{1,64})$"
+	MoveHexRegex    = "0x(?:[a-fA-F0-9]{1,64})"
 )
 
 var (
 	regexInitBech = regexp.MustCompile(InitBech32Regex)
 	regexHex      = regexp.MustCompile(InitHexRegex)
+	regexMoveHex  = regexp.MustCompile(MoveHexRegex)
 )
 
 func getSeqInfo(chainId string, name string, tx *gorm.DB) (seqInfo types.CollectedSeqInfo, err error) {
@@ -48,23 +51,36 @@ func findAllHexAddress(attr string) []string {
 	return regexHex.FindAllString(attr, -1)
 }
 
+func findAllMoveHexAddress(attr string) []string {
+	return regexMoveHex.FindAllString(attr, -1)
+}
+
 func grepAddressesFromTx(events []abci.Event) (grepped []string, err error) {
 	for _, event := range events {
 		for _, attr := range event.Attributes {
 			var addrs []string
 
 			switch {
+			case event.Type == movetypes.EventTypeMove && attr.Key == movetypes.AttributeKeyData:
+				addrs = append(addrs, findAllMoveHexAddress(attr.Value)...)
 			case event.Type == evmtypes.EventTypeEVM && attr.Key == evmtypes.AttributeKeyLog:
-				contractAddrs, err := extractAddressesFromEVMLog(attr.Value)
-				if err != nil {
+				var log evmtypes.Log
+				if err = json.Unmarshal([]byte(attr.Value), &log); err != nil {
 					return grepped, err
 				}
-				addrs = append(addrs, contractAddrs...)
-			case isEvmModuleEvent(event.Type) && attr.Key == evmtypes.AttributeKeyContract:
-				addrs = append(addrs, attr.Value)
+
+				addrs = append(addrs, log.Address)
+				for idx, topic := range log.Topics {
+					if idx > 0 && strings.HasPrefix(topic, "0x000000000000000000000000") {
+						addrs = append(addrs, topic)
+					}
+				}
+
 			default:
-				addrs = findAllBech32Address(attr.Value)
-				addrs = append(addrs, findAllHexAddress(attr.Value)...)
+				for _, attrVal := range strings.Split(attr.Value, ",") {
+					addrs = append(addrs, findAllBech32Address(attrVal)...)
+					addrs = append(addrs, findAllHexAddress(attrVal)...)
+				}
 			}
 
 			for _, addr := range addrs {
@@ -80,52 +96,31 @@ func grepAddressesFromTx(events []abci.Event) (grepped []string, err error) {
 	return
 }
 
-// isEvmModuleEvent checks if the event type is from evm module except evmtypes.EventTypeEVM.
-// return true if it is, false otherwise.
-func isEvmModuleEvent(eventType string) bool {
-	switch eventType {
-	case evmtypes.EventTypeCall, evmtypes.EventTypeCreate,
-		evmtypes.EventTypeContractCreated, evmtypes.EventTypeERC20Created,
-		evmtypes.EventTypeERC721Created, evmtypes.EventTypeERC721Minted, evmtypes.EventTypeERC721Burned:
-		return true
-	default:
-		return false
-	}
-}
+func grepAddressesFromEvmTx(evmTx EvmTx) (grepped []string, err error) {
+	var addrs []string
 
-func extractAddressesFromEVMLog(attrVal string) (addrs []string, err error) {
-	log := evmtypes.Log{}
-	if err = json.Unmarshal([]byte(attrVal), &log); err != nil {
-		return
+	if evmTx.From != "" {
+		grepped = append(grepped, evmTx.From)
+	}
+	if evmTx.To != "" {
+		grepped = append(grepped, evmTx.To)
 	}
 
-	addr, err := util.AccAddressFromString(log.Address)
-	if err != nil {
-		return addrs, err
-	}
-	addrs = append(addrs, addr.String())
-
-	// if the topic is about transfer, we need to extract the addresses from the topics.
-	if log.Topics == nil { // no topic
-		return
-	}
-	topicLen := len(log.Topics)
-	if topicLen < 2 { // no data to extract
-		return
-	}
-	if log.Topics[0] != transferTopic { // topic is not about transfer
-		return
-	}
-
-	for i := 1; i < topicLen; i++ {
-		if i == 3 { // if index is 3, it means index indicates the amount, not address. need break
-			break
+	for _, log := range evmTx.Logs {
+		addrs = append(addrs, log.Address)
+		for idx, topic := range log.Topics {
+			if idx > 0 && strings.HasPrefix(topic, "0x000000000000000000000000") {
+				addrs = append(addrs, topic)
+			}
 		}
-		addr, err := util.AccAddressFromString(log.Topics[i])
+	}
+
+	for _, addr := range addrs {
+		accAddr, err := util.AccAddressFromString(addr)
 		if err != nil {
-			return addrs, err
+			return grepped, err
 		}
-		addrs = append(addrs, addr.String())
+		grepped = append(grepped, accAddr.String())
 	}
 
 	return
