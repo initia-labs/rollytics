@@ -86,7 +86,7 @@ func grepAddressesFromTx(events []abci.Event) (grepped []string, err error) {
 			for _, addr := range addrs {
 				accAddr, err := util.AccAddressFromString(addr)
 				if err != nil {
-					return grepped, err
+					continue // there might be invalid bech32 addresses so do not return error
 				}
 				grepped = append(grepped, accAddr.String())
 			}
