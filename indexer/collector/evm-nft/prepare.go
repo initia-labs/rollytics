@@ -1,4 +1,4 @@
-package evm
+package evm_nft
 
 import (
 	"encoding/base64"
@@ -11,8 +11,6 @@ import (
 	"github.com/cometbft/cometbft/crypto/tmhash"
 	"github.com/gofiber/fiber/v2"
 	evmtypes "github.com/initia-labs/minievm/x/evm/types"
-	"github.com/initia-labs/rollytics/indexer/collector/nft/types"
-	"github.com/initia-labs/rollytics/indexer/config"
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
 	"golang.org/x/sync/errgroup"
 )
@@ -22,13 +20,13 @@ const (
 	emptyAddr = "0000000000000000000000000000000000000000"
 )
 
-func Prepare(block indexertypes.ScrappedBlock, cfg *config.Config) (data types.CacheData, err error) {
+func (sub *EvmNftSubmodule) prepare(block indexertypes.ScrappedBlock) (err error) {
 	client := fiber.AcquireClient()
 	defer fiber.ReleaseClient(client)
 
 	targetMap, err := filterEvmData(block)
 	if err != nil {
-		return data, err
+		return err
 	}
 
 	var collectionAddrs []string
@@ -49,7 +47,7 @@ func Prepare(block indexertypes.ScrappedBlock, cfg *config.Config) (data types.C
 
 	g.Go(func() error {
 		defer close(getCollectionNamesRes)
-		nameMap, err := getCollectionNames(collectionAddrs, client, cfg, block.Height)
+		nameMap, err := getCollectionNames(collectionAddrs, client, sub.cfg, block.Height)
 		if err != nil {
 			return err
 		}
@@ -59,7 +57,7 @@ func Prepare(block indexertypes.ScrappedBlock, cfg *config.Config) (data types.C
 
 	g.Go(func() error {
 		defer close(getTokenUrisRes)
-		uriMap, err := getTokenUris(queryData, client, cfg, block.Height)
+		uriMap, err := getTokenUris(queryData, client, sub.cfg, block.Height)
 		if err != nil {
 			return err
 		}
@@ -68,16 +66,20 @@ func Prepare(block indexertypes.ScrappedBlock, cfg *config.Config) (data types.C
 	})
 
 	if err := g.Wait(); err != nil {
-		return data, err
+		return err
 	}
 
 	nameMap := <-getCollectionNamesRes
 	uriMap := <-getTokenUrisRes
 
-	return types.CacheData{
+	sub.mtx.Lock()
+	sub.dataMap[block.Height] = CacheData{
 		CollectionMap: nameMap,
 		NftMap:        uriMap,
-	}, nil
+	}
+	sub.mtx.Unlock()
+
+	return nil
 }
 
 func filterEvmData(block indexertypes.ScrappedBlock) (targetMap map[string]map[string]interface{}, err error) {

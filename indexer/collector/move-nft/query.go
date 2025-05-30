@@ -1,4 +1,4 @@
-package move
+package move_nft
 
 import (
 	"fmt"

@@ -1,13 +1,13 @@
-package evm
+package evm_nft
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
 	evmtypes "github.com/initia-labs/minievm/x/evm/types"
-	nfttypes "github.com/initia-labs/rollytics/indexer/collector/nft/types"
-	"github.com/initia-labs/rollytics/indexer/config"
+	"github.com/initia-labs/rollytics/indexer/collector/pair"
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
 	"github.com/initia-labs/rollytics/indexer/util"
 	"github.com/initia-labs/rollytics/orm"
@@ -16,8 +16,17 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-func Collect(block indexertypes.ScrappedBlock, cacheData nfttypes.CacheData, cfg *config.Config, tx *gorm.DB) (err error) {
-	batchSize := cfg.GetDBConfig().BatchSize
+func (sub *EvmNftSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.DB) (err error) {
+	sub.mtx.Lock()
+	cacheData, ok := sub.dataMap[block.Height]
+	delete(sub.dataMap, block.Height)
+	sub.mtx.Unlock()
+
+	if !ok {
+		return errors.New("data is not prepared")
+	}
+
+	batchSize := sub.cfg.GetDBConfig().BatchSize
 	mintMap := make(map[string]map[string]string)
 	transferMap := make(map[string]map[string]string)
 	burnMap := make(map[string]map[string]interface{})
@@ -202,5 +211,5 @@ func Collect(block indexertypes.ScrappedBlock, cacheData nfttypes.CacheData, cfg
 		return res.Error
 	}
 
-	return nil
+	return pair.Collect(block, sub.cfg, tx)
 }

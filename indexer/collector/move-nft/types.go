@@ -1,6 +1,11 @@
-package move
+package move_nft
 
 import "strings"
+
+type CacheData struct {
+	CollectionMap map[string]string
+	NftMap        map[string]string
+}
 
 type QueryMoveResourceResponse struct {
 	Resource struct {

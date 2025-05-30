@@ -1,12 +1,11 @@
-package move
+package move_nft
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
-	abci "github.com/cometbft/cometbft/abci/types"
-	nfttypes "github.com/initia-labs/rollytics/indexer/collector/nft/types"
-	"github.com/initia-labs/rollytics/indexer/config"
+	"github.com/initia-labs/rollytics/indexer/collector/pair"
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
 	"github.com/initia-labs/rollytics/indexer/util"
 	"github.com/initia-labs/rollytics/orm"
@@ -15,8 +14,17 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-func Collect(block indexertypes.ScrappedBlock, cacheData nfttypes.CacheData, cfg *config.Config, tx *gorm.DB) (err error) {
-	batchSize := cfg.GetDBConfig().BatchSize
+func (sub *MoveNftSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.DB) (err error) {
+	sub.mtx.Lock()
+	cacheData, ok := sub.dataMap[block.Height]
+	delete(sub.dataMap, block.Height)
+	sub.mtx.Unlock()
+
+	if !ok {
+		return errors.New("data is not prepared")
+	}
+
+	batchSize := sub.cfg.GetDBConfig().BatchSize
 	mintMap := make(map[string]map[string]interface{})
 	transferMap := make(map[string]string)
 	mutMap := make(map[string]string)
@@ -184,36 +192,5 @@ func Collect(block indexertypes.ScrappedBlock, cacheData nfttypes.CacheData, cfg
 		}
 	}
 
-	return nil
-}
-
-func extractEvents(block indexertypes.ScrappedBlock) []indexertypes.ParsedEvent {
-	events := parseEvents(block.BeginBlock)
-
-	for _, res := range block.TxResults {
-		events = append(events, parseEvents(res.Events)...)
-	}
-
-	events = append(events, parseEvents(block.EndBlock)...)
-
-	return events
-}
-
-func parseEvents(evts []abci.Event) (parsedEvts []indexertypes.ParsedEvent) {
-	for _, evt := range evts {
-		parsedEvts = append(parsedEvts, parseEvent(evt))
-	}
-
-	return
-}
-
-func parseEvent(evt abci.Event) indexertypes.ParsedEvent {
-	attributes := make(map[string]string)
-	for _, attr := range evt.Attributes {
-		attributes[attr.Key] = attr.Value
-	}
-	return indexertypes.ParsedEvent{
-		Type:       evt.Type,
-		Attributes: attributes,
-	}
+	return pair.Collect(block, sub.cfg, tx)
 }

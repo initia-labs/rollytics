@@ -1,4 +1,4 @@
-package evm
+package evm_nft
 
 import (
 	"encoding/hex"

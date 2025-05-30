@@ -1,22 +1,20 @@
-package move
+package move_nft
 
 import (
 	"encoding/json"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/initia-labs/rollytics/indexer/collector/nft/types"
-	"github.com/initia-labs/rollytics/indexer/config"
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
 	"golang.org/x/sync/errgroup"
 )
 
-func Prepare(block indexertypes.ScrappedBlock, cfg *config.Config) (data types.CacheData, err error) {
+func (sub *MoveNftSubmodule) prepare(block indexertypes.ScrappedBlock) (err error) {
 	client := fiber.AcquireClient()
 	defer fiber.ReleaseClient(client)
 
 	colAddrs, nftAddrs, err := filterMoveData(block)
 	if err != nil {
-		return data, err
+		return err
 	}
 
 	var g errgroup.Group
@@ -25,7 +23,7 @@ func Prepare(block indexertypes.ScrappedBlock, cfg *config.Config) (data types.C
 
 	g.Go(func() error {
 		defer close(getCollectionsRes)
-		collectionMap, err := getCollections(colAddrs, client, cfg, block.Height)
+		collectionMap, err := getCollections(colAddrs, client, sub.cfg, block.Height)
 		if err != nil {
 			return err
 		}
@@ -35,7 +33,7 @@ func Prepare(block indexertypes.ScrappedBlock, cfg *config.Config) (data types.C
 
 	g.Go(func() error {
 		defer close(getNftsRes)
-		nftMap, err := getNfts(nftAddrs, client, cfg, block.Height)
+		nftMap, err := getNfts(nftAddrs, client, sub.cfg, block.Height)
 		if err != nil {
 			return err
 		}
@@ -44,16 +42,20 @@ func Prepare(block indexertypes.ScrappedBlock, cfg *config.Config) (data types.C
 	})
 
 	if err := g.Wait(); err != nil {
-		return data, err
+		return err
 	}
 
 	collectionMap := <-getCollectionsRes
 	nftMap := <-getNftsRes
 
-	return types.CacheData{
+	sub.mtx.Lock()
+	sub.dataMap[block.Height] = CacheData{
 		CollectionMap: collectionMap,
 		NftMap:        nftMap,
-	}, nil
+	}
+	sub.mtx.Unlock()
+
+	return nil
 }
 
 func filterMoveData(block indexertypes.ScrappedBlock) (colAddrs []string, nftAddrs []string, err error) {

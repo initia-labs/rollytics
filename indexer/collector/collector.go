@@ -4,11 +4,14 @@ import (
 	"log/slog"
 
 	"github.com/initia-labs/rollytics/indexer/collector/block"
-	"github.com/initia-labs/rollytics/indexer/collector/nft"
+	evm_nft "github.com/initia-labs/rollytics/indexer/collector/evm-nft"
+	move_nft "github.com/initia-labs/rollytics/indexer/collector/move-nft"
 	"github.com/initia-labs/rollytics/indexer/collector/tx"
+	wasm_nft "github.com/initia-labs/rollytics/indexer/collector/wasm-nft"
 	"github.com/initia-labs/rollytics/indexer/config"
-	"github.com/initia-labs/rollytics/indexer/types"
+	indexertypes "github.com/initia-labs/rollytics/indexer/types"
 	"github.com/initia-labs/rollytics/orm"
+	"github.com/initia-labs/rollytics/types"
 	"golang.org/x/sync/errgroup"
 	"gorm.io/gorm"
 )
@@ -16,22 +19,34 @@ import (
 type Collector struct {
 	logger     *slog.Logger
 	db         *orm.Database
-	submodules map[string]types.Submodule
+	submodules map[string]indexertypes.Submodule
 }
 
 func New(logger *slog.Logger, db *orm.Database, cfg *config.Config) *Collector {
+	blockSubmodule := block.New(logger, txConfig)
+	txSubmodule := tx.New(logger, cfg, txConfig, cdc)
+	var nftSubmodule indexertypes.Submodule
+	switch cfg.GetChainConfig().VmType {
+	case types.MoveVM:
+		nftSubmodule = move_nft.New(logger, cfg)
+	case types.WasmVM:
+		nftSubmodule = wasm_nft.New(logger, cfg)
+	case types.EVM:
+		nftSubmodule = evm_nft.New(logger, cfg)
+	}
+
 	return &Collector{
 		logger: logger.With("module", "collector"),
 		db:     db,
-		submodules: map[string]types.Submodule{
-			block.SubmoduleName: block.New(logger, txConfig),
-			tx.SubmoduleName:    tx.New(logger, cfg, txConfig, cdc),
-			nft.SubmoduleName:   nft.New(logger, cfg),
+		submodules: map[string]indexertypes.Submodule{
+			blockSubmodule.Name(): blockSubmodule,
+			txSubmodule.Name():    txSubmodule,
+			nftSubmodule.Name():   nftSubmodule,
 		},
 	}
 }
 
-func (c *Collector) Prepare(block types.ScrappedBlock) (err error) {
+func (c *Collector) Prepare(block indexertypes.ScrappedBlock) (err error) {
 	var g errgroup.Group
 
 	for _, sub := range c.submodules {
@@ -49,7 +64,7 @@ func (c *Collector) Prepare(block types.ScrappedBlock) (err error) {
 	return nil
 }
 
-func (c *Collector) Run(block types.ScrappedBlock) (err error) {
+func (c *Collector) Run(block indexertypes.ScrappedBlock) (err error) {
 	tx := c.db.Begin()
 	defer func() {
 		if err != nil {
