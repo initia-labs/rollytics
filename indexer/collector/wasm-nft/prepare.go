@@ -30,7 +30,7 @@ func (sub *WasmNftSubmodule) prepare(block indexertypes.ScrappedBlock) (err erro
 			if err != nil {
 				errString := fmt.Sprintf("%+v", err)
 				if strings.Contains(errString, "Error parsing into type sg721_base::msg::QueryMsg: unknown variant") {
-					sub.blacklistMap[addr] = nil
+					sub.blacklistMap.Store(addr, nil)
 					return nil
 				}
 

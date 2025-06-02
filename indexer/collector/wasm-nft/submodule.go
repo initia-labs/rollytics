@@ -17,16 +17,15 @@ type WasmNftSubmodule struct {
 	logger       *slog.Logger
 	cfg          *config.Config
 	dataMap      map[int64]CacheData
-	blacklistMap map[string]interface{}
+	blacklistMap sync.Map
 	mtx          sync.Mutex
 }
 
 func New(logger *slog.Logger, cfg *config.Config) *WasmNftSubmodule {
 	return &WasmNftSubmodule{
-		logger:       logger.With("submodule", SubmoduleName),
-		cfg:          cfg,
-		dataMap:      make(map[int64]CacheData),
-		blacklistMap: make(map[string]interface{}),
+		logger:  logger.With("submodule", SubmoduleName),
+		cfg:     cfg,
+		dataMap: make(map[int64]CacheData),
 	}
 }
 

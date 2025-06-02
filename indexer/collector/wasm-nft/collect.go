@@ -140,7 +140,7 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.
 		colInfo, ok := cacheData.CollectionMap[collectionAddr]
 		if !ok {
 			// skip if blacklisted
-			if _, found := sub.blacklistMap[collectionAddr]; found {
+			if _, found := sub.blacklistMap.Load(collectionAddr); found {
 				continue
 			}
 
