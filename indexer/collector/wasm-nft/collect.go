@@ -139,6 +139,11 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.
 	for collectionAddr := range mintColMap {
 		colInfo, ok := cacheData.CollectionMap[collectionAddr]
 		if !ok {
+			// skip if blacklisted
+			if _, found := sub.blacklistMap[collectionAddr]; found {
+				continue
+			}
+
 			return fmt.Errorf("collection info not found for collection address %s", collectionAddr)
 		}
 

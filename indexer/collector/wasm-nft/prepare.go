@@ -1,6 +1,8 @@
 package wasm_nft
 
 import (
+	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/gofiber/fiber/v2"
@@ -26,6 +28,12 @@ func (sub *WasmNftSubmodule) prepare(block indexertypes.ScrappedBlock) (err erro
 		g.Go(func() error {
 			info, err := getCollectionInfo(addr, client, sub.cfg, block.Height)
 			if err != nil {
+				errString := fmt.Sprintf("%+v", err)
+				if strings.Contains(errString, "Error parsing into type sg721_base::msg::QueryMsg: unknown variant") {
+					sub.blacklistMap[addr] = nil
+					return nil
+				}
+
 				return err
 			}
 
