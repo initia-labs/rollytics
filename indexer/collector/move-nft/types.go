@@ -16,19 +16,19 @@ type QueryMoveResourceResponse struct {
 	} `json:"resource"`
 }
 
-type NftMintAndBurnEventData struct {
+type NftMintAndBurnEvent struct {
 	Collection string `json:"collection"`
 	Index      string `json:"index"`
 	Nft        string `json:"nft"`
 }
 
-type NftTransferEventData struct {
+type NftTransferEvent struct {
 	Object string `json:"object"`
 	From   string `json:"from"`
 	To     string `json:"to"`
 }
 
-type NftMutationEventData struct {
+type NftMutationEvent struct {
 	Nft              string `json:"nft,omitempty"`
 	MutatedFieldName string `json:"mutated_field_name"`
 	OldValue         string `json:"old_value,omitempty"`

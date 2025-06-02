@@ -77,14 +77,14 @@ func filterMoveData(block indexertypes.ScrappedBlock) (colAddrs []string, nftAdd
 
 		switch typeTag {
 		case "0x1::collection::MintEvent":
-			var event NftMintAndBurnEventData
+			var event NftMintAndBurnEvent
 			if err := json.Unmarshal([]byte(data), &event); err != nil {
 				return colAddrs, nftAddrs, err
 			}
 			collectionAddrMap[event.Collection] = nil
 			nftAddrMap[event.Nft] = nil
 		case "0x1::collection::BurnEvent":
-			var event NftMintAndBurnEventData
+			var event NftMintAndBurnEvent
 			if err := json.Unmarshal([]byte(data), &event); err != nil {
 				return colAddrs, nftAddrs, err
 			}

@@ -11,7 +11,6 @@ import (
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 func (sub *MoveNftSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.DB) (err error) {
@@ -48,48 +47,48 @@ func (sub *MoveNftSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.
 
 		switch typeTag {
 		case "0x1::collection::MintEvent":
-			data := NftMintAndBurnEventData{}
-			if err := json.Unmarshal(dataBytes, &data); err != nil {
+			var event NftMintAndBurnEvent
+			if err := json.Unmarshal(dataBytes, &event); err != nil {
 				return err
 			}
-			if _, ok := mintMap[data.Collection]; !ok {
-				mintMap[data.Collection] = make(map[string]interface{})
+			if _, ok := mintMap[event.Collection]; !ok {
+				mintMap[event.Collection] = make(map[string]interface{})
 			}
-			mintMap[data.Collection][data.Nft] = nil
-			delete(burnMap, data.Nft)
-			updateCountMap[data.Collection] = nil
+			mintMap[event.Collection][event.Nft] = nil
+			delete(burnMap, event.Nft)
+			updateCountMap[event.Collection] = nil
 
 		// NOTE: this might not be related to nft transfer event
 		case "0x1::object::TransferEvent":
-			data := NftTransferEventData{}
-			if err := json.Unmarshal(dataBytes, &data); err != nil {
+			var event NftTransferEvent
+			if err := json.Unmarshal(dataBytes, &event); err != nil {
 				return err
 			}
-			toAddr, err := util.AccAddressFromString(data.To)
+			toAddr, err := util.AccAddressFromString(event.To)
 			if err != nil {
 				return err
 			}
-			transferMap[data.Object] = toAddr.String()
+			transferMap[event.Object] = toAddr.String()
 
 		case "0x1::nft::MutationEvent":
-			mutation := NftMutationEventData{}
-			if err := json.Unmarshal(dataBytes, &mutation); err != nil {
+			var event NftMutationEvent
+			if err := json.Unmarshal(dataBytes, &event); err != nil {
 				return err
 			}
-			if mutation.MutatedFieldName == "uri" {
-				mutMap[mutation.Nft] = mutation.NewValue
+			if event.MutatedFieldName == "uri" {
+				mutMap[event.Nft] = event.NewValue
 			}
 
 		case "0x1::collection::BurnEvent":
-			burnt := NftMintAndBurnEventData{}
-			if err := json.Unmarshal(dataBytes, &burnt); err != nil {
+			var event NftMintAndBurnEvent
+			if err := json.Unmarshal(dataBytes, &event); err != nil {
 				return err
 			}
-			burnMap[burnt.Nft] = nil
-			delete(mintMap[burnt.Collection], burnt.Nft)
-			delete(transferMap, burnt.Nft)
-			delete(mutMap, burnt.Nft)
-			updateCountMap[burnt.Collection] = nil
+			burnMap[event.Nft] = nil
+			delete(mintMap[event.Collection], event.Nft)
+			delete(transferMap, event.Nft)
+			delete(mutMap, event.Nft)
+			updateCountMap[event.Collection] = nil
 		}
 	}
 
@@ -154,22 +153,11 @@ func (sub *MoveNftSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.
 		}
 	}
 
-	// batch update mutated nfts
-	var mutatedNfts []types.CollectedNft
+	// update mutated nfts
 	for nftAddr, uri := range mutMap {
-		nft := types.CollectedNft{
-			ChainId: block.ChainId,
-			Addr:    nftAddr,
-			Height:  block.Height,
-			Uri:     uri,
+		if res := tx.Model(&types.CollectedNft{}).Where("chain_id = ? AND addr = ?", block.ChainId, nftAddr).Updates(map[string]interface{}{"height": block.Height, "uri": uri}); res.Error != nil {
+			return res.Error
 		}
-		mutatedNfts = append(mutatedNfts, nft)
-	}
-	if res := tx.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "chain_id"}, {Name: "addr"}},
-		DoUpdates: clause.AssignmentColumns([]string{"height", "uri"}),
-	}).CreateInBatches(mutatedNfts, batchSize); res.Error != nil {
-		return res.Error
 	}
 
 	// batch delete burned nfts

@@ -74,7 +74,7 @@ type CollectedNft struct {
 	ChainId        string `gorm:"type:text;primaryKey"`
 	CollectionAddr string `gorm:"type:text;primaryKey;index:nft_collection_addr"`
 	TokenId        string `gorm:"type:text;primaryKey;index:nft_token_id"`
-	Addr           string `gorm:"type:text;uniqueIndex:nft_addr"` // only used in move
+	Addr           string `gorm:"type:text;index:nft_addr"` // only used in move
 	Height         int64  `gorm:"type:bigint;index:nft_height"`
 	Owner          string `gorm:"type:text;index:nft_owner"`
 	Uri            string `gorm:"type:text"`
@@ -87,6 +87,13 @@ type CollectedNftTx struct {
 	CollectionAddr string `gorm:"type:text;primaryKey;index:nft_tx_collection_addr"`
 	TokenId        string `gorm:"type:text;primaryKey;index:nft_tx_token_id"`
 	Height         int64  `gorm:"type:bigint;primaryKey;autoIncrement:false;index:nft_tx_height"`
+}
+
+// only for move
+type CollectedFAStore struct {
+	ChainId   string `gorm:"type:text;primaryKey"`
+	StoreAddr string `gorm:"type:text;primaryKey"`
+	Owner     string `gorm:"type:text"`
 }
 
 func (CollectedSeqInfo) TableName() string {

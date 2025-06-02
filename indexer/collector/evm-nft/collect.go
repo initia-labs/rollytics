@@ -134,7 +134,6 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.D
 				ChainId:        block.ChainId,
 				CollectionAddr: collectionAddr,
 				TokenId:        tokenId,
-				Addr:           nftAddr,
 				Height:         block.Height,
 				Owner:          owner,
 				Uri:            tokenUri,
