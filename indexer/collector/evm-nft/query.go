@@ -130,10 +130,10 @@ func getTokenUri(collectionAddr, tokenId string, client *fiber.Client, cfg *conf
 
 func evmCall(sender, contractAddr string, input []byte, client *fiber.Client, cfg *config.Config, height int64) (response []byte, err error) {
 	payload := map[string]interface{}{
-		"sender":       sender,
-		"contract_add": contractAddr,
-		"input":        fmt.Sprintf("0x%s", hex.EncodeToString(input)),
-		"value":        "0",
+		"sender":        sender,
+		"contract_addr": contractAddr,
+		"input":         fmt.Sprintf("0x%s", hex.EncodeToString(input)),
+		"value":         "0",
 	}
 	headers := map[string]string{"x-cosmos-block-height": fmt.Sprintf("%d", height)}
 	path := "/minievm/evm/v1/call"

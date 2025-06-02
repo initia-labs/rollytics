@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
+	"sync"
 
 	"github.com/cometbft/cometbft/crypto/tmhash"
 	"github.com/gofiber/fiber/v2"
@@ -29,48 +30,64 @@ func (sub *EvmNftSubmodule) prepare(block indexertypes.ScrappedBlock) (err error
 		return err
 	}
 
-	var collectionAddrs []string
-	var queryData []QueryTokenUriData
+	nameMap := make(map[string]string)
+	uriMap := make(map[string]map[string]string)
+
+	var g errgroup.Group
+	var nameMtx sync.Mutex
+	var uriMtx sync.Mutex
+
 	for collectionAddr, tokenIdMap := range targetMap {
-		collectionAddrs = append(collectionAddrs, collectionAddr)
+		if _, found := sub.blacklistMap.Load(collectionAddr); found {
+			continue
+		}
+
+		addr := collectionAddr
+		g.Go(func() error {
+			name, err := getCollectionName(addr, client, sub.cfg, block.Height)
+			if err != nil {
+				errString := fmt.Sprintf("%+v", err)
+				if strings.Contains(errString, "revert: 0x: Reverted: EVMCall failed") {
+					sub.blacklistMap.Store(addr, nil)
+					return nil
+				}
+
+				return err
+			}
+
+			nameMtx.Lock()
+			nameMap[addr] = name
+			nameMtx.Unlock()
+
+			return nil
+		})
+
 		for tokenId := range tokenIdMap {
-			queryData = append(queryData, QueryTokenUriData{
-				CollectionAddr: collectionAddr,
-				TokenId:        tokenId,
+			id := tokenId
+			g.Go(func() error {
+				tokenUri, err := getTokenUri(addr, id, client, sub.cfg, block.Height)
+				if err != nil {
+					errString := fmt.Sprintf("%+v", err)
+					if strings.Contains(errString, "revert: 0x: Reverted: EVMCall failed") {
+						sub.blacklistMap.Store(addr, nil)
+						return nil
+					}
+
+					return err
+				}
+
+				uriMtx.Lock()
+				uriMap[addr][id] = tokenUri
+				uriMtx.Unlock()
+
+				return nil
 			})
 		}
 	}
 
-	var g errgroup.Group
-	getCollectionNamesRes := make(chan map[string]string, 1)
-	getTokenUrisRes := make(chan map[string]map[string]string, 1)
-
-	g.Go(func() error {
-		defer close(getCollectionNamesRes)
-		nameMap, err := getCollectionNames(collectionAddrs, client, sub.cfg, block.Height)
-		if err != nil {
-			return err
-		}
-		getCollectionNamesRes <- nameMap
-		return nil
-	})
-
-	g.Go(func() error {
-		defer close(getTokenUrisRes)
-		uriMap, err := getTokenUris(queryData, client, sub.cfg, block.Height)
-		if err != nil {
-			return err
-		}
-		getTokenUrisRes <- uriMap
-		return nil
-	})
-
-	if err := g.Wait(); err != nil {
+	if err = g.Wait(); err != nil {
 		return err
 	}
-
-	nameMap := <-getCollectionNamesRes
-	uriMap := <-getTokenUrisRes
 
 	sub.mtx.Lock()
 	sub.dataMap[block.Height] = CacheData{

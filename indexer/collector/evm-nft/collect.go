@@ -113,6 +113,11 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.D
 	for collectionAddr, nftMap := range mintMap {
 		name, ok := cacheData.CollectionMap[collectionAddr]
 		if !ok {
+			// skip if blacklisted
+			if _, found := sub.blacklistMap.Load(collectionAddr); found {
+				continue
+			}
+
 			return fmt.Errorf("collection name info not found for collection address %s", collectionAddr)
 		}
 		col := types.CollectedNftCollection{

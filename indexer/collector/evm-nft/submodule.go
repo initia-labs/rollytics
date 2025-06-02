@@ -14,10 +14,11 @@ const SubmoduleName = "evm-nft"
 var _ types.Submodule = &EvmNftSubmodule{}
 
 type EvmNftSubmodule struct {
-	logger  *slog.Logger
-	cfg     *config.Config
-	dataMap map[int64]CacheData
-	mtx     sync.Mutex
+	logger       *slog.Logger
+	cfg          *config.Config
+	dataMap      map[int64]CacheData
+	blacklistMap sync.Map
+	mtx          sync.Mutex
 }
 
 func New(logger *slog.Logger, cfg *config.Config) *EvmNftSubmodule {
