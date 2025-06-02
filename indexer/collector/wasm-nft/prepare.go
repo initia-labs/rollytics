@@ -25,6 +25,11 @@ func (sub *WasmNftSubmodule) prepare(block indexertypes.ScrappedBlock) (err erro
 	var mtx sync.Mutex
 	for _, collectionAddr := range colAddrs {
 		addr := collectionAddr
+		// skip if blacklisted
+		if _, found := sub.blacklistMap.Load(addr); found {
+			continue
+		}
+
 		g.Go(func() error {
 			info, err := getCollectionInfo(addr, client, sub.cfg, block.Height)
 			if err != nil {
