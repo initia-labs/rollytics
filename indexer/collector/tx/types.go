@@ -38,3 +38,7 @@ type EvmLog struct {
 type intoAny interface {
 	AsAny() *codectypes.Any
 }
+
+type FAEvent struct {
+	StoreAddr string `json:"store_addr"`
+}

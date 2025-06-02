@@ -24,6 +24,7 @@ var (
 	regexInitBech = regexp.MustCompile(InitBech32Regex)
 	regexHex      = regexp.MustCompile(InitHexRegex)
 	regexMoveHex  = regexp.MustCompile(MoveHexRegex)
+	cache         = NewFAStoreCache()
 )
 
 func getSeqInfo(chainId string, name string, tx *gorm.DB) (seqInfo types.CollectedSeqInfo, err error) {
@@ -55,14 +56,26 @@ func findAllMoveHexAddress(attr string) []string {
 	return regexMoveHex.FindAllString(attr, -1)
 }
 
-func grepAddressesFromTx(events []abci.Event) (grepped []string, err error) {
+func grepAddressesFromTx(chainId string, events []abci.Event, tx *gorm.DB) (grepped []string, err error) {
+	storeAddrMap := make(map[string]interface{}) // set of fa store addrs
+
 	for _, event := range events {
-		for _, attr := range event.Attributes {
+		for idx, attr := range event.Attributes {
 			var addrs []string
 
 			switch {
 			case event.Type == movetypes.EventTypeMove && attr.Key == movetypes.AttributeKeyData:
 				addrs = append(addrs, findAllMoveHexAddress(attr.Value)...)
+				prevAttr := event.Attributes[idx-1]
+				if prevAttr.Key == movetypes.AttributeKeyTypeTag && strings.HasPrefix(prevAttr.Value, "0x1::fungible_asset") {
+					var faEvent FAEvent
+					if err = json.Unmarshal([]byte(attr.Value), &faEvent); err != nil {
+						return grepped, err
+					}
+					if faEvent.StoreAddr != "" {
+						storeAddrMap[faEvent.StoreAddr] = nil
+					}
+				}
 			case event.Type == evmtypes.EventTypeEVM && attr.Key == evmtypes.AttributeKeyLog:
 				var log evmtypes.Log
 				if err = json.Unmarshal([]byte(attr.Value), &log); err != nil {
@@ -91,6 +104,41 @@ func grepAddressesFromTx(events []abci.Event) (grepped []string, err error) {
 				grepped = append(grepped, accAddr.String())
 			}
 		}
+	}
+
+	if len(storeAddrMap) == 0 {
+		return
+	}
+
+	var owners []string
+	var storeAddrs []string // for querying DB
+	for storeAddr := range storeAddrMap {
+		owner, ok := cache.Get(storeAddr)
+		if ok {
+			owners = append(owners, owner)
+		} else {
+			storeAddrs = append(storeAddrs, storeAddr)
+		}
+	}
+
+	if len(storeAddrs) > 0 {
+		var faStores []types.CollectedFAStore
+		if res := tx.Where("chain_id = ? AND store_addr IN ?", chainId, storeAddrs).Find(&faStores); res.Error != nil {
+			return grepped, res.Error
+		}
+		for _, faStore := range faStores {
+			owners = append(owners, faStore.Owner)
+			cache.Set(faStore.StoreAddr, faStore.Owner)
+		}
+	}
+
+	// convert owner to bech32 and add to grepped
+	for _, owner := range owners {
+		accAddr, err := util.AccAddressFromString(owner)
+		if err != nil {
+			return grepped, err
+		}
+		grepped = append(grepped, accAddr.String())
 	}
 
 	return

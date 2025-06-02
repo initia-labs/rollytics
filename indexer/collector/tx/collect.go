@@ -11,6 +11,7 @@ import (
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
+	"github.com/initia-labs/rollytics/indexer/collector/fa"
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
@@ -18,6 +19,12 @@ import (
 )
 
 func (sub *TxSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.DB) (err error) {
+	// collect fa before collecting tx (only for move)
+	if err = fa.Collect(block, sub.cfg, tx); err != nil {
+		return err
+	}
+
+	batchSize := sub.cfg.GetDBConfig().BatchSize
 	chainId := block.ChainId
 	height := block.Height
 	txDecode := sub.txConfig.TxDecoder()
@@ -106,7 +113,7 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.DB) (
 		ctxs = append(ctxs, ctx)
 
 		// grep addresses for account tx
-		addrs, err := grepAddressesFromTx(res.Events)
+		addrs, err := grepAddressesFromTx(block.ChainId, res.Events, tx)
 		if err != nil {
 			return err
 		}
@@ -131,17 +138,17 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.DB) (
 	}
 
 	// insert txs
-	if res := tx.Clauses(orm.DoNothingWhenConflict).Create(ctxs); res.Error != nil {
+	if res := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(ctxs, batchSize); res.Error != nil {
 		return res.Error
 	}
 
 	// insert acctxs
-	if res := tx.Clauses(orm.DoNothingWhenConflict).Create(acctxs); res.Error != nil {
+	if res := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(acctxs, batchSize); res.Error != nil {
 		return res.Error
 	}
 
 	// update seq info
-	if res := tx.Clauses(orm.UpdateAllWhenConflict).Create([]types.CollectedSeqInfo{seqInfo}); res.Error != nil {
+	if res := tx.Clauses(orm.UpdateAllWhenConflict).Create(&seqInfo); res.Error != nil {
 		return res.Error
 	}
 
@@ -153,6 +160,7 @@ func (sub *TxSubmodule) collectEvm(block indexertypes.ScrappedBlock, tx *gorm.DB
 		return nil
 	}
 
+	batchSize := sub.cfg.GetDBConfig().BatchSize
 	seqInfo, err := getSeqInfo(block.ChainId, "evm_tx", tx)
 	if err != nil {
 		return err
@@ -210,17 +218,17 @@ func (sub *TxSubmodule) collectEvm(block indexertypes.ScrappedBlock, tx *gorm.DB
 	}
 
 	// insert evm txs
-	if res := tx.Clauses(orm.DoNothingWhenConflict).Create(cetxs); res.Error != nil {
+	if res := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(cetxs, batchSize); res.Error != nil {
 		return res.Error
 	}
 
 	// insert evm account txs
-	if res := tx.Clauses(orm.DoNothingWhenConflict).Create(acetxs); res.Error != nil {
+	if res := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(acetxs, batchSize); res.Error != nil {
 		return res.Error
 	}
 
 	// update seq info
-	if res := tx.Clauses(orm.UpdateAllWhenConflict).Create([]types.CollectedSeqInfo{seqInfo}); res.Error != nil {
+	if res := tx.Clauses(orm.UpdateAllWhenConflict).Create(&seqInfo); res.Error != nil {
 		return res.Error
 	}
 

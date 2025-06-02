@@ -92,8 +92,8 @@ type CollectedNftTx struct {
 // only for move
 type CollectedFAStore struct {
 	ChainId   string `gorm:"type:text;primaryKey"`
-	StoreAddr string `gorm:"type:text;primaryKey"`
-	Owner     string `gorm:"type:text"`
+	StoreAddr string `gorm:"type:text;primaryKey;index:fa_store_store_addr"`
+	Owner     string `gorm:"type:text;index:fa_store_owner"`
 }
 
 func (CollectedSeqInfo) TableName() string {
@@ -130,4 +130,8 @@ func (CollectedNft) TableName() string {
 
 func (CollectedNftTx) TableName() string {
 	return "nft_tx"
+}
+
+func (CollectedFAStore) TableName() string {
+	return "fa_store"
 }
