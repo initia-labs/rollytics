@@ -43,7 +43,7 @@ func (sub *EvmNftSubmodule) prepare(block indexertypes.ScrappedBlock) (err error
 
 	var g errgroup.Group
 	getCollectionNamesRes := make(chan map[string]string, 1)
-	getTokenUrisRes := make(chan map[string]string, 1)
+	getTokenUrisRes := make(chan map[string]map[string]string, 1)
 
 	g.Go(func() error {
 		defer close(getCollectionNamesRes)

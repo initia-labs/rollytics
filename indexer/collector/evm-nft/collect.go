@@ -125,8 +125,7 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.D
 		mintedCols = append(mintedCols, col)
 
 		for tokenId, owner := range nftMap {
-			nftAddr := fmt.Sprintf("%s%s", collectionAddr, tokenId)
-			tokenUri, ok := cacheData.NftMap[nftAddr]
+			tokenUri, ok := cacheData.NftMap[collectionAddr][tokenId]
 			if !ok {
 				return fmt.Errorf("token uri info not found for collection address %s and token id %s", collectionAddr, tokenId)
 			}

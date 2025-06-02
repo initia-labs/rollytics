@@ -4,7 +4,7 @@ import abci "github.com/cometbft/cometbft/abci/types"
 
 type CacheData struct {
 	CollectionMap map[string]string
-	NftMap        map[string]string
+	NftMap        map[string]map[string]string
 }
 
 type EventWithHash struct {

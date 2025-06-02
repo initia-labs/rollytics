@@ -72,8 +72,8 @@ func getCollectionName(collectionAddr string, client *fiber.Client, cfg *config.
 	return
 }
 
-func getTokenUris(queryData []QueryTokenUriData, client *fiber.Client, cfg *config.Config, height int64) (uriMap map[string]string, err error) {
-	uriMap = make(map[string]string)
+func getTokenUris(queryData []QueryTokenUriData, client *fiber.Client, cfg *config.Config, height int64) (uriMap map[string]map[string]string, err error) {
+	uriMap = make(map[string]map[string]string)
 
 	if len(queryData) == 0 {
 		return uriMap, nil
@@ -91,7 +91,10 @@ func getTokenUris(queryData []QueryTokenUriData, client *fiber.Client, cfg *conf
 			}
 
 			mtx.Lock()
-			uriMap[fmt.Sprintf("%s%s", d.CollectionAddr, d.TokenId)] = tokenUri
+			if _, ok := uriMap[d.CollectionAddr]; !ok {
+				uriMap[d.CollectionAddr] = make(map[string]string)
+			}
+			uriMap[d.CollectionAddr][d.TokenId] = tokenUri
 			mtx.Unlock()
 
 			return nil
