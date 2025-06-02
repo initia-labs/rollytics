@@ -17,10 +17,6 @@ func (sub *WasmNftSubmodule) prepare(block indexertypes.ScrappedBlock) (err erro
 		return err
 	}
 
-	if len(colAddrs) == 0 {
-		return nil
-	}
-
 	infoMap := make(map[string]CacheCollectionInfo) // collection addr -> collection info
 
 	var g errgroup.Group

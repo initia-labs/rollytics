@@ -45,9 +45,6 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.DB) (
 
 		decoded, decodeErr := txDecode(txByte)
 		if decodeErr != nil {
-			if txIndex == 0 {
-				continue
-			}
 			return decodeErr
 		}
 

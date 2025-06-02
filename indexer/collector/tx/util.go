@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	abci "github.com/cometbft/cometbft/abci/types"
-	movetypes "github.com/initia-labs/initia/x/move/types"
 	evmtypes "github.com/initia-labs/minievm/x/evm/types"
 	"github.com/initia-labs/rollytics/indexer/util"
 	"github.com/initia-labs/rollytics/types"
@@ -64,10 +63,10 @@ func grepAddressesFromTx(chainId string, events []abci.Event, tx *gorm.DB) (grep
 			var addrs []string
 
 			switch {
-			case event.Type == movetypes.EventTypeMove && attr.Key == movetypes.AttributeKeyData:
+			case event.Type == "move" && attr.Key == "data":
 				addrs = append(addrs, findAllMoveHexAddress(attr.Value)...)
 				prevAttr := event.Attributes[idx-1]
-				if prevAttr.Key == movetypes.AttributeKeyTypeTag && strings.HasPrefix(prevAttr.Value, "0x1::fungible_asset") {
+				if prevAttr.Key == "type_tag" && strings.HasPrefix(prevAttr.Value, "0x1::fungible_asset") {
 					var faEvent FAEvent
 					if err = json.Unmarshal([]byte(attr.Value), &faEvent); err != nil {
 						return grepped, err

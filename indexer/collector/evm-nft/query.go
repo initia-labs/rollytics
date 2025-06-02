@@ -8,9 +8,7 @@ import (
 
 	cbjson "github.com/cometbft/cometbft/libs/json"
 	"github.com/gofiber/fiber/v2"
-	movetypes "github.com/initia-labs/initia/x/move/types"
 	"github.com/initia-labs/minievm/x/evm/contracts/erc721"
-	vmtypes "github.com/initia-labs/movevm/types"
 	"github.com/initia-labs/rollytics/indexer/config"
 	"github.com/initia-labs/rollytics/indexer/util"
 	"golang.org/x/sync/errgroup"
@@ -18,10 +16,7 @@ import (
 
 const (
 	maxRetries = 5
-)
-
-var (
-	stdAddr = movetypes.ConvertVMAddressToSDKAddress(vmtypes.StdAddress).String()
+	stdAddr    = "init1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqpqr5e3d"
 )
 
 func getCollectionNames(collectionAddrs []string, client *fiber.Client, cfg *config.Config, height int64) (nameMap map[string]string, err error) {

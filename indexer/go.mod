@@ -13,7 +13,6 @@ require (
 	github.com/initia-labs/minievm v1.0.0
 	github.com/initia-labs/minimove v1.0.0
 	github.com/initia-labs/miniwasm v1.0.0
-	github.com/initia-labs/movevm v1.0.0
 	github.com/initia-labs/rollytics v0.0.0-00010101000000-000000000000
 	github.com/joho/godotenv v1.5.1
 	github.com/rs/zerolog v1.34.0
@@ -179,6 +178,7 @@ require (
 	github.com/initia-labs/kvindexer/submodules/tx v0.1.7 // indirect
 	github.com/initia-labs/kvindexer/submodules/wasm-nft v0.1.8 // indirect
 	github.com/initia-labs/kvindexer/submodules/wasm-pair v0.1.3 // indirect
+	github.com/initia-labs/movevm v1.0.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/pgx/v5 v5.7.4 // indirect
