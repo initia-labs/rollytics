@@ -49,7 +49,7 @@ func (sub *MoveNftSubmodule) prepare(block indexertypes.ScrappedBlock) (err erro
 	nftMap := <-getNftsRes
 
 	sub.mtx.Lock()
-	sub.dataMap[block.Height] = CacheData{
+	sub.cacheMap[block.Height] = CacheData{
 		CollectionMap: collectionMap,
 		NftMap:        nftMap,
 	}

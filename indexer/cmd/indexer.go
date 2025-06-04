@@ -128,12 +128,14 @@ func (i *Indexer) Run() {
 			continue
 		}
 
-		if err := i.collector.Run(block); err != nil {
+		// delete and unlock first becore collect
+		delete(i.blockMap, i.height)
+		mtx.Unlock()
+
+		if err := i.collector.Collect(block); err != nil {
 			panic(err)
 		}
 
-		delete(i.blockMap, i.height)
 		i.height++
-		mtx.Unlock()
 	}
 }

@@ -9,10 +9,6 @@ import (
 	"github.com/initia-labs/rollytics/indexer/util"
 )
 
-const (
-	maxRetries = 5
-)
-
 func getEvmTxs(client *fiber.Client, cfg *config.Config, height int64) (txs []EvmTx, err error) {
 	payload := map[string]interface{}{
 		"jsonrpc": "2.0",

@@ -55,7 +55,7 @@ func Collect(block indexertypes.ScrappedBlock, cfg *config.Config, tx *gorm.DB) 
 
 		l1CollectionName := classData.Name
 		var l2CollectionName string
-		if cfg.GetChainConfig().VmType == types.WasmVM {
+		if cfg.GetVmType() == types.WasmVM {
 			l2CollectionName = fmt.Sprintf("%s/%s/%s", packetDstPort, packetDstChannel, baseClassId)
 		} else {
 			l2CollectionName = ibcnfttypes.GetNftTransferClassId(packetDstPort, packetDstChannel, baseClassId)

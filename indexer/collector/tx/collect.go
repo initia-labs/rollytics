@@ -11,7 +11,6 @@ import (
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
-	"github.com/initia-labs/rollytics/indexer/collector/fa"
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
@@ -20,11 +19,11 @@ import (
 
 func (sub *TxSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.DB) (err error) {
 	// collect fa before collecting tx (only for move)
-	if err = fa.Collect(block, sub.cfg, tx); err != nil {
+	if err = collectFa(block, sub.cfg, tx); err != nil {
 		return err
 	}
 
-	batchSize := sub.cfg.GetDBConfig().BatchSize
+	batchSize := sub.cfg.GetDBBatchSize()
 	chainId := block.ChainId
 	height := block.Height
 	txDecode := sub.txConfig.TxDecoder()
@@ -153,11 +152,11 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.DB) (
 }
 
 func (sub *TxSubmodule) collectEvm(block indexertypes.ScrappedBlock, tx *gorm.DB) (err error) {
-	if sub.cfg.GetChainConfig().VmType != types.EVM {
+	if sub.cfg.GetVmType() != types.EVM {
 		return nil
 	}
 
-	batchSize := sub.cfg.GetDBConfig().BatchSize
+	batchSize := sub.cfg.GetDBBatchSize()
 	seqInfo, err := getSeqInfo(block.ChainId, "evm_tx", tx)
 	if err != nil {
 		return err

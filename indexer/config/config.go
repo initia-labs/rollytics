@@ -107,6 +107,14 @@ func (c Config) GetChainConfig() *ChainConfig {
 	return c.chainConfig
 }
 
+func (c Config) GetDBBatchSize() int {
+	return c.dbConfig.BatchSize
+}
+
+func (c Config) GetVmType() types.VMType {
+	return c.chainConfig.VmType
+}
+
 func (c Config) IsProfileEnabled() bool {
 	return c.enableProfile
 }

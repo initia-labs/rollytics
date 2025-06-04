@@ -90,7 +90,7 @@ func (sub *EvmNftSubmodule) prepare(block indexertypes.ScrappedBlock) (err error
 	}
 
 	sub.mtx.Lock()
-	sub.dataMap[block.Height] = CacheData{
+	sub.cacheMap[block.Height] = CacheData{
 		CollectionMap: nameMap,
 		NftMap:        uriMap,
 	}

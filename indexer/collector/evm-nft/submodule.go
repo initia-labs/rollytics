@@ -16,16 +16,16 @@ var _ types.Submodule = &EvmNftSubmodule{}
 type EvmNftSubmodule struct {
 	logger       *slog.Logger
 	cfg          *config.Config
-	dataMap      map[int64]CacheData
+	cacheMap     map[int64]CacheData
 	blacklistMap sync.Map
 	mtx          sync.Mutex
 }
 
 func New(logger *slog.Logger, cfg *config.Config) *EvmNftSubmodule {
 	return &EvmNftSubmodule{
-		logger:  logger.With("submodule", SubmoduleName),
-		cfg:     cfg,
-		dataMap: make(map[int64]CacheData),
+		logger:   logger.With("submodule", SubmoduleName),
+		cfg:      cfg,
+		cacheMap: make(map[int64]CacheData),
 	}
 }
 

@@ -1,9 +1,8 @@
-package fa
+package tx
 
 import (
 	"encoding/json"
 
-	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/initia-labs/rollytics/indexer/config"
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
 	"github.com/initia-labs/rollytics/orm"
@@ -11,12 +10,12 @@ import (
 	"gorm.io/gorm"
 )
 
-func Collect(block indexertypes.ScrappedBlock, cfg *config.Config, tx *gorm.DB) (err error) {
-	if cfg.GetChainConfig().VmType != types.MoveVM {
+func collectFa(block indexertypes.ScrappedBlock, cfg *config.Config, tx *gorm.DB) (err error) {
+	if cfg.GetVmType() != types.MoveVM {
 		return nil
 	}
 
-	batchSize := cfg.GetDBConfig().BatchSize
+	batchSize := cfg.GetDBBatchSize()
 	var stores []types.CollectedFAStore
 	for _, event := range extractEvents(block) {
 		if event.Type != "move" {
@@ -50,35 +49,4 @@ func Collect(block indexertypes.ScrappedBlock, cfg *config.Config, tx *gorm.DB) 
 	}
 
 	return nil
-}
-
-func extractEvents(block indexertypes.ScrappedBlock) []indexertypes.ParsedEvent {
-	events := parseEvents(block.BeginBlock)
-
-	for _, res := range block.TxResults {
-		events = append(events, parseEvents(res.Events)...)
-	}
-
-	events = append(events, parseEvents(block.EndBlock)...)
-
-	return events
-}
-
-func parseEvents(evts []abci.Event) (parsedEvts []indexertypes.ParsedEvent) {
-	for _, evt := range evts {
-		parsedEvts = append(parsedEvts, parseEvent(evt))
-	}
-
-	return
-}
-
-func parseEvent(evt abci.Event) indexertypes.ParsedEvent {
-	attributes := make(map[string]string)
-	for _, attr := range evt.Attributes {
-		attributes[attr.Key] = attr.Value
-	}
-	return indexertypes.ParsedEvent{
-		Type:       evt.Type,
-		Attributes: attributes,
-	}
 }

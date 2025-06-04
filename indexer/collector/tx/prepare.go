@@ -7,7 +7,7 @@ import (
 )
 
 func (sub *TxSubmodule) prepare(block indexertypes.ScrappedBlock) (err error) {
-	if sub.cfg.GetChainConfig().VmType != types.EVM {
+	if sub.cfg.GetVmType() != types.EVM {
 		return nil
 	}
 

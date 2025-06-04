@@ -12,7 +12,6 @@ import (
 )
 
 const (
-	maxRetries          = 5
 	collectionStructTag = "0x1::collection::Collection"
 	nftStructTag        = "0x1::nft::Nft"
 )

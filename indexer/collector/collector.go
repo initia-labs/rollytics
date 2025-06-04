@@ -26,7 +26,7 @@ func New(logger *slog.Logger, db *orm.Database, cfg *config.Config) *Collector {
 	blockSubmodule := block.New(logger, txConfig)
 	txSubmodule := tx.New(logger, cfg, txConfig, cdc)
 	var nftSubmodule indexertypes.Submodule
-	switch cfg.GetChainConfig().VmType {
+	switch cfg.GetVmType() {
 	case types.MoveVM:
 		nftSubmodule = move_nft.New(logger, cfg)
 	case types.WasmVM:
@@ -64,7 +64,7 @@ func (c *Collector) Prepare(block indexertypes.ScrappedBlock) (err error) {
 	return nil
 }
 
-func (c *Collector) Run(block indexertypes.ScrappedBlock) (err error) {
+func (c *Collector) Collect(block indexertypes.ScrappedBlock) (err error) {
 	tx := c.db.Begin()
 	defer func() {
 		if err != nil {

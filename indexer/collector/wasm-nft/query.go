@@ -11,10 +11,6 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-const (
-	maxRetries = 5
-)
-
 var (
 	qreqContractInfo   = []byte("{\"contract_info\":{}}")
 	qreqCollectionInfo = []byte("{\"collection_info\":{}}")

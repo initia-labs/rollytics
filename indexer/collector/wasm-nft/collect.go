@@ -14,15 +14,15 @@ import (
 
 func (sub *WasmNftSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.DB) (err error) {
 	sub.mtx.Lock()
-	cacheData, ok := sub.dataMap[block.Height]
-	delete(sub.dataMap, block.Height)
+	cacheData, ok := sub.cacheMap[block.Height]
+	delete(sub.cacheMap, block.Height)
 	sub.mtx.Unlock()
 
 	if !ok {
 		return errors.New("data is not prepared")
 	}
 
-	batchSize := sub.cfg.GetDBConfig().BatchSize
+	batchSize := sub.cfg.GetDBBatchSize()
 	mintColMap := make(map[string]interface{})
 	mintNftMap := make(map[string]map[string]types.CollectedNft)
 	transferMap := make(map[string]map[string]types.CollectedNft)
