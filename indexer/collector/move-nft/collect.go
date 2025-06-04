@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/initia-labs/rollytics/indexer/collector/pair"
+	nft_pair "github.com/initia-labs/rollytics/indexer/collector/nft-pair"
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
 	"github.com/initia-labs/rollytics/indexer/util"
 	"github.com/initia-labs/rollytics/orm"
@@ -30,11 +30,7 @@ func (sub *MoveNftSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.
 	burnMap := make(map[string]interface{})
 	updateCountMap := make(map[string]interface{})
 
-	for _, event := range extractEvents(block) {
-		if event.Type != "move" {
-			continue
-		}
-
+	for _, event := range extractEvents(block, "move") {
 		typeTag, found := event.Attributes["type_tag"]
 		if !found {
 			continue
@@ -180,5 +176,5 @@ func (sub *MoveNftSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.
 		}
 	}
 
-	return pair.Collect(block, sub.cfg, tx)
+	return nft_pair.Collect(block, sub.cfg, tx)
 }

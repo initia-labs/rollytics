@@ -17,11 +17,7 @@ func collectFa(block indexertypes.ScrappedBlock, cfg *config.Config, tx *gorm.DB
 
 	batchSize := cfg.GetDBBatchSize()
 	var stores []types.CollectedFAStore
-	for _, event := range extractEvents(block) {
-		if event.Type != "move" {
-			continue
-		}
-
+	for _, event := range extractEvents(block, "move") {
 		typeTag, found := event.Attributes["type_tag"]
 		if !found || typeTag != "0x1::primary_fungible_store::PrimaryStoreCreatedEvent" {
 			continue

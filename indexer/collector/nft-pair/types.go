@@ -1,4 +1,4 @@
-package pair
+package nft_pair
 
 type PacketData struct {
 	ClassData string `json:"classData"`

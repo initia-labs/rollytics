@@ -1,15 +1,11 @@
 package evm_nft
 
 import (
-	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"math/big"
 	"strings"
 	"sync"
 
-	"github.com/cometbft/cometbft/crypto/tmhash"
 	"github.com/gofiber/fiber/v2"
 	evmtypes "github.com/initia-labs/minievm/x/evm/types"
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
@@ -102,16 +98,12 @@ func (sub *EvmNftSubmodule) prepare(block indexertypes.ScrappedBlock) (err error
 func filterEvmData(block indexertypes.ScrappedBlock) (targetMap map[string]map[string]interface{}, err error) {
 	targetMap = make(map[string]map[string]interface{}) // collection addr -> token id
 
-	events, err := getEvents(block)
+	events, err := getEvents(block, "evm")
 	if err != nil {
 		return targetMap, err
 	}
 
 	for _, event := range events {
-		if event.Type != "evm" {
-			continue
-		}
-
 		for _, attr := range event.Attributes {
 			if attr.Key != "log" {
 				continue
@@ -148,50 +140,4 @@ func filterEvmData(block indexertypes.ScrappedBlock) (targetMap map[string]map[s
 	}
 
 	return
-}
-
-func getEvents(block indexertypes.ScrappedBlock) (events []EventWithHash, err error) {
-	for _, event := range block.BeginBlock {
-		events = append(events, EventWithHash{
-			TxHash: "",
-			Event:  event,
-		})
-	}
-
-	for txIndex, txRaw := range block.Txs {
-		txByte, err := base64.StdEncoding.DecodeString(txRaw)
-		if err != nil {
-			return events, err
-		}
-		txHash := fmt.Sprintf("%X", tmhash.Sum(txByte))
-		txRes := block.TxResults[txIndex]
-		for _, event := range txRes.Events {
-			events = append(events, EventWithHash{
-				TxHash: txHash,
-				Event:  event,
-			})
-		}
-	}
-
-	for _, event := range block.EndBlock {
-		events = append(events, EventWithHash{
-			TxHash: "",
-			Event:  event,
-		})
-	}
-
-	return events, nil
-}
-
-func isEvmNftLog(log evmtypes.Log) bool {
-	return len(log.Topics) == 4 && log.Topics[0] == nftTopic && log.Data == "0x"
-}
-
-func convertHexStringToDecString(hex string) (string, error) {
-	hex = strings.TrimPrefix(hex, "0x")
-	bi, ok := new(big.Int).SetString(hex, 16)
-	if !ok {
-		return "", errors.New("failed to convert hex to dec")
-	}
-	return bi.String(), nil
 }

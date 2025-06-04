@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/initia-labs/rollytics/indexer/collector/pair"
+	nft_pair "github.com/initia-labs/rollytics/indexer/collector/nft-pair"
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
@@ -30,16 +30,12 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.
 	updateCountMap := make(map[string]interface{})
 	nftTxMap := make(map[string]map[string]map[string]interface{})
 
-	events, err := extractEvents(block)
+	events, err := extractEvents(block, "wasm")
 	if err != nil {
 		return err
 	}
 
 	for _, event := range events {
-		if event.Type != "wasm" {
-			continue
-		}
-
 		collectionAddr, found := event.Attributes["_contract_address"]
 		if !found {
 			continue
@@ -226,5 +222,5 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.
 		return res.Error
 	}
 
-	return pair.Collect(block, sub.cfg, tx)
+	return nft_pair.Collect(block, sub.cfg, tx)
 }

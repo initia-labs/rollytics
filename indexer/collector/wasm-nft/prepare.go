@@ -65,16 +65,12 @@ func (sub *WasmNftSubmodule) prepare(block indexertypes.ScrappedBlock) (err erro
 
 func filterWasmData(block indexertypes.ScrappedBlock) (colAddrs []string, err error) {
 	collectionAddrMap := make(map[string]interface{})
-	events, err := extractEvents(block)
+	events, err := extractEvents(block, "wasm")
 	if err != nil {
 		return colAddrs, err
 	}
 
 	for _, event := range events {
-		if event.Type != "wasm" {
-			continue
-		}
-
 		collectionAddr, found := event.Attributes["_contract_address"]
 		if !found {
 			continue

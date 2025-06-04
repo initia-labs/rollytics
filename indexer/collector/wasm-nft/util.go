@@ -9,8 +9,8 @@ import (
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
 )
 
-func extractEvents(block indexertypes.ScrappedBlock) (events []indexertypes.ParsedEvent, err error) {
-	events = parseEvents(block.BeginBlock, "")
+func extractEvents(block indexertypes.ScrappedBlock, eventType string) (events []indexertypes.ParsedEvent, err error) {
+	events = parseEvents(block.BeginBlock, "", eventType)
 
 	for txIndex, txRaw := range block.Txs {
 		txByte, err := base64.StdEncoding.DecodeString(txRaw)
@@ -19,16 +19,20 @@ func extractEvents(block indexertypes.ScrappedBlock) (events []indexertypes.Pars
 		}
 		txHash := fmt.Sprintf("%X", tmhash.Sum(txByte))
 		txRes := block.TxResults[txIndex]
-		events = append(events, parseEvents(txRes.Events, txHash)...)
+		events = append(events, parseEvents(txRes.Events, txHash, eventType)...)
 	}
 
-	events = append(events, parseEvents(block.EndBlock, "")...)
+	events = append(events, parseEvents(block.EndBlock, "", eventType)...)
 
 	return events, nil
 }
 
-func parseEvents(evts []abci.Event, txHash string) (parsedEvts []indexertypes.ParsedEvent) {
+func parseEvents(evts []abci.Event, txHash string, eventType string) (parsedEvts []indexertypes.ParsedEvent) {
 	for _, evt := range evts {
+		if evt.Type != eventType {
+			continue
+		}
+
 		parsedEvts = append(parsedEvts, parseEvent(evt, txHash))
 	}
 

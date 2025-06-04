@@ -61,11 +61,7 @@ func (sub *MoveNftSubmodule) prepare(block indexertypes.ScrappedBlock) (err erro
 func filterMoveData(block indexertypes.ScrappedBlock) (colAddrs []string, nftAddrs []string, err error) {
 	collectionAddrMap := make(map[string]interface{})
 	nftAddrMap := make(map[string]interface{})
-	for _, event := range extractEvents(block) {
-		if event.Type != "move" {
-			continue
-		}
-
+	for _, event := range extractEvents(block, "move") {
 		typeTag, found := event.Attributes["type_tag"]
 		if !found {
 			continue

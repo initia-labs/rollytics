@@ -1,4 +1,4 @@
-package pair
+package nft_pair
 
 import (
 	"encoding/base64"
@@ -16,11 +16,7 @@ import (
 func Collect(block indexertypes.ScrappedBlock, cfg *config.Config, tx *gorm.DB) (err error) {
 	collectionPairMap := make(map[string]string) // l2 collection name -> l1 collection name
 
-	for _, event := range extractEvents(block) {
-		if event.Type != "recv_packet" {
-			continue
-		}
-
+	for _, event := range extractEvents(block, "recv_packet") {
 		packetSrcPort, found := event.Attributes["packet_src_port"]
 		if !found || packetSrcPort != "nft_transfer" {
 			continue
@@ -33,11 +29,11 @@ func Collect(block indexertypes.ScrappedBlock, cfg *config.Config, tx *gorm.DB) 
 		if !found {
 			continue
 		}
-
 		packetDataRaw, found := event.Attributes["packet_data"]
 		if !found {
 			continue
 		}
+
 		var packetData PacketData
 		if err := json.Unmarshal([]byte(packetDataRaw), &packetData); err != nil {
 			return err
@@ -73,20 +69,24 @@ func Collect(block indexertypes.ScrappedBlock, cfg *config.Config, tx *gorm.DB) 
 	return nil
 }
 
-func extractEvents(block indexertypes.ScrappedBlock) []indexertypes.ParsedEvent {
-	events := parseEvents(block.BeginBlock)
+func extractEvents(block indexertypes.ScrappedBlock, eventType string) []indexertypes.ParsedEvent {
+	events := parseEvents(block.BeginBlock, eventType)
 
 	for _, res := range block.TxResults {
-		events = append(events, parseEvents(res.Events)...)
+		events = append(events, parseEvents(res.Events, eventType)...)
 	}
 
-	events = append(events, parseEvents(block.EndBlock)...)
+	events = append(events, parseEvents(block.EndBlock, eventType)...)
 
 	return events
 }
 
-func parseEvents(evts []abci.Event) (parsedEvts []indexertypes.ParsedEvent) {
+func parseEvents(evts []abci.Event, eventType string) (parsedEvts []indexertypes.ParsedEvent) {
 	for _, evt := range evts {
+		if evt.Type != eventType {
+			continue
+		}
+
 		parsedEvts = append(parsedEvts, parseEvent(evt))
 	}
 
