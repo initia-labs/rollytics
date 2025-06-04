@@ -9,6 +9,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	evmtypes "github.com/initia-labs/minievm/x/evm/types"
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
+	"github.com/initia-labs/rollytics/indexer/util"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -97,8 +98,7 @@ func (sub *EvmNftSubmodule) prepare(block indexertypes.ScrappedBlock) (err error
 
 func filterEvmData(block indexertypes.ScrappedBlock) (targetMap map[string]map[string]interface{}, err error) {
 	targetMap = make(map[string]map[string]interface{}) // collection addr -> token id
-
-	events, err := getEvents(block, "evm")
+	events, err := util.ExtractEvents(block, "evm")
 	if err != nil {
 		return targetMap, err
 	}

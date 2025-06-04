@@ -7,6 +7,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
+	"github.com/initia-labs/rollytics/indexer/util"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -65,17 +66,17 @@ func (sub *WasmNftSubmodule) prepare(block indexertypes.ScrappedBlock) (err erro
 
 func filterWasmData(block indexertypes.ScrappedBlock) (colAddrs []string, err error) {
 	collectionAddrMap := make(map[string]interface{})
-	events, err := extractEvents(block, "wasm")
+	events, err := util.ExtractEvents(block, "wasm")
 	if err != nil {
 		return colAddrs, err
 	}
 
 	for _, event := range events {
-		collectionAddr, found := event.Attributes["_contract_address"]
+		collectionAddr, found := event.AttrMap["_contract_address"]
 		if !found {
 			continue
 		}
-		action, found := event.Attributes["action"]
+		action, found := event.AttrMap["action"]
 		if !found || action != "mint" {
 			continue
 		}

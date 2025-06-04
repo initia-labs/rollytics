@@ -5,6 +5,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
+	"github.com/initia-labs/rollytics/indexer/util"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -61,12 +62,17 @@ func (sub *MoveNftSubmodule) prepare(block indexertypes.ScrappedBlock) (err erro
 func filterMoveData(block indexertypes.ScrappedBlock) (colAddrs []string, nftAddrs []string, err error) {
 	collectionAddrMap := make(map[string]interface{})
 	nftAddrMap := make(map[string]interface{})
-	for _, event := range extractEvents(block, "move") {
-		typeTag, found := event.Attributes["type_tag"]
+	events, err := util.ExtractEvents(block, "move")
+	if err != nil {
+		return colAddrs, nftAddrs, err
+	}
+
+	for _, event := range events {
+		typeTag, found := event.AttrMap["type_tag"]
 		if !found {
 			continue
 		}
-		data, found := event.Attributes["data"]
+		data, found := event.AttrMap["data"]
 		if !found {
 			continue
 		}

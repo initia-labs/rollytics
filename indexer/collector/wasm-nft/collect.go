@@ -6,6 +6,7 @@ import (
 
 	nft_pair "github.com/initia-labs/rollytics/indexer/collector/nft-pair"
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
+	"github.com/initia-labs/rollytics/indexer/util"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
 	"gorm.io/gorm"
@@ -29,29 +30,28 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.
 	burnMap := make(map[string]map[string]interface{})
 	updateCountMap := make(map[string]interface{})
 	nftTxMap := make(map[string]map[string]map[string]interface{})
-
-	events, err := extractEvents(block, "wasm")
+	events, err := util.ExtractEvents(block, "wasm")
 	if err != nil {
 		return err
 	}
 
 	for _, event := range events {
-		collectionAddr, found := event.Attributes["_contract_address"]
+		collectionAddr, found := event.AttrMap["_contract_address"]
 		if !found {
 			continue
 		}
-		action, found := event.Attributes["action"]
+		action, found := event.AttrMap["action"]
 		if !found {
 			continue
 		}
 
 		switch action {
 		case "mint":
-			tokenId, found := event.Attributes["token_id"]
+			tokenId, found := event.AttrMap["token_id"]
 			if !found {
 				continue
 			}
-			owner, found := event.Attributes["owner"]
+			owner, found := event.AttrMap["owner"]
 			if !found {
 				continue
 			}
@@ -66,7 +66,7 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.
 				TokenId:        tokenId,
 				Height:         block.Height,
 				Owner:          owner,
-				Uri:            event.Attributes["token_uri"], // might be empty string
+				Uri:            event.AttrMap["token_uri"], // might be empty string
 			}
 			delete(burnMap[collectionAddr], tokenId)
 			updateCountMap[collectionAddr] = nil
@@ -79,11 +79,11 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.
 			}
 			nftTxMap[event.TxHash][collectionAddr][tokenId] = nil
 		case "transfer_nft", "send_nft":
-			tokenId, found := event.Attributes["token_id"]
+			tokenId, found := event.AttrMap["token_id"]
 			if !found {
 				continue
 			}
-			recipient, found := event.Attributes["recipient"]
+			recipient, found := event.AttrMap["recipient"]
 			if !found {
 				continue
 			}
@@ -107,7 +107,7 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.
 			}
 			nftTxMap[event.TxHash][collectionAddr][tokenId] = nil
 		case "burn":
-			tokenId, found := event.Attributes["token_id"]
+			tokenId, found := event.AttrMap["token_id"]
 			if !found {
 				continue
 			}

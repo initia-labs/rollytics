@@ -29,13 +29,17 @@ func (sub *MoveNftSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.
 	mutMap := make(map[string]string)
 	burnMap := make(map[string]interface{})
 	updateCountMap := make(map[string]interface{})
+	events, err := util.ExtractEvents(block, "move")
+	if err != nil {
+		return err
+	}
 
-	for _, event := range extractEvents(block, "move") {
-		typeTag, found := event.Attributes["type_tag"]
+	for _, event := range events {
+		typeTag, found := event.AttrMap["type_tag"]
 		if !found {
 			continue
 		}
-		data, found := event.Attributes["data"]
+		data, found := event.AttrMap["data"]
 		if !found {
 			continue
 		}

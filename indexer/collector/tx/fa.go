@@ -5,6 +5,7 @@ import (
 
 	"github.com/initia-labs/rollytics/indexer/config"
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
+	"github.com/initia-labs/rollytics/indexer/util"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
 	"gorm.io/gorm"
@@ -17,12 +18,17 @@ func collectFa(block indexertypes.ScrappedBlock, cfg *config.Config, tx *gorm.DB
 
 	batchSize := cfg.GetDBBatchSize()
 	var stores []types.CollectedFAStore
-	for _, event := range extractEvents(block, "move") {
-		typeTag, found := event.Attributes["type_tag"]
+	events, err := util.ExtractEvents(block, "move")
+	if err != nil {
+		return err
+	}
+
+	for _, event := range events {
+		typeTag, found := event.AttrMap["type_tag"]
 		if !found || typeTag != "0x1::primary_fungible_store::PrimaryStoreCreatedEvent" {
 			continue
 		}
-		data, found := event.Attributes["data"]
+		data, found := event.AttrMap["data"]
 		if !found {
 			continue
 		}

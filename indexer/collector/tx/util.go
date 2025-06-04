@@ -3,8 +3,6 @@ package tx
 import (
 	"errors"
 
-	abci "github.com/cometbft/cometbft/abci/types"
-	indexertypes "github.com/initia-labs/rollytics/indexer/types"
 	"github.com/initia-labs/rollytics/types"
 	"gorm.io/gorm"
 )
@@ -24,39 +22,4 @@ func getSeqInfo(chainId string, name string, tx *gorm.DB) (seqInfo types.Collect
 	}
 
 	return seqInfo, nil
-}
-
-func extractEvents(block indexertypes.ScrappedBlock, eventType string) []indexertypes.ParsedEvent {
-	events := parseEvents(block.BeginBlock, eventType)
-
-	for _, res := range block.TxResults {
-		events = append(events, parseEvents(res.Events, eventType)...)
-	}
-
-	events = append(events, parseEvents(block.EndBlock, eventType)...)
-
-	return events
-}
-
-func parseEvents(evts []abci.Event, eventType string) (parsedEvts []indexertypes.ParsedEvent) {
-	for _, evt := range evts {
-		if evt.Type != eventType {
-			continue
-		}
-
-		parsedEvts = append(parsedEvts, parseEvent(evt))
-	}
-
-	return
-}
-
-func parseEvent(evt abci.Event) indexertypes.ParsedEvent {
-	attributes := make(map[string]string)
-	for _, attr := range evt.Attributes {
-		attributes[attr.Key] = attr.Value
-	}
-	return indexertypes.ParsedEvent{
-		Type:       evt.Type,
-		Attributes: attributes,
-	}
 }

@@ -32,8 +32,7 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.D
 	burnMap := make(map[string]map[string]interface{})
 	updateCountMap := make(map[string]interface{})
 	nftTxMap := make(map[string]map[string]map[string]interface{})
-
-	events, err := getEvents(block, "evm")
+	events, err := util.ExtractEvents(block, "evm")
 	if err != nil {
 		return err
 	}

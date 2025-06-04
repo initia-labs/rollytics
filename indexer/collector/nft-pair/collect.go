@@ -5,31 +5,35 @@ import (
 	"encoding/json"
 	"fmt"
 
-	abci "github.com/cometbft/cometbft/abci/types"
 	ibcnfttypes "github.com/initia-labs/initia/x/ibc/nft-transfer/types"
 	"github.com/initia-labs/rollytics/indexer/config"
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
+	"github.com/initia-labs/rollytics/indexer/util"
 	"github.com/initia-labs/rollytics/types"
 	"gorm.io/gorm"
 )
 
 func Collect(block indexertypes.ScrappedBlock, cfg *config.Config, tx *gorm.DB) (err error) {
 	collectionPairMap := make(map[string]string) // l2 collection name -> l1 collection name
+	events, err := util.ExtractEvents(block, "recv_packet")
+	if err != nil {
+		return err
+	}
 
-	for _, event := range extractEvents(block, "recv_packet") {
-		packetSrcPort, found := event.Attributes["packet_src_port"]
+	for _, event := range events {
+		packetSrcPort, found := event.AttrMap["packet_src_port"]
 		if !found || packetSrcPort != "nft_transfer" {
 			continue
 		}
-		packetDstPort, found := event.Attributes["packet_dst_port"]
+		packetDstPort, found := event.AttrMap["packet_dst_port"]
 		if !found {
 			continue
 		}
-		packetDstChannel, found := event.Attributes["packet_dst_channel"]
+		packetDstChannel, found := event.AttrMap["packet_dst_channel"]
 		if !found {
 			continue
 		}
-		packetDataRaw, found := event.Attributes["packet_data"]
+		packetDataRaw, found := event.AttrMap["packet_data"]
 		if !found {
 			continue
 		}
@@ -67,39 +71,4 @@ func Collect(block indexertypes.ScrappedBlock, cfg *config.Config, tx *gorm.DB) 
 	}
 
 	return nil
-}
-
-func extractEvents(block indexertypes.ScrappedBlock, eventType string) []indexertypes.ParsedEvent {
-	events := parseEvents(block.BeginBlock, eventType)
-
-	for _, res := range block.TxResults {
-		events = append(events, parseEvents(res.Events, eventType)...)
-	}
-
-	events = append(events, parseEvents(block.EndBlock, eventType)...)
-
-	return events
-}
-
-func parseEvents(evts []abci.Event, eventType string) (parsedEvts []indexertypes.ParsedEvent) {
-	for _, evt := range evts {
-		if evt.Type != eventType {
-			continue
-		}
-
-		parsedEvts = append(parsedEvts, parseEvent(evt))
-	}
-
-	return
-}
-
-func parseEvent(evt abci.Event) indexertypes.ParsedEvent {
-	attributes := make(map[string]string)
-	for _, attr := range evt.Attributes {
-		attributes[attr.Key] = attr.Value
-	}
-	return indexertypes.ParsedEvent{
-		Type:       evt.Type,
-		Attributes: attributes,
-	}
 }
