@@ -2,10 +2,10 @@ package evm_nft
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"strings"
 
-	cbjson "github.com/cometbft/cometbft/libs/json"
 	"github.com/gofiber/fiber/v2"
 	"github.com/initia-labs/minievm/x/evm/contracts/erc721"
 	"github.com/initia-labs/rollytics/indexer/config"
@@ -67,7 +67,7 @@ func evmCall(contractAddr string, input []byte, client *fiber.Client, cfg *confi
 	}
 
 	var callRes QueryCallResponse
-	if err := cbjson.Unmarshal(body, &callRes); err != nil {
+	if err := json.Unmarshal(body, &callRes); err != nil {
 		return response, err
 	}
 

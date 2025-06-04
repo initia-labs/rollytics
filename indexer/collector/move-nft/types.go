@@ -3,8 +3,8 @@ package move_nft
 import "strings"
 
 type CacheData struct {
-	CollectionMap map[string]string
-	NftMap        map[string]string
+	ColResources map[string]string // collection addr -> collection resource
+	NftResources map[string]string // nft addr -> nft resource
 }
 
 type QueryMoveResourceResponse struct {
@@ -29,13 +29,13 @@ type NftTransferEvent struct {
 }
 
 type NftMutationEvent struct {
-	Nft              string `json:"nft,omitempty"`
+	Nft              string `json:"nft"`
 	MutatedFieldName string `json:"mutated_field_name"`
-	OldValue         string `json:"old_value,omitempty"`
-	NewValue         string `json:"new_value,omitempty"`
+	OldValue         string `json:"old_value"`
+	NewValue         string `json:"new_value"`
 }
 
-type NftCollectionData struct {
+type CollectionResource struct {
 	Type string `json:"type"`
 	Data struct {
 		Creator     string `json:"creator"`
@@ -44,12 +44,12 @@ type NftCollectionData struct {
 		Uri         string `json:"uri"`
 		Nfts        struct {
 			Handle string `json:"handle"`
-			Length string `json:"length"` // it's defined as string in the move contract
+			Length string `json:"length"`
 		} `json:"nfts"`
 	} `json:"data"`
 }
 
-type NftData struct {
+type NftResource struct {
 	Type string `json:"type"`
 	Data struct {
 		Collection struct {
@@ -61,12 +61,13 @@ type NftData struct {
 	}
 }
 
-func (nftData *NftData) Trim() {
-	if nftData == nil {
+func (resource *NftResource) Trim() {
+	if resource == nil {
 		return
 	}
-	nftData.Data.Collection.Inner = strings.ReplaceAll(nftData.Data.Collection.Inner, "\x00", "")
-	nftData.Data.Description = strings.ReplaceAll(nftData.Data.Description, "\x00", "")
-	nftData.Data.TokenId = strings.ReplaceAll(nftData.Data.TokenId, "\x00", "")
-	nftData.Data.Uri = strings.ReplaceAll(nftData.Data.Uri, "\x00", "")
+
+	resource.Data.Collection.Inner = strings.ReplaceAll(resource.Data.Collection.Inner, "\x00", "")
+	resource.Data.Description = strings.ReplaceAll(resource.Data.Description, "\x00", "")
+	resource.Data.TokenId = strings.ReplaceAll(resource.Data.TokenId, "\x00", "")
+	resource.Data.Uri = strings.ReplaceAll(resource.Data.Uri, "\x00", "")
 }

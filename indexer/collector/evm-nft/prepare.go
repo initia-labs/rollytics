@@ -27,15 +27,15 @@ func (sub *EvmNftSubmodule) prepare(block indexertypes.ScrappedBlock) (err error
 		return err
 	}
 
-	nameMap := make(map[string]string)
-	uriMap := make(map[string]map[string]string)
+	colNames := make(map[string]string)
+	tokenUris := make(map[string]map[string]string)
 
 	var g errgroup.Group
 	var nameMtx sync.Mutex
 	var uriMtx sync.Mutex
 
 	for collectionAddr, tokenIdMap := range targetMap {
-		if _, found := sub.blacklistMap.Load(collectionAddr); found {
+		if sub.IsBlacklisted(collectionAddr) {
 			continue
 		}
 
@@ -45,7 +45,7 @@ func (sub *EvmNftSubmodule) prepare(block indexertypes.ScrappedBlock) (err error
 			if err != nil {
 				errString := fmt.Sprintf("%+v", err)
 				if strings.Contains(errString, "revert: 0x: Reverted: EVMCall failed") {
-					sub.blacklistMap.Store(addr, nil)
+					sub.AddToBlacklist(addr)
 					return nil
 				}
 
@@ -53,7 +53,7 @@ func (sub *EvmNftSubmodule) prepare(block indexertypes.ScrappedBlock) (err error
 			}
 
 			nameMtx.Lock()
-			nameMap[addr] = name
+			colNames[addr] = name
 			nameMtx.Unlock()
 
 			return nil
@@ -66,7 +66,7 @@ func (sub *EvmNftSubmodule) prepare(block indexertypes.ScrappedBlock) (err error
 				if err != nil {
 					errString := fmt.Sprintf("%+v", err)
 					if strings.Contains(errString, "revert: 0x: Reverted: EVMCall failed") {
-						sub.blacklistMap.Store(addr, nil)
+						sub.AddToBlacklist(addr)
 						return nil
 					}
 
@@ -74,7 +74,7 @@ func (sub *EvmNftSubmodule) prepare(block indexertypes.ScrappedBlock) (err error
 				}
 
 				uriMtx.Lock()
-				uriMap[addr][id] = tokenUri
+				tokenUris[addr][id] = tokenUri
 				uriMtx.Unlock()
 
 				return nil
@@ -88,8 +88,8 @@ func (sub *EvmNftSubmodule) prepare(block indexertypes.ScrappedBlock) (err error
 
 	sub.mtx.Lock()
 	sub.cacheMap[block.Height] = CacheData{
-		CollectionMap: nameMap,
-		NftMap:        uriMap,
+		ColNames:  colNames,
+		TokenUris: tokenUris,
 	}
 	sub.mtx.Unlock()
 

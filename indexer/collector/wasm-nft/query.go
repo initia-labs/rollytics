@@ -16,7 +16,7 @@ var (
 	qreqCollectionInfo = []byte("{\"collection_info\":{}}")
 )
 
-func getCollectionInfo(collectionAddr string, client *fiber.Client, cfg *config.Config, height int64) (info CacheCollectionInfo, err error) {
+func getCollectionInfo(collectionAddr string, client *fiber.Client, cfg *config.Config, height int64) (info CollectionInfo, err error) {
 	var g errgroup.Group
 	getCollectionNameRes := make(chan string, 1)
 	getCollectionCreatorRes := make(chan string, 1)
@@ -48,7 +48,7 @@ func getCollectionInfo(collectionAddr string, client *fiber.Client, cfg *config.
 	name := <-getCollectionNameRes
 	creator := <-getCollectionCreatorRes
 
-	return CacheCollectionInfo{
+	return CollectionInfo{
 		Name:    name,
 		Creator: creator,
 	}, nil

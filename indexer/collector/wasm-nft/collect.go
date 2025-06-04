@@ -133,24 +133,22 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.
 	// batch insert collections
 	var mintedCols []types.CollectedNftCollection
 	for collectionAddr := range mintColMap {
-		colInfo, ok := cacheData.CollectionMap[collectionAddr]
+		colInfo, ok := cacheData.ColInfos[collectionAddr]
 		if !ok {
 			// skip if blacklisted
-			if _, found := sub.blacklistMap.Load(collectionAddr); found {
+			if sub.IsBlacklisted(collectionAddr) {
 				continue
 			}
 
 			return fmt.Errorf("collection info not found for collection address %s", collectionAddr)
 		}
-
-		col := types.CollectedNftCollection{
+		mintedCols = append(mintedCols, types.CollectedNftCollection{
 			ChainId: block.ChainId,
 			Addr:    collectionAddr,
 			Height:  block.Height,
 			Name:    colInfo.Name,
 			Creator: colInfo.Creator,
-		}
-		mintedCols = append(mintedCols, col)
+		})
 	}
 	if res := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(mintedCols, batchSize); res.Error != nil {
 		return res.Error
@@ -206,6 +204,10 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.
 	// batch insert nft txs
 	var nftTxs []types.CollectedNftTx
 	for txHash, collectionMap := range nftTxMap {
+		if txHash == "" {
+			continue
+		}
+
 		for collectionAddr, nftMap := range collectionMap {
 			for tokenId := range nftMap {
 				nftTxs = append(nftTxs, types.CollectedNftTx{

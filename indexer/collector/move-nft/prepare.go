@@ -19,26 +19,26 @@ func (sub *MoveNftSubmodule) prepare(block indexertypes.ScrappedBlock) (err erro
 	}
 
 	var g errgroup.Group
-	getCollectionsRes := make(chan map[string]string, 1)
-	getNftsRes := make(chan map[string]string, 1)
+	colResourcesChan := make(chan map[string]string, 1)
+	nftResourcesChan := make(chan map[string]string, 1)
 
 	g.Go(func() error {
-		defer close(getCollectionsRes)
-		collectionMap, err := getCollections(colAddrs, client, sub.cfg, block.Height)
+		defer close(colResourcesChan)
+		colResources, err := getCollectionResources(colAddrs, client, sub.cfg, block.Height)
 		if err != nil {
 			return err
 		}
-		getCollectionsRes <- collectionMap
+		colResourcesChan <- colResources
 		return nil
 	})
 
 	g.Go(func() error {
-		defer close(getNftsRes)
-		nftMap, err := getNfts(nftAddrs, client, sub.cfg, block.Height)
+		defer close(nftResourcesChan)
+		nftResources, err := getNftResources(nftAddrs, client, sub.cfg, block.Height)
 		if err != nil {
 			return err
 		}
-		getNftsRes <- nftMap
+		nftResourcesChan <- nftResources
 		return nil
 	})
 
@@ -46,13 +46,13 @@ func (sub *MoveNftSubmodule) prepare(block indexertypes.ScrappedBlock) (err erro
 		return err
 	}
 
-	collectionMap := <-getCollectionsRes
-	nftMap := <-getNftsRes
+	colResources := <-colResourcesChan
+	nftResources := <-nftResourcesChan
 
 	sub.mtx.Lock()
 	sub.cacheMap[block.Height] = CacheData{
-		CollectionMap: collectionMap,
-		NftMap:        nftMap,
+		ColResources: colResources,
+		NftResources: nftResources,
 	}
 	sub.mtx.Unlock()
 

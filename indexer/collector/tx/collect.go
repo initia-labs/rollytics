@@ -19,7 +19,7 @@ import (
 
 func (sub *TxSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.DB) (err error) {
 	// collect fa before collecting tx (only for move)
-	if err = collectFa(block, sub.cfg, tx); err != nil {
+	if err = collectFA(block, sub.cfg, tx); err != nil {
 		return err
 	}
 
@@ -98,15 +98,14 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.DB) (
 		}
 
 		seqInfo.Sequence++
-		ctx := types.CollectedTx{
+		ctxs = append(ctxs, types.CollectedTx{
 			Hash:     fmt.Sprintf("%X", tmhash.Sum(txByte)),
 			ChainId:  chainId,
 			Height:   height,
 			Sequence: seqInfo.Sequence,
 			Signer:   signer,
 			Data:     json.RawMessage(txByHeightRecordJSON),
-		}
-		ctxs = append(ctxs, ctx)
+		})
 
 		// grep addresses for account tx
 		addrs, err := grepAddressesFromTx(block.ChainId, res.Events, tx)

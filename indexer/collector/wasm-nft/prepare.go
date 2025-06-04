@@ -20,14 +20,14 @@ func (sub *WasmNftSubmodule) prepare(block indexertypes.ScrappedBlock) (err erro
 		return err
 	}
 
-	infoMap := make(map[string]CacheCollectionInfo) // collection addr -> collection info
+	colInfos := make(map[string]CollectionInfo) // collection addr -> collection info
 
 	var g errgroup.Group
 	var mtx sync.Mutex
 	for _, collectionAddr := range colAddrs {
 		addr := collectionAddr
 		// skip if blacklisted
-		if _, found := sub.blacklistMap.Load(addr); found {
+		if sub.IsBlacklisted(addr) {
 			continue
 		}
 
@@ -36,7 +36,7 @@ func (sub *WasmNftSubmodule) prepare(block indexertypes.ScrappedBlock) (err erro
 			if err != nil {
 				errString := fmt.Sprintf("%+v", err)
 				if strings.Contains(errString, "Error parsing into type sg721_base::msg::QueryMsg: unknown variant") {
-					sub.blacklistMap.Store(addr, nil)
+					sub.AddToBlacklist(addr)
 					return nil
 				}
 
@@ -44,7 +44,7 @@ func (sub *WasmNftSubmodule) prepare(block indexertypes.ScrappedBlock) (err erro
 			}
 
 			mtx.Lock()
-			infoMap[addr] = info
+			colInfos[addr] = info
 			mtx.Unlock()
 
 			return nil
@@ -57,7 +57,7 @@ func (sub *WasmNftSubmodule) prepare(block indexertypes.ScrappedBlock) (err erro
 
 	sub.mtx.Lock()
 	sub.cacheMap[block.Height] = CacheData{
-		CollectionMap: infoMap,
+		ColInfos: colInfos,
 	}
 	sub.mtx.Unlock()
 

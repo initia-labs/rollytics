@@ -1,10 +1,10 @@
 package wasm_nft
 
 type CacheData struct {
-	CollectionMap map[string]CacheCollectionInfo
+	ColInfos map[string]CollectionInfo
 }
 
-type CacheCollectionInfo struct {
+type CollectionInfo struct {
 	Name    string
 	Creator string
 }

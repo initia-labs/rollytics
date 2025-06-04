@@ -1,10 +1,10 @@
 package move_nft
 
 import (
+	"encoding/json"
 	"fmt"
 	"sync"
 
-	cbjson "github.com/cometbft/cometbft/libs/json"
 	"github.com/gofiber/fiber/v2"
 	"github.com/initia-labs/rollytics/indexer/config"
 	"github.com/initia-labs/rollytics/indexer/util"
@@ -16,11 +16,11 @@ const (
 	nftStructTag        = "0x1::nft::Nft"
 )
 
-func getCollections(colAddrs []string, client *fiber.Client, cfg *config.Config, height int64) (resourceMap map[string]string, err error) {
+func getCollectionResources(colAddrs []string, client *fiber.Client, cfg *config.Config, height int64) (resourceMap map[string]string, err error) {
 	return getMoveResources(colAddrs, collectionStructTag, client, cfg, height)
 }
 
-func getNfts(nftAddrs []string, client *fiber.Client, cfg *config.Config, height int64) (resourceMap map[string]string, err error) {
+func getNftResources(nftAddrs []string, client *fiber.Client, cfg *config.Config, height int64) (resourceMap map[string]string, err error) {
 	return getMoveResources(nftAddrs, nftStructTag, client, cfg, height)
 }
 
@@ -67,7 +67,7 @@ func getMoveResource(addr string, structTag string, client *fiber.Client, cfg *c
 	}
 
 	var response QueryMoveResourceResponse
-	if err := cbjson.Unmarshal(body, &response); err != nil {
+	if err := json.Unmarshal(body, &response); err != nil {
 		return resource, err
 	}
 

@@ -3,7 +3,6 @@ package nft_pair
 import (
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 
 	ibcnfttypes "github.com/initia-labs/initia/x/ibc/nft-transfer/types"
 	"github.com/initia-labs/rollytics/indexer/config"
@@ -42,8 +41,6 @@ func Collect(block indexertypes.ScrappedBlock, cfg *config.Config, tx *gorm.DB) 
 		if err := json.Unmarshal([]byte(packetDataRaw), &packetData); err != nil {
 			return err
 		}
-		baseClassId := packetData.ClassId
-
 		classDataRaw, err := base64.StdEncoding.DecodeString(packetData.ClassData)
 		if err != nil {
 			return err
@@ -56,9 +53,9 @@ func Collect(block indexertypes.ScrappedBlock, cfg *config.Config, tx *gorm.DB) 
 		l1CollectionName := classData.Name
 		var l2CollectionName string
 		if cfg.GetVmType() == types.WasmVM {
-			l2CollectionName = fmt.Sprintf("%s/%s/%s", packetDstPort, packetDstChannel, baseClassId)
+			l2CollectionName = ibcnfttypes.GetPrefixedClassId(packetDstPort, packetDstChannel, packetData.ClassId)
 		} else {
-			l2CollectionName = ibcnfttypes.GetNftTransferClassId(packetDstPort, packetDstChannel, baseClassId)
+			l2CollectionName = ibcnfttypes.GetNftTransferClassId(packetDstPort, packetDstChannel, packetData.ClassId)
 		}
 
 		collectionPairMap[l2CollectionName] = l1CollectionName

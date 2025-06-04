@@ -96,47 +96,45 @@ func (sub *MoveNftSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.
 	var mintedCols []types.CollectedNftCollection
 	var mintedNfts []types.CollectedNft
 	for collectionAddr, nftMap := range mintMap {
-		colResource, ok := cacheData.CollectionMap[collectionAddr]
+		colResourceRaw, ok := cacheData.ColResources[collectionAddr]
 		if !ok {
 			return fmt.Errorf("move resource not found for collection address %s", collectionAddr)
 		}
-		var colInfo NftCollectionData
-		if err := json.Unmarshal([]byte(colResource), &colInfo); err != nil {
+		var colResource CollectionResource
+		if err := json.Unmarshal([]byte(colResourceRaw), &colResource); err != nil {
 			return err
 		}
-		creator, err := util.AccAddressFromString(colInfo.Data.Creator)
+		creator, err := util.AccAddressFromString(colResource.Data.Creator)
 		if err != nil {
 			return err
 		}
-		col := types.CollectedNftCollection{
+		mintedCols = append(mintedCols, types.CollectedNftCollection{
 			ChainId: block.ChainId,
 			Addr:    collectionAddr,
 			Height:  block.Height,
-			Name:    colInfo.Data.Name,
+			Name:    colResource.Data.Name,
 			Creator: creator.String(),
-		}
-		mintedCols = append(mintedCols, col)
+		})
 
 		for nftAddr := range nftMap {
-			nftResource, ok := cacheData.NftMap[nftAddr]
+			nftResourceRaw, ok := cacheData.NftResources[nftAddr]
 			if !ok {
 				return fmt.Errorf("move resource not found for nft address %s", nftAddr)
 			}
-			var nftInfo NftData
-			if err := json.Unmarshal([]byte(nftResource), &nftInfo); err != nil {
+			var nftResource NftResource
+			if err := json.Unmarshal([]byte(nftResourceRaw), &nftResource); err != nil {
 				return err
 			}
-			nftInfo.Trim()
-			nft := types.CollectedNft{
+			nftResource.Trim()
+			mintedNfts = append(mintedNfts, types.CollectedNft{
 				ChainId:        block.ChainId,
 				CollectionAddr: collectionAddr,
-				TokenId:        nftInfo.Data.TokenId,
+				TokenId:        nftResource.Data.TokenId,
 				Addr:           nftAddr,
 				Height:         block.Height,
 				Owner:          creator.String(),
-				Uri:            nftInfo.Data.Uri,
-			}
-			mintedNfts = append(mintedNfts, nft)
+				Uri:            nftResource.Data.Uri,
+			})
 		}
 	}
 	if res := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(mintedCols, batchSize); res.Error != nil {

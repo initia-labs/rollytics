@@ -106,38 +106,36 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.D
 	var mintedCols []types.CollectedNftCollection
 	var mintedNfts []types.CollectedNft
 	for collectionAddr, nftMap := range mintMap {
-		name, ok := cacheData.CollectionMap[collectionAddr]
+		name, ok := cacheData.ColNames[collectionAddr]
 		if !ok {
 			// skip if blacklisted
-			if _, found := sub.blacklistMap.Load(collectionAddr); found {
+			if sub.IsBlacklisted(collectionAddr) {
 				continue
 			}
 
 			return fmt.Errorf("collection name info not found for collection address %s", collectionAddr)
 		}
-		col := types.CollectedNftCollection{
+		mintedCols = append(mintedCols, types.CollectedNftCollection{
 			ChainId:    block.ChainId,
 			Addr:       collectionAddr,
 			Height:     block.Height,
 			Name:       name,
 			OriginName: name,
-		}
-		mintedCols = append(mintedCols, col)
+		})
 
 		for tokenId, owner := range nftMap {
-			tokenUri, ok := cacheData.NftMap[collectionAddr][tokenId]
+			tokenUri, ok := cacheData.TokenUris[collectionAddr][tokenId]
 			if !ok {
 				return fmt.Errorf("token uri info not found for collection address %s and token id %s", collectionAddr, tokenId)
 			}
-			nft := types.CollectedNft{
+			mintedNfts = append(mintedNfts, types.CollectedNft{
 				ChainId:        block.ChainId,
 				CollectionAddr: collectionAddr,
 				TokenId:        tokenId,
 				Height:         block.Height,
 				Owner:          owner,
 				Uri:            tokenUri,
-			}
-			mintedNfts = append(mintedNfts, nft)
+			})
 		}
 	}
 	if res := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(mintedCols, batchSize); res.Error != nil {
@@ -151,14 +149,13 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.D
 	var transferredNfts []types.CollectedNft
 	for collectionAddr, nftMap := range transferMap {
 		for tokenId, owner := range nftMap {
-			nft := types.CollectedNft{
+			transferredNfts = append(transferredNfts, types.CollectedNft{
 				ChainId:        block.ChainId,
 				CollectionAddr: collectionAddr,
 				TokenId:        tokenId,
 				Owner:          owner,
 				Height:         block.Height,
-			}
-			transferredNfts = append(transferredNfts, nft)
+			})
 		}
 	}
 	if res := tx.Clauses(clause.OnConflict{
@@ -193,6 +190,10 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.D
 	// batch insert nft txs
 	var nftTxs []types.CollectedNftTx
 	for txHash, collectionMap := range nftTxMap {
+		if txHash == "" {
+			continue
+		}
+
 		for collectionAddr, nftMap := range collectionMap {
 			for tokenId := range nftMap {
 				nftTxs = append(nftTxs, types.CollectedNftTx{

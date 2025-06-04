@@ -50,3 +50,12 @@ func (sub *WasmNftSubmodule) Collect(block types.ScrappedBlock, tx *gorm.DB) err
 
 	return nil
 }
+
+func (sub *WasmNftSubmodule) AddToBlacklist(addr string) {
+	sub.blacklistMap.Store(addr, nil)
+}
+
+func (sub *WasmNftSubmodule) IsBlacklisted(addr string) bool {
+	_, found := sub.blacklistMap.Load(addr)
+	return found
+}

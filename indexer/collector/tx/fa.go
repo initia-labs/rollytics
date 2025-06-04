@@ -11,7 +11,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func collectFa(block indexertypes.ScrappedBlock, cfg *config.Config, tx *gorm.DB) (err error) {
+func collectFA(block indexertypes.ScrappedBlock, cfg *config.Config, tx *gorm.DB) (err error) {
 	if cfg.GetVmType() != types.MoveVM {
 		return nil
 	}
