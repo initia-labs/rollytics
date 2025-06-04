@@ -14,18 +14,18 @@ const SubmoduleName = "evm-nft"
 var _ types.Submodule = &EvmNftSubmodule{}
 
 type EvmNftSubmodule struct {
-	logger       *slog.Logger
-	cfg          *config.Config
-	cacheMap     map[int64]CacheData
-	blacklistMap sync.Map
-	mtx          sync.Mutex
+	logger    *slog.Logger
+	cfg       *config.Config
+	cache     map[int64]CacheData
+	blacklist sync.Map
+	mtx       sync.Mutex
 }
 
 func New(logger *slog.Logger, cfg *config.Config) *EvmNftSubmodule {
 	return &EvmNftSubmodule{
-		logger:   logger.With("submodule", SubmoduleName),
-		cfg:      cfg,
-		cacheMap: make(map[int64]CacheData),
+		logger: logger.With("submodule", SubmoduleName),
+		cfg:    cfg,
+		cache:  make(map[int64]CacheData),
 	}
 }
 
@@ -52,10 +52,10 @@ func (sub *EvmNftSubmodule) Collect(block types.ScrappedBlock, tx *gorm.DB) erro
 }
 
 func (sub *EvmNftSubmodule) AddToBlacklist(addr string) {
-	sub.blacklistMap.Store(addr, nil)
+	sub.blacklist.Store(addr, nil)
 }
 
 func (sub *EvmNftSubmodule) IsBlacklisted(addr string) bool {
-	_, found := sub.blacklistMap.Load(addr)
+	_, found := sub.blacklist.Load(addr)
 	return found
 }

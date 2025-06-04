@@ -56,7 +56,7 @@ func (sub *WasmNftSubmodule) prepare(block indexertypes.ScrappedBlock) (err erro
 	}
 
 	sub.mtx.Lock()
-	sub.cacheMap[block.Height] = CacheData{
+	sub.cache[block.Height] = CacheData{
 		ColInfos: colInfos,
 	}
 	sub.mtx.Unlock()

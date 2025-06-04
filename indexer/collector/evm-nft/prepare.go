@@ -13,11 +13,6 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-const (
-	nftTopic  = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
-	emptyAddr = "0000000000000000000000000000000000000000"
-)
-
 func (sub *EvmNftSubmodule) prepare(block indexertypes.ScrappedBlock) (err error) {
 	client := fiber.AcquireClient()
 	defer fiber.ReleaseClient(client)
@@ -27,8 +22,8 @@ func (sub *EvmNftSubmodule) prepare(block indexertypes.ScrappedBlock) (err error
 		return err
 	}
 
-	colNames := make(map[string]string)
-	tokenUris := make(map[string]map[string]string)
+	colNames := make(map[string]string)             // collection addr -> collection name
+	tokenUris := make(map[string]map[string]string) // collection addr -> token id -> token uri
 
 	var g errgroup.Group
 	var nameMtx sync.Mutex
@@ -87,7 +82,7 @@ func (sub *EvmNftSubmodule) prepare(block indexertypes.ScrappedBlock) (err error
 	}
 
 	sub.mtx.Lock()
-	sub.cacheMap[block.Height] = CacheData{
+	sub.cache[block.Height] = CacheData{
 		ColNames:  colNames,
 		TokenUris: tokenUris,
 	}

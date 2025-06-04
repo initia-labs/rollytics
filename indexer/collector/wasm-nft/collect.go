@@ -15,8 +15,8 @@ import (
 
 func (sub *WasmNftSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.DB) (err error) {
 	sub.mtx.Lock()
-	cacheData, ok := sub.cacheMap[block.Height]
-	delete(sub.cacheMap, block.Height)
+	cacheData, ok := sub.cache[block.Height]
+	delete(sub.cache, block.Height)
 	sub.mtx.Unlock()
 
 	if !ok {
@@ -194,10 +194,10 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.
 	for collectionAddr := range updateCountMap {
 		var nftCount int64
 		if res := tx.Model(&types.CollectedNft{}).Where("chain_id = ? AND collection_addr = ?", block.ChainId, collectionAddr).Count(&nftCount); res.Error != nil {
-			return err
+			return res.Error
 		}
 		if res := tx.Model(&types.CollectedNftCollection{}).Where("chain_id = ? AND addr = ?", block.ChainId, collectionAddr).Updates(map[string]interface{}{"nft_count": nftCount}); res.Error != nil {
-			return err
+			return res.Error
 		}
 	}
 

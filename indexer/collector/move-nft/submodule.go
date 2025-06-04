@@ -14,17 +14,17 @@ const SubmoduleName = "move-nft"
 var _ types.Submodule = &MoveNftSubmodule{}
 
 type MoveNftSubmodule struct {
-	logger   *slog.Logger
-	cfg      *config.Config
-	cacheMap map[int64]CacheData
-	mtx      sync.Mutex
+	logger *slog.Logger
+	cfg    *config.Config
+	cache  map[int64]CacheData
+	mtx    sync.Mutex
 }
 
 func New(logger *slog.Logger, cfg *config.Config) *MoveNftSubmodule {
 	return &MoveNftSubmodule{
-		logger:   logger.With("submodule", SubmoduleName),
-		cfg:      cfg,
-		cacheMap: make(map[int64]CacheData),
+		logger: logger.With("submodule", SubmoduleName),
+		cfg:    cfg,
+		cache:  make(map[int64]CacheData),
 	}
 }
 

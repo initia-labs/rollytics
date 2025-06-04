@@ -50,7 +50,7 @@ func (sub *MoveNftSubmodule) prepare(block indexertypes.ScrappedBlock) (err erro
 	nftResources := <-nftResourcesChan
 
 	sub.mtx.Lock()
-	sub.cacheMap[block.Height] = CacheData{
+	sub.cache[block.Height] = CacheData{
 		ColResources: colResources,
 		NftResources: nftResources,
 	}

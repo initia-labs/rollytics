@@ -8,6 +8,11 @@ import (
 	evmtypes "github.com/initia-labs/minievm/x/evm/types"
 )
 
+const (
+	nftTopic  = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+	emptyAddr = "0000000000000000000000000000000000000000"
+)
+
 func isEvmNftLog(log evmtypes.Log) bool {
 	return len(log.Topics) == 4 && log.Topics[0] == nftTopic && log.Data == "0x"
 }
