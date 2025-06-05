@@ -6,7 +6,7 @@ import (
 	"github.com/initia-labs/rollytics/types"
 )
 
-func (sub *TxSubmodule) prepare(block indexertypes.ScrappedBlock) (err error) {
+func (sub *TxSubmodule) prepare(block indexertypes.ScrapedBlock) (err error) {
 	if sub.cfg.GetVmType() != types.EVM {
 		return nil
 	}

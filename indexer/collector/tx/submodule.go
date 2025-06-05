@@ -38,7 +38,7 @@ func (sub *TxSubmodule) Name() string {
 	return SubmoduleName
 }
 
-func (sub *TxSubmodule) Prepare(block types.ScrappedBlock) error {
+func (sub *TxSubmodule) Prepare(block types.ScrapedBlock) error {
 	if err := sub.prepare(block); err != nil {
 		sub.logger.Error("failed to prepare data", slog.Int64("height", block.Height), slog.Any("error", err))
 		return err
@@ -47,7 +47,7 @@ func (sub *TxSubmodule) Prepare(block types.ScrappedBlock) error {
 	return nil
 }
 
-func (sub *TxSubmodule) Collect(block types.ScrappedBlock, tx *gorm.DB) error {
+func (sub *TxSubmodule) Collect(block types.ScrapedBlock, tx *gorm.DB) error {
 	if err := sub.collect(block, tx); err != nil {
 		sub.logger.Error("failed to collect data", slog.Int64("height", block.Height), slog.Any("error", err))
 		return err

@@ -46,7 +46,7 @@ func New(logger *slog.Logger, db *orm.Database, cfg *config.Config) *Collector {
 	}
 }
 
-func (c *Collector) Prepare(block indexertypes.ScrappedBlock) (err error) {
+func (c *Collector) Prepare(block indexertypes.ScrapedBlock) (err error) {
 	var g errgroup.Group
 
 	for _, sub := range c.submodules {
@@ -64,7 +64,7 @@ func (c *Collector) Prepare(block indexertypes.ScrappedBlock) (err error) {
 	return nil
 }
 
-func (c *Collector) Collect(block indexertypes.ScrappedBlock) (err error) {
+func (c *Collector) Collect(block indexertypes.ScrapedBlock) (err error) {
 	tx := c.db.Begin()
 	defer func() {
 		if err != nil {

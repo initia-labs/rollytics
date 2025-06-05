@@ -33,7 +33,7 @@ func (sub *WasmNftSubmodule) Name() string {
 	return SubmoduleName
 }
 
-func (sub *WasmNftSubmodule) Prepare(block types.ScrappedBlock) error {
+func (sub *WasmNftSubmodule) Prepare(block types.ScrapedBlock) error {
 	if err := sub.prepare(block); err != nil {
 		sub.logger.Error("failed to prepare data", slog.Int64("height", block.Height), slog.Any("error", err))
 		return err
@@ -42,7 +42,7 @@ func (sub *WasmNftSubmodule) Prepare(block types.ScrappedBlock) error {
 	return nil
 }
 
-func (sub *WasmNftSubmodule) Collect(block types.ScrappedBlock, tx *gorm.DB) error {
+func (sub *WasmNftSubmodule) Collect(block types.ScrapedBlock, tx *gorm.DB) error {
 	if err := sub.collect(block, tx); err != nil {
 		sub.logger.Error("failed to collect data", slog.Int64("height", block.Height), slog.Any("error", err))
 		return err

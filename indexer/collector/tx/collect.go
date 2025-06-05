@@ -17,7 +17,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func (sub *TxSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.DB) (err error) {
+func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) (err error) {
 	// collect fa before collecting tx (only for move)
 	if err = collectFA(block, sub.cfg, tx); err != nil {
 		return err
@@ -150,7 +150,7 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.DB) (
 	return sub.collectEvm(block, tx)
 }
 
-func (sub *TxSubmodule) collectEvm(block indexertypes.ScrappedBlock, tx *gorm.DB) (err error) {
+func (sub *TxSubmodule) collectEvm(block indexertypes.ScrapedBlock, tx *gorm.DB) (err error) {
 	if sub.cfg.GetVmType() != types.EVM {
 		return nil
 	}

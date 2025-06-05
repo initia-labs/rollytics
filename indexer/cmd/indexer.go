@@ -9,7 +9,7 @@ import (
 
 	"github.com/initia-labs/rollytics/indexer/collector"
 	"github.com/initia-labs/rollytics/indexer/config"
-	"github.com/initia-labs/rollytics/indexer/scrapper"
+	"github.com/initia-labs/rollytics/indexer/scraper"
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
@@ -44,13 +44,16 @@ func IndexerCmd() *cobra.Command {
 }
 
 type Indexer struct {
-	height    int64
-	cfg       *config.Config
-	logger    *slog.Logger
-	db        *orm.Database
-	scrapper  *scrapper.Scrapper
-	collector *collector.Collector
-	blockMap  map[int64]indexertypes.ScrappedBlock
+	height      int64
+	cfg         *config.Config
+	logger      *slog.Logger
+	db          *orm.Database
+	scraper     *scraper.Scraper
+	collector   *collector.Collector
+	blockMap    map[int64]indexertypes.ScrapedBlock
+	blockChan   chan indexertypes.ScrapedBlock
+	controlChan chan string
+	mtx         sync.Mutex
 }
 
 func newIndexer(cfg *config.Config, logger *slog.Logger) (*Indexer, error) {
@@ -71,66 +74,70 @@ func newIndexer(cfg *config.Config, logger *slog.Logger) (*Indexer, error) {
 	}
 
 	return &Indexer{
-		height:    lastBlock.Height + 1,
-		cfg:       cfg,
-		logger:    logger,
-		db:        db,
-		scrapper:  scrapper.New(cfg, logger),
-		collector: collector.New(logger, db, cfg),
-		blockMap:  make(map[int64]indexertypes.ScrappedBlock),
+		height:      lastBlock.Height + 1,
+		cfg:         cfg,
+		logger:      logger,
+		db:          db,
+		scraper:     scraper.New(cfg, logger),
+		collector:   collector.New(logger, db, cfg),
+		blockMap:    make(map[int64]indexertypes.ScrapedBlock),
+		blockChan:   make(chan indexertypes.ScrapedBlock),
+		controlChan: make(chan string),
 	}, nil
 }
 
 func (i *Indexer) Run() {
-	var (
-		blockChan   = make(chan indexertypes.ScrappedBlock)
-		controlChan = make(chan string)
-		mtx         sync.Mutex
-	)
+	go i.scrape()
+	go i.prepare()
+	i.collect()
+}
 
-	go i.scrapper.Run(i.height, blockChan, controlChan)
+func (i *Indexer) scrape() {
+	i.scraper.Run(i.height, i.blockChan, i.controlChan)
+}
 
-	go func() {
-		for block := range blockChan {
-			if block.Height < i.height {
-				continue
+func (i *Indexer) prepare() {
+	for block := range i.blockChan {
+		if block.Height < i.height {
+			continue
+		}
+
+		b := block
+		go func() {
+			if err := i.collector.Prepare(b); err != nil {
+				panic(err)
 			}
 
-			b := block
-			go func() {
-				if err := i.collector.Prepare(b); err != nil {
-					panic(err)
-				}
+			i.mtx.Lock()
+			i.blockMap[b.Height] = b
+			i.mtx.Unlock()
+		}()
+	}
+}
 
-				mtx.Lock()
-				i.blockMap[b.Height] = b
-				mtx.Unlock()
-			}()
-		}
-	}()
-
+func (i *Indexer) collect() {
 	paused := false
 	for {
-		mtx.Lock()
+		i.mtx.Lock()
 
 		if len(i.blockMap) > 100 && !paused {
-			controlChan <- "stop"
+			i.controlChan <- "stop"
 			paused = true
 		} else if len(i.blockMap) < 50 && paused {
-			controlChan <- "start"
+			i.controlChan <- "start"
 			paused = false
 		}
 
 		block, ok := i.blockMap[i.height]
 		if !ok {
 			time.Sleep(i.cfg.GetCoolingDuration())
-			mtx.Unlock()
+			i.mtx.Unlock()
 			continue
 		}
 
 		// delete and unlock first becore collect
 		delete(i.blockMap, i.height)
-		mtx.Unlock()
+		i.mtx.Unlock()
 
 		if err := i.collector.Collect(block); err != nil {
 			panic(err)

@@ -16,7 +16,7 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-func (sub *EvmNftSubmodule) collect(block indexertypes.ScrappedBlock, tx *gorm.DB) (err error) {
+func (sub *EvmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) (err error) {
 	sub.mtx.Lock()
 	cacheData, ok := sub.cache[block.Height]
 	delete(sub.cache, block.Height)

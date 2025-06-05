@@ -11,7 +11,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-func (sub *WasmNftSubmodule) prepare(block indexertypes.ScrappedBlock) (err error) {
+func (sub *WasmNftSubmodule) prepare(block indexertypes.ScrapedBlock) (err error) {
 	client := fiber.AcquireClient()
 	defer fiber.ReleaseClient(client)
 
@@ -64,7 +64,7 @@ func (sub *WasmNftSubmodule) prepare(block indexertypes.ScrappedBlock) (err erro
 	return nil
 }
 
-func filterWasmData(block indexertypes.ScrappedBlock) (colAddrs []string, err error) {
+func filterWasmData(block indexertypes.ScrapedBlock) (colAddrs []string, err error) {
 	collectionAddrMap := make(map[string]interface{})
 	events, err := util.ExtractEvents(block, "wasm")
 	if err != nil {

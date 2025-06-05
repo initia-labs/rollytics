@@ -13,7 +13,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-func (sub *EvmNftSubmodule) prepare(block indexertypes.ScrappedBlock) (err error) {
+func (sub *EvmNftSubmodule) prepare(block indexertypes.ScrapedBlock) (err error) {
 	client := fiber.AcquireClient()
 	defer fiber.ReleaseClient(client)
 
@@ -91,7 +91,7 @@ func (sub *EvmNftSubmodule) prepare(block indexertypes.ScrappedBlock) (err error
 	return nil
 }
 
-func filterEvmData(block indexertypes.ScrappedBlock) (targetMap map[string]map[string]interface{}, err error) {
+func filterEvmData(block indexertypes.ScrapedBlock) (targetMap map[string]map[string]interface{}, err error) {
 	targetMap = make(map[string]map[string]interface{}) // collection addr -> token id
 	events, err := util.ExtractEvents(block, "evm")
 	if err != nil {

@@ -10,11 +10,11 @@ import (
 
 type Submodule interface {
 	Name() string
-	Prepare(block ScrappedBlock) error
-	Collect(block ScrappedBlock, tx *gorm.DB) error
+	Prepare(block ScrapedBlock) error
+	Collect(block ScrapedBlock, tx *gorm.DB) error
 }
 
-type ScrappedBlock struct {
+type ScrapedBlock struct {
 	ChainId    string
 	Height     int64
 	Timestamp  time.Time

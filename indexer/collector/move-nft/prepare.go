@@ -9,7 +9,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-func (sub *MoveNftSubmodule) prepare(block indexertypes.ScrappedBlock) (err error) {
+func (sub *MoveNftSubmodule) prepare(block indexertypes.ScrapedBlock) (err error) {
 	client := fiber.AcquireClient()
 	defer fiber.ReleaseClient(client)
 
@@ -59,7 +59,7 @@ func (sub *MoveNftSubmodule) prepare(block indexertypes.ScrappedBlock) (err erro
 	return nil
 }
 
-func filterMoveData(block indexertypes.ScrappedBlock) (colAddrs []string, nftAddrs []string, err error) {
+func filterMoveData(block indexertypes.ScrapedBlock) (colAddrs []string, nftAddrs []string, err error) {
 	collectionAddrMap := make(map[string]interface{})
 	nftAddrMap := make(map[string]interface{})
 	events, err := util.ExtractEvents(block, "move")

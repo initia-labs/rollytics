@@ -1,4 +1,4 @@
-package scrapper
+package scraper
 
 import (
 	"context"
@@ -14,7 +14,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-func (s *Scrapper) fastSync(client *fiber.Client, height int64, blockChan chan<- types.ScrappedBlock, controlChan <-chan string) int64 {
+func (s *Scraper) fastSync(client *fiber.Client, height int64, blockChan chan<- types.ScrapedBlock, controlChan <-chan string) int64 {
 	var (
 		syncedHeight = height
 		paused       atomic.Bool
@@ -47,7 +47,7 @@ func (s *Scrapper) fastSync(client *fiber.Client, height int64, blockChan chan<-
 			continue
 		}
 
-		// spin up new goroutine for scrapping block with incrementing height
+		// spin up new goroutine for scraping block with incrementing height
 		h := height
 		go func(errCount int) {
 			for {
@@ -57,11 +57,11 @@ func (s *Scrapper) fastSync(client *fiber.Client, height int64, blockChan chan<-
 				default:
 				}
 
-				block, err := scrapBlock(client, h, s.cfg)
+				block, err := scrapeBlock(client, h, s.cfg)
 
-				// if no error, cache the scrapped block to block map and return
+				// if no error, cache the scraped block to block map and return
 				if err == nil {
-					s.logger.Info("scrapped block", slog.Int64("height", block.Height))
+					s.logger.Info("scraped block", slog.Int64("height", block.Height))
 					blockChan <- block
 
 					s.mtx.Lock()
@@ -85,7 +85,7 @@ func (s *Scrapper) fastSync(client *fiber.Client, height int64, blockChan chan<-
 					panic(err)
 				}
 
-				s.logger.Info("error while scrapping block", slog.Int64("height", h), slog.Any("error", err))
+				s.logger.Info("error while scraping block", slog.Int64("height", h), slog.Any("error", err))
 				time.Sleep(s.cfg.GetCoolingDuration())
 			}
 		}(0)
@@ -95,7 +95,7 @@ func (s *Scrapper) fastSync(client *fiber.Client, height int64, blockChan chan<-
 	}
 }
 
-func (s *Scrapper) slowSync(client *fiber.Client, height int64, blockChan chan<- types.ScrappedBlock) {
+func (s *Scraper) slowSync(client *fiber.Client, height int64, blockChan chan<- types.ScrapedBlock) {
 	for {
 		var (
 			results []ScrapResult
@@ -105,7 +105,7 @@ func (s *Scrapper) slowSync(client *fiber.Client, height int64, blockChan chan<-
 		for i := range batchScrapSize {
 			h := height + int64(i)
 			g.Go(func() error {
-				block, err := scrapBlock(client, h, s.cfg)
+				block, err := scrapeBlock(client, h, s.cfg)
 				result := ScrapResult{
 					Height: h,
 					Err:    err,
@@ -116,11 +116,11 @@ func (s *Scrapper) slowSync(client *fiber.Client, height int64, blockChan chan<-
 				s.mtx.Unlock()
 
 				if err == nil {
-					s.logger.Info("scrapped block", slog.Int64("height", block.Height))
+					s.logger.Info("scraped block", slog.Int64("height", block.Height))
 					blockChan <- block
 				} else if !reachedLatestHeight(fmt.Sprintf("%+v", err)) {
 					// log only if it is not related to reached latest height error
-					s.logger.Info("error while scrapping block", slog.Int64("height", h), slog.Any("error", err))
+					s.logger.Info("error while scraping block", slog.Int64("height", h), slog.Any("error", err))
 				}
 
 				return nil
@@ -128,7 +128,7 @@ func (s *Scrapper) slowSync(client *fiber.Client, height int64, blockChan chan<-
 		}
 
 		if err := g.Wait(); err != nil {
-			s.logger.Error("error while scrapping blocks", slog.Any("error", err))
+			s.logger.Error("error while scraping blocks", slog.Any("error", err))
 			time.Sleep(s.cfg.GetCoolingDuration())
 			continue
 		}

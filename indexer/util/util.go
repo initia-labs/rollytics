@@ -30,7 +30,7 @@ func AccAddressFromString(addrStr string) (sdk.AccAddress, error) {
 	return hex.DecodeString(hexStr)
 }
 
-func ExtractEvents(block types.ScrappedBlock, eventType string) (events []types.ParsedEvent, err error) {
+func ExtractEvents(block types.ScrapedBlock, eventType string) (events []types.ParsedEvent, err error) {
 	events = parseEvents(block.BeginBlock, "", eventType)
 
 	for txIndex, txRaw := range block.Txs {

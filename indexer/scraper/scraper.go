@@ -1,4 +1,4 @@
-package scrapper
+package scraper
 
 import (
 	"log/slog"
@@ -15,20 +15,20 @@ const (
 	maxErrCount    = 5
 )
 
-type Scrapper struct {
+type Scraper struct {
 	cfg    *config.Config
 	logger *slog.Logger
 	mtx    sync.Mutex
 }
 
-func New(cfg *config.Config, logger *slog.Logger) *Scrapper {
-	return &Scrapper{
+func New(cfg *config.Config, logger *slog.Logger) *Scraper {
+	return &Scraper{
 		cfg:    cfg,
-		logger: logger.With("module", "scrapper"),
+		logger: logger.With("module", "scraper"),
 	}
 }
 
-func (s *Scrapper) Run(height int64, blockChan chan<- types.ScrappedBlock, controlChan <-chan string) {
+func (s *Scraper) Run(height int64, blockChan chan<- types.ScrapedBlock, controlChan <-chan string) {
 	client := fiber.AcquireClient()
 	defer fiber.ReleaseClient(client)
 

@@ -1,4 +1,4 @@
-package scrapper
+package scraper
 
 import (
 	"encoding/json"
@@ -16,7 +16,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-func scrapBlock(client *fiber.Client, height int64, cfg *config.Config) (types.ScrappedBlock, error) {
+func scrapeBlock(client *fiber.Client, height int64, cfg *config.Config) (types.ScrapedBlock, error) {
 	var g errgroup.Group
 	getBlockRes := make(chan GetBlockResponse, 1)
 	getBlockResultsRes := make(chan GetBlockResultsResponse, 1)
@@ -32,13 +32,13 @@ func scrapBlock(client *fiber.Client, height int64, cfg *config.Config) (types.S
 	})
 
 	if err := g.Wait(); err != nil {
-		return types.ScrappedBlock{}, err
+		return types.ScrapedBlock{}, err
 	}
 
 	block := <-getBlockRes
 	blockResults := <-getBlockResultsRes
 
-	return parseScrappedBlock(block, blockResults, height)
+	return parseScrapedBlock(block, blockResults, height)
 }
 
 func fetchBlock(client *fiber.Client, height int64, cfg *config.Config, getBlockRes chan<- GetBlockResponse) error {
@@ -105,15 +105,15 @@ func fetchFromRpc(client *fiber.Client, url string) (body []byte, err error) {
 	return body, nil
 }
 
-func parseScrappedBlock(block GetBlockResponse, blockResults GetBlockResultsResponse, height int64) (scrappedBlock types.ScrappedBlock, err error) {
+func parseScrapedBlock(block GetBlockResponse, blockResults GetBlockResultsResponse, height int64) (ScrapedBlock types.ScrapedBlock, err error) {
 	timestamp, err := time.Parse(layout, block.Result.Block.Header.Time)
 	if err != nil {
-		return scrappedBlock, err
+		return ScrapedBlock, err
 	}
 
 	proposer, err := sdk.ConsAddressFromHex(block.Result.Block.Header.ProposerAddress)
 	if err != nil {
-		return scrappedBlock, err
+		return ScrapedBlock, err
 	}
 
 	var beginEvts []abci.Event
@@ -131,7 +131,7 @@ func parseScrappedBlock(block GetBlockResponse, blockResults GetBlockResultsResp
 		}
 	}
 
-	return types.ScrappedBlock{
+	return types.ScrapedBlock{
 		ChainId:    block.Result.Block.Header.ChainId,
 		Height:     height,
 		Timestamp:  timestamp,
