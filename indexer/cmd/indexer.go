@@ -53,6 +53,7 @@ type Indexer struct {
 	blockMap    map[int64]indexertypes.ScrapedBlock
 	blockChan   chan indexertypes.ScrapedBlock
 	controlChan chan string
+	paused      bool
 	mtx         sync.Mutex
 }
 
@@ -116,28 +117,26 @@ func (i *Indexer) prepare() {
 }
 
 func (i *Indexer) collect() {
-	paused := false
 	for {
 		i.mtx.Lock()
 
-		if len(i.blockMap) > 100 && !paused {
+		switch {
+		case len(i.blockMap) > 100 && !i.paused:
 			i.controlChan <- "stop"
-			paused = true
-		} else if len(i.blockMap) < 50 && paused {
+			i.paused = true
+		case len(i.blockMap) < 50 && i.paused:
 			i.controlChan <- "start"
-			paused = false
+			i.paused = false
 		}
 
 		block, ok := i.blockMap[i.height]
-		if !ok {
-			time.Sleep(i.cfg.GetCoolingDuration())
-			i.mtx.Unlock()
-			continue
-		}
-
-		// delete and unlock first becore collect
 		delete(i.blockMap, i.height)
 		i.mtx.Unlock()
+
+		if !ok {
+			time.Sleep(i.cfg.GetCoolingDuration())
+			continue
+		}
 
 		if err := i.collector.Collect(block); err != nil {
 			panic(err)
