@@ -2,9 +2,11 @@ package tx
 
 import (
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/cometbft/cometbft/crypto/tmhash"
 	cbjson "github.com/cometbft/cometbft/libs/json"
@@ -81,15 +83,23 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) (e
 		}
 
 		txHash := fmt.Sprintf("%X", tmhash.Sum(txByte))
+		parsedLogs, _ := sdk.ParseABCILogs(res.Log)
+		if parsedLogs == nil {
+			parsedLogs = []sdk.ABCIMessageLog{}
+		}
 		txByHeightRecord := indexertypes.TxByHeightRecord{
-			Code:      res.Code,
-			Codespace: res.Codespace,
-			GasUsed:   res.GasUsed,
-			GasWanted: res.GasWanted,
-			Height:    height,
 			TxHash:    txHash,
-			Timestamp: block.Timestamp,
+			Height:    height,
+			Codespace: res.Codespace,
+			Code:      res.Code,
+			Data:      strings.ToUpper(hex.EncodeToString(res.Data)),
+			RawLog:    res.Log,
+			Logs:      parsedLogs,
+			Info:      res.Info,
+			GasWanted: res.GasWanted,
+			GasUsed:   res.GasUsed,
 			Tx:        txJSON,
+			Timestamp: block.Timestamp,
 			Events:    json.RawMessage(events),
 		}
 		txByHeightRecordJSON, err := cbjson.Marshal(txByHeightRecord)
@@ -99,7 +109,7 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) (e
 
 		seqInfo.Sequence++
 		ctxs = append(ctxs, types.CollectedTx{
-			Hash:     fmt.Sprintf("%X", tmhash.Sum(txByte)),
+			Hash:     txHash,
 			ChainId:  chainId,
 			Height:   height,
 			Sequence: seqInfo.Sequence,
