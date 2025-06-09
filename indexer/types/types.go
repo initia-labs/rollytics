@@ -22,6 +22,7 @@ type ScrapedBlock struct {
 	Proposer   string
 	Txs        []string
 	TxResults  []abci.ExecTxResult
+	PreBlock   []abci.Event
 	BeginBlock []abci.Event
 	EndBlock   []abci.Event
 }

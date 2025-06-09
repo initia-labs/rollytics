@@ -116,18 +116,24 @@ func parseScrapedBlock(block GetBlockResponse, blockResults GetBlockResultsRespo
 		return ScrapedBlock, err
 	}
 
-	var beginEvts []abci.Event
-	var endEvts []abci.Event
-	for _, evt := range blockResults.Result.FinalizeBlockEvents {
-		lastAttr := evt.Attributes[len(evt.Attributes)-1]
+	var preEvents []abci.Event
+	var beginEvents []abci.Event
+	var endEvents []abci.Event
+	for _, event := range blockResults.Result.FinalizeBlockEvents {
+		if len(event.Attributes) == 0 {
+			continue
+		}
+
+		lastAttr := event.Attributes[len(event.Attributes)-1]
 		if lastAttr.Key != "mode" {
+			preEvents = append(preEvents, event) // in case of chain upgrade
 			continue
 		}
 
 		if lastAttr.Value == "BeginBlock" {
-			beginEvts = append(beginEvts, evt)
+			beginEvents = append(beginEvents, event)
 		} else if lastAttr.Value == "EndBlock" {
-			endEvts = append(endEvts, evt)
+			endEvents = append(endEvents, event)
 		}
 	}
 
@@ -139,7 +145,8 @@ func parseScrapedBlock(block GetBlockResponse, blockResults GetBlockResultsRespo
 		Proposer:   proposer.String(),
 		Txs:        block.Result.Block.Data.Txs,
 		TxResults:  blockResults.Result.TxsResults,
-		BeginBlock: beginEvts,
-		EndBlock:   endEvts,
+		PreBlock:   preEvents,
+		BeginBlock: beginEvents,
+		EndBlock:   endEvents,
 	}, nil
 }

@@ -31,7 +31,8 @@ func AccAddressFromString(addrStr string) (sdk.AccAddress, error) {
 }
 
 func ExtractEvents(block types.ScrapedBlock, eventType string) (events []types.ParsedEvent, err error) {
-	events = parseEvents(block.BeginBlock, "", eventType)
+	events = parseEvents(block.PreBlock, "", eventType)
+	events = append(events, parseEvents(block.BeginBlock, "", eventType)...)
 
 	for txIndex, txRaw := range block.Txs {
 		txByte, err := base64.StdEncoding.DecodeString(txRaw)
