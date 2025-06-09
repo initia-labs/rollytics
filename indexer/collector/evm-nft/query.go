@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -32,12 +33,16 @@ func getCollectionName(collectionAddr string, client *fiber.Client, cfg *config.
 	return
 }
 
-func getTokenUri(collectionAddr, tokenId string, client *fiber.Client, cfg *config.Config, height int64) (tokenUri string, err error) {
+func getTokenUri(collectionAddr, tokenIdStr string, client *fiber.Client, cfg *config.Config, height int64) (tokenUri string, err error) {
 	abi, err := erc721.Erc721MetaData.GetAbi()
 	if err != nil {
 		return tokenUri, err
 	}
 
+	tokenId, ok := new(big.Int).SetString(tokenIdStr, 10)
+	if !ok {
+		return tokenUri, fmt.Errorf("invalid token id: %s", tokenIdStr)
+	}
 	input, err := abi.Pack("tokenURI", tokenId)
 	if err != nil {
 		return tokenUri, err
@@ -61,7 +66,7 @@ func evmCall(contractAddr string, input []byte, client *fiber.Client, cfg *confi
 	}
 	headers := map[string]string{"x-cosmos-block-height": fmt.Sprintf("%d", height)}
 	path := "/minievm/evm/v1/call"
-	body, err := util.Post(client, cfg, path, payload, headers)
+	body, err := util.Post(client, cfg.GetCoolingDuration(), cfg.GetChainConfig().RestUrl, path, payload, headers)
 	if err != nil {
 		return response, err
 	}

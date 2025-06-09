@@ -116,11 +116,10 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB
 			return fmt.Errorf("collection name info not found for collection address %s", collectionAddr)
 		}
 		mintedCols = append(mintedCols, types.CollectedNftCollection{
-			ChainId:    block.ChainId,
-			Addr:       collectionAddr,
-			Height:     block.Height,
-			Name:       name,
-			OriginName: name,
+			ChainId: block.ChainId,
+			Addr:    collectionAddr,
+			Height:  block.Height,
+			Name:    name,
 		})
 
 		for tokenId, owner := range nftMap {

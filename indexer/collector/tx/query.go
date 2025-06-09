@@ -19,7 +19,7 @@ func getEvmTxs(client *fiber.Client, cfg *config.Config, height int64) (txs []Ev
 	headers := map[string]string{"Content-Type": "application/json"}
 	path := ""
 
-	body, err := util.Post(client, cfg, path, payload, headers)
+	body, err := util.Post(client, cfg.GetCoolingDuration(), cfg.GetChainConfig().JsonRpcUrl, path, payload, headers)
 	if err != nil {
 		return txs, err
 	}

@@ -9,23 +9,22 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/initia-labs/rollytics/indexer/config"
 	"github.com/initia-labs/rollytics/indexer/types"
 )
 
 const maxRetries = 5
 
-func Get(client *fiber.Client, cfg *config.Config, path string, params map[string]string, headers map[string]string) ([]byte, error) {
+func Get(client *fiber.Client, coolingDuration time.Duration, baseUrl, path string, params map[string]string, headers map[string]string) ([]byte, error) {
 	retryCount := 0
 	for retryCount <= maxRetries {
-		body, err := getRaw(client, cfg, path, params, headers)
+		body, err := getRaw(client, baseUrl, path, params, headers)
 		if err == nil {
 			return body, nil
 		}
 
 		// handle case of querying future height
 		if strings.HasPrefix(fmt.Sprintf("%+v", err), "invalid height") {
-			time.Sleep(cfg.GetCoolingDuration())
+			time.Sleep(coolingDuration)
 			continue
 		}
 
@@ -33,15 +32,14 @@ func Get(client *fiber.Client, cfg *config.Config, path string, params map[strin
 		if retryCount > maxRetries {
 			return nil, err
 		}
-		time.Sleep(cfg.GetCoolingDuration())
+		time.Sleep(coolingDuration)
 	}
 
 	return nil, fmt.Errorf("failed to fetch data after %d retries", maxRetries)
 }
 
-func getRaw(client *fiber.Client, cfg *config.Config, path string, params map[string]string, headers map[string]string) (body []byte, err error) {
-	baseUrl := fmt.Sprintf("%s%s", cfg.GetChainConfig().RestUrl, path)
-	parsedUrl, err := url.Parse(baseUrl)
+func getRaw(client *fiber.Client, baseUrl, path string, params map[string]string, headers map[string]string) (body []byte, err error) {
+	parsedUrl, err := url.Parse(fmt.Sprintf("%s%s", baseUrl, path))
 	if err != nil {
 		return nil, err
 	}
@@ -85,17 +83,17 @@ func getRaw(client *fiber.Client, cfg *config.Config, path string, params map[st
 	return body, nil
 }
 
-func Post(client *fiber.Client, cfg *config.Config, path string, payload map[string]interface{}, headers map[string]string) ([]byte, error) {
+func Post(client *fiber.Client, coolingDuration time.Duration, baseUrl, path string, payload map[string]interface{}, headers map[string]string) ([]byte, error) {
 	retryCount := 0
 	for retryCount <= maxRetries {
-		body, err := postRaw(client, cfg, path, payload, headers)
+		body, err := postRaw(client, baseUrl, path, payload, headers)
 		if err == nil {
 			return body, nil
 		}
 
 		// handle case of querying future height
 		if strings.HasPrefix(fmt.Sprintf("%+v", err), "invalid height") {
-			time.Sleep(cfg.GetCoolingDuration())
+			time.Sleep(coolingDuration)
 			continue
 		}
 
@@ -103,15 +101,14 @@ func Post(client *fiber.Client, cfg *config.Config, path string, payload map[str
 		if retryCount > maxRetries {
 			return nil, err
 		}
-		time.Sleep(cfg.GetCoolingDuration())
+		time.Sleep(coolingDuration)
 	}
 
 	return nil, fmt.Errorf("failed to post data after %d retries", maxRetries)
 }
 
-func postRaw(client *fiber.Client, cfg *config.Config, path string, payload map[string]interface{}, headers map[string]string) (body []byte, err error) {
-	baseUrl := fmt.Sprintf("%s%s", cfg.GetChainConfig().JsonRpcUrl, path)
-	req := client.Post(baseUrl)
+func postRaw(client *fiber.Client, baseUrl, path string, payload map[string]interface{}, headers map[string]string) (body []byte, err error) {
+	req := client.Post(fmt.Sprintf("%s%s", baseUrl, path))
 
 	// set payload
 	if payload != nil {

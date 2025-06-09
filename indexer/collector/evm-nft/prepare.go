@@ -69,6 +69,9 @@ func (sub *EvmNftSubmodule) prepare(block indexertypes.ScrapedBlock) (err error)
 				}
 
 				uriMtx.Lock()
+				if _, ok := tokenUris[addr]; !ok {
+					tokenUris[addr] = make(map[string]string)
+				}
 				tokenUris[addr][id] = tokenUri
 				uriMtx.Unlock()
 
