@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"net/url"
 	"os"
-	"time"
 
 	dbconfig "github.com/initia-labs/rollytics/orm/config"
 	"github.com/initia-labs/rollytics/types"
@@ -15,12 +14,10 @@ import (
 
 // api global config
 type Config struct {
-	listenAddr      string
-	coolingDuration time.Duration
-	dbConfig        *dbconfig.Config
-	chainConfig     *ChainConfig
-	enableProfile   bool
-	logLevel        string
+	listenAddr  string
+	dbConfig    *dbconfig.Config
+	chainConfig *ChainConfig
+	logLevel    string
 }
 
 type ChainConfig struct {
@@ -32,7 +29,6 @@ type ChainConfig struct {
 }
 
 func setDefaults() {
-	viper.SetDefault("COOLING_DURATION", 100*time.Millisecond)
 	viper.SetDefault("ENABLE_PROFILE", false)
 	viper.SetDefault("LISTEN_ADDR", ":8080")
 	viper.SetDefault("DB_BATCH_SIZE", 100)
@@ -75,12 +71,10 @@ func GetConfig() (*Config, error) {
 	}
 
 	config := &Config{
-		listenAddr:      viper.GetString("LISTEN_ADDR"),
-		coolingDuration: viper.GetDuration("COOLING_DURATION"),
-		dbConfig:        dc,
-		chainConfig:     cc,
-		enableProfile:   viper.GetBool("ENABLE_PROFILE"),
-		logLevel:        viper.GetString("LOG_LEVEL"),
+		listenAddr:  viper.GetString("LISTEN_ADDR"),
+		dbConfig:    dc,
+		chainConfig: cc,
+		logLevel:    viper.GetString("LOG_LEVEL"),
 	}
 
 	if err := config.Validate(); err != nil {
@@ -92,10 +86,6 @@ func GetConfig() (*Config, error) {
 
 func (c Config) GetListenAddr() string {
 	return c.listenAddr
-}
-
-func (c Config) GetCoolingDuration() time.Duration {
-	return c.coolingDuration
 }
 
 func (c Config) GetDBConfig() *dbconfig.Config {
@@ -112,10 +102,6 @@ func (c Config) GetDBBatchSize() int {
 
 func (c Config) GetVmType() types.VMType {
 	return c.chainConfig.VmType
-}
-
-func (c Config) IsProfileEnabled() bool {
-	return c.enableProfile
 }
 
 func (c Config) GetLogLevel() slog.Level {
@@ -137,10 +123,6 @@ func (c Config) Validate() error {
 	if len(c.listenAddr) == 0 {
 		return fmt.Errorf("PORT is required")
 	}
-	if c.coolingDuration == 0 {
-		return fmt.Errorf("COOLING_DURATION is required")
-	}
-	// no need to validate ELABLE_PROFILE
 	if err := c.dbConfig.Validate(); err != nil {
 		return err
 	}

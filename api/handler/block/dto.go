@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"strconv"
 	"time"
-	sdktypes "github.com/cosmos/cosmos-sdk/types"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/initia-labs/rollytics/api/handler/common"
 	"github.com/initia-labs/rollytics/types"
@@ -88,13 +88,13 @@ type AvgBlockTimeResponse struct {
 	AvgBlockTime float64 `json:"avg_block_time"`
 }
 
-func ToResponseBlock(cb *types.CollectedBlock) (*Block, error) {
+func ToResponseBlock(cb *types.CollectedBlock, restUrl string) (*Block, error) {
 	var fees []Fee
 	if err := json.Unmarshal(cb.TotalFee, &fees); err != nil {
 		return nil, err
 	}
 
-	operatorAddr, err := sdktypes.ValAddressFromHex(cb.Proposer)
+	validator, err := getValidator(restUrl, cb.Proposer)
 	if err != nil {
 		return nil, err
 	}
@@ -108,18 +108,17 @@ func ToResponseBlock(cb *types.CollectedBlock) (*Block, error) {
 		GasWanted: strconv.FormatInt(cb.GasWanted, 10),
 		TxCount:   strconv.Itoa(cb.TxCount),
 		TotalFee:  fees,
-		// TODO: Get OperatorAddress from proposer
 		Proposer: Proposer{
-			Moniker:         "",
-			OperatorAddress: operatorAddr.String(),
+			Moniker:         validator.Moniker,
+			OperatorAddress: validator.OperatorAddress,
 		},
 	}, nil
 }
 
-func BatchToResponseBlocks(cbs []types.CollectedBlock) ([]Block, error) {
+func BatchToResponseBlocks(cbs []types.CollectedBlock, restUrl string) ([]Block, error) {
 	blocks := make([]Block, 0, len(cbs))
 	for _, cb := range cbs {
-		block, err := ToResponseBlock(&cb)
+		block, err := ToResponseBlock(&cb, restUrl)
 		if err != nil {
 			return nil, err
 		}

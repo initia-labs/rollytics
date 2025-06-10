@@ -43,7 +43,7 @@ func (h *BlockHandler) GetBlocks(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchBlock)
 	}
 
-	blocksResp, err := BatchToResponseBlocks(blocks)
+	blocksResp, err := BatchToResponseBlocks(blocks, h.GetChainConfig().RestUrl)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToConvertBlock)
 	}
@@ -90,7 +90,7 @@ func (h *BlockHandler) GetBlockByHeight(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchBlock)
 	}
 
-	blockResp, err := ToResponseBlock(&block)
+	blockResp, err := ToResponseBlock(&block, h.GetChainConfig().RestUrl)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToConvertBlock)
 	}

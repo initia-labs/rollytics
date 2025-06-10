@@ -9,6 +9,7 @@ import (
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	cbjson "github.com/cometbft/cometbft/libs/json"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/gofiber/fiber/v2"
 	"github.com/initia-labs/rollytics/indexer/config"
 	"github.com/initia-labs/rollytics/indexer/types"
@@ -141,7 +142,7 @@ func parseScrapedBlock(block GetBlockResponse, blockResults GetBlockResultsRespo
 		Height:     height,
 		Timestamp:  timestamp,
 		Hash:       block.Result.BlockId.Hash,
-		Proposer:   block.Result.Block.Header.ProposerAddress,
+		Proposer:   proposer.String(),
 		Txs:        block.Result.Block.Data.Txs,
 		TxResults:  blockResults.Result.TxsResults,
 		PreBlock:   preEvents,
