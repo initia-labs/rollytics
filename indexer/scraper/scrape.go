@@ -111,7 +111,7 @@ func parseScrapedBlock(block GetBlockResponse, blockResults GetBlockResultsRespo
 		return ScrapedBlock, err
 	}
 
-	proposer, err := sdk.ConsAddressFromHex(block.Result.Block.Header.ProposerAddress)
+	proposer, err := sdk.ValAddressFromHex(block.Result.Block.Header.ProposerAddress)
 	if err != nil {
 		return ScrapedBlock, err
 	}
