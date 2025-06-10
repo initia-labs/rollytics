@@ -1,7 +1,6 @@
 package nft
 
 import (
-	"github.com/gofiber/fiber/v2"
 	"github.com/initia-labs/rollytics/api/handler/common"
 	"github.com/initia-labs/rollytics/types"
 )
@@ -12,39 +11,9 @@ type CollectionsRequest struct {
 	Pagination *common.PaginationParams `query:"pagination"`
 }
 
-func ParseCollectionsRequest(c *fiber.Ctx) (*CollectionsRequest, error) {
-	pagination, err := common.ExtractPaginationParams(c)
-	if err != nil {
-		return nil, fiber.NewError(fiber.StatusBadRequest, common.ErrInvalidParams)
-	}
-	req := &CollectionsRequest{
-		Pagination: pagination,
-	}
-
-	return req, nil
-}
-
 type CollectionsByAccountRequest struct {
 	Account    string                   `param:"account" extensions:"x-order:0"`
 	Pagination *common.PaginationParams `query:"pagination" extensions:"x-order:1"`
-}
-
-func ParseCollectionsByAccountRequest(c *fiber.Ctx) (*CollectionsByAccountRequest, error) {
-	pagination, err := common.ExtractPaginationParams(c)
-	if err != nil {
-		return nil, fiber.NewError(fiber.StatusBadRequest, common.ErrInvalidParams)
-	}
-
-	req := &CollectionsByAccountRequest{
-		Account:    c.Params("account"),
-		Pagination: pagination,
-	}
-
-	if req.Account == "" {
-		return nil, fiber.NewError(fiber.StatusBadRequest, "account param is required")
-	}
-
-	return req, nil
 }
 
 type CollectionsByNameRequest struct {
@@ -52,38 +21,8 @@ type CollectionsByNameRequest struct {
 	Name       string                   `param:"name" extensions:"x-order:1"`
 }
 
-func ParseCollectionsByNameRequest(c *fiber.Ctx) (*CollectionsByNameRequest, error) {
-	pagination, err := common.ExtractPaginationParams(c)
-	if err != nil {
-		return nil, fiber.NewError(fiber.StatusBadRequest, common.ErrInvalidParams)
-	}
-
-	req := &CollectionsByNameRequest{
-		Name:       c.Params("name"),
-		Pagination: pagination,
-	}
-
-	if req.Name == "" {
-		return nil, fiber.NewError(fiber.StatusBadRequest, "name param is required")
-	}
-
-	return req, nil
-}
-
 type CollectionByAddrRequest struct {
 	CollectionAddr string `param:"collection_addr"`
-}
-
-func ParseCollectionByAddressRequest(c *fiber.Ctx) (*CollectionByAddrRequest, error) {
-	req := &CollectionByAddrRequest{
-		CollectionAddr: c.Params("collection_addr"),
-	}
-
-	if req.CollectionAddr == "" {
-		return nil, fiber.NewError(fiber.StatusBadRequest, "collection_addr param is required")
-	}
-
-	return req, nil
 }
 
 // Response
@@ -129,70 +68,15 @@ type TokensByAccountRequest struct {
 	Pagination *common.PaginationParams `query:"pagination" extensions:"x-order:1"`
 }
 
-func ParseTokensByAccountRequest(c *fiber.Ctx) (*TokensByAccountRequest, error) {
-	pagination, err := common.ExtractPaginationParams(c)
-	if err != nil {
-		return nil, fiber.NewError(fiber.StatusBadRequest, common.ErrInvalidParams)
-	}
-	req := &TokensByAccountRequest{
-		Account:    c.Params("account"),
-		Pagination: pagination,
-	}
-	if req.Account == "" {
-		return nil, fiber.NewError(fiber.StatusBadRequest, "account param is required")
-	}
-	return req, nil
-}
-
 type TokensByCollectionRequest struct {
 	CollectionAddr string                   `param:"collection_addr" extensions:"x-order:0"`
 	Pagination     *common.PaginationParams `query:"pagination" extensions:"x-order:1"`
 }
 
-func ParseTokensByCollectionRequest(c *fiber.Ctx) (*TokensByCollectionRequest, error) {
-	pagination, err := common.ExtractPaginationParams(c)
-	if err != nil {
-		return nil, fiber.NewError(fiber.StatusBadRequest, common.ErrInvalidParams)
-	}
-	req := &TokensByCollectionRequest{
-		CollectionAddr: c.Params("collection_addr"),
-		Pagination:     pagination,
-	}
-
-	if req.CollectionAddr == "" {
-		return nil, fiber.NewError(fiber.StatusBadRequest, "collection_addr param is required")
-	}
-
-
-	return req, nil
-}
-
-type NftTxs struct {
+type NftTxsRequest struct {
 	CollectionAddr string                   `param:"collection_addr" extensions:"x-order:0"`
 	TokenId        string                   `param:"token_id" extensions:"x-order:1"`
 	Pagination     *common.PaginationParams `query:"pagination" extensions:"x-order:2"`
-}
-
-func ParseNftTxsRequest(c *fiber.Ctx) (*NftTxs, error) {
-	pagination, err := common.ExtractPaginationParams(c)
-	if err != nil {
-		return nil, fiber.NewError(fiber.StatusBadRequest, common.ErrInvalidParams)
-	}
-
-	req := &NftTxs{
-		CollectionAddr: c.Params("collection_addr"),
-		TokenId:        c.Params("token_id"),
-		Pagination:     pagination,
-	}
-
-	if req.CollectionAddr == "" {
-		return nil, fiber.NewError(fiber.StatusBadRequest, "collection_addr param is required")
-	}
-	if req.TokenId == "" {
-		return nil, fiber.NewError(fiber.StatusBadRequest, "token_id param is required")
-	}
-	
-	return req, nil
 }
 
 // Response

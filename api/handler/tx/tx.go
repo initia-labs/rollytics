@@ -84,25 +84,14 @@ func (h *TxHandler) GetTxsByAccount(c *fiber.Ctx) error {
 	}
 
 	var (
-		query    *gorm.DB
-		accounts = []string{req.Account}
-		chainId  = h.GetChainConfig().ChainId
+		query   *gorm.DB
+		chainId = h.GetChainConfig().ChainId
 	)
 
-	// in move vm, we also need to query the FA store addresses
-	if h.GetChainConfig().VmType == dbtypes.MoveVM {
-		var storeAddrs []string
-		if err := h.Model(&dbtypes.CollectedFAStore{}).
-			Where("chain_id = ? AND owner = ?", chainId, req.Account).
-			Pluck("store_addr", &storeAddrs).Error; err != nil {
-			return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchTx)
-		}
-		accounts = append(accounts, storeAddrs...)
-	}
 	query = h.Model(&dbtypes.CollectedTx{}).Select("tx.*").
 		InnerJoins("account_tx ON tx.chain_id = account_tx.chain_id AND tx.hash = account_tx.hash").
 		Where("account_tx.chain_id = ?", chainId).
-		Where("account_tx.account IN ?", accounts)
+		Where("account_tx.account = ?", req.Account)
 	query, err = req.Pagination.ApplyPagination(query, "tx.sequence")
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, common.ErrInvalidParams)

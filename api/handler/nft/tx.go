@@ -4,7 +4,8 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/initia-labs/rollytics/api/handler/common"
 	"github.com/initia-labs/rollytics/api/handler/tx"
-	dbtypes "github.com/initia-labs/rollytics/types"
+	"github.com/initia-labs/rollytics/types"
+	"gorm.io/gorm"
 )
 
 // nft txs
@@ -27,16 +28,53 @@ func (h *NftHandler) GetNftTxs(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
-	query := h.Model(&dbtypes.CollectedTx{}).Select("tx.*").
-		InnerJoins("nft_tx ON tx.chain_id = nft_tx.chain_id AND tx.hash = nft_tx.hash").
-		Where("nft_tx.chain_id = ?", h.Config.GetChainConfig().ChainId).
-		Where("nft_tx.collection_addr = ?", req.CollectionAddr).
-		Where("nft_tx.token_id = ?", req.TokenId)
+
+	chainId := h.Config.GetChainConfig().ChainId
+
+	var query *gorm.DB
+	var totalQuery *gorm.DB
+	if h.Config.GetChainConfig().VmType == types.MoveVM {
+		// get move nft address
+		// no nft_tx table in move vm
+		// so we need to get the nft address from collected_nft table
+		nftQuery := h.Model(&types.CollectedNft{}).Where("chain_id = ? AND collection_addr = ? AND token_id = ?",
+			chainId, req.CollectionAddr, req.TokenId)
+
+		var nft types.CollectedNft
+		if err := nftQuery.First(&nft).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				return fiber.NewError(fiber.StatusNotFound, ErrFailedToFetchNft)
+			}
+			return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchNft)
+		}
+
+		query = h.Model(&types.CollectedTx{}).Select("tx.*").
+			InnerJoins("account_tx ON tx.chain_id = account_tx.chain_id AND tx.hash = account_tx.hash").
+			Where("account_tx.chain_id = ?", chainId).
+			Where("account_tx.account = ?", nft.Addr)
+
+		totalQuery = h.Model(&types.CollectedAccountTx{}).
+			Where("chain_id = ?", chainId).
+			Where("account = ?", nft.Addr)
+
+	} else {
+		query = h.Model(&types.CollectedTx{}).Select("tx.*").
+			InnerJoins("nft_tx ON tx.chain_id = nft_tx.chain_id AND tx.hash = nft_tx.hash").
+			Where("nft_tx.chain_id = ?", chainId).
+			Where("nft_tx.collection_addr = ?", req.CollectionAddr).
+			Where("nft_tx.token_id = ?", req.TokenId)
+
+		totalQuery = h.Model(&types.CollectedNftTx{}).
+			Where("chain_id = ?", chainId).
+			Where("collection_addr = ?", req.CollectionAddr).
+			Where("token_id = ?", req.TokenId)
+	}
+
 	query, err = req.Pagination.ApplyPagination(query, "tx.sequence")
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, common.ErrInvalidParams)
 	}
-	var nftTxs []dbtypes.CollectedTx
+	var nftTxs []types.CollectedTx
 	if err := query.Find(&nftTxs).Error; err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchNftTxs)
 	}
@@ -48,7 +86,8 @@ func (h *NftHandler) GetNftTxs(c *fiber.Ctx) error {
 	if len(nftTxs) > 0 {
 		nextKey = common.GetNextKey(nftTxs[len(nftTxs)-1].Height, nftTxs[len(nftTxs)-1].Hash)
 	}
-	pageResp, err := req.Pagination.GetPageResponse(len(nftTxs), h.Model(&dbtypes.CollectedNftTx{}).Where("collection_addr = ? AND token_id = ?", req.CollectionAddr, req.TokenId), nextKey)
+
+	pageResp, err := req.Pagination.GetPageResponse(len(nftTxs), totalQuery, nextKey)
 	if err != nil {
 		return err
 	}

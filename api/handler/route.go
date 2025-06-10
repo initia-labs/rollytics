@@ -11,8 +11,6 @@ import (
 	"github.com/initia-labs/rollytics/api/handler/tx"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
-
-
 )
 
 func Register(router fiber.Router, db *orm.Database, cfg *config.Config, logger *slog.Logger) {
@@ -77,13 +75,8 @@ func registerNftRoutes(router fiber.Router, h *common.Handler) {
 	tokens.Get("/by_account/:account", nftHandler.GetTokensByAccount)
 	tokens.Get("/by_collection/:collection_addr", nftHandler.GetTokensByCollection)
 
-	// NFT transaction routes (conditional)
-	if h.GetChainConfig().VmType == types.EVM || h.GetChainConfig().VmType == types.WasmVM {
-		tokens.Get("/txs/:collection_addr/:token_id", nftHandler.GetNftTxs)
-	} else {
-		// non implementation for non-EVM/WasmVM chains
-		tokens.Get("/txs/:collection_addr/:token_id", notImplemented)
-	}
+	// NFT transaction routes
+	tokens.Get("/txs/:collection_addr/:token_id", nftHandler.GetNftTxs)
 }
 
 func notImplemented(c *fiber.Ctx) error {

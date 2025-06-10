@@ -1,8 +1,6 @@
 package nft
 
 import (
-	// _ "github.com/gofiber/swagger/example/docs"
-	// "github.com/gofiber/swagger"
 	"github.com/gofiber/fiber/v2"
 	"github.com/initia-labs/rollytics/api/handler/common"
 
