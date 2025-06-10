@@ -19,7 +19,7 @@ import (
 type Collector struct {
 	logger     *slog.Logger
 	db         *orm.Database
-	submodules map[string]indexertypes.Submodule
+	submodules []indexertypes.Submodule
 }
 
 func New(logger *slog.Logger, db *orm.Database, cfg *config.Config) *Collector {
@@ -38,10 +38,10 @@ func New(logger *slog.Logger, db *orm.Database, cfg *config.Config) *Collector {
 	return &Collector{
 		logger: logger.With("module", "collector"),
 		db:     db,
-		submodules: map[string]indexertypes.Submodule{
-			blockSubmodule.Name(): blockSubmodule,
-			txSubmodule.Name():    txSubmodule,
-			nftSubmodule.Name():   nftSubmodule,
+		submodules: []indexertypes.Submodule{
+			blockSubmodule,
+			txSubmodule,
+			nftSubmodule,
 		},
 	}
 }

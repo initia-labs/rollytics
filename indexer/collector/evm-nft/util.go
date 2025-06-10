@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	evmtypes "github.com/initia-labs/minievm/x/evm/types"
+	"github.com/initia-labs/rollytics/indexer/util"
+	"gorm.io/gorm"
 )
 
 const (
@@ -24,4 +26,26 @@ func convertHexStringToDecString(hex string) (string, error) {
 		return "", errors.New("failed to convert hex to dec")
 	}
 	return bi.String(), nil
+}
+
+func getCollectionCreator(chainId, addr string, tx *gorm.DB) (string, error) {
+	bechAddr, err := util.AccAddressFromString(addr)
+	if err != nil {
+		return "", err
+	}
+
+	var result struct {
+		Signer string
+	}
+
+	err = tx.
+		Table("account_tx AS a").
+		Select("t.signer").
+		Joins("JOIN tx AS t ON t.chain_id = a.chain_id AND t.hash = a.hash").
+		Where("a.chain_id = ? AND a.account = ?", chainId, bechAddr.String()).
+		Order("t.sequence ASC").
+		Limit(1).
+		Scan(&result).Error
+
+	return result.Signer, nil
 }
