@@ -14,6 +14,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
+	"github.com/initia-labs/rollytics/indexer/util"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
 	"gorm.io/gorm"
@@ -188,12 +189,18 @@ func (sub *TxSubmodule) collectEvm(block indexertypes.ScrapedBlock, tx *gorm.DB)
 			return err
 		}
 
+		signer, err := util.AccAddressFromString(evmTx.From)
+		if err != nil {
+			return err
+		}
+
 		seqInfo.Sequence++
 		cetxs = append(cetxs, types.CollectedEvmTx{
 			ChainId:  block.ChainId,
 			Hash:     evmTx.TxHash,
 			Height:   block.Height,
 			Sequence: seqInfo.Sequence,
+			Signer:   signer.String(),
 			Data:     json.RawMessage(txJSON),
 		})
 

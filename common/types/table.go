@@ -50,6 +50,7 @@ type CollectedEvmTx struct {
 	Hash     string          `gorm:"type:text;primaryKey;index:evm_tx_hash"`
 	Height   int64           `gorm:"type:bigint;primaryKey;autoIncrement:false;index:evm_tx_height"`
 	Sequence uint64          `gorm:"type:bigint;index:evm_tx_sequence"`
+	Signer   string          `gorm:"type:text"`
 	Data     json.RawMessage `gorm:"type:jsonb"`
 }
 
