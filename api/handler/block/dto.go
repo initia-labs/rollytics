@@ -15,7 +15,7 @@ type BlocksRequest struct {
 }
 
 type BlockByHeightRequest struct {
-	Height string `param:"height"`
+	Height int64 `param:"height"`
 }
 
 type AvgBlockTimeRequest struct{}

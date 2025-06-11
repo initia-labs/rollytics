@@ -1,7 +1,6 @@
 package block
 
 import (
-	"strconv"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -79,14 +78,9 @@ func (h *BlockHandler) GetBlockByHeight(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
-
-	height, err := strconv.ParseInt(req.Height, 10, 64)
-	if err != nil {
-		return fiber.NewError(fiber.StatusBadRequest, "invalid height format")
-	}
-
+	
 	var block dbtypes.CollectedBlock
-	if err := h.buildBaseBlockQuery().Where("height = ?", height).First(&block).Error; err != nil {
+	if err := h.buildBaseBlockQuery().Where("height = ?", req.Height).First(&block).Error; err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchBlock)
 	}
 

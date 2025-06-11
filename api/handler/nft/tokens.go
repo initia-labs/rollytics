@@ -36,7 +36,7 @@ func (h *NftHandler) GetTokensByAccount(c *fiber.Ctx) error {
 	}
 
 	query := h.buildBaseNftQuery().Where("owner = ?", req.Account)
-	query, err = req.Pagination.ApplyPagination(query, "addr", "token_id")
+	query, err = req.Pagination.ApplyPagination(query, "collection_addr", "token_id")
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, common.ErrInvalidParams)
 	}
@@ -48,7 +48,8 @@ func (h *NftHandler) GetTokensByAccount(c *fiber.Ctx) error {
 
 	var nextKey []byte
 	if len(tokens) > 0 {
-		nextKey = common.GetNextKey(tokens[len(tokens)-1].Addr, tokens[len(tokens)-1].TokenId)
+		token := tokens[len(tokens)-1]
+		nextKey = common.GetNextKey(token.CollectionAddr, token.TokenId)
 	}
 
 	pageResp, err := req.Pagination.GetPageResponse(len(tokens), h.buildBaseNftQuery().Where("owner = ?", req.Account), nextKey)
@@ -87,7 +88,7 @@ func (h *NftHandler) GetTokensByCollection(c *fiber.Ctx) error {
 	}
 
 	query := h.buildBaseNftQuery().Where("collection_addr = ?", req.CollectionAddr)
-	query, err = req.Pagination.ApplyPagination(query, "addr", "token_id")
+	query, err = req.Pagination.ApplyPagination(query, "token_id")
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, common.ErrInvalidParams)
 	}
@@ -101,7 +102,7 @@ func (h *NftHandler) GetTokensByCollection(c *fiber.Ctx) error {
 		nextKey = tokens[len(tokens)-1].TokenId
 	}
 
-	pageResp, err := req.Pagination.GetPageResponse(len(tokens), h.buildBaseNftQuery().Where("addr = ?", req.CollectionAddr), nextKey)
+	pageResp, err := req.Pagination.GetPageResponse(len(tokens), h.buildBaseNftQuery().Where("collection_addr = ?", req.CollectionAddr), nextKey)
 	if err != nil {
 		return err
 	}

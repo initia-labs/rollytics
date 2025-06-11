@@ -20,16 +20,18 @@ func ParseBlocksRequest(c *fiber.Ctx) (*BlocksRequest, error) {
 }
 
 func ParseBlockByHeightRequest(c *fiber.Ctx) (*BlockByHeightRequest, error) {
-	req := &BlockByHeightRequest{
-		Height: c.Params("height"),
-	}
-
-	if req.Height == "" {
+	height := c.Params("height")
+	if height == "" {
 		return nil, fiber.NewError(fiber.StatusBadRequest, "height param is required")
 	}
 
-	if _, err := strconv.ParseInt(req.Height, 10, 64); err != nil {
+	heightInt, err := strconv.ParseInt(height, 10, 64)
+	if err != nil {
 		return nil, fiber.NewError(fiber.StatusBadRequest, "invalid height format")
+	}
+
+	req := &BlockByHeightRequest{
+		Height: heightInt,
 	}
 
 	return req, nil
