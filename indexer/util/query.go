@@ -60,7 +60,7 @@ func getRaw(client *fiber.Client, baseUrl, path string, params map[string]string
 		req.Set(key, value)
 	}
 
-	code, body, errs := req.Timeout(5 * time.Second).Bytes()
+	code, body, errs := req.Timeout(10 * time.Second).Bytes()
 	if err := errors.Join(errs...); err != nil {
 		return nil, err
 	}
@@ -120,7 +120,7 @@ func postRaw(client *fiber.Client, baseUrl, path string, payload map[string]inte
 		req.Set(key, value)
 	}
 
-	code, body, errs := req.Timeout(5 * time.Second).Bytes()
+	code, body, errs := req.Timeout(10 * time.Second).Bytes()
 	if err := errors.Join(errs...); err != nil {
 		return nil, err
 	}
