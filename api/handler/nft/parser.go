@@ -104,13 +104,9 @@ func ParseTokensByCollectionRequest(c *fiber.Ctx) (*TokensByCollectionRequest, e
 	if collectionAddr == "" {
 		return nil, fiber.NewError(fiber.StatusBadRequest, "collection_addr is required")
 	}
-	accAddr, err := common.AccAddressFromString(collectionAddr)
-	if err != nil {
-		return nil, fiber.NewError(fiber.StatusBadRequest, "invalid collection_addr")
-	}
 
 	req := &TokensByCollectionRequest{
-		CollectionAddr: accAddr.String(),
+		CollectionAddr: strings.ToLower(collectionAddr),
 		Pagination:     pagination,
 	}
 
@@ -132,13 +128,9 @@ func ParseNftTxsRequest(c *fiber.Ctx) (*NftTxsRequest, error) {
 	if collectionAddr == "" {
 		return nil, fiber.NewError(fiber.StatusBadRequest, "collection_addr is required")
 	}
-	accAddr, err := common.AccAddressFromString(collectionAddr)
-	if err != nil {
-		return nil, fiber.NewError(fiber.StatusBadRequest, "invalid collection_addr")
-	}
 
 	req := &NftTxsRequest{
-		CollectionAddr: accAddr.String(),
+		CollectionAddr: strings.ToLower(collectionAddr),
 		TokenId:        c.Params("token_id"),
 		Pagination:     pagination,
 	}

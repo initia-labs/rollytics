@@ -56,7 +56,7 @@ func (h *NftHandler) GetCollections(c *fiber.Ctx) error {
 }
 
 // GetCollectionsByAccount handles GET /nft/v1/collections/by_account/{account}
-// @Summary Get NFT collections by account
+// @Summary Get NFT collections by owner account
 // @Description Get NFT collections owned by a specific account
 // @Tags NFT
 // @Accept json
