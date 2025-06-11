@@ -303,7 +303,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/indexer/nft/v1/collections/{address}": {
+        "/indexer/nft/v1/collections/{collection_addr}": {
             "get": {
                 "description": "Get NFT collections for a specific address",
                 "consumes": [
@@ -320,43 +320,8 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "Collection address",
-                        "name": "address",
+                        "name": "collection_addr",
                         "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Pagination key",
-                        "name": "pagination.key",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Pagination offset",
-                        "name": "pagination.offset",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "default": 100,
-                        "description": "Pagination limit",
-                        "name": "pagination.limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "boolean",
-                        "default": true,
-                        "description": "Count total",
-                        "name": "pagination.count_total",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "boolean",
-                        "default": true,
-                        "description": "Reverse order default(true) if set to true, the results will be ordered in descending order",
-                        "name": "pagination.reverse",
-                        "in": "query",
                         "required": true
                     }
                 ],
@@ -364,7 +329,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/nft.CollectionsResponse"
+                            "$ref": "#/definitions/nft.CollectionResponse"
                         }
                     }
                 }
@@ -1043,6 +1008,14 @@ const docTemplate = `{
                 "origin_name": {
                     "type": "string",
                     "x-order:3": true
+                }
+            }
+        },
+        "nft.CollectionResponse": {
+            "type": "object",
+            "properties": {
+                "collection": {
+                    "$ref": "#/definitions/nft.Collection"
                 }
             }
         },

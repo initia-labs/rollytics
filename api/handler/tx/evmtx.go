@@ -28,8 +28,8 @@ func (h *TxHandler) GetEvmTxs(c *fiber.Ctx) error {
 	txs, pageResp, err := common.NewPaginationBuilder[dbtypes.CollectedEvmTx](req.Pagination).
 		WithQuery(h.buildBaseEvmTxQuery()).
 		WithKeys("sequence").
-		WithKeyExtractor(func(lastTx dbtypes.CollectedEvmTx) interface{} {
-			return lastTx.Sequence
+		WithKeyExtractor(func(lastTx dbtypes.CollectedEvmTx) []any {
+			return []any{lastTx.Sequence}
 		}).
 		Execute()
 
@@ -82,8 +82,8 @@ func (h *TxHandler) GetEvmTxsByAccount(c *fiber.Ctx) error {
 		WithQuery(query).
 		WithCountQuery(countQuery).
 		WithKeys("evm_tx.sequence").
-		WithKeyExtractor(func(tx dbtypes.CollectedEvmTx) interface{} {
-			return tx.Sequence
+		WithKeyExtractor(func(tx dbtypes.CollectedEvmTx) []any {
+			return []any{tx.Sequence}
 		}).
 		Execute()
 
@@ -133,8 +133,8 @@ func (h *TxHandler) GetEvmTxsByHeight(c *fiber.Ctx) error {
         WithQuery(query).
         WithCountQuery(countQuery).
         WithKeys("sequence").
-        WithKeyExtractor(func(tx dbtypes.CollectedEvmTx) interface{} {
-            return tx.Sequence
+        WithKeyExtractor(func(tx dbtypes.CollectedEvmTx) []any {
+            return []any{tx.Sequence}
         }).
         Execute()
 

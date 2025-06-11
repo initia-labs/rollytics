@@ -71,8 +71,8 @@ func (h *NftHandler) GetNftTxs(c *fiber.Ctx) error {
         WithQuery(query).
         WithCountQuery(countQuery).
         WithKeys("tx.sequence").
-        WithKeyExtractor(func(tx types.CollectedTx) interface{} {
-            return tx.Sequence
+        WithKeyExtractor(func(tx types.CollectedTx) []any {
+            return []any{tx.Sequence}
         }).
         Execute()
 

@@ -26,6 +26,11 @@ definitions:
         type: string
         x-order:3: true
     type: object
+  nft.CollectionResponse:
+    properties:
+      collection:
+        $ref: '#/definitions/nft.Collection'
+    type: object
   nft.CollectionsResponse:
     properties:
       collections:
@@ -186,7 +191,7 @@ paths:
       summary: Get NFT collections
       tags:
       - NFT
-  /indexer/nft/v1/collections/{address}:
+  /indexer/nft/v1/collections/{collection_addr}:
     get:
       consumes:
       - application/json
@@ -194,42 +199,16 @@ paths:
       parameters:
       - description: Collection address
         in: path
-        name: address
+        name: collection_addr
         required: true
         type: string
-      - description: Pagination key
-        in: query
-        name: pagination.key
-        type: string
-      - description: Pagination offset
-        in: query
-        name: pagination.offset
-        type: integer
-      - default: 100
-        description: Pagination limit
-        in: query
-        name: pagination.limit
-        type: integer
-      - default: true
-        description: Count total
-        in: query
-        name: pagination.count_total
-        required: true
-        type: boolean
-      - default: true
-        description: Reverse order default(true) if set to true, the results will
-          be ordered in descending order
-        in: query
-        name: pagination.reverse
-        required: true
-        type: boolean
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/nft.CollectionsResponse'
+            $ref: '#/definitions/nft.CollectionResponse'
       summary: Get NFT Collections By Collection Address
       tags:
       - NFT

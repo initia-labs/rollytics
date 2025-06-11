@@ -29,8 +29,8 @@ func (h *NftHandler) GetCollections(c *fiber.Ctx) error {
     collections, pageResp, err := common.NewPaginationBuilder[dbtypes.CollectedNftCollection](req.Pagination).
         WithQuery(h.buildBaseCollectionQuery()).
         WithKeys("addr").
-        WithKeyExtractor(func(col dbtypes.CollectedNftCollection) interface{} {
-            return col.Addr
+        WithKeyExtractor(func(col dbtypes.CollectedNftCollection) []any {
+            return []any{col.Addr}
         }).
         Execute()
 
@@ -80,8 +80,8 @@ func (h *NftHandler) GetCollectionsByAccount(c *fiber.Ctx) error {
         WithQuery(query).
         WithCountQuery(countQuery).
         WithKeys("nft_collection.height", "nft_collection.addr").
-        WithKeyExtractor(func(col dbtypes.CollectedNftCollection) interface{} {
-            return common.GetNextKey(col.Height, col.Addr)
+        WithKeyExtractor(func(col dbtypes.CollectedNftCollection) []any {
+            return []any{col.Height, col.Addr}
         }).
         Execute()
 
@@ -125,8 +125,8 @@ func (h *NftHandler) GetCollectionsByName(c *fiber.Ctx) error {
         WithQuery(query).
         WithCountQuery(countQuery).
         WithKeys("height", "addr").
-        WithKeyExtractor(func(col dbtypes.CollectedNftCollection) interface{} {
-            return common.GetNextKey(col.Height, col.Addr)
+        WithKeyExtractor(func(col dbtypes.CollectedNftCollection) []any {
+            return []any{col.Height, col.Addr}
         }).
         Execute()
 

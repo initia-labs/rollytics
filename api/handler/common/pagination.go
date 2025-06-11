@@ -44,7 +44,7 @@ type PaginationBuilder[T any] struct {
 	query        *gorm.DB
 	countQuery   *gorm.DB
 	keys         []string
-	keyExtractor func(T) interface{}
+	keyExtractor func(T) []any
 }
 
 func NewPaginationBuilder[T any](params *PaginationParams) *PaginationBuilder[T] {
@@ -68,7 +68,7 @@ func (b *PaginationBuilder[T]) WithKeys(keys ...string) *PaginationBuilder[T] {
 	return b
 }
 
-func (b *PaginationBuilder[T]) WithKeyExtractor(extractor func(T) interface{}) *PaginationBuilder[T] {
+func (b *PaginationBuilder[T]) WithKeyExtractor(extractor func(T) []any) *PaginationBuilder[T] {
 	b.keyExtractor = extractor
 	return b
 }
@@ -85,9 +85,10 @@ func (b *PaginationBuilder[T]) Execute() ([]T, *PageResponse, error) {
 		return nil, nil, err
 	}
 
-	var nextKey interface{}
+	var nextKey []byte
 	if len(results) > 0 && b.keyExtractor != nil {
-		nextKey = b.keyExtractor(results[len(results)-1])
+		values := b.keyExtractor(results[len(results)-1])
+		nextKey = getNextKey(values...)
 	}
 
 	if b.countQuery == nil {
@@ -161,8 +162,7 @@ func (params *PaginationParams) setPageKey(query *gorm.DB, keys []string) (*gorm
 	return query, nil
 }
 
-
-func (params *PaginationParams) getPageResponse(len int, totalQuery *gorm.DB, nextKey any) (*PageResponse, error) {
+func (params *PaginationParams) getPageResponse(len int, totalQuery *gorm.DB, nextKey []byte) (*PageResponse, error) {
 	resp := PageResponse{}
 
 	if params.CountTotal {
@@ -172,15 +172,26 @@ func (params *PaginationParams) getPageResponse(len int, totalQuery *gorm.DB, ne
 	}
 
 	if len == int(params.Limit) {
-		var keyStr string
 		if nextKey != nil {
-			keyStr = fmt.Sprintf("%v", nextKey)
-		}
-
-		if keyStr != "" {
-			resp.NextKey = base64.StdEncoding.EncodeToString([]byte(keyStr))
+			resp.NextKey = base64.StdEncoding.EncodeToString(nextKey)
 		}
 	}
 
 	return &resp, nil
+}
+
+func getNextKey(values ...any) []byte {
+	if len(values) == 0 {
+		return nil
+	} else if len(values) == 1 {
+		return []byte(fmt.Sprintf("%v", values[0]))
+	}
+
+	var parts []string
+	for _, v := range values {
+		parts = append(parts, fmt.Sprintf("%v", v))
+	}
+
+	nextKey := strings.Join(parts, "|")
+	return []byte(nextKey)
 }
