@@ -2,6 +2,7 @@ package move_nft
 
 import (
 	"encoding/json"
+	"sync"
 
 	"github.com/gofiber/fiber/v2"
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
@@ -9,49 +10,44 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+const nftStructTag = "0x1::nft::Nft"
+
 func (sub *MoveNftSubmodule) prepare(block indexertypes.ScrapedBlock) (err error) {
 	client := fiber.AcquireClient()
 	defer fiber.ReleaseClient(client)
 
-	colAddrs, nftAddrs, err := filterMoveData(block)
+	nftAddrs, err := filterMoveData(block)
 	if err != nil {
 		return err
 	}
 
+	nftResources := make(map[string]string) // nft addr -> nft resource
+
 	var g errgroup.Group
-	colResourcesChan := make(chan map[string]string, 1)
-	nftResourcesChan := make(chan map[string]string, 1)
+	var mtx sync.Mutex
 
-	g.Go(func() error {
-		defer close(colResourcesChan)
-		colResources, err := getCollectionResources(colAddrs, client, sub.cfg, block.Height)
-		if err != nil {
-			return err
-		}
-		colResourcesChan <- colResources
-		return nil
-	})
+	for _, nftAddr := range nftAddrs {
+		addr := nftAddr
+		g.Go(func() error {
+			resource, err := getMoveResource(addr, nftStructTag, client, sub.cfg, block.Height)
+			if err != nil {
+				return err
+			}
 
-	g.Go(func() error {
-		defer close(nftResourcesChan)
-		nftResources, err := getNftResources(nftAddrs, client, sub.cfg, block.Height)
-		if err != nil {
-			return err
-		}
-		nftResourcesChan <- nftResources
-		return nil
-	})
+			mtx.Lock()
+			nftResources[addr] = resource.Resource.MoveResource
+			mtx.Unlock()
 
-	if err := g.Wait(); err != nil {
+			return nil
+		})
+	}
+
+	if err = g.Wait(); err != nil {
 		return err
 	}
 
-	colResources := <-colResourcesChan
-	nftResources := <-nftResourcesChan
-
 	sub.mtx.Lock()
 	sub.cache[block.Height] = CacheData{
-		ColResources: colResources,
 		NftResources: nftResources,
 	}
 	sub.mtx.Unlock()
@@ -59,12 +55,11 @@ func (sub *MoveNftSubmodule) prepare(block indexertypes.ScrapedBlock) (err error
 	return nil
 }
 
-func filterMoveData(block indexertypes.ScrapedBlock) (colAddrs []string, nftAddrs []string, err error) {
-	collectionAddrMap := make(map[string]interface{})
+func filterMoveData(block indexertypes.ScrapedBlock) (nftAddrs []string, err error) {
 	nftAddrMap := make(map[string]interface{})
 	events, err := util.ExtractEvents(block, "move")
 	if err != nil {
-		return colAddrs, nftAddrs, err
+		return nftAddrs, err
 	}
 
 	for _, event := range events {
@@ -81,14 +76,13 @@ func filterMoveData(block indexertypes.ScrapedBlock) (colAddrs []string, nftAddr
 		case "0x1::collection::MintEvent":
 			var event NftMintAndBurnEvent
 			if err := json.Unmarshal([]byte(data), &event); err != nil {
-				return colAddrs, nftAddrs, err
+				return nftAddrs, err
 			}
-			collectionAddrMap[event.Collection] = nil
 			nftAddrMap[event.Nft] = nil
 		case "0x1::collection::BurnEvent":
 			var event NftMintAndBurnEvent
 			if err := json.Unmarshal([]byte(data), &event); err != nil {
-				return colAddrs, nftAddrs, err
+				return nftAddrs, err
 			}
 			delete(nftAddrMap, event.Nft)
 		default:
@@ -96,9 +90,6 @@ func filterMoveData(block indexertypes.ScrapedBlock) (colAddrs []string, nftAddr
 		}
 	}
 
-	for addr := range collectionAddrMap {
-		colAddrs = append(colAddrs, addr)
-	}
 	for addr := range nftAddrMap {
 		nftAddrs = append(nftAddrs, addr)
 	}

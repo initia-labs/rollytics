@@ -24,6 +24,7 @@ func (sub *MoveNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 	}
 
 	batchSize := sub.cfg.GetDBBatchSize()
+	var mintedCols []types.CollectedNftCollection
 	mintMap := make(map[string]map[string]interface{})
 	transferMap := make(map[string]string)
 	mutMap := make(map[string]string)
@@ -46,6 +47,23 @@ func (sub *MoveNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 		dataBytes := []byte(data)
 
 		switch typeTag {
+		case "0x1::collection::CreateCollectionEvent":
+			var event CreateCollectionEvent
+			if err := json.Unmarshal(dataBytes, &event); err != nil {
+				return err
+			}
+			creator, err := util.AccAddressFromString(event.Creator)
+			if err != nil {
+				return err
+			}
+			mintedCols = append(mintedCols, types.CollectedNftCollection{
+				ChainId: block.ChainId,
+				Addr:    event.Collection,
+				Height:  block.Height,
+				Name:    event.Name,
+				Creator: creator.String(),
+			})
+
 		case "0x1::collection::MintEvent":
 			var event NftMintAndBurnEvent
 			if err := json.Unmarshal(dataBytes, &event); err != nil {
@@ -92,29 +110,18 @@ func (sub *MoveNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 		}
 	}
 
-	// batch insert collections and nfts
-	var mintedCols []types.CollectedNftCollection
+	// batch insert collections
+	if res := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(mintedCols, batchSize); res.Error != nil {
+		return res.Error
+	}
+
+	// batch insert nfts
 	var mintedNfts []types.CollectedNft
 	for collectionAddr, nftMap := range mintMap {
-		colResourceRaw, ok := cacheData.ColResources[collectionAddr]
-		if !ok {
-			return fmt.Errorf("move resource not found for collection address %s", collectionAddr)
-		}
-		var colResource CollectionResource
-		if err := json.Unmarshal([]byte(colResourceRaw), &colResource); err != nil {
-			return err
-		}
-		creator, err := util.AccAddressFromString(colResource.Data.Creator)
+		creator, err := getCollectionCreator(block.ChainId, collectionAddr, tx)
 		if err != nil {
 			return err
 		}
-		mintedCols = append(mintedCols, types.CollectedNftCollection{
-			ChainId: block.ChainId,
-			Addr:    collectionAddr,
-			Height:  block.Height,
-			Name:    colResource.Data.Name,
-			Creator: creator.String(),
-		})
 
 		for nftAddr := range nftMap {
 			nftResourceRaw, ok := cacheData.NftResources[nftAddr]
@@ -132,13 +139,10 @@ func (sub *MoveNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 				TokenId:        nftResource.Data.TokenId,
 				Addr:           nftAddr,
 				Height:         block.Height,
-				Owner:          creator.String(),
+				Owner:          creator,
 				Uri:            nftResource.Data.Uri,
 			})
 		}
-	}
-	if res := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(mintedCols, batchSize); res.Error != nil {
-		return res.Error
 	}
 	if res := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(mintedNfts, batchSize); res.Error != nil {
 		return res.Error

@@ -3,7 +3,6 @@ package move_nft
 import "strings"
 
 type CacheData struct {
-	ColResources map[string]string // collection addr -> collection resource
 	NftResources map[string]string // nft addr -> nft resource
 }
 
@@ -14,6 +13,12 @@ type QueryMoveResourceResponse struct {
 		MoveResource string `json:"move_resource"`
 		RawBytes     string `json:"raw_bytes"`
 	} `json:"resource"`
+}
+
+type CreateCollectionEvent struct {
+	Collection string `json:"collection"`
+	Creator    string `json:"creator"`
+	Name       string `json:"name"`
 }
 
 type NftMintAndBurnEvent struct {
