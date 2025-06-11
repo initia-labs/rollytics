@@ -1,8 +1,6 @@
 package block
 
 import (
-	"time"
-
 	"github.com/gofiber/fiber/v2"
 	"github.com/initia-labs/rollytics/api/handler/common"
 	dbtypes "github.com/initia-labs/rollytics/types"
@@ -118,11 +116,9 @@ func (h *BlockHandler) GetAvgBlockTime(c *fiber.Ctx) error {
 		return c.JSON(AvgBlockTimeResponse{AvgBlockTime: 0})
 	}
 
-	var totalTime time.Duration
-	for i := 0; i < len(blocks)-1; i++ {
-		timeDiff := blocks[i].Timestamp.Sub(blocks[i+1].Timestamp)
-		totalTime += timeDiff
-	}
+	startTime := blocks[len(blocks)-1].Timestamp
+	endTime := blocks[0].Timestamp
+	totalTime := endTime.Sub(startTime)
 
 	avgTime := totalTime.Seconds() / float64(len(blocks)-1)
 
