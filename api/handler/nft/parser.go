@@ -5,6 +5,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/initia-labs/rollytics/api/handler/common"
+	"github.com/initia-labs/rollytics/codec"
 )
 
 func ParseCollectionsRequest(c *fiber.Ctx) (*CollectionsRequest, error) {
@@ -79,7 +80,7 @@ func ParseTokensByAccountRequest(c *fiber.Ctx) (*TokensByAccountRequest, error) 
 		return nil, fiber.NewError(fiber.StatusBadRequest, "account is required")
 	}
 
-	accAddr, err := common.AccAddressFromString(account)
+	accAddr, err := codec.AccAddressFromString(account)
 	if err != nil {
 		return nil, fiber.NewError(fiber.StatusBadRequest, "invalid account")
 	}

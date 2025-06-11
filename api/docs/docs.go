@@ -66,15 +66,19 @@ const docTemplate = `{
                     },
                     {
                         "type": "boolean",
+                        "default": true,
                         "description": "Count total",
                         "name": "pagination.count_total",
-                        "in": "query"
+                        "in": "query",
+                        "required": true
                     },
                     {
                         "type": "boolean",
-                        "description": "Reverse order",
+                        "default": true,
+                        "description": "Reverse order default(true) if set to true, the results will be ordered in descending order",
                         "name": "pagination.reverse",
-                        "in": "query"
+                        "in": "query",
+                        "required": true
                     }
                 ],
                 "responses": {}
@@ -140,15 +144,19 @@ const docTemplate = `{
                     },
                     {
                         "type": "boolean",
+                        "default": true,
                         "description": "Count total",
                         "name": "pagination.count_total",
-                        "in": "query"
+                        "in": "query",
+                        "required": true
                     },
                     {
                         "type": "boolean",
-                        "description": "Reverse order",
+                        "default": true,
+                        "description": "Reverse order default(true) if set to true, the results will be ordered in descending order",
                         "name": "pagination.reverse",
-                        "in": "query"
+                        "in": "query",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -173,7 +181,7 @@ const docTemplate = `{
                 "tags": [
                     "NFT"
                 ],
-                "summary": "Get NFT collections by account",
+                "summary": "Get NFT collections by owner account",
                 "parameters": [
                     {
                         "type": "string",
@@ -203,15 +211,19 @@ const docTemplate = `{
                     },
                     {
                         "type": "boolean",
+                        "default": true,
                         "description": "Count total",
                         "name": "pagination.count_total",
-                        "in": "query"
+                        "in": "query",
+                        "required": true
                     },
                     {
                         "type": "boolean",
-                        "description": "Reverse order",
+                        "default": true,
+                        "description": "Reverse order default(true) if set to true, the results will be ordered in descending order",
                         "name": "pagination.reverse",
-                        "in": "query"
+                        "in": "query",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -266,15 +278,19 @@ const docTemplate = `{
                     },
                     {
                         "type": "boolean",
+                        "default": true,
                         "description": "Count total",
                         "name": "pagination.count_total",
-                        "in": "query"
+                        "in": "query",
+                        "required": true
                     },
                     {
                         "type": "boolean",
-                        "description": "Reverse order",
+                        "default": true,
+                        "description": "Reverse order default(true) if set to true, the results will be ordered in descending order",
                         "name": "pagination.reverse",
-                        "in": "query"
+                        "in": "query",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -329,15 +345,19 @@ const docTemplate = `{
                     },
                     {
                         "type": "boolean",
+                        "default": true,
                         "description": "Count total",
                         "name": "pagination.count_total",
-                        "in": "query"
+                        "in": "query",
+                        "required": true
                     },
                     {
                         "type": "boolean",
-                        "description": "Reverse order",
+                        "default": true,
+                        "description": "Reverse order default(true) if set to true, the results will be ordered in descending order",
                         "name": "pagination.reverse",
-                        "in": "query"
+                        "in": "query",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -392,15 +412,19 @@ const docTemplate = `{
                     },
                     {
                         "type": "boolean",
+                        "default": true,
                         "description": "Count total",
                         "name": "pagination.count_total",
-                        "in": "query"
+                        "in": "query",
+                        "required": true
                     },
                     {
                         "type": "boolean",
-                        "description": "Reverse order",
+                        "default": true,
+                        "description": "Reverse order default(true) if set to true, the results will be ordered in descending order",
                         "name": "pagination.reverse",
-                        "in": "query"
+                        "in": "query",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -409,14 +433,6 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/nft.NftsResponse"
                         }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {}
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {}
                     }
                 }
             }
@@ -463,15 +479,19 @@ const docTemplate = `{
                     },
                     {
                         "type": "boolean",
+                        "default": true,
                         "description": "Count total",
                         "name": "pagination.count_total",
-                        "in": "query"
+                        "in": "query",
+                        "required": true
                     },
                     {
                         "type": "boolean",
-                        "description": "Reverse order",
+                        "default": true,
+                        "description": "Reverse order default(true) if set to true, the results will be ordered in descending order",
                         "name": "pagination.reverse",
-                        "in": "query"
+                        "in": "query",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -480,14 +500,6 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/nft.NftsResponse"
                         }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {}
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {}
                     }
                 }
             }
@@ -541,15 +553,19 @@ const docTemplate = `{
                     },
                     {
                         "type": "boolean",
+                        "default": true,
                         "description": "Count total",
                         "name": "pagination.count_total",
-                        "in": "query"
+                        "in": "query",
+                        "required": true
                     },
                     {
                         "type": "boolean",
-                        "description": "Reverse order",
+                        "default": true,
+                        "description": "Reverse order default(true) if set to true, the results will be ordered in descending order",
                         "name": "pagination.reverse",
-                        "in": "query"
+                        "in": "query",
+                        "required": true
                     }
                 ],
                 "responses": {}
@@ -590,15 +606,19 @@ const docTemplate = `{
                     },
                     {
                         "type": "boolean",
+                        "default": true,
                         "description": "Count total",
                         "name": "pagination.count_total",
-                        "in": "query"
+                        "in": "query",
+                        "required": true
                     },
                     {
                         "type": "boolean",
-                        "description": "Reverse order",
+                        "default": true,
+                        "description": "Reverse order default(true) if set to true, the results will be ordered in descending order",
                         "name": "pagination.reverse",
-                        "in": "query"
+                        "in": "query",
+                        "required": true
                     }
                 ],
                 "responses": {}
@@ -646,15 +666,19 @@ const docTemplate = `{
                     },
                     {
                         "type": "boolean",
+                        "default": true,
                         "description": "Count total",
                         "name": "pagination.count_total",
-                        "in": "query"
+                        "in": "query",
+                        "required": true
                     },
                     {
                         "type": "boolean",
-                        "description": "Reverse order",
+                        "default": true,
+                        "description": "Reverse order default(true) if set to true, the results will be ordered in descending order",
                         "name": "pagination.reverse",
-                        "in": "query"
+                        "in": "query",
+                        "required": true
                     }
                 ],
                 "responses": {}
@@ -702,15 +726,19 @@ const docTemplate = `{
                     },
                     {
                         "type": "boolean",
+                        "default": true,
                         "description": "Count total",
                         "name": "pagination.count_total",
-                        "in": "query"
+                        "in": "query",
+                        "required": true
                     },
                     {
                         "type": "boolean",
-                        "description": "Reverse order",
+                        "default": true,
+                        "description": "Reverse order default(true) if set to true, the results will be ordered in descending order",
                         "name": "pagination.reverse",
-                        "in": "query"
+                        "in": "query",
+                        "required": true
                     }
                 ],
                 "responses": {}
@@ -799,15 +827,19 @@ const docTemplate = `{
                     },
                     {
                         "type": "boolean",
+                        "default": true,
                         "description": "Count total",
                         "name": "pagination.count_total",
-                        "in": "query"
+                        "in": "query",
+                        "required": true
                     },
                     {
                         "type": "boolean",
-                        "description": "Reverse order",
+                        "default": true,
+                        "description": "Reverse order default(true) if set to true, the results will be ordered in descending order",
                         "name": "pagination.reverse",
-                        "in": "query"
+                        "in": "query",
+                        "required": true
                     }
                 ],
                 "responses": {}
@@ -855,15 +887,19 @@ const docTemplate = `{
                     },
                     {
                         "type": "boolean",
+                        "default": true,
                         "description": "Count total",
                         "name": "pagination.count_total",
-                        "in": "query"
+                        "in": "query",
+                        "required": true
                     },
                     {
                         "type": "boolean",
-                        "description": "Reverse order",
+                        "default": true,
+                        "description": "Reverse order default(true) if set to true, the results will be ordered in descending order",
                         "name": "pagination.reverse",
-                        "in": "query"
+                        "in": "query",
+                        "required": true
                     }
                 ],
                 "responses": {}
@@ -911,15 +947,19 @@ const docTemplate = `{
                     },
                     {
                         "type": "boolean",
+                        "default": true,
                         "description": "Count total",
                         "name": "pagination.count_total",
-                        "in": "query"
+                        "in": "query",
+                        "required": true
                     },
                     {
                         "type": "boolean",
-                        "description": "Reverse order",
+                        "default": true,
+                        "description": "Reverse order default(true) if set to true, the results will be ordered in descending order",
                         "name": "pagination.reverse",
-                        "in": "query"
+                        "in": "query",
+                        "required": true
                     }
                 ],
                 "responses": {}

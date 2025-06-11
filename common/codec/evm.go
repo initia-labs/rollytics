@@ -1,23 +1,24 @@
-//go:build wasmvm
-// +build wasmvm
+//go:build evm
+// +build evm
 
-package handler
+package codec
 
 import (
-	wasmtypes "github.com/CosmWasm/wasmd/x/wasm/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/initia-labs/miniwasm/app"
+	"github.com/initia-labs/minievm/app"
 )
 
-var txConfig client.TxConfig
-var cdc codec.Codec
+var (
+    TxConfig client.TxConfig
+    Cdc      codec.Codec
+)
 
 func init() {
 	cfg := app.MakeEncodingConfig()
-	txConfig = cfg.TxConfig
-	cdc = cfg.Codec
+	TxConfig = cfg.TxConfig
+	Cdc = cfg.Codec
 	sdkConfig := sdk.GetConfig()
 	sdkConfig.SetCoinType(app.CoinType)
 	accountPubKeyPrefix := app.AccountAddressPrefix + "pub"
@@ -29,6 +30,6 @@ func init() {
 	sdkConfig.SetBech32PrefixForAccount(app.AccountAddressPrefix, accountPubKeyPrefix)
 	sdkConfig.SetBech32PrefixForValidator(validatorAddressPrefix, validatorPubKeyPrefix)
 	sdkConfig.SetBech32PrefixForConsensusNode(consNodeAddressPrefix, consNodePubKeyPrefix)
-	sdkConfig.SetAddressVerifier(wasmtypes.VerifyAddressLen())
+	sdkConfig.SetAddressVerifier(app.VerifyAddressLen())
 	sdkConfig.Seal()
 }

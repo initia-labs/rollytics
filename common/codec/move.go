@@ -1,7 +1,7 @@
 //go:build movevm
 // +build movevm
 
-package collector
+package codec
 
 import (
 	"github.com/cosmos/cosmos-sdk/client"
@@ -10,13 +10,15 @@ import (
 	"github.com/initia-labs/minimove/app"
 )
 
-var txConfig client.TxConfig
-var cdc codec.Codec
+var (
+    TxConfig client.TxConfig
+    Cdc      codec.Codec
+)
 
 func init() {
 	cfg := app.MakeEncodingConfig()
-	txConfig = cfg.TxConfig
-	cdc = cfg.Codec
+	TxConfig = cfg.TxConfig
+	Cdc = cfg.Codec
 	sdkConfig := sdk.GetConfig()
 	sdkConfig.SetCoinType(app.CoinType)
 	accountPubKeyPrefix := app.AccountAddressPrefix + "pub"

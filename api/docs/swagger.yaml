@@ -108,13 +108,18 @@ paths:
         in: query
         name: pagination.limit
         type: integer
-      - description: Count total
+      - default: true
+        description: Count total
         in: query
         name: pagination.count_total
+        required: true
         type: boolean
-      - description: Reverse order
+      - default: true
+        description: Reverse order default(true) if set to true, the results will
+          be ordered in descending order
         in: query
         name: pagination.reverse
+        required: true
         type: boolean
       produces:
       - application/json
@@ -158,13 +163,18 @@ paths:
         in: query
         name: pagination.limit
         type: integer
-      - description: Count total
+      - default: true
+        description: Count total
         in: query
         name: pagination.count_total
+        required: true
         type: boolean
-      - description: Reverse order
+      - default: true
+        description: Reverse order default(true) if set to true, the results will
+          be ordered in descending order
         in: query
         name: pagination.reverse
+        required: true
         type: boolean
       produces:
       - application/json
@@ -200,13 +210,18 @@ paths:
         in: query
         name: pagination.limit
         type: integer
-      - description: Count total
+      - default: true
+        description: Count total
         in: query
         name: pagination.count_total
+        required: true
         type: boolean
-      - description: Reverse order
+      - default: true
+        description: Reverse order default(true) if set to true, the results will
+          be ordered in descending order
         in: query
         name: pagination.reverse
+        required: true
         type: boolean
       produces:
       - application/json
@@ -242,13 +257,18 @@ paths:
         in: query
         name: pagination.limit
         type: integer
-      - description: Count total
+      - default: true
+        description: Count total
         in: query
         name: pagination.count_total
+        required: true
         type: boolean
-      - description: Reverse order
+      - default: true
+        description: Reverse order default(true) if set to true, the results will
+          be ordered in descending order
         in: query
         name: pagination.reverse
+        required: true
         type: boolean
       produces:
       - application/json
@@ -257,7 +277,7 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/nft.CollectionsResponse'
-      summary: Get NFT collections by account
+      summary: Get NFT collections by owner account
       tags:
       - NFT
   /indexer/nft/v1/collections/by_name/{name}:
@@ -284,13 +304,18 @@ paths:
         in: query
         name: pagination.limit
         type: integer
-      - description: Count total
+      - default: true
+        description: Count total
         in: query
         name: pagination.count_total
+        required: true
         type: boolean
-      - description: Reverse order
+      - default: true
+        description: Reverse order default(true) if set to true, the results will
+          be ordered in descending order
         in: query
         name: pagination.reverse
+        required: true
         type: boolean
       produces:
       - application/json
@@ -326,13 +351,18 @@ paths:
         in: query
         name: pagination.limit
         type: integer
-      - description: Count total
+      - default: true
+        description: Count total
         in: query
         name: pagination.count_total
+        required: true
         type: boolean
-      - description: Reverse order
+      - default: true
+        description: Reverse order default(true) if set to true, the results will
+          be ordered in descending order
         in: query
         name: pagination.reverse
+        required: true
         type: boolean
       produces:
       - application/json
@@ -341,12 +371,6 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/nft.NftsResponse'
-        "400":
-          description: Bad Request
-          schema: {}
-        "500":
-          description: Internal Server Error
-          schema: {}
       summary: Get NFT tokens by account
       tags:
       - NFT
@@ -374,13 +398,18 @@ paths:
         in: query
         name: pagination.limit
         type: integer
-      - description: Count total
+      - default: true
+        description: Count total
         in: query
         name: pagination.count_total
+        required: true
         type: boolean
-      - description: Reverse order
+      - default: true
+        description: Reverse order default(true) if set to true, the results will
+          be ordered in descending order
         in: query
         name: pagination.reverse
+        required: true
         type: boolean
       produces:
       - application/json
@@ -389,12 +418,6 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/nft.NftsResponse'
-        "400":
-          description: Bad Request
-          schema: {}
-        "500":
-          description: Internal Server Error
-          schema: {}
       summary: Get NFT tokens by collection
       tags:
       - NFT
@@ -427,13 +450,18 @@ paths:
         in: query
         name: pagination.limit
         type: integer
-      - description: Count total
+      - default: true
+        description: Count total
         in: query
         name: pagination.count_total
+        required: true
         type: boolean
-      - description: Reverse order
+      - default: true
+        description: Reverse order default(true) if set to true, the results will
+          be ordered in descending order
         in: query
         name: pagination.reverse
+        required: true
         type: boolean
       produces:
       - application/json
@@ -460,13 +488,18 @@ paths:
         in: query
         name: pagination.limit
         type: integer
-      - description: Count total
+      - default: true
+        description: Count total
         in: query
         name: pagination.count_total
+        required: true
         type: boolean
-      - description: Reverse order
+      - default: true
+        description: Reverse order default(true) if set to true, the results will
+          be ordered in descending order
         in: query
         name: pagination.reverse
+        required: true
         type: boolean
       produces:
       - application/json
@@ -515,13 +548,18 @@ paths:
         in: query
         name: pagination.limit
         type: integer
-      - description: Count total
+      - default: true
+        description: Count total
         in: query
         name: pagination.count_total
+        required: true
         type: boolean
-      - description: Reverse order
+      - default: true
+        description: Reverse order default(true) if set to true, the results will
+          be ordered in descending order
         in: query
         name: pagination.reverse
+        required: true
         type: boolean
       produces:
       - application/json
@@ -553,13 +591,18 @@ paths:
         in: query
         name: pagination.limit
         type: integer
-      - description: Count total
+      - default: true
+        description: Count total
         in: query
         name: pagination.count_total
+        required: true
         type: boolean
-      - description: Reverse order
+      - default: true
+        description: Reverse order default(true) if set to true, the results will
+          be ordered in descending order
         in: query
         name: pagination.reverse
+        required: true
         type: boolean
       produces:
       - application/json
@@ -601,13 +644,18 @@ paths:
         in: query
         name: pagination.limit
         type: integer
-      - description: Count total
+      - default: true
+        description: Count total
         in: query
         name: pagination.count_total
+        required: true
         type: boolean
-      - description: Reverse order
+      - default: true
+        description: Reverse order default(true) if set to true, the results will
+          be ordered in descending order
         in: query
         name: pagination.reverse
+        required: true
         type: boolean
       produces:
       - application/json
@@ -656,13 +704,18 @@ paths:
         in: query
         name: pagination.limit
         type: integer
-      - description: Count total
+      - default: true
+        description: Count total
         in: query
         name: pagination.count_total
+        required: true
         type: boolean
-      - description: Reverse order
+      - default: true
+        description: Reverse order default(true) if set to true, the results will
+          be ordered in descending order
         in: query
         name: pagination.reverse
+        required: true
         type: boolean
       produces:
       - application/json
@@ -694,13 +747,18 @@ paths:
         in: query
         name: pagination.limit
         type: integer
-      - description: Count total
+      - default: true
+        description: Count total
         in: query
         name: pagination.count_total
+        required: true
         type: boolean
-      - description: Reverse order
+      - default: true
+        description: Reverse order default(true) if set to true, the results will
+          be ordered in descending order
         in: query
         name: pagination.reverse
+        required: true
         type: boolean
       produces:
       - application/json

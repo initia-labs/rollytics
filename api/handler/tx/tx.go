@@ -7,10 +7,6 @@ import (
 	"gorm.io/gorm"
 )
 
-type TxHandler struct {
-	*common.Handler
-}
-
 // GetTxs handles GET /tx/v1/
 // @Summary Get transactions
 // @Description Get a list of transactions with pagination
@@ -20,10 +16,13 @@ type TxHandler struct {
 // @Param pagination.key query string false "Pagination key"
 // @Param pagination.offset query int false "Pagination offset"
 // @Param pagination.limit query int false "Pagination limit" default(100)
-// @Param pagination.count_total query bool false "Count total"
-// @Param pagination.reverse query bool false "Reverse order"
+// @Param pagination.count_total query bool true "Count total" default(true)
+// @Param pagination.reverse query bool true "Reverse order default(true) if set to true, the results will be ordered in descending order"
 // @Router /indexer/tx/v1/txs [get]
 func (h *TxHandler) GetTxs(c *fiber.Ctx) error {
+	var (
+		logger = h.GetLogger()
+	)
 	req, err := ParseTxsRequest(c)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
@@ -37,13 +36,13 @@ func (h *TxHandler) GetTxs(c *fiber.Ctx) error {
 
 	var txs []dbtypes.CollectedTx
 	if err := query.Find(&txs).Error; err != nil {
-		h.Logger.Error(ErrFailedToFetchTx, "error", err)
+		logger.Error(ErrFailedToFetchTx, "error", err)
 		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchTx)
 	}
 
 	txsResp, err := BatchToResponseTxs(txs)
 	if err != nil {
-		h.Logger.Error(ErrFailedToConvertTx, "error", err)
+		logger.Error(ErrFailedToConvertTx, "error", err)
 		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToConvertTx)
 	}
 
@@ -74,21 +73,23 @@ func (h *TxHandler) GetTxs(c *fiber.Ctx) error {
 // @Param pagination.key query string false "Pagination key"
 // @Param pagination.offset query int false "Pagination offset"
 // @Param pagination.limit query int false "Pagination limit" default(100)
-// @Param pagination.count_total query bool false "Count total"
-// @Param pagination.reverse query bool false "Reverse order"
+// @Param pagination.count_total query bool true "Count total" default(true)
+// @Param pagination.reverse query bool true "Reverse order default(true) if set to true, the results will be ordered in descending order"
 // @Router /indexer/tx/v1/txs/by_account/{account} [get]
 func (h *TxHandler) GetTxsByAccount(c *fiber.Ctx) error {
+	var (
+		query    *gorm.DB
+		chainId  = h.GetChainConfig().ChainId
+		logger   = h.GetLogger()
+		database = h.GetDatabase()
+	)
+
 	req, err := ParseTxsByAccountRequest(c)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
-	var (
-		query   *gorm.DB
-		chainId = h.GetChainConfig().ChainId
-	)
-
-	query = h.Model(&dbtypes.CollectedTx{}).Select("tx.*").
+	query = database.Model(&dbtypes.CollectedTx{}).Select("tx.*").
 		Joins("INNER JOIN account_tx ON tx.chain_id = account_tx.chain_id AND tx.hash = account_tx.hash").
 		Where("account_tx.chain_id = ?", chainId).
 		Where("account_tx.account = ?", req.Account)
@@ -99,13 +100,13 @@ func (h *TxHandler) GetTxsByAccount(c *fiber.Ctx) error {
 
 	var txs []dbtypes.CollectedTx
 	if err := query.Find(&txs).Error; err != nil {
-		h.Logger.Error(ErrFailedToFetchTx, "error", err)
+		logger.Error(ErrFailedToFetchTx, "error", err)
 		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchTx)
 	}
 
 	txsResp, err := BatchToResponseTxs(txs)
 	if err != nil {
-		h.Logger.Error(ErrFailedToConvertTx, "error", err)
+		logger.Error(ErrFailedToConvertTx, "error", err)
 		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToConvertTx)
 	}
 
@@ -114,7 +115,7 @@ func (h *TxHandler) GetTxsByAccount(c *fiber.Ctx) error {
 		nextKey = txs[len(txs)-1].Sequence
 	}
 
-	pageResp, err := req.Pagination.GetPageResponse(len(txs), h.Model(&dbtypes.CollectedAccountTx{}).Where("chain_id = ? AND account = ?", chainId, req.Account), nextKey)
+	pageResp, err := req.Pagination.GetPageResponse(len(txs), database.Model(&dbtypes.CollectedAccountTx{}).Where("chain_id = ? AND account = ?", chainId, req.Account), nextKey)
 	if err != nil {
 		return err
 	}
@@ -136,10 +137,14 @@ func (h *TxHandler) GetTxsByAccount(c *fiber.Ctx) error {
 // @Param pagination.key query string false "Pagination key"
 // @Param pagination.offset query int false "Pagination offset"
 // @Param pagination.limit query int false "Pagination limit" default(100)
-// @Param pagination.count_total query bool false "Count total"
-// @Param pagination.reverse query bool false "Reverse order"
+// @Param pagination.count_total query bool true "Count total" default(true)
+// @Param pagination.reverse query bool true "Reverse order default(true) if set to true, the results will be ordered in descending order"
 // @Router /indexer/tx/v1/txs/by_height/{height} [get]
 func (h *TxHandler) GetTxsByHeight(c *fiber.Ctx) error {
+	var (
+		logger   = h.GetLogger()
+		database = h.GetDatabase()
+	)
 	req, err := ParseTxsRequestByHeight(c)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
@@ -154,13 +159,13 @@ func (h *TxHandler) GetTxsByHeight(c *fiber.Ctx) error {
 
 	var txs []dbtypes.CollectedTx
 	if err := query.Find(&txs).Error; err != nil {
-		h.Logger.Error(ErrFailedToFetchTx, "error", err)
+		logger.Error(ErrFailedToFetchTx, "error", err)
 		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchTx)
 	}
 
 	txsResps, err := BatchToResponseTxs(txs)
 	if err != nil {
-		h.Logger.Error(ErrFailedToConvertTx, "error", err)
+		logger.Error(ErrFailedToConvertTx, "error", err)
 		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToConvertTx)
 	}
 
@@ -169,7 +174,7 @@ func (h *TxHandler) GetTxsByHeight(c *fiber.Ctx) error {
 		nextKey = txs[len(txs)-1].Sequence
 	}
 
-	pageResp, err := req.Pagination.GetPageResponse(len(txs), h.Model(&dbtypes.CollectedTx{}).Where("chain_id = ? AND height = ?", h.GetChainConfig().ChainId, req.Height), nextKey)
+	pageResp, err := req.Pagination.GetPageResponse(len(txs), database.Model(&dbtypes.CollectedTx{}).Where("chain_id = ? AND height = ?", h.GetChainConfig().ChainId, req.Height), nextKey)
 	if err != nil {
 		return err
 	}
@@ -190,9 +195,13 @@ func (h *TxHandler) GetTxsByHeight(c *fiber.Ctx) error {
 // @Produce json
 // @Router /indexer/tx/v1/txs/count [get]
 func (h *TxHandler) GetTxsCount(c *fiber.Ctx) error {
-	var lastTx dbtypes.CollectedTx
-	if err := h.Model(&dbtypes.CollectedTx{}).Order("sequence DESC").First(&lastTx).Error; err != nil {
-		h.Logger.Error(ErrFailedToCountTx, "error", err)
+	var (
+		logger   = h.GetLogger()
+		database = h.GetDatabase()
+		lastTx   dbtypes.CollectedTx
+	)
+	if err := database.Model(&dbtypes.CollectedTx{}).Order("sequence DESC").First(&lastTx).Error; err != nil {
+		logger.Error(ErrFailedToCountTx, "error", err)
 		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToCountTx)
 	}
 	resp := TxCountResponse{Count: uint64(lastTx.Sequence)}
@@ -208,6 +217,9 @@ func (h *TxHandler) GetTxsCount(c *fiber.Ctx) error {
 // @Param tx_hash path string true "Transaction hash"
 // @Router /indexer/tx/v1/txs/{tx_hash} [get]
 func (h *TxHandler) GetTxByHash(c *fiber.Ctx) error {
+	var (
+		logger = h.GetLogger()
+	)
 	req, err := ParseTxByHashRequest(c)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
@@ -218,13 +230,13 @@ func (h *TxHandler) GetTxByHash(c *fiber.Ctx) error {
 
 	var tx dbtypes.CollectedTx
 	if err := query.Find(&tx).Error; err != nil {
-		h.Logger.Error(ErrFailedToFetchTx, "error", err)
+		logger.Error(ErrFailedToFetchTx, "error", err)
 		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchTx)
 	}
 
 	txResp, err := ToResponseTx(&tx)
 	if err != nil {
-		h.Logger.Error(ErrFailedToConvertTx, "error", err)
+		logger.Error(ErrFailedToConvertTx, "error", err)
 		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToConvertTx)
 	}
 
@@ -235,5 +247,5 @@ func (h *TxHandler) GetTxByHash(c *fiber.Ctx) error {
 }
 
 func (h *TxHandler) buildBaseTxQuery() *gorm.DB {
-	return h.Model(&dbtypes.CollectedTx{}).Where("chain_id = ?", h.Config.GetChainConfig().ChainId)
+	return h.GetDatabase().Model(&dbtypes.CollectedTx{}).Where("chain_id = ?", h.GetChainConfig().ChainId)
 }

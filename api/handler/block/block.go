@@ -7,10 +7,6 @@ import (
 	"gorm.io/gorm"
 )
 
-type BlockHandler struct {
-	*common.Handler
-}
-
 // GetBlocks handles GET /block/v1/blocks
 // @Summary Get blocks
 // @Description Get a list of blocks with pagination
@@ -20,10 +16,13 @@ type BlockHandler struct {
 // @Param pagination.key query string false "Pagination key"
 // @Param pagination.offset query int false "Pagination offset"
 // @Param pagination.limit query int false "Pagination limit" default(100)
-// @Param pagination.count_total query bool false "Count total"
-// @Param pagination.reverse query bool false "Reverse order"
+// @Param pagination.count_total query bool true "Count total" default(true)
+// @Param pagination.reverse query bool true "Reverse order default(true) if set to true, the results will be ordered in descending order"
 // @Router /indexer/block/v1/blocks [get]
 func (h *BlockHandler) GetBlocks(c *fiber.Ctx) error {
+	var (
+		logger = h.GetLogger()
+	)
 	req, err := ParseBlocksRequest(c)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
@@ -42,7 +41,7 @@ func (h *BlockHandler) GetBlocks(c *fiber.Ctx) error {
 
 	blocksResp, err := BatchToResponseBlocks(blocks, h.GetChainConfig().RestUrl)
 	if err != nil {
-		h.Logger.Error(ErrFailedToConvertBlock, "error", err)
+		logger.Error(ErrFailedToConvertBlock, "error", err)
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
@@ -73,6 +72,9 @@ func (h *BlockHandler) GetBlocks(c *fiber.Ctx) error {
 // @Param height path string true "Block height"
 // @Router /indexer/block/v1/blocks/{height} [get]
 func (h *BlockHandler) GetBlockByHeight(c *fiber.Ctx) error {
+	var (
+		logger = h.GetLogger()
+	)
 	req, err := ParseBlockByHeightRequest(c)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
@@ -88,7 +90,7 @@ func (h *BlockHandler) GetBlockByHeight(c *fiber.Ctx) error {
 
 	blockResp, err := ToResponseBlock(&block, h.GetChainConfig().RestUrl)
 	if err != nil {
-		h.Logger.Error(ErrFailedToConvertBlock, "error", err)
+		logger.Error(ErrFailedToConvertBlock, "error", err)
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
@@ -130,6 +132,6 @@ func (h *BlockHandler) GetAvgBlockTime(c *fiber.Ctx) error {
 }
 
 func (h *BlockHandler) buildBaseBlockQuery() *gorm.DB {
-	return h.Model(&dbtypes.CollectedBlock{}).
+	return h.GetDatabase().Model(&dbtypes.CollectedBlock{}).
 		Where("chain_id = ?", h.GetChainConfig().ChainId)
 }

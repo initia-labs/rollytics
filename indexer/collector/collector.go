@@ -12,8 +12,14 @@ import (
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
+	"github.com/initia-labs/rollytics/codec"
 	"golang.org/x/sync/errgroup"
 	"gorm.io/gorm"
+)
+
+var (
+    txConfig = codec.TxConfig
+    cdc      = codec.Cdc
 )
 
 type Collector struct {

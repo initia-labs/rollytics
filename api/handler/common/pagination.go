@@ -9,7 +9,6 @@ import (
 	"gorm.io/gorm"
 )
 
-
 type PaginationParams struct {
 	Key        string `query:"pagination.key" extensions:"x-order:0"`
 	Offset     uint64 `query:"pagination.offset" extensions:"x-order:1"`
@@ -23,8 +22,8 @@ func ExtractPaginationParams(c *fiber.Ctx) (*PaginationParams, error) {
 		Key:        c.Query("pagination.key"),
 		Offset:     uint64(c.QueryInt("pagination.offset", 0)),
 		Limit:      uint64(c.QueryInt("pagination.limit", 100)),
-		CountTotal: c.QueryBool("pagination.count_total", false),
-		Reverse:    c.QueryBool("pagination.reverse", false),
+		CountTotal: c.QueryBool("pagination.count_total", true),
+		Reverse:    c.QueryBool("pagination.reverse", true),
 	}
 
 	if params.Limit == 0 {
@@ -32,7 +31,7 @@ func ExtractPaginationParams(c *fiber.Ctx) (*PaginationParams, error) {
 	}
 
 	return params, nil
-}	
+}
 
 type PageResponse struct {
 	NextKey string `json:"next_key,omitempty" extensions:"x-order:0"`
@@ -43,12 +42,11 @@ func (params *PaginationParams) ApplyPagination(query *gorm.DB, keys ...string) 
 	var err error
 	for _, key := range keys {
 		if params.Reverse {
-			query = query.Order(key + " ASC")
-		} else {
 			query = query.Order(key + " DESC")
+		} else {
+			query = query.Order(key + " ASC")
 		}
 	}
-	
 	if len(params.Key) > 0 {
 		query, err = params.setPageKey(query, keys)
 		if err != nil {
@@ -67,59 +65,70 @@ func (params *PaginationParams) ApplyPagination(query *gorm.DB, keys ...string) 
 }
 
 func (params *PaginationParams) setPageKey(query *gorm.DB, keys []string) (*gorm.DB, error) {
-    var op string
-    if params.Reverse {
-        op = " > "
-    } else {
-        op = " < "
-    }
-    
-    decodedKey, err := base64.StdEncoding.DecodeString(params.Key) 
-    if err != nil {
-        return nil, err
-    }
-    
-    parts := strings.Split(string(decodedKey), "|")
-    
-    if len(parts) != len(keys) {
-        return nil, fmt.Errorf("invalid key format: expected %d parts, got %d", len(keys), len(parts))
-    }
+	var op string
+	if params.Reverse {
+		op = " < "
+	} else {
+		op = " > "
+	}
 
-    if len(parts) == 1 {
-        whereClause := fmt.Sprintf("%s %s ?", keys[0], op)
-        query = query.Where(whereClause, parts[0])
-    } else if len(parts) == 2 {
-        whereClause := fmt.Sprintf("(%s %s ?) OR (%s = ? AND %s %s ?)",
-            keys[0], op, keys[0], keys[1], op)
-        query = query.Where(whereClause, parts[0], parts[0], parts[1])
-    } else {
-        return nil, fmt.Errorf("unreachable code: too many parts in key")
-    }
-    
-    return query, nil
+	decodedKey, err := base64.StdEncoding.DecodeString(params.Key)
+	if err != nil {
+		return nil, err
+	}
+
+	parts := strings.Split(string(decodedKey), "|")
+
+	if len(parts) != len(keys) {
+		return nil, fmt.Errorf("invalid key format: expected %d parts, got %d", len(keys), len(parts))
+	}
+
+	if len(parts) == 1 {
+		whereClause := fmt.Sprintf("%s %s ?", keys[0], op)
+		query = query.Where(whereClause, parts[0])
+	} else if len(parts) == 2 {
+		whereClause := fmt.Sprintf("(%s %s ?) OR (%s = ? AND %s %s ?)",
+			keys[0], op, keys[0], keys[1], op)
+		query = query.Where(whereClause, parts[0], parts[0], parts[1])
+	} else {
+		return nil, fmt.Errorf("unreachable code: too many parts in key")
+	}
+
+	return query, nil
 }
 
 func GetNextKey(values ...any) []byte {
-	var nextKey string
-	for _, v := range values {
-		nextKey += fmt.Sprintf("%s|", v)
+	if len(values) == 0 {
+		return nil
 	}
+
+	var parts []string
+	for _, v := range values {
+		parts = append(parts, fmt.Sprintf("%v", v))
+	}
+
+	nextKey := strings.Join(parts, "|")
 	return []byte(nextKey)
 }
 
 func (params *PaginationParams) GetPageResponse(len int, totalQuery *gorm.DB, nextKey any) (*PageResponse, error) {
 	resp := PageResponse{}
 
-	if params.CountTotal && params.Offset > 0 {
+	if params.CountTotal {
 		if err := totalQuery.Count(&resp.Total).Error; err != nil {
 			return nil, fiber.NewError(fiber.StatusInternalServerError, "failed to count total items: "+err.Error())
 		}
 	}
+
 	if len == int(params.Limit) {
-		resp.NextKey =
-			base64.StdEncoding.EncodeToString(
-				fmt.Appendf(nil, "%d", nextKey),
-			)
+		var keyStr string
+		if nextKey != nil {
+			keyStr = fmt.Sprintf("%v", nextKey)
+		}
+
+		if keyStr != "" {
+			resp.NextKey = base64.StdEncoding.EncodeToString([]byte(keyStr))
+		}
 	}
 
 	return &resp, nil

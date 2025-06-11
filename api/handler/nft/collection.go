@@ -17,8 +17,8 @@ import (
 // @Param pagination.key query string false "Pagination key"
 // @Param pagination.offset query int false "Pagination offset"
 // @Param pagination.limit query int false "Pagination limit" default(100)
-// @Param pagination.count_total query bool false "Count total"
-// @Param pagination.reverse query bool false "Reverse order"
+// @Param pagination.count_total query bool true "Count total" default(true)
+// @Param pagination.reverse query bool true "Reverse order default(true) if set to true, the results will be ordered in descending order"
 // @Success 200 {object} CollectionsResponse
 // @Router /indexer/nft/v1/collections [get]
 func (h *NftHandler) GetCollections(c *fiber.Ctx) error {
@@ -65,17 +65,20 @@ func (h *NftHandler) GetCollections(c *fiber.Ctx) error {
 // @Param pagination.key query string false "Pagination key"
 // @Param pagination.offset query int false "Pagination offset"
 // @Param pagination.limit query int false "Pagination limit" default(100)
-// @Param pagination.count_total query bool false "Count total"
-// @Param pagination.reverse query bool false "Reverse order"
+// @Param pagination.count_total query bool true "Count total" default(true)
+// @Param pagination.reverse query bool true "Reverse order default(true) if set to true, the results will be ordered in descending order"
 // @Success 200 {object} CollectionsResponse
 // @Router /indexer/nft/v1/collections/by_account/{account} [get]
 func (h *NftHandler) GetCollectionsByAccount(c *fiber.Ctx) error {
+	var (
+		database = h.GetDatabase()
+	)
 	req, err := ParseCollectionsByAccountRequest(c)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
-	query := h.Model(&dbtypes.CollectedNftCollection{}).
+	query := database.Model(&dbtypes.CollectedNftCollection{}).
 		Select("DISTINCT nft_collection.*").
 		Joins("INNER JOIN nft ON nft_collection.chain_id = nft.chain_id AND nft_collection.addr = nft.collection_addr").
 		Where("nft_collection.chain_id = ?", h.GetChainConfig().ChainId).
@@ -96,7 +99,7 @@ func (h *NftHandler) GetCollectionsByAccount(c *fiber.Ctx) error {
 		nextKey = common.GetNextKey(collections[len(collections)-1].Height, collections[len(collections)-1].Addr)
 	}
 
-	pageResp, err := req.Pagination.GetPageResponse(len(collections), h.Model(&dbtypes.CollectedNft{}).Select("DISTINCT nft.collection_addr").
+	pageResp, err := req.Pagination.GetPageResponse(len(collections), database.Model(&dbtypes.CollectedNft{}).Select("DISTINCT nft.collection_addr").
 		Where("chain_id = ? AND owner = ?", h.GetChainConfig().ChainId, req.Account), nextKey)
 	if err != nil {
 		return err
@@ -118,8 +121,8 @@ func (h *NftHandler) GetCollectionsByAccount(c *fiber.Ctx) error {
 // @Param pagination.key query string false "Pagination key"
 // @Param pagination.offset query int false "Pagination offset"
 // @Param pagination.limit query int false "Pagination limit" default(100)
-// @Param pagination.count_total query bool false "Count total"
-// @Param pagination.reverse query bool false "Reverse order"
+// @Param pagination.count_total query bool true "Count total" default(true)
+// @Param pagination.reverse query bool true "Reverse order default(true) if set to true, the results will be ordered in descending order"
 // @Success 200 {object} CollectionsResponse
 // @Router /indexer/nft/v1/collections/by_name/{name} [get]
 func (h *NftHandler) GetCollectionsByName(c *fiber.Ctx) error {
@@ -166,8 +169,8 @@ func (h *NftHandler) GetCollectionsByName(c *fiber.Ctx) error {
 // @Param pagination.key query string false "Pagination key"
 // @Param pagination.offset query int false "Pagination offset"
 // @Param pagination.limit query int false "Pagination limit" default(100)
-// @Param pagination.count_total query bool false "Count total"
-// @Param pagination.reverse query bool false "Reverse order"
+// @Param pagination.count_total query bool true "Count total" default(true)
+// @Param pagination.reverse query bool true "Reverse order default(true) if set to true, the results will be ordered in descending order"
 // @Success 200 {object} CollectionsResponse
 // @Router /indexer/nft/v1/collections/{address} [get]
 func (h *NftHandler) GetCollectionByCollection(c *fiber.Ctx) error {
@@ -196,6 +199,6 @@ func (h *NftHandler) GetCollectionByCollection(c *fiber.Ctx) error {
 }
 
 func (h *NftHandler) buildBaseCollectionQuery() *gorm.DB {
-	return h.Model(&dbtypes.CollectedNftCollection{}).
+	return h.GetDatabase().Model(&dbtypes.CollectedNftCollection{}).
 		Where("chain_id = ?", h.GetChainConfig().ChainId)
 }

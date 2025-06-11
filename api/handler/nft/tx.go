@@ -20,24 +20,28 @@ import (
 // @Param pagination.key query string false "Pagination key"
 // @Param pagination.offset query int false "Pagination offset"
 // @Param pagination.limit query int false "Pagination limit" default(100)
-// @Param pagination.count_total query bool false "Count total"
-// @Param pagination.reverse query bool false "Reverse order"
+// @Param pagination.count_total query bool true "Count total" default(true)
+// @Param pagination.reverse query bool true "Reverse order default(true) if set to true, the results will be ordered in descending order"
 // @Router /indexer/nft/v1/txs/{collection_addr}/{token_id} [get]
 func (h *NftHandler) GetNftTxs(c *fiber.Ctx) error {
+	var (
+		chainCfg = h.GetChainConfig()
+		database = h.GetDatabase()
+	)
 	req, err := ParseNftTxsRequest(c)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
-	chainId := h.Config.GetChainConfig().ChainId
+	chainId := chainCfg.ChainId
 
 	var query *gorm.DB
 	var totalQuery *gorm.DB
-	if h.Config.GetChainConfig().VmType == types.MoveVM {
+	if chainCfg.VmType == types.MoveVM {
 		// get move nft address
 		// no nft_tx table in move vm
 		// so we need to get the nft address from collected_nft table
-		nftQuery := h.Model(&types.CollectedNft{}).Where("chain_id = ? AND collection_addr = ? AND token_id = ?",
+		nftQuery := database.Model(&types.CollectedNft{}).Where("chain_id = ? AND collection_addr = ? AND token_id = ?",
 			chainId, req.CollectionAddr, req.TokenId)
 
 		var nft types.CollectedNft
@@ -48,23 +52,23 @@ func (h *NftHandler) GetNftTxs(c *fiber.Ctx) error {
 			return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchNft)
 		}
 
-		query = h.Model(&types.CollectedTx{}).Select("tx.*").
+		query = database.Model(&types.CollectedTx{}).Select("tx.*").
 			Joins("INNER JOIN account_tx ON tx.chain_id = account_tx.chain_id AND tx.hash = account_tx.hash").
 			Where("account_tx.chain_id = ?", chainId).
 			Where("account_tx.account = ?", nft.Addr)
 
-		totalQuery = h.Model(&types.CollectedAccountTx{}).
+		totalQuery = database.Model(&types.CollectedAccountTx{}).
 			Where("chain_id = ?", chainId).
 			Where("account = ?", nft.Addr)
 
 	} else {
-		query = h.Model(&types.CollectedTx{}).Select("tx.*").
+		query = database.Model(&types.CollectedTx{}).Select("tx.*").
 			Joins("INNER JOIN nft_tx ON tx.chain_id = nft_tx.chain_id AND tx.hash = nft_tx.hash").
 			Where("nft_tx.chain_id = ?", chainId).
 			Where("nft_tx.collection_addr = ?", req.CollectionAddr).
 			Where("nft_tx.token_id = ?", req.TokenId)
 
-		totalQuery = h.Model(&types.CollectedNftTx{}).
+		totalQuery = database.Model(&types.CollectedNftTx{}).
 			Where("chain_id = ?", chainId).
 			Where("collection_addr = ?", req.CollectionAddr).
 			Where("token_id = ?", req.TokenId)

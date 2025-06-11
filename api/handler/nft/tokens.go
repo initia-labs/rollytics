@@ -8,9 +8,6 @@ import (
 	"gorm.io/gorm"
 )
 
-type NftHandler struct {
-	*common.Handler
-}
 
 // tokens
 // GetTokensByAccount handles GET /nft/v1/tokens/by_account/{account}
@@ -23,11 +20,9 @@ type NftHandler struct {
 // @Param pagination.key query string false "Pagination key"
 // @Param pagination.offset query int false "Pagination offset"
 // @Param pagination.limit query int false "Pagination limit" default(100)
-// @Param pagination.count_total query bool false "Count total"
-// @Param pagination.reverse query bool false "Reverse order"
+// @Param pagination.count_total query bool true "Count total" default(true)
+// @Param pagination.reverse query bool true "Reverse order default(true) if set to true, the results will be ordered in descending order"
 // @Success 200 {object} NftsResponse
-// @Failure 400 {object} error
-// @Failure 500 {object} error
 // @Router /indexer/nft/v1/tokens/by_account/{account} [get]
 func (h *NftHandler) GetTokensByAccount(c *fiber.Ctx) error {
 	req, err := ParseTokensByAccountRequest(c)
@@ -75,11 +70,9 @@ func (h *NftHandler) GetTokensByAccount(c *fiber.Ctx) error {
 // @Param pagination.key query string false "Pagination key"
 // @Param pagination.offset query int false "Pagination offset"
 // @Param pagination.limit query int false "Pagination limit" default(100)
-// @Param pagination.count_total query bool false "Count total"
-// @Param pagination.reverse query bool false "Reverse order"
+// @Param pagination.count_total query bool true "Count total" default(true)
+// @Param pagination.reverse query bool true "Reverse order default(true) if set to true, the results will be ordered in descending order"
 // @Success 200 {object} NftsResponse
-// @Failure 400 {object} error
-// @Failure 500 {object} error
 // @Router /indexer/nft/v1/tokens/by_collection/{collection_addr} [get]
 func (h *NftHandler) GetTokensByCollection(c *fiber.Ctx) error {
 	req, err := ParseTokensByCollectionRequest(c)
@@ -115,6 +108,6 @@ func (h *NftHandler) GetTokensByCollection(c *fiber.Ctx) error {
 }
 
 func (h *NftHandler) buildBaseNftQuery() *gorm.DB {
-	return h.Model(&dbtypes.CollectedNft{}).
+	return h.GetDatabase().Model(&dbtypes.CollectedNft{}).
 		Where("chain_id = ?", h.GetChainConfig().ChainId)
 }
