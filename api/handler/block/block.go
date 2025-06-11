@@ -44,7 +44,8 @@ func (h *BlockHandler) GetBlocks(c *fiber.Ctx) error {
 
 	blocksResp, err := BatchToResponseBlocks(blocks, h.GetChainConfig().RestUrl)
 	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToConvertBlock)
+		h.Logger.Error(ErrFailedToConvertBlock, "error", err)
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	var nextKey int64
@@ -78,15 +79,19 @@ func (h *BlockHandler) GetBlockByHeight(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
-	
+
 	var block dbtypes.CollectedBlock
 	if err := h.buildBaseBlockQuery().Where("height = ?", req.Height).First(&block).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return fiber.NewError(fiber.StatusBadRequest, "Block not found")
+		}
 		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchBlock)
 	}
 
 	blockResp, err := ToResponseBlock(&block, h.GetChainConfig().RestUrl)
 	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToConvertBlock)
+		h.Logger.Error(ErrFailedToConvertBlock, "error", err)
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	resp := BlockResponse{

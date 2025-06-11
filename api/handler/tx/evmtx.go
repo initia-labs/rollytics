@@ -82,7 +82,7 @@ func (h *TxHandler) GetEvmTxsByAccount(c *fiber.Ctx) error {
 
 	query := h.Model(&dbtypes.CollectedEvmTx{}).
 		Select("evm_tx.*").
-		InnerJoins("evm_account_tx ON evm_tx.chain_id = evm_account_tx.chain_id AND evm_tx.hash = evm_account_tx.hash").
+		Joins("INNER JOIN evm_account_tx ON evm_tx.chain_id = evm_account_tx.chain_id AND evm_tx.hash = evm_account_tx.hash").
 		Where("evm_account_tx.chain_id = ?", h.GetChainConfig().ChainId).Where("evm_account_tx.account = ?", req.Account)
 
 	query, err = req.Pagination.ApplyPagination(query, "evm_tx.sequence")

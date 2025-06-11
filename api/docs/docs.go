@@ -107,7 +107,7 @@ const docTemplate = `{
         },
         "/indexer/nft/v1/collections": {
             "get": {
-                "description": "Get NFT collections for a specific collection and token ID",
+                "description": "Get NFT collections",
                 "consumes": [
                     "application/json"
                 ],
@@ -117,7 +117,7 @@ const docTemplate = `{
                 "tags": [
                     "NFT"
                 ],
-                "summary": "Get NFT collections by collection and token ID",
+                "summary": "Get NFT collections",
                 "parameters": [
                     {
                         "type": "string",
@@ -601,16 +601,7 @@ const docTemplate = `{
                         "in": "query"
                     }
                 ],
-                "responses": {
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {}
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {}
-                    }
-                }
+                "responses": {}
             }
         },
         "/indexer/tx/v1/evm-txs/by_account/{account}": {
@@ -666,16 +657,7 @@ const docTemplate = `{
                         "in": "query"
                     }
                 ],
-                "responses": {
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {}
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {}
-                    }
-                }
+                "responses": {}
             }
         },
         "/indexer/tx/v1/evm-txs/by_height/{height}": {
@@ -731,16 +713,7 @@ const docTemplate = `{
                         "in": "query"
                     }
                 ],
-                "responses": {
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {}
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {}
-                    }
-                }
+                "responses": {}
             }
         },
         "/indexer/tx/v1/evm-txs/count": {
@@ -762,10 +735,6 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/tx.EvmTxCountResponse"
                         }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {}
                     }
                 }
             }
@@ -1003,10 +972,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "next_key": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    },
+                    "type": "string",
                     "x-order:0": true
                 },
                 "total": {

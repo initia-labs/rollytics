@@ -9,8 +9,8 @@ import (
 
 // collections
 // GetCollections handles GET /nft/v1/collections
-// @Summary Get NFT collections by collection and token ID
-// @Description Get NFT collections for a specific collection and token ID
+// @Summary Get NFT collections
+// @Description Get NFT collections
 // @Tags NFT
 // @Accept json
 // @Produce json
@@ -77,11 +77,11 @@ func (h *NftHandler) GetCollectionsByAccount(c *fiber.Ctx) error {
 
 	query := h.Model(&dbtypes.CollectedNftCollection{}).
 		Select("DISTINCT nft_collection.*").
-		InnerJoins("nft ON nft_collection.chain_id = nft.chain_id AND nft_collection.addr = nft.collection_addr").
+		Joins("INNER JOIN nft ON nft_collection.chain_id = nft.chain_id AND nft_collection.addr = nft.collection_addr").
 		Where("nft_collection.chain_id = ?", h.GetChainConfig().ChainId).
 		Where("nft.owner = ?", req.Account)
 
-	query, err = req.Pagination.ApplyPagination(query, "height", "collection_addr")
+	query, err = req.Pagination.ApplyPagination(query, "height", "addr")
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, common.ErrInvalidParams)
 	}
@@ -96,7 +96,7 @@ func (h *NftHandler) GetCollectionsByAccount(c *fiber.Ctx) error {
 		nextKey = common.GetNextKey(collections[len(collections)-1].Height, collections[len(collections)-1].Addr)
 	}
 
-	pageResp, err := req.Pagination.GetPageResponse(len(collections), h.Model(&dbtypes.CollectedNft{}).Select("DISTINCT collection_addr").
+	pageResp, err := req.Pagination.GetPageResponse(len(collections), h.Model(&dbtypes.CollectedNft{}).Select("DISTINCT nft.collection_addr").
 		Where("chain_id = ? AND owner = ?", h.GetChainConfig().ChainId, req.Account), nextKey)
 	if err != nil {
 		return err

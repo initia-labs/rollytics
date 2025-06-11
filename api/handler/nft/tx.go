@@ -49,7 +49,7 @@ func (h *NftHandler) GetNftTxs(c *fiber.Ctx) error {
 		}
 
 		query = h.Model(&types.CollectedTx{}).Select("tx.*").
-			InnerJoins("account_tx ON tx.chain_id = account_tx.chain_id AND tx.hash = account_tx.hash").
+			Joins("INNER JOIN account_tx ON tx.chain_id = account_tx.chain_id AND tx.hash = account_tx.hash").
 			Where("account_tx.chain_id = ?", chainId).
 			Where("account_tx.account = ?", nft.Addr)
 
@@ -59,7 +59,7 @@ func (h *NftHandler) GetNftTxs(c *fiber.Ctx) error {
 
 	} else {
 		query = h.Model(&types.CollectedTx{}).Select("tx.*").
-			InnerJoins("nft_tx ON tx.chain_id = nft_tx.chain_id AND tx.hash = nft_tx.hash").
+			Joins("INNER JOIN nft_tx ON tx.chain_id = nft_tx.chain_id AND tx.hash = nft_tx.hash").
 			Where("nft_tx.chain_id = ?", chainId).
 			Where("nft_tx.collection_addr = ?", req.CollectionAddr).
 			Where("nft_tx.token_id = ?", req.TokenId)

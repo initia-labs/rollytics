@@ -89,7 +89,7 @@ func (h *TxHandler) GetTxsByAccount(c *fiber.Ctx) error {
 	)
 
 	query = h.Model(&dbtypes.CollectedTx{}).Select("tx.*").
-		InnerJoins("account_tx ON tx.chain_id = account_tx.chain_id AND tx.hash = account_tx.hash").
+		Joins("INNER JOIN account_tx ON tx.chain_id = account_tx.chain_id AND tx.hash = account_tx.hash").
 		Where("account_tx.chain_id = ?", chainId).
 		Where("account_tx.account = ?", req.Account)
 	query, err = req.Pagination.ApplyPagination(query, "tx.sequence")
