@@ -1,6 +1,8 @@
 package nft
 
 import (
+	"strings"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/initia-labs/rollytics/api/handler/common"
 )
@@ -54,12 +56,12 @@ func ParseCollectionsByNameRequest(c *fiber.Ctx) (*CollectionsByNameRequest, err
 }
 
 func ParseCollectionByAddressRequest(c *fiber.Ctx) (*CollectionByAddrRequest, error) {
-	req := &CollectionByAddrRequest{
-		CollectionAddr: c.Params("collection_addr"),
-	}
-
-	if req.CollectionAddr == "" {
+	collectionAddr := c.Params("collection_addr")
+	if collectionAddr == "" {
 		return nil, fiber.NewError(fiber.StatusBadRequest, "collection_addr param is required")
+	}
+	req := &CollectionByAddrRequest{
+		CollectionAddr: strings.ToLower(collectionAddr),
 	}
 
 	return req, nil
