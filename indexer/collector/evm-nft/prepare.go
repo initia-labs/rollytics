@@ -61,7 +61,6 @@ func (sub *EvmNftSubmodule) prepare(block indexertypes.ScrapedBlock) (err error)
 				if err != nil {
 					errString := fmt.Sprintf("%+v", err)
 					if strings.Contains(errString, "revert: 0x: Reverted: EVMCall failed") {
-						sub.AddToBlacklist(addr)
 						return nil
 					}
 
