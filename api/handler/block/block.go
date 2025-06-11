@@ -20,47 +20,34 @@ import (
 // @Param pagination.reverse query bool true "Reverse order default(true) if set to true, the results will be ordered in descending order"
 // @Router /indexer/block/v1/blocks [get]
 func (h *BlockHandler) GetBlocks(c *fiber.Ctx) error {
-	var (
-		logger = h.GetLogger()
-	)
 	req, err := ParseBlocksRequest(c)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
-	query := h.buildBaseBlockQuery()
-	query, err = req.Pagination.ApplyPagination(query, "height")
-	if err != nil {
-		return fiber.NewError(fiber.StatusBadRequest, common.ErrInvalidParams)
-	}
+	blocks, pageResp, err := common.NewPaginationBuilder[dbtypes.CollectedBlock](req.Pagination).
+		WithQuery(h.buildBaseBlockQuery()).
+		WithKeys("height").
+		WithKeyExtractor(func(block dbtypes.CollectedBlock) interface{} {
+			return block.Height
+		}).
+		Execute()
 
-	var blocks []dbtypes.CollectedBlock
-	if err := query.Find(&blocks).Error; err != nil {
+	if err != nil {
+		h.GetLogger().Error(ErrFailedToFetchBlock, "error", err)
 		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchBlock)
 	}
 
 	blocksResp, err := BatchToResponseBlocks(blocks, h.GetChainConfig().RestUrl)
 	if err != nil {
-		logger.Error(ErrFailedToConvertBlock, "error", err)
-		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		h.GetLogger().Error(ErrFailedToConvertBlock, "error", err)
+		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToConvertBlock)
 	}
 
-	var nextKey int64
-	if len(blocks) > 0 {
-		nextKey = blocks[len(blocks)-1].Height
-	}
-
-	pageResp, err := req.Pagination.GetPageResponse(len(blocks), h.buildBaseBlockQuery(), nextKey)
-	if err != nil {
-		return err
-	}
-
-	resp := BlocksResponse{
+	return c.JSON(BlocksResponse{
 		Blocks:     blocksResp,
 		Pagination: pageResp,
-	}
-
-	return c.JSON(resp)
+	})
 }
 
 // GetBlockByHeight handles GET /block/v1/blocks/{height}
@@ -72,9 +59,6 @@ func (h *BlockHandler) GetBlocks(c *fiber.Ctx) error {
 // @Param height path string true "Block height"
 // @Router /indexer/block/v1/blocks/{height} [get]
 func (h *BlockHandler) GetBlockByHeight(c *fiber.Ctx) error {
-	var (
-		logger = h.GetLogger()
-	)
 	req, err := ParseBlockByHeightRequest(c)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
@@ -83,22 +67,21 @@ func (h *BlockHandler) GetBlockByHeight(c *fiber.Ctx) error {
 	var block dbtypes.CollectedBlock
 	if err := h.buildBaseBlockQuery().Where("height = ?", req.Height).First(&block).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
-			return fiber.NewError(fiber.StatusBadRequest, "Block not found")
+			return fiber.NewError(fiber.StatusNotFound, "Block not found")
 		}
+		h.GetLogger().Error(ErrFailedToFetchBlock, "error", err)
 		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchBlock)
 	}
 
 	blockResp, err := ToResponseBlock(&block, h.GetChainConfig().RestUrl)
 	if err != nil {
-		logger.Error(ErrFailedToConvertBlock, "error", err)
-		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		h.GetLogger().Error(ErrFailedToConvertBlock, "error", err)
+		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToConvertBlock)
 	}
 
-	resp := BlockResponse{
+	return c.JSON(BlockResponse{
 		Block: blockResp,
-	}
-
-	return c.JSON(resp)
+	})
 }
 
 // GetAvgBlockTime handles GET /block/v1/avg_blocktime
@@ -110,25 +93,29 @@ func (h *BlockHandler) GetBlockByHeight(c *fiber.Ctx) error {
 // @Router /indexer/block/v1/avg_blocktime [get]
 func (h *BlockHandler) GetAvgBlockTime(c *fiber.Ctx) error {
 	var blocks []dbtypes.CollectedBlock
-	if err := h.buildBaseBlockQuery().Order("height DESC").Limit(100).Find(&blocks).Error; err != nil {
+	if err := h.buildBaseBlockQuery().
+		Order("height DESC").
+		Limit(100).
+		Find(&blocks).Error; err != nil {
+		h.GetLogger().Error(ErrFailedToFetchBlock, "error", err)
 		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchBlock)
 	}
 
 	if len(blocks) < 2 {
-		return c.JSON(AvgBlockTimeResponse{AvgBlockTime: 0})
+		return c.JSON(AvgBlockTimeResponse{
+			AvgBlockTime: 0,
+		})
 	}
 
+	// Calculate average block time
 	startTime := blocks[len(blocks)-1].Timestamp
 	endTime := blocks[0].Timestamp
 	totalTime := endTime.Sub(startTime)
-
 	avgTime := totalTime.Seconds() / float64(len(blocks)-1)
 
-	resp := AvgBlockTimeResponse{
+	return c.JSON(AvgBlockTimeResponse{
 		AvgBlockTime: avgTime,
-	}
-
-	return c.JSON(resp)
+	})
 }
 
 func (h *BlockHandler) buildBaseBlockQuery() *gorm.DB {

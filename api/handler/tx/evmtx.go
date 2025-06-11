@@ -20,48 +20,34 @@ import (
 // @Param pagination.reverse query bool true "Reverse order default(true) if set to true, the results will be ordered in descending order"
 // @Router /indexer/tx/v1/evm-txs [get]
 func (h *TxHandler) GetEvmTxs(c *fiber.Ctx) error {
-	var (
-		logger = h.GetLogger()
-	)
 	req, err := ParseEvmTxsRequest(c)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
-	query := h.buildBaseEvmTxQuery()
-	query, err = req.Pagination.ApplyPagination(query, "sequence")
-	if err != nil {
-		return fiber.NewError(fiber.StatusBadRequest, common.ErrInvalidParams)
-	}
+	txs, pageResp, err := common.NewPaginationBuilder[dbtypes.CollectedEvmTx](req.Pagination).
+		WithQuery(h.buildBaseEvmTxQuery()).
+		WithKeys("sequence").
+		WithKeyExtractor(func(lastTx dbtypes.CollectedEvmTx) interface{} {
+			return lastTx.Sequence
+		}).
+		Execute()
 
-	var txs []dbtypes.CollectedEvmTx
-	if err := query.Find(&txs).Error; err != nil {
-		logger.Error(ErrFailedToFetchEvmTx, "error", err)
+	if err != nil {
+		h.GetLogger().Error(ErrFailedToFetchEvmTx, "error", err)
 		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchEvmTx)
 	}
 
 	txsResp, err := BatchToResponseEvmTxs(txs)
 	if err != nil {
-		logger.Error(ErrFailedToConvertEvmTx, "error", err)
+		h.GetLogger().Error(ErrFailedToConvertEvmTx, "error", err)
 		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToConvertEvmTx)
 	}
 
-	var nextKey uint64
-	if len(txs) > 0 {
-		nextKey = txs[len(txs)-1].Sequence
-	}
-
-	pageResp, err := req.Pagination.GetPageResponse(len(txs), h.buildBaseEvmTxQuery(), nextKey)
-	if err != nil {
-		return err
-	}
-
-	resp := EvmTxsResponse{
+	return c.JSON(EvmTxsResponse{
 		Txs:        txsResp,
 		Pagination: pageResp,
-	}
-
-	return c.JSON(resp)
+	})
 }
 
 // GetEvmTxsByAccount handles GET /tx/v1/evm-txs/by_account/{account}
@@ -78,26 +64,30 @@ func (h *TxHandler) GetEvmTxs(c *fiber.Ctx) error {
 // @Param pagination.reverse query bool true "Reverse order default(true) if set to true, the results will be ordered in descending order"
 // @Router /indexer/tx/v1/evm-txs/by_account/{account} [get]
 func (h *TxHandler) GetEvmTxsByAccount(c *fiber.Ctx) error {
-	var (
-		database = h.GetDatabase()
-	)
 	req, err := ParseEvmTxsByAccountRequest(c)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
-	query := database.Model(&dbtypes.CollectedEvmTx{}).
+	query := h.GetDatabase().Model(&dbtypes.CollectedEvmTx{}).
 		Select("evm_tx.*").
 		Joins("INNER JOIN evm_account_tx ON evm_tx.chain_id = evm_account_tx.chain_id AND evm_tx.hash = evm_account_tx.hash").
-		Where("evm_account_tx.chain_id = ?", h.GetChainConfig().ChainId).Where("evm_account_tx.account = ?", req.Account)
+		Where("evm_account_tx.chain_id = ?", h.GetChainConfig().ChainId).
+		Where("evm_account_tx.account = ?", req.Account)
 
-	query, err = req.Pagination.ApplyPagination(query, "evm_tx.sequence")
+	countQuery := h.GetDatabase().Model(&dbtypes.CollectedEvmAccountTx{}).
+		Where("chain_id = ? AND account = ?", h.GetChainConfig().ChainId, req.Account)
+
+	txs, pageResp, err := common.NewPaginationBuilder[dbtypes.CollectedEvmTx](req.Pagination).
+		WithQuery(query).
+		WithCountQuery(countQuery).
+		WithKeys("evm_tx.sequence").
+		WithKeyExtractor(func(tx dbtypes.CollectedEvmTx) interface{} {
+			return tx.Sequence
+		}).
+		Execute()
+
 	if err != nil {
-		return fiber.NewError(fiber.StatusBadRequest, common.ErrInvalidParams)
-	}
-
-	var txs []dbtypes.CollectedEvmTx
-	if err := query.Find(&txs).Error; err != nil {
 		h.GetLogger().Error(ErrFailedToFetchEvmTx, "error", err)
 		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchEvmTx)
 	}
@@ -108,23 +98,10 @@ func (h *TxHandler) GetEvmTxsByAccount(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToConvertEvmTx)
 	}
 
-	var nextKey uint64
-	if len(txs) > 0 {
-		nextKey = txs[len(txs)-1].Sequence
-	}
-
-	pageResp, err := req.Pagination.GetPageResponse(len(txs), database.Model(&dbtypes.CollectedEvmAccountTx{}).
-		Where("chain_id = ? AND account = ?", h.GetChainConfig().ChainId, req.Account), nextKey)
-	if err != nil {
-		return err
-	}
-
-	resp := EvmTxsResponse{
+	return c.JSON(EvmTxsResponse{
 		Txs:        txsResp,
 		Pagination: pageResp,
-	}
-
-	return c.JSON(resp)
+	})
 }
 
 // GetEvmTxsByHeight handles GET /tx/v1/evm-txs/by_height/{height}
@@ -141,50 +118,41 @@ func (h *TxHandler) GetEvmTxsByAccount(c *fiber.Ctx) error {
 // @Param pagination.reverse query bool true "Reverse order default(true) if set to true, the results will be ordered in descending order"
 // @Router /indexer/tx/v1/evm-txs/by_height/{height} [get]
 func (h *TxHandler) GetEvmTxsByHeight(c *fiber.Ctx) error {
-	var (
-		database = h.GetDatabase()
-	)
-	req, err := ParseEvmTxsByHeightRequest(c)
-	if err != nil {
-		return fiber.NewError(fiber.StatusBadRequest, err.Error())
-	}
+    req, err := ParseEvmTxsByHeightRequest(c)
+    if err != nil {
+        return fiber.NewError(fiber.StatusBadRequest, err.Error())
+    }
 
-	query := h.buildBaseEvmTxQuery()
-	query = query.Where("height = ?", req.Height)
-	query, err = req.Pagination.ApplyPagination(query, "sequence")
+    query := h.buildBaseEvmTxQuery().
+        Where("height = ?", req.Height)
 
-	if err != nil {
-		return fiber.NewError(fiber.StatusBadRequest, common.ErrInvalidParams)
-	}
+    countQuery := h.GetDatabase().Model(&dbtypes.CollectedEvmTx{}).
+        Where("chain_id = ? AND height = ?", h.GetChainConfig().ChainId, req.Height)
 
-	var txs []dbtypes.CollectedEvmTx
-	if err := query.Find(&txs).Error; err != nil {
-		h.GetLogger().Error(ErrFailedToFetchTx, "error", err)
-		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchTx)
-	}
+    txs, pageResp, err := common.NewPaginationBuilder[dbtypes.CollectedEvmTx](req.Pagination).
+        WithQuery(query).
+        WithCountQuery(countQuery).
+        WithKeys("sequence").
+        WithKeyExtractor(func(tx dbtypes.CollectedEvmTx) interface{} {
+            return tx.Sequence
+        }).
+        Execute()
 
-	txsResps, err := BatchToResponseEvmTxs(txs)
-	if err != nil {
-		h.GetLogger().Error(ErrFailedToConvertTx, "error", err)
-		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToConvertTx)
-	}
+    if err != nil {
+        h.GetLogger().Error(ErrFailedToFetchEvmTx, "error", err)
+        return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchEvmTx)
+    }
 
-	var nextKey uint64
-	if len(txs) > 0 {
-		nextKey = txs[len(txs)-1].Sequence
-	}
+    txsResp, err := BatchToResponseEvmTxs(txs)
+    if err != nil {
+        h.GetLogger().Error(ErrFailedToConvertEvmTx, "error", err)
+        return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToConvertEvmTx)
+    }
 
-	pageResp, err := req.Pagination.GetPageResponse(len(txs), database.Model(&dbtypes.CollectedEvmTx{}).Where("chain_id = ? AND height = ?", h.GetChainConfig().ChainId, req.Height), nextKey)
-	if err != nil {
-		return err
-	}
-
-	resp := EvmTxsResponse{
-		Txs:        txsResps,
-		Pagination: pageResp,
-	}
-
-	return c.JSON(resp)
+    return c.JSON(EvmTxsResponse{
+        Txs:        txsResp,
+        Pagination: pageResp,
+    })
 }
 
 // GetEvmTxsCount handles GET /tx/v1/evm-txs/count

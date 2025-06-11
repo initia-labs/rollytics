@@ -1,3 +1,4 @@
+// api/handler/common/pagination.go
 package common
 
 import (
@@ -17,6 +18,11 @@ type PaginationParams struct {
 	Reverse    bool   `query:"pagination.reverse" extensions:"x-order:4"`
 }
 
+type PageResponse struct {
+	NextKey string `json:"next_key,omitempty" extensions:"x-order:0"`
+	Total   int64  `json:"total,omitempty" extensions:"x-order:1"`
+}
+
 func ExtractPaginationParams(c *fiber.Ctx) (*PaginationParams, error) {
 	params := &PaginationParams{
 		Key:        c.Query("pagination.key"),
@@ -33,12 +39,70 @@ func ExtractPaginationParams(c *fiber.Ctx) (*PaginationParams, error) {
 	return params, nil
 }
 
-type PageResponse struct {
-	NextKey string `json:"next_key,omitempty" extensions:"x-order:0"`
-	Total   int64  `json:"total,omitempty" extensions:"x-order:1"`
+type PaginationBuilder[T any] struct {
+	params       *PaginationParams
+	query        *gorm.DB
+	countQuery   *gorm.DB
+	keys         []string
+	keyExtractor func(T) interface{}
 }
 
-func (params *PaginationParams) ApplyPagination(query *gorm.DB, keys ...string) (*gorm.DB, error) {
+func NewPaginationBuilder[T any](params *PaginationParams) *PaginationBuilder[T] {
+	return &PaginationBuilder[T]{
+		params: params,
+	}
+}
+
+func (b *PaginationBuilder[T]) WithQuery(query *gorm.DB) *PaginationBuilder[T] {
+	b.query = query
+	return b
+}
+
+func (b *PaginationBuilder[T]) WithCountQuery(countQuery *gorm.DB) *PaginationBuilder[T] {
+	b.countQuery = countQuery
+	return b
+}
+
+func (b *PaginationBuilder[T]) WithKeys(keys ...string) *PaginationBuilder[T] {
+	b.keys = keys
+	return b
+}
+
+func (b *PaginationBuilder[T]) WithKeyExtractor(extractor func(T) interface{}) *PaginationBuilder[T] {
+	b.keyExtractor = extractor
+	return b
+}
+
+func (b *PaginationBuilder[T]) Execute() ([]T, *PageResponse, error) {
+	// Apply pagination to the query
+	query, err := b.params.applyPagination(b.query, b.keys...)
+	if err != nil {
+		return nil, nil, fiber.NewError(fiber.StatusBadRequest, ErrInvalidParams)
+	}
+
+	var results []T
+	if err := query.Find(&results).Error; err != nil {
+		return nil, nil, err
+	}
+
+	var nextKey interface{}
+	if len(results) > 0 && b.keyExtractor != nil {
+		nextKey = b.keyExtractor(results[len(results)-1])
+	}
+
+	if b.countQuery == nil {
+		b.countQuery = b.query
+	}
+
+	pageResp, err := b.params.getPageResponse(len(results), b.countQuery, nextKey)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return results, pageResp, nil
+}
+
+func (params *PaginationParams) applyPagination(query *gorm.DB, keys ...string) (*gorm.DB, error) {
 	var err error
 	for _, key := range keys {
 		if params.Reverse {
@@ -97,21 +161,8 @@ func (params *PaginationParams) setPageKey(query *gorm.DB, keys []string) (*gorm
 	return query, nil
 }
 
-func GetNextKey(values ...any) []byte {
-	if len(values) == 0 {
-		return nil
-	}
 
-	var parts []string
-	for _, v := range values {
-		parts = append(parts, fmt.Sprintf("%v", v))
-	}
-
-	nextKey := strings.Join(parts, "|")
-	return []byte(nextKey)
-}
-
-func (params *PaginationParams) GetPageResponse(len int, totalQuery *gorm.DB, nextKey any) (*PageResponse, error) {
+func (params *PaginationParams) getPageResponse(len int, totalQuery *gorm.DB, nextKey any) (*PageResponse, error) {
 	resp := PageResponse{}
 
 	if params.CountTotal {
