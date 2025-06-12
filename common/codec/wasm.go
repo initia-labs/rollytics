@@ -1,7 +1,7 @@
 //go:build wasmvm
 // +build wasmvm
 
-package collector
+package codec
 
 import (
 	wasmtypes "github.com/CosmWasm/wasmd/x/wasm/types"
@@ -11,13 +11,15 @@ import (
 	"github.com/initia-labs/miniwasm/app"
 )
 
-var txConfig client.TxConfig
-var cdc codec.Codec
+var (
+    TxConfig client.TxConfig
+    Cdc      codec.Codec
+)
 
 func init() {
 	cfg := app.MakeEncodingConfig()
-	txConfig = cfg.TxConfig
-	cdc = cfg.Codec
+	TxConfig = cfg.TxConfig
+	Cdc = cfg.Codec
 	sdkConfig := sdk.GetConfig()
 	sdkConfig.SetCoinType(app.CoinType)
 	accountPubKeyPrefix := app.AccountAddressPrefix + "pub"

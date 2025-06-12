@@ -1,0 +1,1087 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "contact": {}
+    },
+    "paths": {
+        "/indexer/block/v1/avg_blocktime": {
+            "get": {
+                "description": "Get the average block time over recent blocks",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Blocks"
+                ],
+                "summary": "Get average block time",
+                "responses": {}
+            }
+        },
+        "/indexer/block/v1/blocks": {
+            "get": {
+                "description": "Get a list of blocks with pagination",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Blocks"
+                ],
+                "summary": "Get blocks",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Pagination key",
+                        "name": "pagination.key",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination offset",
+                        "name": "pagination.offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 100,
+                        "description": "Pagination limit",
+                        "name": "pagination.limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "default": true,
+                        "description": "Count total",
+                        "name": "pagination.count_total",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "default": true,
+                        "description": "Reverse order default(true) if set to true, the results will be ordered in descending order",
+                        "name": "pagination.reverse",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/indexer/block/v1/blocks/{height}": {
+            "get": {
+                "description": "Get a specific block by its height",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Blocks"
+                ],
+                "summary": "Get block by height",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Block height",
+                        "name": "height",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/indexer/nft/v1/collections": {
+            "get": {
+                "description": "Get NFT collections",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "NFT"
+                ],
+                "summary": "Get NFT collections",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Pagination key",
+                        "name": "pagination.key",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination offset",
+                        "name": "pagination.offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 100,
+                        "description": "Pagination limit",
+                        "name": "pagination.limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "default": true,
+                        "description": "Count total",
+                        "name": "pagination.count_total",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "default": true,
+                        "description": "Reverse order default(true) if set to true, the results will be ordered in descending order",
+                        "name": "pagination.reverse",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/nft.CollectionsResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/indexer/nft/v1/collections/by_account/{account}": {
+            "get": {
+                "description": "Get NFT collections owned by a specific account",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "NFT"
+                ],
+                "summary": "Get NFT collections by owner account",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Account address",
+                        "name": "account",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Pagination key",
+                        "name": "pagination.key",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination offset",
+                        "name": "pagination.offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 100,
+                        "description": "Pagination limit",
+                        "name": "pagination.limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "default": true,
+                        "description": "Count total",
+                        "name": "pagination.count_total",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "default": true,
+                        "description": "Reverse order default(true) if set to true, the results will be ordered in descending order",
+                        "name": "pagination.reverse",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/nft.CollectionsResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/indexer/nft/v1/collections/by_name/{name}": {
+            "get": {
+                "description": "Get NFT collections for a specific name",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "NFT"
+                ],
+                "summary": "Get NFT collections by name",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Collection name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Pagination key",
+                        "name": "pagination.key",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination offset",
+                        "name": "pagination.offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 100,
+                        "description": "Pagination limit",
+                        "name": "pagination.limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "default": true,
+                        "description": "Count total",
+                        "name": "pagination.count_total",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "default": true,
+                        "description": "Reverse order default(true) if set to true, the results will be ordered in descending order",
+                        "name": "pagination.reverse",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/nft.CollectionsResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/indexer/nft/v1/collections/{collection_addr}": {
+            "get": {
+                "description": "Get NFT collections for a specific address",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "NFT"
+                ],
+                "summary": "Get NFT Collections By Collection Address",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Collection address",
+                        "name": "collection_addr",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/nft.CollectionResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/indexer/nft/v1/tokens/by_account/{account}": {
+            "get": {
+                "description": "Get NFT tokens owned by a specific account",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "NFT"
+                ],
+                "summary": "Get NFT tokens by account",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Account address",
+                        "name": "account",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Pagination key",
+                        "name": "pagination.key",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination offset",
+                        "name": "pagination.offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 100,
+                        "description": "Pagination limit",
+                        "name": "pagination.limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "default": true,
+                        "description": "Count total",
+                        "name": "pagination.count_total",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "default": true,
+                        "description": "Reverse order default(true) if set to true, the results will be ordered in descending order",
+                        "name": "pagination.reverse",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/nft.NftsResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/indexer/nft/v1/tokens/by_collection/{collection_addr}": {
+            "get": {
+                "description": "Get NFT tokens from a specific collection",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "NFT"
+                ],
+                "summary": "Get NFT tokens by collection",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Collection address",
+                        "name": "collection_addr",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Pagination key",
+                        "name": "pagination.key",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination offset",
+                        "name": "pagination.offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 100,
+                        "description": "Pagination limit",
+                        "name": "pagination.limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "default": true,
+                        "description": "Count total",
+                        "name": "pagination.count_total",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "default": true,
+                        "description": "Reverse order default(true) if set to true, the results will be ordered in descending order",
+                        "name": "pagination.reverse",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/nft.NftsResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/indexer/nft/v1/txs/{collection_addr}/{token_id}": {
+            "get": {
+                "description": "Get NFT transactions for a specific collection and token ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "NFT"
+                ],
+                "summary": "Get NFT transactions by collection and token ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Collection address",
+                        "name": "collection_addr",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Token ID",
+                        "name": "token_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Pagination key",
+                        "name": "pagination.key",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination offset",
+                        "name": "pagination.offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 100,
+                        "description": "Pagination limit",
+                        "name": "pagination.limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "default": true,
+                        "description": "Count total",
+                        "name": "pagination.count_total",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "default": true,
+                        "description": "Reverse order default(true) if set to true, the results will be ordered in descending order",
+                        "name": "pagination.reverse",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/indexer/tx/v1/evm-txs": {
+            "get": {
+                "description": "Get a list of EVM transactions with pagination",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Evm Transactions"
+                ],
+                "summary": "Get EVM transactions",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Pagination key",
+                        "name": "pagination.key",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination offset",
+                        "name": "pagination.offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 100,
+                        "description": "Pagination limit",
+                        "name": "pagination.limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "default": true,
+                        "description": "Count total",
+                        "name": "pagination.count_total",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "default": true,
+                        "description": "Reverse order default(true) if set to true, the results will be ordered in descending order",
+                        "name": "pagination.reverse",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/indexer/tx/v1/evm-txs/by_account/{account}": {
+            "get": {
+                "description": "Get EVM transactions associated with a specific account",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Evm Transactions"
+                ],
+                "summary": "Get EVM transactions by account",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Account address",
+                        "name": "account",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Pagination key",
+                        "name": "pagination.key",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination offset",
+                        "name": "pagination.offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 100,
+                        "description": "Pagination limit",
+                        "name": "pagination.limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "default": true,
+                        "description": "Count total",
+                        "name": "pagination.count_total",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "default": true,
+                        "description": "Reverse order default(true) if set to true, the results will be ordered in descending order",
+                        "name": "pagination.reverse",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/indexer/tx/v1/evm-txs/by_height/{height}": {
+            "get": {
+                "description": "Get EVM transactions at a specific block height",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Evm Transactions"
+                ],
+                "summary": "Get EVM transactions by height",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Block height",
+                        "name": "height",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Pagination key",
+                        "name": "pagination.key",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination offset",
+                        "name": "pagination.offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 100,
+                        "description": "Pagination limit",
+                        "name": "pagination.limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "default": true,
+                        "description": "Count total",
+                        "name": "pagination.count_total",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "default": true,
+                        "description": "Reverse order default(true) if set to true, the results will be ordered in descending order",
+                        "name": "pagination.reverse",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/indexer/tx/v1/evm-txs/count": {
+            "get": {
+                "description": "Get the total number of EVM transactions",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Evm Transactions"
+                ],
+                "summary": "Get EVM transaction count",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/tx.EvmTxCountResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/indexer/tx/v1/evm-txs/{tx_hash}": {
+            "get": {
+                "description": "Get a specific EVM transaction by its hash",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Evm Transactions"
+                ],
+                "summary": "Get EVM transaction by hash",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Transaction hash",
+                        "name": "tx_hash",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/indexer/tx/v1/txs": {
+            "get": {
+                "description": "Get a list of transactions with pagination",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Transactions"
+                ],
+                "summary": "Get transactions",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Pagination key",
+                        "name": "pagination.key",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination offset",
+                        "name": "pagination.offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 100,
+                        "description": "Pagination limit",
+                        "name": "pagination.limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "default": true,
+                        "description": "Count total",
+                        "name": "pagination.count_total",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "default": true,
+                        "description": "Reverse order default(true) if set to true, the results will be ordered in descending order",
+                        "name": "pagination.reverse",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/indexer/tx/v1/txs/by_account/{account}": {
+            "get": {
+                "description": "Get transactions associated with a specific account",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Transactions"
+                ],
+                "summary": "Get transactions by account",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Account address",
+                        "name": "account",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Pagination key",
+                        "name": "pagination.key",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination offset",
+                        "name": "pagination.offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 100,
+                        "description": "Pagination limit",
+                        "name": "pagination.limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "default": true,
+                        "description": "Count total",
+                        "name": "pagination.count_total",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "default": true,
+                        "description": "Reverse order default(true) if set to true, the results will be ordered in descending order",
+                        "name": "pagination.reverse",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/indexer/tx/v1/txs/by_height/{height}": {
+            "get": {
+                "description": "Get transactions at a specific block height",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Transactions"
+                ],
+                "summary": "Get transactions by height",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Block height",
+                        "name": "height",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Pagination key",
+                        "name": "pagination.key",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination offset",
+                        "name": "pagination.offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 100,
+                        "description": "Pagination limit",
+                        "name": "pagination.limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "default": true,
+                        "description": "Count total",
+                        "name": "pagination.count_total",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "default": true,
+                        "description": "Reverse order default(true) if set to true, the results will be ordered in descending order",
+                        "name": "pagination.reverse",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/indexer/tx/v1/txs/count": {
+            "get": {
+                "description": "Get the total number of transactions",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Transactions"
+                ],
+                "summary": "Get transaction count",
+                "responses": {}
+            }
+        },
+        "/indexer/tx/v1/txs/{tx_hash}": {
+            "get": {
+                "description": "Get a specific transaction by its hash",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Transactions"
+                ],
+                "summary": "Get transaction by hash",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Transaction hash",
+                        "name": "tx_hash",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            }
+        }
+    },
+    "definitions": {
+        "common.PageResponse": {
+            "type": "object",
+            "properties": {
+                "next_key": {
+                    "type": "string",
+                    "x-order:0": true
+                },
+                "total": {
+                    "type": "integer",
+                    "x-order:1": true
+                }
+            }
+        },
+        "nft.Collection": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string",
+                    "x-order:1": true
+                },
+                "creator": {
+                    "type": "string",
+                    "x-order:0": true
+                },
+                "name": {
+                    "type": "string",
+                    "x-order:2": true
+                },
+                "nft_count": {
+                    "type": "integer",
+                    "x-order:4": true
+                },
+                "origin_name": {
+                    "type": "string",
+                    "x-order:3": true
+                }
+            }
+        },
+        "nft.CollectionResponse": {
+            "type": "object",
+            "properties": {
+                "collection": {
+                    "$ref": "#/definitions/nft.Collection"
+                }
+            }
+        },
+        "nft.CollectionsResponse": {
+            "type": "object",
+            "properties": {
+                "collections": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/nft.Collection"
+                    },
+                    "x-order:0": true
+                },
+                "pagination": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/common.PageResponse"
+                        }
+                    ],
+                    "x-order:1": true
+                }
+            }
+        },
+        "nft.Nft": {
+            "type": "object",
+            "properties": {
+                "collection_address": {
+                    "type": "string",
+                    "x-order:0": true
+                },
+                "nft_token_id": {
+                    "type": "string",
+                    "x-order:2": true
+                },
+                "object_addr": {
+                    "description": "only used in Move",
+                    "type": "string",
+                    "x-order:1": true
+                },
+                "owner": {
+                    "type": "string",
+                    "x-order:3": true
+                },
+                "uri": {
+                    "type": "string",
+                    "x-order:4": true
+                }
+            }
+        },
+        "nft.NftsResponse": {
+            "type": "object",
+            "properties": {
+                "pagination": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/common.PageResponse"
+                        }
+                    ],
+                    "x-order:1": true
+                },
+                "tokens": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/nft.Nft"
+                    },
+                    "x-order:0": true
+                }
+            }
+        },
+        "tx.EvmTxCountResponse": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer",
+                    "x-order:0": true
+                }
+            }
+        }
+    }
+}

@@ -125,7 +125,7 @@ func grepAddressesFromTx(chainId string, events []abci.Event, tx *gorm.DB) (grep
 	return
 }
 
-func grepAddressesFromEvmTx(evmTx EvmTx) (grepped []string, err error) {
+func grepAddressesFromEvmTx(evmTx types.EvmTx) (grepped []string, err error) {
 	var addrs []string
 
 	if evmTx.From != "" {

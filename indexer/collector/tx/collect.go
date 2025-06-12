@@ -88,7 +88,7 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) (e
 		if parsedLogs == nil {
 			parsedLogs = []sdk.ABCIMessageLog{}
 		}
-		txByHeightRecord := indexertypes.TxByHeightRecord{
+		txByHeightRecord := types.TxByHeightRecord{
 			TxHash:    txHash,
 			Height:    height,
 			Codespace: res.Codespace,
