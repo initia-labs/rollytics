@@ -27,28 +27,22 @@ func ParseTxsRequestByHeight(c *fiber.Ctx) (*TxsRequestByHeight, error) {
 		return nil, fiber.NewError(fiber.StatusBadRequest, common.ErrInvalidParams)
 	}
 
-	req := &TxsRequestByHeight{
-		Pagination: pagination,
-	}
-
 	heightStr := c.Params("height")
 	height, err := strconv.ParseInt(heightStr, 10, 64)
 	if err != nil {
-		return nil, fiber.NewError(fiber.StatusBadRequest, "invalid height param")
+		return nil, fiber.NewError(fiber.StatusBadRequest, "invalid height param: "+err.Error())
 	}
-	req.Height = height
 
-	return req, nil
+	return &TxsRequestByHeight{
+		Pagination: pagination,
+		Height:     height,
+	}, nil
 }
 
 func ParseTxsByAccountRequest(c *fiber.Ctx) (*TxsByAccountRequest, error) {
 	pagination, err := common.ExtractPaginationParams(c)
 	if err != nil {
 		return nil, fiber.NewError(fiber.StatusBadRequest, common.ErrInvalidParams)
-	}
-
-	req := &TxsByAccountRequest{
-		Pagination: pagination,
 	}
 
 	account := c.Params("account")
@@ -58,11 +52,13 @@ func ParseTxsByAccountRequest(c *fiber.Ctx) (*TxsByAccountRequest, error) {
 
 	accAddr, err := codec.AccAddressFromString(account)
 	if err != nil {
-		return nil, fiber.NewError(fiber.StatusBadRequest, "invalid account")
+		return nil, fiber.NewError(fiber.StatusBadRequest, "invalid account: "+err.Error())
 	}
 
-	req.Account = accAddr.String()
-	return req, nil
+	return &TxsByAccountRequest{
+		Pagination: pagination,
+		Account:    accAddr.String(),
+	}, nil
 }
 
 // ParseTxsByHeightRequest parses and validates the request
@@ -72,30 +68,27 @@ func ParseTxsByHeightRequest(c *fiber.Ctx) (*TxsByHeightRequest, error) {
 		return nil, fiber.NewError(fiber.StatusBadRequest, common.ErrInvalidParams)
 	}
 
-	req := &TxsByHeightRequest{
-		Pagination: pagination,
-	}
-
 	heightStr := c.Params("height")
 	height, err := strconv.ParseInt(heightStr, 10, 64)
 	if err != nil {
-		return nil, fiber.NewError(fiber.StatusBadRequest, "invalid height param")
+		return nil, fiber.NewError(fiber.StatusBadRequest, "invalid height param: "+err.Error())
 	}
-	req.Height = height
 
-	return req, nil
+	return &TxsByHeightRequest{
+		Pagination: pagination,
+		Height:     height,
+	}, nil
 }
 
 func ParseTxByHashRequest(c *fiber.Ctx) (*TxByHashRequest, error) {
-	req := &TxByHashRequest{}
-
 	hash := c.Params("tx_hash")
 	if hash == "" {
 		return nil, fiber.NewError(fiber.StatusBadRequest, "invalid tx_hash param")
 	}
-	req.Hash = hash
 
-	return req, nil
+	return &TxByHashRequest{
+		Hash: hash,
+	}, nil
 }
 
 func ParseEvmTxsRequest(c *fiber.Ctx) (*EvmTxsRequest, error) {
@@ -104,11 +97,9 @@ func ParseEvmTxsRequest(c *fiber.Ctx) (*EvmTxsRequest, error) {
 		return nil, fiber.NewError(fiber.StatusBadRequest, common.ErrInvalidParams)
 	}
 
-	req := &EvmTxsRequest{
+	return &EvmTxsRequest{
 		Pagination: pagination,
-	}
-
-	return req, nil
+	}, nil
 }
 
 func ParseEvmTxsByAccountRequest(c *fiber.Ctx) (*EvmTxsByAccountRequest, error) {
@@ -116,10 +107,6 @@ func ParseEvmTxsByAccountRequest(c *fiber.Ctx) (*EvmTxsByAccountRequest, error) 
 	if err != nil {
 		return nil, fiber.NewError(fiber.StatusBadRequest, common.ErrInvalidParams)
 	}
-	req := &EvmTxsByAccountRequest{
-		Pagination: pagination,
-	}
-
 	account := c.Params("account")
 	if account == "" {
 		return nil, fiber.NewError(fiber.StatusBadRequest, "account param is required")
@@ -127,11 +114,13 @@ func ParseEvmTxsByAccountRequest(c *fiber.Ctx) (*EvmTxsByAccountRequest, error) 
 
 	accAddr, err := codec.AccAddressFromString(account)
 	if err != nil {
-		return nil, fiber.NewError(fiber.StatusBadRequest, "invalid account")
+		return nil, fiber.NewError(fiber.StatusBadRequest, "invalid account: "+err.Error())
 	}
-	req.Account = accAddr.String()
 
-	return req, nil
+	return &EvmTxsByAccountRequest{
+		Pagination: pagination,
+		Account:    accAddr.String(),
+	}, nil
 }
 
 // ParseEvmTxsByHeightRequest parses and validates the request
@@ -141,28 +130,25 @@ func ParseEvmTxsByHeightRequest(c *fiber.Ctx) (*EvmTxsByHeightRequest, error) {
 		return nil, fiber.NewError(fiber.StatusBadRequest, common.ErrInvalidParams)
 	}
 
-	req := &EvmTxsByHeightRequest{
-		Pagination: pagination,
-	}
-
 	heightStr := c.Params("height")
 	height, err := strconv.ParseInt(heightStr, 10, 64)
 	if err != nil {
-		return nil, fiber.NewError(fiber.StatusBadRequest, "invalid height param")
+		return nil, fiber.NewError(fiber.StatusBadRequest, "invalid height param: "+err.Error())
 	}
-	req.Height = height
 
-	return req, nil
+	return &EvmTxsByHeightRequest{
+		Pagination: pagination,
+		Height:     height,
+	}, nil
 }
 
 func ParseEvmTxByHashRequest(c *fiber.Ctx) (*EvmTxByHashRequest, error) {
-	req := &EvmTxByHashRequest{}
-
 	hash := c.Params("tx_hash")
 	if hash == "" {
-		return nil, fiber.NewError(fiber.StatusBadRequest, "invalid tx_hash param")
+		return nil, fiber.NewError(fiber.StatusBadRequest, "invalid tx_hash param: ")
 	}
-	req.Hash = hash
 
-	return req, nil
+	return &EvmTxByHashRequest{
+		Hash: hash,
+	}, nil
 }

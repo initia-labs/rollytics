@@ -85,6 +85,7 @@ func (b *PaginationBuilder[T]) Execute() ([]T, *PageResponse, error) {
 		return nil, nil, err
 	}
 
+	// get nextKey for response
 	var nextKey []byte
 	if len(results) > 0 && b.keyExtractor != nil {
 		values := b.keyExtractor(results[len(results)-1])
