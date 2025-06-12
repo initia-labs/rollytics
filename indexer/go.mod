@@ -5,21 +5,18 @@ go 1.23.6
 replace github.com/initia-labs/rollytics => ../common
 
 require (
-	github.com/CosmWasm/wasmd v0.53.2
 	github.com/cometbft/cometbft v0.38.17
 	github.com/cosmos/cosmos-sdk v0.50.13
 	github.com/gofiber/fiber/v2 v2.52.6
 	github.com/initia-labs/initia v1.0.0
 	github.com/initia-labs/minievm v1.0.0
-	github.com/initia-labs/minimove v1.0.0
-	github.com/initia-labs/miniwasm v1.0.0
 	github.com/initia-labs/rollytics v0.0.0-00010101000000-000000000000
 	github.com/joho/godotenv v1.5.1
 	github.com/rs/zerolog v1.34.0
 	github.com/samber/slog-zerolog v1.0.0
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.20.1
-	golang.org/x/sync v0.10.0
+	golang.org/x/sync v0.14.0
 	gorm.io/gorm v1.25.12
 )
 
@@ -48,6 +45,7 @@ require (
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/99designs/go-keychain v0.0.0-20191008050251-8e49817e8af4 // indirect
 	github.com/99designs/keyring v1.2.2 // indirect
+	github.com/CosmWasm/wasmd v0.53.2 // indirect
 	github.com/CosmWasm/wasmvm/v2 v2.1.4 // indirect
 	github.com/DataDog/datadog-go v3.2.0+incompatible // indirect
 	github.com/DataDog/zstd v1.5.5 // indirect
@@ -167,17 +165,19 @@ require (
 	github.com/iancoleman/strcase v0.3.0 // indirect
 	github.com/improbable-eng/grpc-web v0.15.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/initia-labs/OPinit v1.0.0 // indirect
+	github.com/initia-labs/OPinit v1.0.1 // indirect
 	github.com/initia-labs/OPinit/api v1.0.0 // indirect
-	github.com/initia-labs/kvindexer v0.1.13 // indirect
-	github.com/initia-labs/kvindexer/submodules/block v0.1.3 // indirect
+	github.com/initia-labs/kvindexer v0.2.0 // indirect
+	github.com/initia-labs/kvindexer/submodules/block v0.2.0 // indirect
 	github.com/initia-labs/kvindexer/submodules/evm-nft v0.1.9 // indirect
 	github.com/initia-labs/kvindexer/submodules/evm-tx v0.2.1 // indirect
-	github.com/initia-labs/kvindexer/submodules/move-nft v0.1.8 // indirect
-	github.com/initia-labs/kvindexer/submodules/pair v0.1.4 // indirect
-	github.com/initia-labs/kvindexer/submodules/tx v0.1.7 // indirect
-	github.com/initia-labs/kvindexer/submodules/wasm-nft v0.1.8 // indirect
-	github.com/initia-labs/kvindexer/submodules/wasm-pair v0.1.3 // indirect
+	github.com/initia-labs/kvindexer/submodules/move-nft v0.2.0 // indirect
+	github.com/initia-labs/kvindexer/submodules/pair v0.2.0 // indirect
+	github.com/initia-labs/kvindexer/submodules/tx v0.3.0 // indirect
+	github.com/initia-labs/kvindexer/submodules/wasm-nft v0.2.0 // indirect
+	github.com/initia-labs/kvindexer/submodules/wasm-pair v0.2.0 // indirect
+	github.com/initia-labs/minimove v1.0.3 // indirect
+	github.com/initia-labs/miniwasm v1.0.3 // indirect
 	github.com/initia-labs/movevm v1.0.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
@@ -260,13 +260,14 @@ require (
 	go.opentelemetry.io/otel/trace v1.32.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
-	golang.org/x/crypto v0.32.0 // indirect
+	golang.org/x/crypto v0.38.0 // indirect
 	golang.org/x/exp v0.0.0-20240909161429-701f63a606c0 // indirect
+	golang.org/x/mod v0.22.0 // indirect
 	golang.org/x/net v0.34.0 // indirect
 	golang.org/x/oauth2 v0.25.0 // indirect
-	golang.org/x/sys v0.29.0 // indirect
-	golang.org/x/term v0.28.0 // indirect
-	golang.org/x/text v0.21.0 // indirect
+	golang.org/x/sys v0.33.0 // indirect
+	golang.org/x/term v0.32.0 // indirect
+	golang.org/x/text v0.25.0 // indirect
 	golang.org/x/time v0.8.0 // indirect
 	google.golang.org/api v0.215.0 // indirect
 	google.golang.org/genproto v0.0.0-20241118233622-e639e219e697 // indirect
