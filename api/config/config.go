@@ -26,6 +26,7 @@ type ChainConfig struct {
 	RpcUrl     string
 	RestUrl    string
 	JsonRpcUrl string
+	AccountAddressPrefix string
 }
 
 func setDefaults() {
@@ -68,6 +69,7 @@ func GetConfig() (*Config, error) {
 		RpcUrl:     viper.GetString("RPC_URL"),
 		RestUrl:    viper.GetString("REST_URL"),
 		JsonRpcUrl: viper.GetString("JSON_RPC_URL"),
+		AccountAddressPrefix: viper.GetString("ACCOUNT_ADDRESS_PREFIX"),
 	}
 
 	config := &Config{

@@ -19,8 +19,8 @@ type PaginationParams struct {
 }
 
 type PageResponse struct {
-	NextKey string `json:"next_key,omitempty" extensions:"x-order:0"`
-	Total   int64  `json:"total,omitempty" extensions:"x-order:1"`
+	NextKey *string `json:"next_key" extensions:"x-order:0"`
+	Total   int64   `json:"total,omitempty" extensions:"x-order:1"`
 }
 
 func ExtractPaginationParams(c *fiber.Ctx) (*PaginationParams, error) {
@@ -174,7 +174,8 @@ func (params *PaginationParams) getPageResponse(len int, totalQuery *gorm.DB, ne
 
 	if len == int(params.Limit) {
 		if nextKey != nil {
-			resp.NextKey = base64.StdEncoding.EncodeToString(nextKey)
+			encodedKey := base64.StdEncoding.EncodeToString(nextKey)
+			resp.NextKey = &encodedKey
 		}
 	}
 

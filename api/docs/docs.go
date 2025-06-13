@@ -59,26 +59,21 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "default": 100,
-                        "description": "Pagination limit",
+                        "description": "Pagination limit, default is 100",
                         "name": "pagination.limit",
                         "in": "query"
                     },
                     {
                         "type": "boolean",
-                        "default": true,
-                        "description": "Count total",
+                        "description": "Count total, default is true",
                         "name": "pagination.count_total",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
                     },
                     {
                         "type": "boolean",
-                        "default": true,
-                        "description": "Reverse order default(true) if set to true, the results will be ordered in descending order",
+                        "description": "Reverse order, default is true. if set to true, the results will be ordered in descending order",
                         "name": "pagination.reverse",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
                     }
                 ],
                 "responses": {}
@@ -137,26 +132,21 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "default": 100,
-                        "description": "Pagination limit",
+                        "description": "Pagination limit, default is 100",
                         "name": "pagination.limit",
                         "in": "query"
                     },
                     {
                         "type": "boolean",
-                        "default": true,
-                        "description": "Count total",
+                        "description": "Count total, default is true",
                         "name": "pagination.count_total",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
                     },
                     {
                         "type": "boolean",
-                        "default": true,
-                        "description": "Reverse order default(true) if set to true, the results will be ordered in descending order",
+                        "description": "Reverse order default is true if set to true, the results will be ordered in descending order",
                         "name": "pagination.reverse",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -204,26 +194,21 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "default": 100,
-                        "description": "Pagination limit",
+                        "description": "Pagination limit, default is 100",
                         "name": "pagination.limit",
                         "in": "query"
                     },
                     {
                         "type": "boolean",
-                        "default": true,
-                        "description": "Count total",
+                        "description": "Count total, default is true",
                         "name": "pagination.count_total",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
                     },
                     {
                         "type": "boolean",
-                        "default": true,
-                        "description": "Reverse order default(true) if set to true, the results will be ordered in descending order",
+                        "description": "Reverse order default is true if set to true, the results will be ordered in descending order",
                         "name": "pagination.reverse",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -271,26 +256,21 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "default": 100,
-                        "description": "Pagination limit",
+                        "description": "Pagination limit, default is 100",
                         "name": "pagination.limit",
                         "in": "query"
                     },
                     {
                         "type": "boolean",
-                        "default": true,
-                        "description": "Count total",
+                        "description": "Count total, default is true",
                         "name": "pagination.count_total",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
                     },
                     {
                         "type": "boolean",
-                        "default": true,
-                        "description": "Reverse order default(true) if set to true, the results will be ordered in descending order",
+                        "description": "Reverse order default is true if set to true, the results will be ordered in descending order",
                         "name": "pagination.reverse",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -370,26 +350,21 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "default": 100,
-                        "description": "Pagination limit",
+                        "description": "Pagination limit, default is 100",
                         "name": "pagination.limit",
                         "in": "query"
                     },
                     {
                         "type": "boolean",
-                        "default": true,
-                        "description": "Count total",
+                        "description": "Count total, default is true",
                         "name": "pagination.count_total",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
                     },
                     {
                         "type": "boolean",
-                        "default": true,
-                        "description": "Reverse order default(true) if set to true, the results will be ordered in descending order",
+                        "description": "Reverse order default is true if set to true, the results will be ordered in descending order",
                         "name": "pagination.reverse",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -437,26 +412,21 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "default": 100,
-                        "description": "Pagination limit",
+                        "description": "Pagination limit, default is 100",
                         "name": "pagination.limit",
                         "in": "query"
                     },
                     {
                         "type": "boolean",
-                        "default": true,
-                        "description": "Count total",
+                        "description": "Count total, default is true",
                         "name": "pagination.count_total",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
                     },
                     {
                         "type": "boolean",
-                        "default": true,
-                        "description": "Reverse order default(true) if set to true, the results will be ordered in descending order",
+                        "description": "Reverse order default is true if set to true, the results will be ordered in descending order",
                         "name": "pagination.reverse",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -511,26 +481,21 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "default": 100,
-                        "description": "Pagination limit",
+                        "description": "Pagination limit, default is 100",
                         "name": "pagination.limit",
                         "in": "query"
                     },
                     {
                         "type": "boolean",
-                        "default": true,
-                        "description": "Count total",
+                        "description": "Count total, default is true",
                         "name": "pagination.count_total",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
                     },
                     {
                         "type": "boolean",
-                        "default": true,
-                        "description": "Reverse order default(true) if set to true, the results will be ordered in descending order",
+                        "description": "Reverse order default is true if set to true, the results will be ordered in descending order",
                         "name": "pagination.reverse",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
                     }
                 ],
                 "responses": {}
@@ -564,26 +529,21 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "default": 100,
-                        "description": "Pagination limit",
+                        "description": "Pagination limit, default is 100",
                         "name": "pagination.limit",
                         "in": "query"
                     },
                     {
                         "type": "boolean",
-                        "default": true,
-                        "description": "Count total",
+                        "description": "Count total, default is true",
                         "name": "pagination.count_total",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
                     },
                     {
                         "type": "boolean",
-                        "default": true,
-                        "description": "Reverse order default(true) if set to true, the results will be ordered in descending order",
+                        "description": "Reverse order default is true if set to true, the results will be ordered in descending order",
                         "name": "pagination.reverse",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
                     }
                 ],
                 "responses": {}
@@ -624,26 +584,21 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "default": 100,
-                        "description": "Pagination limit",
+                        "description": "Pagination limit, default is 100",
                         "name": "pagination.limit",
                         "in": "query"
                     },
                     {
                         "type": "boolean",
-                        "default": true,
-                        "description": "Count total",
+                        "description": "Count total, default is true",
                         "name": "pagination.count_total",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
                     },
                     {
                         "type": "boolean",
-                        "default": true,
-                        "description": "Reverse order default(true) if set to true, the results will be ordered in descending order",
+                        "description": "Reverse order default is true if set to true, the results will be ordered in descending order",
                         "name": "pagination.reverse",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
                     }
                 ],
                 "responses": {}
@@ -684,26 +639,21 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "default": 100,
-                        "description": "Pagination limit",
+                        "description": "Pagination limit, default is 100",
                         "name": "pagination.limit",
                         "in": "query"
                     },
                     {
                         "type": "boolean",
-                        "default": true,
-                        "description": "Count total",
+                        "description": "Count total, default is true",
                         "name": "pagination.count_total",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
                     },
                     {
                         "type": "boolean",
-                        "default": true,
-                        "description": "Reverse order default(true) if set to true, the results will be ordered in descending order",
+                        "description": "Reverse order default is true if set to true, the results will be ordered in descending order",
                         "name": "pagination.reverse",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
                     }
                 ],
                 "responses": {}
@@ -785,26 +735,21 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "default": 100,
-                        "description": "Pagination limit",
+                        "description": "Pagination limit, default is 100",
                         "name": "pagination.limit",
                         "in": "query"
                     },
                     {
                         "type": "boolean",
-                        "default": true,
-                        "description": "Count total",
+                        "description": "Count total, default is true",
                         "name": "pagination.count_total",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
                     },
                     {
                         "type": "boolean",
-                        "default": true,
-                        "description": "Reverse order default(true) if set to true, the results will be ordered in descending order",
+                        "description": "Reverse order default is true if set to true, the results will be ordered in descending order",
                         "name": "pagination.reverse",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
                     }
                 ],
                 "responses": {}
@@ -845,26 +790,21 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "default": 100,
-                        "description": "Pagination limit",
+                        "description": "Pagination limit, default is 100",
                         "name": "pagination.limit",
                         "in": "query"
                     },
                     {
                         "type": "boolean",
-                        "default": true,
-                        "description": "Count total",
+                        "description": "Count total, default is true",
                         "name": "pagination.count_total",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
                     },
                     {
                         "type": "boolean",
-                        "default": true,
-                        "description": "Reverse order default(true) if set to true, the results will be ordered in descending order",
+                        "description": "Reverse order default is true if set to true, the results will be ordered in descending order",
                         "name": "pagination.reverse",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
                     }
                 ],
                 "responses": {}
@@ -905,26 +845,21 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "default": 100,
-                        "description": "Pagination limit",
+                        "description": "Pagination limit, default is 100",
                         "name": "pagination.limit",
                         "in": "query"
                     },
                     {
                         "type": "boolean",
-                        "default": true,
-                        "description": "Count total",
+                        "description": "Count total, default is true",
                         "name": "pagination.count_total",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
                     },
                     {
                         "type": "boolean",
-                        "default": true,
-                        "description": "Reverse order default(true) if set to true, the results will be ordered in descending order",
+                        "description": "Reverse order default is true if set to true, the results will be ordered in descending order",
                         "name": "pagination.reverse",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
                     }
                 ],
                 "responses": {}

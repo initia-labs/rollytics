@@ -108,23 +108,18 @@ paths:
         in: query
         name: pagination.offset
         type: integer
-      - default: 100
-        description: Pagination limit
+      - description: Pagination limit, default is 100
         in: query
         name: pagination.limit
         type: integer
-      - default: true
-        description: Count total
+      - description: Count total, default is true
         in: query
         name: pagination.count_total
-        required: true
         type: boolean
-      - default: true
-        description: Reverse order default(true) if set to true, the results will
+      - description: Reverse order, default is true. if set to true, the results will
           be ordered in descending order
         in: query
         name: pagination.reverse
-        required: true
         type: boolean
       produces:
       - application/json
@@ -163,23 +158,18 @@ paths:
         in: query
         name: pagination.offset
         type: integer
-      - default: 100
-        description: Pagination limit
+      - description: Pagination limit, default is 100
         in: query
         name: pagination.limit
         type: integer
-      - default: true
-        description: Count total
+      - description: Count total, default is true
         in: query
         name: pagination.count_total
-        required: true
         type: boolean
-      - default: true
-        description: Reverse order default(true) if set to true, the results will
+      - description: Reverse order default is true if set to true, the results will
           be ordered in descending order
         in: query
         name: pagination.reverse
-        required: true
         type: boolean
       produces:
       - application/json
@@ -231,23 +221,18 @@ paths:
         in: query
         name: pagination.offset
         type: integer
-      - default: 100
-        description: Pagination limit
+      - description: Pagination limit, default is 100
         in: query
         name: pagination.limit
         type: integer
-      - default: true
-        description: Count total
+      - description: Count total, default is true
         in: query
         name: pagination.count_total
-        required: true
         type: boolean
-      - default: true
-        description: Reverse order default(true) if set to true, the results will
+      - description: Reverse order default is true if set to true, the results will
           be ordered in descending order
         in: query
         name: pagination.reverse
-        required: true
         type: boolean
       produces:
       - application/json
@@ -278,23 +263,18 @@ paths:
         in: query
         name: pagination.offset
         type: integer
-      - default: 100
-        description: Pagination limit
+      - description: Pagination limit, default is 100
         in: query
         name: pagination.limit
         type: integer
-      - default: true
-        description: Count total
+      - description: Count total, default is true
         in: query
         name: pagination.count_total
-        required: true
         type: boolean
-      - default: true
-        description: Reverse order default(true) if set to true, the results will
+      - description: Reverse order default is true if set to true, the results will
           be ordered in descending order
         in: query
         name: pagination.reverse
-        required: true
         type: boolean
       produces:
       - application/json
@@ -325,23 +305,18 @@ paths:
         in: query
         name: pagination.offset
         type: integer
-      - default: 100
-        description: Pagination limit
+      - description: Pagination limit, default is 100
         in: query
         name: pagination.limit
         type: integer
-      - default: true
-        description: Count total
+      - description: Count total, default is true
         in: query
         name: pagination.count_total
-        required: true
         type: boolean
-      - default: true
-        description: Reverse order default(true) if set to true, the results will
+      - description: Reverse order default is true if set to true, the results will
           be ordered in descending order
         in: query
         name: pagination.reverse
-        required: true
         type: boolean
       produces:
       - application/json
@@ -372,23 +347,18 @@ paths:
         in: query
         name: pagination.offset
         type: integer
-      - default: 100
-        description: Pagination limit
+      - description: Pagination limit, default is 100
         in: query
         name: pagination.limit
         type: integer
-      - default: true
-        description: Count total
+      - description: Count total, default is true
         in: query
         name: pagination.count_total
-        required: true
         type: boolean
-      - default: true
-        description: Reverse order default(true) if set to true, the results will
+      - description: Reverse order default is true if set to true, the results will
           be ordered in descending order
         in: query
         name: pagination.reverse
-        required: true
         type: boolean
       produces:
       - application/json
@@ -424,23 +394,18 @@ paths:
         in: query
         name: pagination.offset
         type: integer
-      - default: 100
-        description: Pagination limit
+      - description: Pagination limit, default is 100
         in: query
         name: pagination.limit
         type: integer
-      - default: true
-        description: Count total
+      - description: Count total, default is true
         in: query
         name: pagination.count_total
-        required: true
         type: boolean
-      - default: true
-        description: Reverse order default(true) if set to true, the results will
+      - description: Reverse order default is true if set to true, the results will
           be ordered in descending order
         in: query
         name: pagination.reverse
-        required: true
         type: boolean
       produces:
       - application/json
@@ -462,23 +427,18 @@ paths:
         in: query
         name: pagination.offset
         type: integer
-      - default: 100
-        description: Pagination limit
+      - description: Pagination limit, default is 100
         in: query
         name: pagination.limit
         type: integer
-      - default: true
-        description: Count total
+      - description: Count total, default is true
         in: query
         name: pagination.count_total
-        required: true
         type: boolean
-      - default: true
-        description: Reverse order default(true) if set to true, the results will
+      - description: Reverse order default is true if set to true, the results will
           be ordered in descending order
         in: query
         name: pagination.reverse
-        required: true
         type: boolean
       produces:
       - application/json
@@ -522,23 +482,18 @@ paths:
         in: query
         name: pagination.offset
         type: integer
-      - default: 100
-        description: Pagination limit
+      - description: Pagination limit, default is 100
         in: query
         name: pagination.limit
         type: integer
-      - default: true
-        description: Count total
+      - description: Count total, default is true
         in: query
         name: pagination.count_total
-        required: true
         type: boolean
-      - default: true
-        description: Reverse order default(true) if set to true, the results will
+      - description: Reverse order default is true if set to true, the results will
           be ordered in descending order
         in: query
         name: pagination.reverse
-        required: true
         type: boolean
       produces:
       - application/json
@@ -565,23 +520,18 @@ paths:
         in: query
         name: pagination.offset
         type: integer
-      - default: 100
-        description: Pagination limit
+      - description: Pagination limit, default is 100
         in: query
         name: pagination.limit
         type: integer
-      - default: true
-        description: Count total
+      - description: Count total, default is true
         in: query
         name: pagination.count_total
-        required: true
         type: boolean
-      - default: true
-        description: Reverse order default(true) if set to true, the results will
+      - description: Reverse order default is true if set to true, the results will
           be ordered in descending order
         in: query
         name: pagination.reverse
-        required: true
         type: boolean
       produces:
       - application/json
@@ -618,23 +568,18 @@ paths:
         in: query
         name: pagination.offset
         type: integer
-      - default: 100
-        description: Pagination limit
+      - description: Pagination limit, default is 100
         in: query
         name: pagination.limit
         type: integer
-      - default: true
-        description: Count total
+      - description: Count total, default is true
         in: query
         name: pagination.count_total
-        required: true
         type: boolean
-      - default: true
-        description: Reverse order default(true) if set to true, the results will
+      - description: Reverse order default is true if set to true, the results will
           be ordered in descending order
         in: query
         name: pagination.reverse
-        required: true
         type: boolean
       produces:
       - application/json
@@ -678,23 +623,18 @@ paths:
         in: query
         name: pagination.offset
         type: integer
-      - default: 100
-        description: Pagination limit
+      - description: Pagination limit, default is 100
         in: query
         name: pagination.limit
         type: integer
-      - default: true
-        description: Count total
+      - description: Count total, default is true
         in: query
         name: pagination.count_total
-        required: true
         type: boolean
-      - default: true
-        description: Reverse order default(true) if set to true, the results will
+      - description: Reverse order default is true if set to true, the results will
           be ordered in descending order
         in: query
         name: pagination.reverse
-        required: true
         type: boolean
       produces:
       - application/json
@@ -721,23 +661,18 @@ paths:
         in: query
         name: pagination.offset
         type: integer
-      - default: 100
-        description: Pagination limit
+      - description: Pagination limit, default is 100
         in: query
         name: pagination.limit
         type: integer
-      - default: true
-        description: Count total
+      - description: Count total, default is true
         in: query
         name: pagination.count_total
-        required: true
         type: boolean
-      - default: true
-        description: Reverse order default(true) if set to true, the results will
+      - description: Reverse order default is true if set to true, the results will
           be ordered in descending order
         in: query
         name: pagination.reverse
-        required: true
         type: boolean
       produces:
       - application/json
