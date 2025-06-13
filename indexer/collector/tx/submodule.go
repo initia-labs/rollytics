@@ -4,7 +4,6 @@ import (
 	"log/slog"
 	"sync"
 
-	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/initia-labs/rollytics/indexer/config"
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
@@ -19,18 +18,18 @@ var _ indexertypes.Submodule = &TxSubmodule{}
 type TxSubmodule struct {
 	logger   *slog.Logger
 	cfg      *config.Config
-	txConfig client.TxConfig
 	cdc      codec.Codec
+	amino    *codec.LegacyAmino
 	evmTxMap map[int64][]types.EvmTx
 	mtx      sync.Mutex
 }
 
-func New(logger *slog.Logger, cfg *config.Config, txConfig client.TxConfig, cdc codec.Codec) *TxSubmodule {
+func New(logger *slog.Logger, cfg *config.Config, cdc codec.Codec, amino *codec.LegacyAmino) *TxSubmodule {
 	return &TxSubmodule{
 		logger:   logger.With("submodule", SubmoduleName),
 		cfg:      cfg,
-		txConfig: txConfig,
 		cdc:      cdc,
+		amino:    amino,
 		evmTxMap: make(map[int64][]types.EvmTx),
 	}
 }

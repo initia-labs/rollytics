@@ -5,7 +5,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/initia-labs/rollytics/api/handler/common"
-	"github.com/initia-labs/rollytics/codec"
+	"github.com/initia-labs/rollytics/util"
 )
 
 func ParseCollectionsRequest(c *fiber.Ctx) (*CollectionsRequest, error) {
@@ -59,7 +59,7 @@ func ParseCollectionByAddressRequest(c *fiber.Ctx) (*CollectionByAddrRequest, er
 		return nil, fiber.NewError(fiber.StatusBadRequest, "collection_addr param is required")
 	}
 
-	collectionAddr, err := codec.HexAddressFromString(collectionAddr)
+	collectionAddr, err := util.HexAddressFromString(collectionAddr)
 	if err != nil {
 		return nil, fiber.NewError(fiber.StatusBadRequest, "invalid collection address : "+err.Error())
 	}
@@ -83,7 +83,7 @@ func ParseTokensByAccountRequest(c *fiber.Ctx) (*TokensByAccountRequest, error) 
 		return nil, fiber.NewError(fiber.StatusBadRequest, "account is required")
 	}
 
-	accAddr, err := codec.AccAddressFromString(account)
+	accAddr, err := util.AccAddressFromString(account)
 	if err != nil {
 		return nil, fiber.NewError(fiber.StatusBadRequest, "invalid account")
 	}
@@ -105,7 +105,7 @@ func ParseTokensByCollectionRequest(c *fiber.Ctx) (*TokensByCollectionRequest, e
 		return nil, fiber.NewError(fiber.StatusBadRequest, "collection_addr is required")
 	}
 
-	collectionAddr, err = codec.HexAddressFromString(collectionAddr)
+	collectionAddr, err = util.HexAddressFromString(collectionAddr)
 	if err != nil {
 		return nil, fiber.NewError(fiber.StatusBadRequest, "invalid collection address : "+err.Error())
 	}
@@ -127,7 +127,7 @@ func ParseNftTxsRequest(c *fiber.Ctx) (*NftTxsRequest, error) {
 		return nil, fiber.NewError(fiber.StatusBadRequest, "collection_addr is required")
 	}
 
-	collectionAddr, err = codec.HexAddressFromString(collectionAddr)
+	collectionAddr, err = util.HexAddressFromString(collectionAddr)
 	if err != nil {
 		return nil, fiber.NewError(fiber.StatusBadRequest, "invalid collection address : "+err.Error())
 	}

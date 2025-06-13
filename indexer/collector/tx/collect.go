@@ -10,13 +10,14 @@ import (
 
 	"github.com/cometbft/cometbft/crypto/tmhash"
 	cbjson "github.com/cometbft/cometbft/libs/json"
+	"github.com/cosmos/cosmos-sdk/codec/unknownproto"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
+	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
-	"github.com/initia-labs/rollytics/indexer/util"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
+	"github.com/initia-labs/rollytics/util"
 	"gorm.io/gorm"
 )
 
@@ -29,8 +30,6 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) (e
 	batchSize := sub.cfg.GetDBBatchSize()
 	chainId := block.ChainId
 	height := block.Height
-	txDecode := sub.txConfig.TxDecoder()
-	jsonEncoder := sub.txConfig.TxJSONEncoder()
 	seqInfo, err := getSeqInfo(chainId, "tx", tx)
 	if err != nil {
 		return err
@@ -45,36 +44,36 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) (e
 			return err
 		}
 
-		decoded, decodeErr := txDecode(txByte)
-		if decodeErr != nil {
-			return decodeErr
+		var raw sdktx.TxRaw
+		if err = unknownproto.RejectUnknownFieldsStrict(txByte, &raw, sub.cdc.InterfaceRegistry()); err != nil {
+			return err
 		}
 
-		p, ok := decoded.(intoAny)
-		if !ok {
-			return fmt.Errorf("expecting a type implementing intoAny, got :%+v", decoded)
-		}
-		asAny := p.AsAny()
-		cachedVal := asAny.GetCachedValue()
-		if cachedVal == nil {
-			return errors.New("cached transaction is nil")
+		if err = sub.cdc.Unmarshal(txByte, &raw); err != nil {
+			return err
 		}
 
-		protoTx, ok := cachedVal.(*txtypes.Tx)
-		if !ok {
-			return fmt.Errorf("failed to convert to proto transaction: unexpected type %+v", cachedVal)
+		var authInfo sdktx.AuthInfo
+		if err = unknownproto.RejectUnknownFieldsStrict(raw.AuthInfoBytes, &authInfo, sub.cdc.InterfaceRegistry()); err != nil {
+			return err
 		}
 
-		authInfo := protoTx.GetAuthInfo()
+		if err = sub.cdc.Unmarshal(raw.AuthInfoBytes, &authInfo); err != nil {
+			return err
+		}
+
 		pubkey := authInfo.SignerInfos[0].PublicKey
-
 		var pk cryptotypes.PubKey
 		if err = sub.cdc.UnpackAny(pubkey, &pk); err != nil {
 			return err
 		}
 		signer := sdk.AccAddress(pk.Address()).String()
 
-		txJSON, _ := jsonEncoder(decoded)
+		txJSON, err := sub.amino.MarshalJSON(raw)
+		if err != nil {
+			return err
+		}
+
 		res := block.TxResults[txIndex]
 		// handle response -> json
 

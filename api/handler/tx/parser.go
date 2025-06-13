@@ -5,7 +5,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/initia-labs/rollytics/api/handler/common"
-	"github.com/initia-labs/rollytics/codec"
+	"github.com/initia-labs/rollytics/util"
 )
 
 func ParseTxsRequest(c *fiber.Ctx) (*TxsRequest, error) {
@@ -50,7 +50,7 @@ func ParseTxsByAccountRequest(c *fiber.Ctx) (*TxsByAccountRequest, error) {
 		return nil, fiber.NewError(fiber.StatusBadRequest, "account param is required")
 	}
 
-	accAddr, err := codec.AccAddressFromString(account)
+	accAddr, err := util.AccAddressFromString(account)
 	if err != nil {
 		return nil, fiber.NewError(fiber.StatusBadRequest, "invalid account: "+err.Error())
 	}
@@ -112,7 +112,7 @@ func ParseEvmTxsByAccountRequest(c *fiber.Ctx) (*EvmTxsByAccountRequest, error) 
 		return nil, fiber.NewError(fiber.StatusBadRequest, "account param is required")
 	}
 
-	accAddr, err := codec.AccAddressFromString(account)
+	accAddr, err := util.AccAddressFromString(account)
 	if err != nil {
 		return nil, fiber.NewError(fiber.StatusBadRequest, "invalid account: "+err.Error())
 	}

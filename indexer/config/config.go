@@ -24,11 +24,12 @@ type Config struct {
 }
 
 type ChainConfig struct {
-	ChainId    string
-	VmType     types.VMType
-	RpcUrl     string
-	RestUrl    string
-	JsonRpcUrl string
+	ChainId              string
+	VmType               types.VMType
+	RpcUrl               string
+	RestUrl              string
+	JsonRpcUrl           string
+	AccountAddressPrefix string
 }
 
 func setDefaults() {
@@ -37,6 +38,7 @@ func setDefaults() {
 	viper.SetDefault("LISTEN_ADDR", ":2000")
 	viper.SetDefault("DB_AUTO_MIGRATE", true)
 	viper.SetDefault("DB_BATCH_SIZE", 100)
+	viper.SetDefault("ACCOUNT_ADDRESS_PREFIX", "init")
 }
 
 func GetConfig() (*Config, error) {
@@ -68,11 +70,12 @@ func GetConfig() (*Config, error) {
 	}
 
 	cc := &ChainConfig{
-		ChainId:    viper.GetString("CHAIN_ID"),
-		VmType:     vmType,
-		RpcUrl:     viper.GetString("RPC_URL"),
-		RestUrl:    viper.GetString("REST_URL"),
-		JsonRpcUrl: viper.GetString("JSON_RPC_URL"),
+		ChainId:              viper.GetString("CHAIN_ID"),
+		VmType:               vmType,
+		RpcUrl:               viper.GetString("RPC_URL"),
+		RestUrl:              viper.GetString("REST_URL"),
+		JsonRpcUrl:           viper.GetString("JSON_RPC_URL"),
+		AccountAddressPrefix: viper.GetString("ACCOUNT_ADDRESS_PREFIX"),
 	}
 
 	config := &Config{

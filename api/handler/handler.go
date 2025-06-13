@@ -9,13 +9,7 @@ import (
 	"github.com/initia-labs/rollytics/api/handler/common"
 	"github.com/initia-labs/rollytics/api/handler/nft"
 	"github.com/initia-labs/rollytics/api/handler/tx"
-	"github.com/initia-labs/rollytics/codec"
 	"github.com/initia-labs/rollytics/orm"
-)
-
-var (
-	txConfig = codec.TxConfig
-	cdc      = codec.Cdc
 )
 
 func Register(router fiber.Router, db *orm.Database, cfg *config.Config, logger *slog.Logger) {

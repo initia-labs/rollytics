@@ -2,33 +2,12 @@ package util
 
 import (
 	"encoding/base64"
-	"encoding/hex"
 	"fmt"
-	"strings"
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/crypto/tmhash"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/initia-labs/rollytics/indexer/types"
 )
-
-func AccAddressFromString(addrStr string) (sdk.AccAddress, error) {
-	if !strings.HasPrefix(addrStr, "0x") {
-		return sdk.AccAddressFromBech32(addrStr)
-	}
-
-	hexStr := strings.ToLower(strings.TrimLeft(strings.TrimPrefix(addrStr, "0x"), "0"))
-
-	if len(hexStr) <= 40 {
-		hexStr = strings.Repeat("0", 40-len(hexStr)) + hexStr
-	} else if len(hexStr) <= 64 {
-		hexStr = strings.Repeat("0", 64-len(hexStr)) + hexStr
-	} else {
-		return nil, fmt.Errorf("invalid address string: %s", addrStr)
-	}
-
-	return hex.DecodeString(hexStr)
-}
 
 func ExtractEvents(block types.ScrapedBlock, eventType string) (events []types.ParsedEvent, err error) {
 	events = parseEvents(block.PreBlock, "", eventType)

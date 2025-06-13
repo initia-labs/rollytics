@@ -9,9 +9,10 @@ import (
 	evmtypes "github.com/initia-labs/minievm/x/evm/types"
 	nft_pair "github.com/initia-labs/rollytics/indexer/collector/nft-pair"
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
-	"github.com/initia-labs/rollytics/indexer/util"
+	indexerutil "github.com/initia-labs/rollytics/indexer/util"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
+	"github.com/initia-labs/rollytics/util"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -32,7 +33,7 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB
 	burnMap := make(map[string]map[string]interface{})
 	updateCountMap := make(map[string]interface{})
 	nftTxMap := make(map[string]map[string]map[string]interface{})
-	events, err := util.ExtractEvents(block, "evm")
+	events, err := indexerutil.ExtractEvents(block, "evm")
 	if err != nil {
 		return err
 	}

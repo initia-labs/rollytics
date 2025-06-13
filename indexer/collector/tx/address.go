@@ -7,8 +7,8 @@ import (
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	evmtypes "github.com/initia-labs/minievm/x/evm/types"
-	"github.com/initia-labs/rollytics/indexer/util"
 	"github.com/initia-labs/rollytics/types"
+	"github.com/initia-labs/rollytics/util"
 	"gorm.io/gorm"
 )
 

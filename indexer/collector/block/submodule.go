@@ -3,7 +3,7 @@ package block
 import (
 	"log/slog"
 
-	"github.com/cosmos/cosmos-sdk/client"
+	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/initia-labs/rollytics/indexer/types"
 	"gorm.io/gorm"
 )
@@ -13,14 +13,14 @@ const SubmoduleName = "block"
 var _ types.Submodule = &BlockSubmodule{}
 
 type BlockSubmodule struct {
-	logger   *slog.Logger
-	txConfig client.TxConfig
+	logger *slog.Logger
+	cdc    codec.Codec
 }
 
-func New(logger *slog.Logger, txConfig client.TxConfig) *BlockSubmodule {
+func New(logger *slog.Logger, cdc codec.Codec) *BlockSubmodule {
 	return &BlockSubmodule{
-		logger:   logger.With("submodule", SubmoduleName),
-		txConfig: txConfig,
+		logger: logger.With("submodule", SubmoduleName),
+		cdc:    cdc,
 	}
 }
 

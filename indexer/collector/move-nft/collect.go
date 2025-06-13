@@ -7,9 +7,10 @@ import (
 
 	nft_pair "github.com/initia-labs/rollytics/indexer/collector/nft-pair"
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
-	"github.com/initia-labs/rollytics/indexer/util"
+	indexerutil "github.com/initia-labs/rollytics/indexer/util"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
+	"github.com/initia-labs/rollytics/util"
 	"gorm.io/gorm"
 )
 
@@ -30,7 +31,7 @@ func (sub *MoveNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 	mutMap := make(map[string]string)
 	burnMap := make(map[string]interface{})
 	updateCountMap := make(map[string]interface{})
-	events, err := util.ExtractEvents(block, "move")
+	events, err := indexerutil.ExtractEvents(block, "move")
 	if err != nil {
 		return err
 	}

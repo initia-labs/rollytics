@@ -21,7 +21,7 @@ func (sub *BlockSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB)
 		cb.BlockTime = block.Timestamp.Sub(prevBlock.Timestamp).Milliseconds()
 	}
 	cb.Proposer = block.Proposer
-	cb.TotalFee, err = getTotalFee(block.Txs, sub.txConfig)
+	cb.TotalFee, err = getTotalFee(block.Txs, sub.cdc)
 	if err != nil {
 		return err
 	}

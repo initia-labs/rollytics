@@ -12,14 +12,8 @@ import (
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
-	"github.com/initia-labs/rollytics/codec"
 	"golang.org/x/sync/errgroup"
 	"gorm.io/gorm"
-)
-
-var (
-    txConfig = codec.TxConfig
-    cdc      = codec.Cdc
 )
 
 type Collector struct {
@@ -29,8 +23,8 @@ type Collector struct {
 }
 
 func New(logger *slog.Logger, db *orm.Database, cfg *config.Config) *Collector {
-	blockSubmodule := block.New(logger, txConfig)
-	txSubmodule := tx.New(logger, cfg, txConfig, cdc)
+	blockSubmodule := block.New(logger, cdc)
+	txSubmodule := tx.New(logger, cfg, cdc, amino)
 	var nftSubmodule indexertypes.Submodule
 	switch cfg.GetVmType() {
 	case types.MoveVM:
