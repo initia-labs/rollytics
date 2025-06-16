@@ -22,6 +22,15 @@ import (
 )
 
 func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) (err error) {
+	sub.mtx.Lock()
+	cacheData, ok := sub.cache[block.Height]
+	delete(sub.cache, block.Height)
+	sub.mtx.Unlock()
+
+	if !ok {
+		return errors.New("data is not prepared")
+	}
+
 	// collect fa before collecting tx (only for move)
 	if err = collectFA(block, sub.cfg, tx); err != nil {
 		return err
@@ -35,6 +44,15 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) (e
 		return err
 	}
 
+	// create rest tx map
+	restTxMap := make(map[string]RestTx) // signatures -> rest tx
+	for _, restTx := range cacheData.RestTxs {
+		sigKey := strings.Join(restTx.Signatures, ",")
+		if sigKey != "" {
+			restTxMap[sigKey] = restTx
+		}
+	}
+
 	var ctxs []types.CollectedTx
 	var acctxs []types.CollectedAccountTx
 	accountMap := make(map[string]map[string]interface{}) // txHash -> accounts
@@ -43,6 +61,7 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) (e
 		if err != nil {
 			return err
 		}
+		txHash := fmt.Sprintf("%X", tmhash.Sum(txByte))
 
 		var raw sdktx.TxRaw
 		if err = unknownproto.RejectUnknownFieldsStrict(txByte, &raw, sub.cdc.InterfaceRegistry()); err != nil {
@@ -51,6 +70,17 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) (e
 
 		if err = sub.cdc.Unmarshal(txByte, &raw); err != nil {
 			return err
+		}
+
+		// get rest tx from map
+		var sigStrings []string
+		for _, sig := range raw.Signatures {
+			sigStrings = append(sigStrings, base64.StdEncoding.EncodeToString(sig))
+		}
+		sigKey := strings.Join(sigStrings, ",")
+		restTx, ok := restTxMap[sigKey]
+		if !ok {
+			return fmt.Errorf("no rest tx for txhash %s", txHash)
 		}
 
 		var authInfo sdktx.AuthInfo
@@ -69,7 +99,7 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) (e
 		}
 		signer := sdk.AccAddress(pk.Address()).String()
 
-		txJSON, err := sub.amino.MarshalJSON(raw)
+		txJSON, err := cbjson.Marshal(restTx)
 		if err != nil {
 			return err
 		}
@@ -82,7 +112,6 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) (e
 			return err
 		}
 
-		txHash := fmt.Sprintf("%X", tmhash.Sum(txByte))
 		parsedLogs, _ := sdk.ParseABCILogs(res.Log)
 		if parsedLogs == nil {
 			parsedLogs = []sdk.ABCIMessageLog{}
@@ -157,10 +186,10 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) (e
 		return res.Error
 	}
 
-	return sub.collectEvm(block, tx)
+	return sub.collectEvm(block, cacheData.EvmTxs, tx)
 }
 
-func (sub *TxSubmodule) collectEvm(block indexertypes.ScrapedBlock, tx *gorm.DB) (err error) {
+func (sub *TxSubmodule) collectEvm(block indexertypes.ScrapedBlock, evmTxs []types.EvmTx, tx *gorm.DB) (err error) {
 	if sub.cfg.GetVmType() != types.EVM {
 		return nil
 	}
@@ -169,13 +198,6 @@ func (sub *TxSubmodule) collectEvm(block indexertypes.ScrapedBlock, tx *gorm.DB)
 	seqInfo, err := getSeqInfo(block.ChainId, "evm_tx", tx)
 	if err != nil {
 		return err
-	}
-
-	sub.mtx.Lock()
-	evmTxs, ok := sub.evmTxMap[block.Height]
-	sub.mtx.Unlock()
-	if !ok {
-		return errors.New("data is not prepared")
 	}
 
 	var cetxs []types.CollectedEvmTx
@@ -242,10 +264,6 @@ func (sub *TxSubmodule) collectEvm(block indexertypes.ScrapedBlock, tx *gorm.DB)
 	if res := tx.Clauses(orm.UpdateAllWhenConflict).Create(&seqInfo); res.Error != nil {
 		return res.Error
 	}
-
-	sub.mtx.Lock()
-	delete(sub.evmTxMap, block.Height)
-	sub.mtx.Unlock()
 
 	return nil
 }

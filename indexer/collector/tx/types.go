@@ -1,16 +1,28 @@
 package tx
 
 import (
-	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
+	"encoding/json"
+
 	"github.com/initia-labs/rollytics/types"
 )
 
-type QueryEvmTxsResponse struct {
-	Result []types.EvmTx `json:"result"`
+type CacheData struct {
+	RestTxs []RestTx
+	EvmTxs  []types.EvmTx
 }
 
-type intoAny interface {
-	AsAny() *codectypes.Any
+type QueryRestTxsResponse struct {
+	Txs []RestTx `json:"txs"`
+}
+
+type RestTx struct {
+	Body       json.RawMessage `json:"body"`
+	AuthInfo   json.RawMessage `json:"auth_info"`
+	Signatures []string        `json:"signatures"`
+}
+
+type QueryEvmTxsResponse struct {
+	Result []types.EvmTx `json:"result"`
 }
 
 type PrimaryStoreCreatedEvent struct {

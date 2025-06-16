@@ -10,10 +10,7 @@ import (
 	"github.com/initia-labs/rollytics/indexer/config"
 )
 
-var (
-	cdc   codec.Codec
-	amino *codec.LegacyAmino
-)
+var cdc codec.Codec
 
 func init() {
 	encodingConfig := params.MakeEncodingConfig()
@@ -22,7 +19,6 @@ func init() {
 	cryptocodec.RegisterLegacyAminoCodec(encodingConfig.Amino)
 	cryptocodec.RegisterInterfaces(encodingConfig.InterfaceRegistry)
 	cdc = encodingConfig.Codec
-	amino = encodingConfig.Amino
 
 	cfg, err := config.GetConfig()
 	if err != nil {

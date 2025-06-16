@@ -24,7 +24,7 @@ type Collector struct {
 
 func New(logger *slog.Logger, db *orm.Database, cfg *config.Config) *Collector {
 	blockSubmodule := block.New(logger, cdc)
-	txSubmodule := tx.New(logger, cfg, cdc, amino)
+	txSubmodule := tx.New(logger, cfg, cdc)
 	var nftSubmodule indexertypes.Submodule
 	switch cfg.GetVmType() {
 	case types.MoveVM:
