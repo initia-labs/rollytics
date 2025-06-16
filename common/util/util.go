@@ -25,21 +25,3 @@ func AccAddressFromString(addrStr string) (sdk.AccAddress, error) {
 
 	return hex.DecodeString(hexStr)
 }
-
-func HexAddressFromString(collectionAddr string) (string, error) {
-	// if the address is not prefixed with "0x", convert it from bech32 to hex
-	if !strings.HasPrefix(collectionAddr, "0x") {
-		bech32PrefixAccAddr := sdk.GetConfig().GetBech32AccountAddrPrefix()
-		bz, err := sdk.GetFromBech32(collectionAddr, bech32PrefixAccAddr)
-		if err != nil {
-			return "", err
-		}
-		err = sdk.VerifyAddressFormat(bz)
-		if err != nil {
-			return "", err
-		}
-
-		collectionAddr = "0x" + hex.EncodeToString(bz)
-	}
-	return collectionAddr, nil
-}

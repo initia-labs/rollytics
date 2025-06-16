@@ -15,9 +15,9 @@ import (
 // @Produce json
 // @Param pagination.key query string false "Pagination key"
 // @Param pagination.offset query int false "Pagination offset"
-// @Param pagination.limit query int false "Pagination limit" default(100)
-// @Param pagination.count_total query bool true "Count total" default(true)
-// @Param pagination.reverse query bool true "Reverse order default(true) if set to true, the results will be ordered in descending order"
+// @Param pagination.limit query int false "Pagination limit, default is 100" default is 100
+// @Param pagination.count_total query bool false "Count total, default is true" default is true
+// @Param pagination.reverse query bool false "Reverse order default is true if set to true, the results will be ordered in descending order"
 // @Router /indexer/tx/v1/evm-txs [get]
 func (h *TxHandler) GetEvmTxs(c *fiber.Ctx) error {
 	req, err := ParseEvmTxsRequest(c)
@@ -59,9 +59,9 @@ func (h *TxHandler) GetEvmTxs(c *fiber.Ctx) error {
 // @Param account path string true "Account address"
 // @Param pagination.key query string false "Pagination key"
 // @Param pagination.offset query int false "Pagination offset"
-// @Param pagination.limit query int false "Pagination limit" default(100)
-// @Param pagination.count_total query bool true "Count total" default(true)
-// @Param pagination.reverse query bool true "Reverse order default(true) if set to true, the results will be ordered in descending order"
+// @Param pagination.limit query int false "Pagination limit, default is 100" default is 100
+// @Param pagination.count_total query bool false "Count total, default is true" default is true
+// @Param pagination.reverse query bool false "Reverse order default is true if set to true, the results will be ordered in descending order"
 // @Router /indexer/tx/v1/evm-txs/by_account/{account} [get]
 func (h *TxHandler) GetEvmTxsByAccount(c *fiber.Ctx) error {
 	req, err := ParseEvmTxsByAccountRequest(c)
@@ -113,46 +113,46 @@ func (h *TxHandler) GetEvmTxsByAccount(c *fiber.Ctx) error {
 // @Param height path int true "Block height"
 // @Param pagination.key query string false "Pagination key"
 // @Param pagination.offset query int false "Pagination offset"
-// @Param pagination.limit query int false "Pagination limit" default(100)
-// @Param pagination.count_total query bool true "Count total" default(true)
-// @Param pagination.reverse query bool true "Reverse order default(true) if set to true, the results will be ordered in descending order"
+// @Param pagination.limit query int false "Pagination limit, default is 100" default is 100
+// @Param pagination.count_total query bool false "Count total, default is true" default is true
+// @Param pagination.reverse query bool false "Reverse order default is true if set to true, the results will be ordered in descending order"
 // @Router /indexer/tx/v1/evm-txs/by_height/{height} [get]
 func (h *TxHandler) GetEvmTxsByHeight(c *fiber.Ctx) error {
-    req, err := ParseEvmTxsByHeightRequest(c)
-    if err != nil {
-        return fiber.NewError(fiber.StatusBadRequest, err.Error())
-    }
+	req, err := ParseEvmTxsByHeightRequest(c)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
 
-    query := h.buildBaseEvmTxQuery().
-        Where("height = ?", req.Height)
+	query := h.buildBaseEvmTxQuery().
+		Where("height = ?", req.Height)
 
-    countQuery := h.GetDatabase().Model(&dbtypes.CollectedEvmTx{}).
-        Where("chain_id = ? AND height = ?", h.GetChainConfig().ChainId, req.Height)
+	countQuery := h.GetDatabase().Model(&dbtypes.CollectedEvmTx{}).
+		Where("chain_id = ? AND height = ?", h.GetChainConfig().ChainId, req.Height)
 
-    txs, pageResp, err := common.NewPaginationBuilder[dbtypes.CollectedEvmTx](req.Pagination).
-        WithQuery(query).
-        WithCountQuery(countQuery).
-        WithKeys("sequence").
-        WithKeyExtractor(func(tx dbtypes.CollectedEvmTx) []any {
-            return []any{tx.Sequence}
-        }).
-        Execute()
+	txs, pageResp, err := common.NewPaginationBuilder[dbtypes.CollectedEvmTx](req.Pagination).
+		WithQuery(query).
+		WithCountQuery(countQuery).
+		WithKeys("sequence").
+		WithKeyExtractor(func(tx dbtypes.CollectedEvmTx) []any {
+			return []any{tx.Sequence}
+		}).
+		Execute()
 
-    if err != nil {
-        h.GetLogger().Error(ErrFailedToFetchEvmTx, "error", err)
-        return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchEvmTx)
-    }
+	if err != nil {
+		h.GetLogger().Error(ErrFailedToFetchEvmTx, "error", err)
+		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchEvmTx)
+	}
 
-    txsResp, err := BatchToResponseEvmTxs(txs)
-    if err != nil {
-        h.GetLogger().Error(ErrFailedToConvertEvmTx, "error", err)
-        return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToConvertEvmTx)
-    }
+	txsResp, err := BatchToResponseEvmTxs(txs)
+	if err != nil {
+		h.GetLogger().Error(ErrFailedToConvertEvmTx, "error", err)
+		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToConvertEvmTx)
+	}
 
-    return c.JSON(EvmTxsResponse{
-        Txs:        txsResp,
-        Pagination: pageResp,
-    })
+	return c.JSON(EvmTxsResponse{
+		Txs:        txsResp,
+		Pagination: pageResp,
+	})
 }
 
 // GetEvmTxsCount handles GET /tx/v1/evm-txs/count

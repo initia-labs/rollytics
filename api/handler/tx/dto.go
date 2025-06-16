@@ -47,7 +47,7 @@ type TxResponse struct {
 
 type TxsResponse struct {
 	Txs        []types.TxByHeightRecord `json:"txs" extensions:"x-order:0"`
-	Pagination *common.PageResponse      `json:"pagination" extensions:"x-order:1"`
+	Pagination *common.PageResponse     `json:"pagination" extensions:"x-order:1"`
 }
 
 type TxCountResponse struct {

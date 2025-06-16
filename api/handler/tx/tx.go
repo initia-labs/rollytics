@@ -15,9 +15,9 @@ import (
 // @Produce json
 // @Param pagination.key query string false "Pagination key"
 // @Param pagination.offset query int false "Pagination offset"
-// @Param pagination.limit query int false "Pagination limit" default(100)
-// @Param pagination.count_total query bool true "Count total" default(true)
-// @Param pagination.reverse query bool true "Reverse order default(true) if set to true, the results will be ordered in descending order"
+// @Param pagination.limit query int false "Pagination limit, default is 100" default is 100
+// @Param pagination.count_total query bool false "Count total, default is true" default is true
+// @Param pagination.reverse query bool false "Reverse order default is true if set to true, the results will be ordered in descending order"
 // @Router /indexer/tx/v1/txs [get]
 func (h *TxHandler) GetTxs(c *fiber.Ctx) error {
 	req, err := ParseTxsRequest(c)
@@ -59,9 +59,9 @@ func (h *TxHandler) GetTxs(c *fiber.Ctx) error {
 // @Param account path string true "Account address"
 // @Param pagination.key query string false "Pagination key"
 // @Param pagination.offset query int false "Pagination offset"
-// @Param pagination.limit query int false "Pagination limit" default(100)
-// @Param pagination.count_total query bool true "Count total" default(true)
-// @Param pagination.reverse query bool true "Reverse order default(true) if set to true, the results will be ordered in descending order"
+// @Param pagination.limit query int false "Pagination limit, default is 100" default is 100
+// @Param pagination.count_total query bool false "Count total, default is true" default is true
+// @Param pagination.reverse query bool false "Reverse order default is true if set to true, the results will be ordered in descending order"
 // @Router /indexer/tx/v1/txs/by_account/{account} [get]
 func (h *TxHandler) GetTxsByAccount(c *fiber.Ctx) error {
 	req, err := ParseTxsByAccountRequest(c)
@@ -115,9 +115,9 @@ func (h *TxHandler) GetTxsByAccount(c *fiber.Ctx) error {
 // @Param height path int true "Block height"
 // @Param pagination.key query string false "Pagination key"
 // @Param pagination.offset query int false "Pagination offset"
-// @Param pagination.limit query int false "Pagination limit" default(100)
-// @Param pagination.count_total query bool true "Count total" default(true)
-// @Param pagination.reverse query bool true "Reverse order default(true) if set to true, the results will be ordered in descending order"
+// @Param pagination.limit query int false "Pagination limit, default is 100" default is 100
+// @Param pagination.count_total query bool false "Count total, default is true" default is true
+// @Param pagination.reverse query bool false "Reverse order default is true if set to true, the results will be ordered in descending order"
 // @Router /indexer/tx/v1/txs/by_height/{height} [get]
 func (h *TxHandler) GetTxsByHeight(c *fiber.Ctx) error {
 	req, err := ParseTxsRequestByHeight(c)
