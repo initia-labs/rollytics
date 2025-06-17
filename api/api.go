@@ -1,4 +1,4 @@
-package cmd
+package api
 
 import (
 	"log/slog"
@@ -6,42 +6,11 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/swagger"
-	"github.com/initia-labs/rollytics/api/config"
 	"github.com/initia-labs/rollytics/api/docs"
 	"github.com/initia-labs/rollytics/api/handler"
+	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/orm"
-	"github.com/rs/zerolog"
-	slogzerolog "github.com/samber/slog-zerolog"
-	"github.com/spf13/cobra"
 )
-
-const (
-	BLOCK_HEIGHT_KEY = "block_height"
-)
-
-func ApiCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use: "api",
-		Run: func(cmd *cobra.Command, args []string) {
-			cfg, cfgErr := config.GetConfig()
-			if cfgErr != nil {
-				panic(cfgErr)
-			}
-
-			zerologLogger := zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr})
-			logger := slog.New(slogzerolog.Option{Level: cfg.GetLogLevel(), Logger: &zerologLogger}.NewZerologHandler())
-
-			api, err := newApi(cfg, logger)
-			if err != nil {
-				panic(err)
-			}
-
-			api.StartServer()
-		},
-	}
-
-	return cmd
-}
 
 type Api struct {
 	cfg    *config.Config
@@ -49,13 +18,9 @@ type Api struct {
 	db     *orm.Database
 }
 
-func newApi(cfg *config.Config, logger *slog.Logger) (*Api, error) {
+func New(cfg *config.Config, logger *slog.Logger) (*Api, error) {
 	db, err := orm.OpenDB(cfg.GetDBConfig(), logger)
 	if err != nil {
-		return nil, err
-	}
-
-	if err := db.Migrate(); err != nil {
 		return nil, err
 	}
 
@@ -82,7 +47,7 @@ func newApi(cfg *config.Config, logger *slog.Logger) (*Api, error) {
 
 // @tag.name Nft
 // @tag.description.markdown NFT token related operations
-func (a *Api) StartServer() {
+func (a *Api) Start() {
 	app := fiber.New(fiber.Config{
 		AppName:               "Rollytics API",
 		DisableStartupMessage: true,

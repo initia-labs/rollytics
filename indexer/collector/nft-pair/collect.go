@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 
 	ibcnfttypes "github.com/initia-labs/initia/x/ibc/nft-transfer/types"
-	"github.com/initia-labs/rollytics/indexer/config"
+	"github.com/initia-labs/rollytics/config"
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
 	"github.com/initia-labs/rollytics/indexer/util"
 	"github.com/initia-labs/rollytics/types"

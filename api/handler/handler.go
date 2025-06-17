@@ -4,11 +4,11 @@ import (
 	"log/slog"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/initia-labs/rollytics/api/config"
 	"github.com/initia-labs/rollytics/api/handler/block"
 	"github.com/initia-labs/rollytics/api/handler/common"
 	"github.com/initia-labs/rollytics/api/handler/nft"
 	"github.com/initia-labs/rollytics/api/handler/tx"
+	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/orm"
 )
 

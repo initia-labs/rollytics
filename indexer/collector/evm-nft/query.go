@@ -9,7 +9,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/initia-labs/minievm/x/evm/contracts/erc721"
-	"github.com/initia-labs/rollytics/indexer/config"
+	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/indexer/util"
 )
 

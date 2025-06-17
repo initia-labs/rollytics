@@ -1,47 +1,19 @@
-package cmd
+package indexer
 
 import (
 	"errors"
 	"log/slog"
-	"os"
 	"sync"
 	"time"
 
+	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/indexer/collector"
-	"github.com/initia-labs/rollytics/indexer/config"
 	"github.com/initia-labs/rollytics/indexer/scraper"
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
-	"github.com/rs/zerolog"
-	slogzerolog "github.com/samber/slog-zerolog"
-	"github.com/spf13/cobra"
 	"gorm.io/gorm"
 )
-
-func IndexerCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use: "indexer",
-		Run: func(cmd *cobra.Command, args []string) {
-			cfg, cfgErr := config.GetConfig()
-			if cfgErr != nil {
-				panic(cfgErr)
-			}
-
-			zerologLogger := zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr})
-			logger := slog.New(slogzerolog.Option{Level: cfg.GetLogLevel(), Logger: &zerologLogger}.NewZerologHandler())
-
-			indexer, err := newIndexer(cfg, logger)
-			if err != nil {
-				panic(err)
-			}
-
-			indexer.Run()
-		},
-	}
-
-	return cmd
-}
 
 type Indexer struct {
 	height      int64
@@ -57,7 +29,7 @@ type Indexer struct {
 	mtx         sync.Mutex
 }
 
-func newIndexer(cfg *config.Config, logger *slog.Logger) (*Indexer, error) {
+func New(cfg *config.Config, logger *slog.Logger) (*Indexer, error) {
 	db, err := orm.OpenDB(cfg.GetDBConfig(), logger)
 	if err != nil {
 		return nil, err

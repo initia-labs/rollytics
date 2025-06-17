@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/initia-labs/rollytics/indexer/config"
+	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/indexer/util"
 	"golang.org/x/sync/errgroup"
 )

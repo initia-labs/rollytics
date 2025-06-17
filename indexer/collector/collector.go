@@ -3,12 +3,12 @@ package collector
 import (
 	"log/slog"
 
+	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/indexer/collector/block"
 	evm_nft "github.com/initia-labs/rollytics/indexer/collector/evm-nft"
 	move_nft "github.com/initia-labs/rollytics/indexer/collector/move-nft"
 	"github.com/initia-labs/rollytics/indexer/collector/tx"
 	wasm_nft "github.com/initia-labs/rollytics/indexer/collector/wasm-nft"
-	"github.com/initia-labs/rollytics/indexer/config"
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"

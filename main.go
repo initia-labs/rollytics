@@ -1,6 +1,6 @@
 package main
 
-import "github.com/initia-labs/rollytics/api/cmd"
+import "github.com/initia-labs/rollytics/cmd"
 
 func main() {
 	rootCmd := cmd.NewRootCmd()

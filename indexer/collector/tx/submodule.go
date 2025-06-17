@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"github.com/cosmos/cosmos-sdk/codec"
-	"github.com/initia-labs/rollytics/indexer/config"
+	"github.com/initia-labs/rollytics/config"
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
 	"gorm.io/gorm"
 )

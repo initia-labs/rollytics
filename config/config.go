@@ -3,7 +3,6 @@ package config
 import (
 	"fmt"
 	"log/slog"
-	"net/url"
 	"os"
 	"time"
 
@@ -13,32 +12,19 @@ import (
 	"github.com/spf13/viper"
 )
 
-// indexer global config
 type Config struct {
 	listenAddr      string
-	coolingDuration time.Duration
 	dbConfig        *dbconfig.Config
 	chainConfig     *ChainConfig
-	enableProfile   bool
 	logLevel        string
-}
-
-type ChainConfig struct {
-	ChainId              string
-	VmType               types.VMType
-	RpcUrl               string
-	RestUrl              string
-	JsonRpcUrl           string
-	AccountAddressPrefix string
+	coolingDuration time.Duration // for indexer only
 }
 
 func setDefaults() {
-	viper.SetDefault("COOLING_DURATION", 100*time.Millisecond)
-	viper.SetDefault("ENABLE_PROFILE", false)
-	viper.SetDefault("LISTEN_ADDR", ":2000")
-	viper.SetDefault("DB_AUTO_MIGRATE", true)
+	viper.SetDefault("DB_AUTO_MIGRATE", false)
 	viper.SetDefault("DB_BATCH_SIZE", 100)
 	viper.SetDefault("ACCOUNT_ADDRESS_PREFIX", "init")
+	viper.SetDefault("COOLING_DURATION", 100*time.Millisecond)
 }
 
 func GetConfig() (*Config, error) {
@@ -80,11 +66,10 @@ func GetConfig() (*Config, error) {
 
 	config := &Config{
 		listenAddr:      viper.GetString("LISTEN_ADDR"),
-		coolingDuration: viper.GetDuration("COOLING_DURATION"),
 		dbConfig:        dc,
 		chainConfig:     cc,
-		enableProfile:   viper.GetBool("ENABLE_PROFILE"),
 		logLevel:        viper.GetString("LOG_LEVEL"),
+		coolingDuration: viper.GetDuration("COOLING_DURATION"),
 	}
 
 	if err := config.Validate(); err != nil {
@@ -96,10 +81,6 @@ func GetConfig() (*Config, error) {
 
 func (c Config) GetListenAddr() string {
 	return c.listenAddr
-}
-
-func (c Config) GetCoolingDuration() time.Duration {
-	return c.coolingDuration
 }
 
 func (c Config) GetDBConfig() *dbconfig.Config {
@@ -118,10 +99,6 @@ func (c Config) GetVmType() types.VMType {
 	return c.chainConfig.VmType
 }
 
-func (c Config) IsProfileEnabled() bool {
-	return c.enableProfile
-}
-
 func (c Config) GetLogLevel() slog.Level {
 	switch c.logLevel {
 	case "debug":
@@ -137,46 +114,19 @@ func (c Config) GetLogLevel() slog.Level {
 	}
 }
 
+func (c Config) GetCoolingDuration() time.Duration {
+	return c.coolingDuration
+}
+
 func (c Config) Validate() error {
 	if len(c.listenAddr) == 0 {
-		return fmt.Errorf("LISTEN_ADDR is required")
+		return fmt.Errorf("PORT is required")
 	}
-	if c.coolingDuration == 0 {
-		return fmt.Errorf("COOLING_DURATION is required")
-	}
-	// no need to validate ELABLE_PROFILE
 	if err := c.dbConfig.Validate(); err != nil {
 		return err
 	}
 	if err := c.chainConfig.Validate(); err != nil {
 		return err
-	}
-	return nil
-}
-
-func (cc ChainConfig) Validate() error {
-	if len(cc.ChainId) == 0 {
-		return fmt.Errorf("CHAIN_ID is required")
-	}
-	if len(cc.RpcUrl) == 0 {
-		return fmt.Errorf("RPC_URL is required")
-	}
-	if _, err := url.Parse(cc.RpcUrl); err != nil {
-		return fmt.Errorf("RPC_URL(%s) is invalid: %s", cc.RpcUrl, err)
-	}
-	if len(cc.RestUrl) == 0 {
-		return fmt.Errorf("REST_URL is required")
-	}
-	if _, err := url.Parse(cc.RestUrl); err != nil {
-		return fmt.Errorf("REST_URL(%s) is invalid: %s", cc.RestUrl, err)
-	}
-	if cc.VmType == types.EVM {
-		if len(cc.JsonRpcUrl) == 0 {
-			return fmt.Errorf("JSON_RPC_URL is required")
-		}
-		if _, err := url.Parse(cc.JsonRpcUrl); err != nil {
-			return fmt.Errorf("JSON_RPC_URL(%s) is invalid: %s", cc.JsonRpcUrl, err)
-		}
 	}
 	return nil
 }
