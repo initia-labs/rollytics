@@ -220,3 +220,7 @@ func (h *TxHandler) buildBaseEvmTxQuery() *gorm.DB {
 	return h.GetDatabase().Model(&dbtypes.CollectedEvmTx{}).
 		Where("chain_id = ?", h.GetChainConfig().ChainId)
 }
+
+func (h *TxHandler) NotFound(c *fiber.Ctx) error {
+	return c.Status(fiber.StatusNotFound).SendString("evm routes are not available on this chain")
+}

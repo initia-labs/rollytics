@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"log/slog"
 
 	"github.com/gofiber/fiber/v2"
@@ -62,8 +63,8 @@ func (a *Api) Start() error {
 	app.Get("/swagger/*", swagger.New(swaggerConfig))
 
 	listenAddr := a.cfg.GetListenAddr()
-	docs.SwaggerInfo.Host = listenAddr
-	a.logger.Info("starting API server", slog.String("addr", listenAddr))
+	docs.SwaggerInfo.Host = fmt.Sprintf("localhost%s", listenAddr)
+	a.logger.Info("starting API server", slog.String("addr", fmt.Sprintf("http://localhost%s", listenAddr)))
 
 	return app.Listen(listenAddr)
 }

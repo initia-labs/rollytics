@@ -33,6 +33,6 @@ func (h *TxHandler) Register(router fiber.Router) {
 		evmTxs.Get("/count", h.GetEvmTxsCount)
 		evmTxs.Get("/:tx_hash", h.GetEvmTxByHash)
 	} else {
-		evmTxs.All("/*")
+		evmTxs.All("/*", h.NotFound)
 	}
 }
