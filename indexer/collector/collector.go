@@ -22,7 +22,7 @@ type Collector struct {
 	submodules []indexertypes.Submodule
 }
 
-func New(logger *slog.Logger, db *orm.Database, cfg *config.Config) *Collector {
+func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Collector {
 	blockSubmodule := block.New(logger, cdc)
 	txSubmodule := tx.New(logger, cfg, cdc)
 	var nftSubmodule indexertypes.Submodule

@@ -4,25 +4,31 @@ import (
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/indexer"
 	"github.com/initia-labs/rollytics/log"
+	"github.com/initia-labs/rollytics/orm"
 	"github.com/spf13/cobra"
 )
 
 func indexerCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use: "indexer",
-		Run: func(cmd *cobra.Command, args []string) {
-			cfg, cfgErr := config.GetConfig()
-			if cfgErr != nil {
-				panic(cfgErr)
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, err := config.GetConfig()
+			if err != nil {
+				return err
 			}
 
 			logger := log.NewLogger(cfg)
-			idxer, err := indexer.New(cfg, logger)
+			db, err := orm.OpenDB(cfg.GetDBConfig(), logger)
 			if err != nil {
-				panic(err)
+				return err
 			}
 
-			idxer.Run()
+			if err := db.Migrate(); err != nil {
+				return err
+			}
+
+			idxer := indexer.New(cfg, logger, db)
+			return idxer.Run()
 		},
 	}
 

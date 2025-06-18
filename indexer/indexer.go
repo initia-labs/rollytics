@@ -16,7 +16,6 @@ import (
 )
 
 type Indexer struct {
-	height      int64
 	cfg         *config.Config
 	logger      *slog.Logger
 	db          *orm.Database
@@ -27,42 +26,36 @@ type Indexer struct {
 	controlChan chan string
 	paused      bool
 	mtx         sync.Mutex
+	height      int64
 }
 
-func New(cfg *config.Config, logger *slog.Logger) (*Indexer, error) {
-	db, err := orm.OpenDB(cfg.GetDBConfig(), logger)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := db.Migrate(); err != nil {
-		return nil, err
-	}
-
-	var lastBlock types.CollectedBlock
-	res := db.Where("chain_id = ?", cfg.GetChainConfig().ChainId).Order("height desc").Limit(1).Take(&lastBlock)
-	if res.Error != nil && !errors.Is(res.Error, gorm.ErrRecordNotFound) {
-		logger.Error("failed to get the last block from db", slog.Any("error", res.Error))
-		return nil, errors.New("failed to get the last block from db")
-	}
-
+func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Indexer {
 	return &Indexer{
-		height:      lastBlock.Height + 1,
 		cfg:         cfg,
 		logger:      logger,
 		db:          db,
 		scraper:     scraper.New(cfg, logger),
-		collector:   collector.New(logger, db, cfg),
+		collector:   collector.New(cfg, logger, db),
 		blockMap:    make(map[int64]indexertypes.ScrapedBlock),
 		blockChan:   make(chan indexertypes.ScrapedBlock),
 		controlChan: make(chan string),
-	}, nil
+	}
 }
 
-func (i *Indexer) Run() {
+func (i *Indexer) Run() error {
+	var lastBlock types.CollectedBlock
+	res := i.db.Where("chain_id = ?", i.cfg.GetChainConfig().ChainId).Order("height desc").Limit(1).Take(&lastBlock)
+	if res.Error != nil && !errors.Is(res.Error, gorm.ErrRecordNotFound) {
+		i.logger.Error("failed to get the last block from db", slog.Any("error", res.Error))
+		return errors.New("failed to get the last block from db")
+	}
+	i.height = lastBlock.Height + 1
+
 	go i.scrape()
 	go i.prepare()
 	i.collect()
+
+	return nil
 }
 
 func (i *Indexer) scrape() {

@@ -2,7 +2,6 @@ package api
 
 import (
 	"log/slog"
-	"os"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/swagger"
@@ -18,17 +17,12 @@ type Api struct {
 	db     *orm.Database
 }
 
-func New(cfg *config.Config, logger *slog.Logger) (*Api, error) {
-	db, err := orm.OpenDB(cfg.GetDBConfig(), logger)
-	if err != nil {
-		return nil, err
-	}
-
+func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Api {
 	return &Api{
 		cfg:    cfg,
 		logger: logger,
 		db:     db,
-	}, nil
+	}
 }
 
 // @title Rollytics API
@@ -47,7 +41,7 @@ func New(cfg *config.Config, logger *slog.Logger) (*Api, error) {
 
 // @tag.name Nft
 // @tag.description.markdown NFT token related operations
-func (a *Api) Start() {
+func (a *Api) Start() error {
 	app := fiber.New(fiber.Config{
 		AppName:               "Rollytics API",
 		DisableStartupMessage: true,
@@ -71,8 +65,5 @@ func (a *Api) Start() {
 	docs.SwaggerInfo.Host = listenAddr
 	a.logger.Info("starting API server", slog.String("addr", listenAddr))
 
-	if err := app.Listen(listenAddr); err != nil {
-		a.logger.Error("server error", slog.Any("error", err))
-		os.Exit(1)
-	}
+	return app.Listen(listenAddr)
 }
