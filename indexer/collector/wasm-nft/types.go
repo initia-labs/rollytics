@@ -15,8 +15,8 @@ type QueryContractInfoResponse struct {
 	} `json:"data"`
 }
 
-type QueryCollectionInfoResponse struct {
+type QueryMinterResponse struct {
 	Data struct {
-		Creator string `json:"creator"`
+		Minter string `json:"minter"`
 	} `json:"data"`
 }

@@ -12,8 +12,8 @@ import (
 )
 
 var (
-	qreqContractInfo   = []byte("{\"contract_info\":{}}")
-	qreqCollectionInfo = []byte("{\"collection_info\":{}}")
+	qreqContractInfo = []byte("{\"contract_info\":{}}")
+	qreqMinter       = []byte("{\"minter\":{}}")
 )
 
 func getCollectionInfo(collectionAddr string, client *fiber.Client, cfg *config.Config, height int64) (info CollectionInfo, err error) {
@@ -70,18 +70,18 @@ func getCollectionName(collectionAddr string, client *fiber.Client, cfg *config.
 }
 
 func getCollectionCreator(collectionAddr string, client *fiber.Client, cfg *config.Config, height int64) (creator string, err error) {
-	queryData := base64.StdEncoding.EncodeToString(qreqCollectionInfo)
+	queryData := base64.StdEncoding.EncodeToString(qreqMinter)
 	body, err := querySmart(collectionAddr, queryData, client, cfg, height)
 	if err != nil {
 		return creator, err
 	}
 
-	var response QueryCollectionInfoResponse
+	var response QueryMinterResponse
 	if err := json.Unmarshal(body, &response); err != nil {
 		return creator, err
 	}
 
-	return response.Data.Creator, nil
+	return response.Data.Minter, nil
 }
 
 func querySmart(contractAddr, queryData string, client *fiber.Client, cfg *config.Config, height int64) (response []byte, err error) {

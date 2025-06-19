@@ -21,7 +21,7 @@ func Collect(block indexertypes.ScrapedBlock, cfg *config.Config, tx *gorm.DB) (
 
 	for _, event := range events {
 		packetSrcPort, found := event.AttrMap["packet_src_port"]
-		if !found || packetSrcPort != "nft_transfer" {
+		if !found || packetSrcPort != "nft-transfer" {
 			continue
 		}
 		packetDstPort, found := event.AttrMap["packet_dst_port"]
