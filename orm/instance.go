@@ -41,7 +41,6 @@ func OpenDB(config *config.Config, logger *slog.Logger) (*Database, error) {
 		return nil, err
 	}
 
-	//db = db.WithContext((logger.WithContext(context.Background())))
 	sqlDB, err := instance.DB()
 	if err != nil {
 		return nil, err
@@ -57,7 +56,7 @@ func (d Database) Migrate() error {
 		return nil
 	}
 
-	return d.AutoMigrate(
+	if err := d.AutoMigrate(
 		&types.CollectedSeqInfo{},
 		&types.CollectedBlock{},
 		&types.CollectedTx{},
@@ -68,7 +67,11 @@ func (d Database) Migrate() error {
 		&types.CollectedNft{},
 		&types.CollectedNftTx{},
 		&types.CollectedFAStore{},
-	)
+	); err != nil {
+		return err
+	}
+
+	return d.Exec(`CREATE INDEX IF NOT EXISTS tx_msg_types ON tx USING GIN ("msg_types")`).Error
 }
 
 func (d Database) Close() error {

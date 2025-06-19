@@ -3,6 +3,8 @@ package types
 import (
 	"encoding/json"
 	"time"
+
+	"github.com/lib/pq"
 )
 
 type Table struct {
@@ -36,6 +38,7 @@ type CollectedTx struct {
 	Sequence uint64          `gorm:"type:bigint;index:tx_sequence"`
 	Signer   string          `gorm:"type:text"`
 	Data     json.RawMessage `gorm:"type:jsonb"`
+	MsgTypes pq.StringArray  `gorm:"type:text[]"` // apply GIN index at DB initialization
 }
 
 type CollectedAccountTx struct {

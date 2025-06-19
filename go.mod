@@ -10,6 +10,7 @@ require (
 	github.com/initia-labs/initia v1.1.2
 	github.com/initia-labs/minievm v1.1.4
 	github.com/joho/godotenv v1.5.1
+	github.com/lib/pq v1.10.9
 	github.com/orandin/slog-gorm v1.4.0
 	github.com/rs/zerolog v1.33.0
 	github.com/samber/slog-zerolog v1.0.0

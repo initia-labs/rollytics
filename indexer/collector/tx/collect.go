@@ -83,6 +83,12 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) (e
 			return fmt.Errorf("no rest tx for txhash %s", txHash)
 		}
 
+		// grep msg types from rest tx
+		msgTypes, err := grepMsgTypesFromRestTx(restTx)
+		if err != nil {
+			return err
+		}
+
 		var authInfo sdktx.AuthInfo
 		if err = unknownproto.RejectUnknownFieldsStrict(raw.AuthInfoBytes, &authInfo, sub.cdc.InterfaceRegistry()); err != nil {
 			return err
@@ -144,6 +150,7 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) (e
 			Sequence: seqInfo.Sequence,
 			Signer:   signer,
 			Data:     json.RawMessage(txByHeightRecordJSON),
+			MsgTypes: msgTypes,
 		})
 
 		// grep addresses for account tx

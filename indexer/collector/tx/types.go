@@ -21,6 +21,12 @@ type RestTx struct {
 	Signatures []string        `json:"signatures"`
 }
 
+type RestTxBody struct {
+	Messages []struct {
+		Type string `json:"@type"`
+	} `json:"messages"`
+}
+
 type QueryEvmTxsResponse struct {
 	Result []types.EvmTx `json:"result"`
 }
