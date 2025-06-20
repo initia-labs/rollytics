@@ -43,7 +43,7 @@ Dockerfile
 tmp/
 temp/
 
-./rollytics
+rollytics
 
 .cursor/
 .claude/
