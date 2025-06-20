@@ -5,9 +5,10 @@ import (
 	"sync"
 
 	"github.com/gofiber/fiber/v2"
+	"golang.org/x/sync/errgroup"
+
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
 	"github.com/initia-labs/rollytics/indexer/util"
-	"golang.org/x/sync/errgroup"
 )
 
 const nftStructTag = "0x1::nft::Nft"
@@ -94,5 +95,5 @@ func filterMoveData(block indexertypes.ScrapedBlock) (nftAddrs []string, err err
 		nftAddrs = append(nftAddrs, addr)
 	}
 
-	return
+	return nftAddrs, err
 }

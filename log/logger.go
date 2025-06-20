@@ -4,9 +4,10 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/initia-labs/rollytics/config"
 	"github.com/rs/zerolog"
 	slogzerolog "github.com/samber/slog-zerolog"
+
+	"github.com/initia-labs/rollytics/config"
 )
 
 func NewLogger(cfg *config.Config) *slog.Logger {

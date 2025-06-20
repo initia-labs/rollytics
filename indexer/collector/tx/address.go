@@ -7,9 +7,10 @@ import (
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	evmtypes "github.com/initia-labs/minievm/x/evm/types"
+	"gorm.io/gorm"
+
 	"github.com/initia-labs/rollytics/types"
 	"github.com/initia-labs/rollytics/util"
-	"gorm.io/gorm"
 )
 
 const (
@@ -88,7 +89,7 @@ func grepAddressesFromTx(chainId string, events []abci.Event, tx *gorm.DB) (grep
 	}
 
 	if len(storeAddrMap) == 0 {
-		return
+		return grepped, err
 	}
 
 	var owners []string
@@ -122,7 +123,7 @@ func grepAddressesFromTx(chainId string, events []abci.Event, tx *gorm.DB) (grep
 		grepped = append(grepped, accAddr.String())
 	}
 
-	return
+	return grepped, err
 }
 
 func grepAddressesFromEvmTx(evmTx types.EvmTx) (grepped []string, err error) {

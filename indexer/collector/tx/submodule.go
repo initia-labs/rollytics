@@ -5,9 +5,10 @@ import (
 	"sync"
 
 	"github.com/cosmos/cosmos-sdk/codec"
+	"gorm.io/gorm"
+
 	"github.com/initia-labs/rollytics/config"
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
-	"gorm.io/gorm"
 )
 
 const SubmoduleName = "tx"

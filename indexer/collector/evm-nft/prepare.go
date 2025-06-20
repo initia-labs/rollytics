@@ -8,9 +8,10 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	evmtypes "github.com/initia-labs/minievm/x/evm/types"
+	"golang.org/x/sync/errgroup"
+
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
 	"github.com/initia-labs/rollytics/indexer/util"
-	"golang.org/x/sync/errgroup"
 )
 
 func (sub *EvmNftSubmodule) prepare(block indexertypes.ScrapedBlock) (err error) {
@@ -136,5 +137,5 @@ func filterEvmData(block indexertypes.ScrapedBlock) (targetMap map[string]map[st
 		}
 	}
 
-	return
+	return targetMap, err
 }

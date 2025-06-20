@@ -1,11 +1,12 @@
-package main
+package cmd
 
 import (
+	"github.com/spf13/cobra"
+
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/indexer"
 	"github.com/initia-labs/rollytics/log"
 	"github.com/initia-labs/rollytics/orm"
-	"github.com/spf13/cobra"
 )
 
 func indexerCmd() *cobra.Command {

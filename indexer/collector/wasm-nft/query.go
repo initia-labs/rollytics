@@ -6,9 +6,10 @@ import (
 	"fmt"
 
 	"github.com/gofiber/fiber/v2"
+	"golang.org/x/sync/errgroup"
+
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/indexer/util"
-	"golang.org/x/sync/errgroup"
 )
 
 var (

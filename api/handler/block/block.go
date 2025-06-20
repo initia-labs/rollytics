@@ -1,10 +1,13 @@
 package block
 
 import (
+	"errors"
+
 	"github.com/gofiber/fiber/v2"
+	"gorm.io/gorm"
+
 	"github.com/initia-labs/rollytics/api/handler/common"
 	dbtypes "github.com/initia-labs/rollytics/types"
-	"gorm.io/gorm"
 )
 
 // GetBlocks handles GET /block/v1/blocks
@@ -66,7 +69,7 @@ func (h *BlockHandler) GetBlockByHeight(c *fiber.Ctx) error {
 
 	var block dbtypes.CollectedBlock
 	if err := h.buildBaseBlockQuery().Where("height = ?", req.Height).First(&block).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return fiber.NewError(fiber.StatusNotFound, "Block not found")
 		}
 		h.GetLogger().Error(ErrFailedToFetchBlock, "error", err)

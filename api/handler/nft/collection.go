@@ -1,10 +1,13 @@
 package nft
 
 import (
+	"errors"
+
 	"github.com/gofiber/fiber/v2"
+	"gorm.io/gorm"
+
 	"github.com/initia-labs/rollytics/api/handler/common"
 	dbtypes "github.com/initia-labs/rollytics/types"
-	"gorm.io/gorm"
 )
 
 // GetCollections handles GET /nft/v1/collections
@@ -159,7 +162,7 @@ func (h *NftHandler) GetCollectionByCollection(c *fiber.Ctx) error {
 	if err := h.buildBaseCollectionQuery().
 		Where("addr = ?", req.CollectionAddr).
 		First(&collection).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return fiber.NewError(fiber.StatusNotFound, "NFT collection not found")
 		}
 		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchCollections)

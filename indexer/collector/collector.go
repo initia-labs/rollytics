@@ -3,6 +3,9 @@ package collector
 import (
 	"log/slog"
 
+	"golang.org/x/sync/errgroup"
+	"gorm.io/gorm"
+
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/indexer/collector/block"
 	evm_nft "github.com/initia-labs/rollytics/indexer/collector/evm-nft"
@@ -12,8 +15,6 @@ import (
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
-	"golang.org/x/sync/errgroup"
-	"gorm.io/gorm"
 )
 
 type Collector struct {

@@ -6,6 +6,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/swagger"
+
 	"github.com/initia-labs/rollytics/api/docs"
 	"github.com/initia-labs/rollytics/api/handler"
 	"github.com/initia-labs/rollytics/config"

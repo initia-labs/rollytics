@@ -1,11 +1,14 @@
 package nft
 
 import (
+	"errors"
+
 	"github.com/gofiber/fiber/v2"
+	"gorm.io/gorm"
+
 	"github.com/initia-labs/rollytics/api/handler/common"
 	"github.com/initia-labs/rollytics/api/handler/tx"
 	"github.com/initia-labs/rollytics/types"
-	"gorm.io/gorm"
 )
 
 // GetNftTxs handles GET "/txs/:collection_addr/:token_id"
@@ -40,7 +43,7 @@ func (h *NftHandler) GetNftTxs(c *fiber.Ctx) error {
 		if err := h.GetDatabase().Model(&types.CollectedNft{}).
 			Where("chain_id = ? AND collection_addr = ? AND token_id = ?", chainId, req.CollectionAddr, req.TokenId).
 			First(&nft).Error; err != nil {
-			if err == gorm.ErrRecordNotFound {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return fiber.NewError(fiber.StatusNotFound, ErrFailedToFetchNft)
 			}
 			return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchNft)

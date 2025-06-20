@@ -6,9 +6,10 @@ import (
 	"sync"
 
 	"github.com/gofiber/fiber/v2"
+	"golang.org/x/sync/errgroup"
+
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
 	"github.com/initia-labs/rollytics/indexer/util"
-	"golang.org/x/sync/errgroup"
 )
 
 func (sub *WasmNftSubmodule) prepare(block indexertypes.ScrapedBlock) (err error) {

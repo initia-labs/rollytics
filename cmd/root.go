@@ -1,8 +1,7 @@
-package main
+package cmd
 
 import (
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 var (
@@ -37,16 +36,12 @@ func NewRootCmd() *cobra.Command {
 		rollytics is a Minitia analytics and indexing tool that provides
 comprehensive data collection and API services for blockchain networks.`,
 		Run: func(cmd *cobra.Command, args []string) {
-			cmd.Help()
+			_ = cmd.Help()
 		},
 	}
 
 	cmd.PersistentFlags().StringVar(&LogFormat, "log_format", "plain", "Log format: plain (default) or json")
 	cmd.PersistentFlags().StringVar(&LogLevel, "log_level", "warn", "Log level: debug, info, warn (default), error")
-
-	// Bind flags to viper
-	viper.BindPFlag("LOG_FORMAT", cmd.PersistentFlags().Lookup("log_format"))
-	viper.BindPFlag("LOG_LEVEL", cmd.PersistentFlags().Lookup("log_level"))
 
 	cmd.AddCommand(versionCmd())
 	cmd.AddCommand(indexerCmd())

@@ -5,11 +5,12 @@ import (
 	"encoding/json"
 
 	ibcnfttypes "github.com/initia-labs/initia/x/ibc/nft-transfer/types"
+	"gorm.io/gorm"
+
 	"github.com/initia-labs/rollytics/config"
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
 	"github.com/initia-labs/rollytics/indexer/util"
 	"github.com/initia-labs/rollytics/types"
-	"gorm.io/gorm"
 )
 
 func Collect(block indexertypes.ScrapedBlock, cfg *config.Config, tx *gorm.DB) (err error) {

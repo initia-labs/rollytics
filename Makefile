@@ -10,17 +10,17 @@ test:
 	go test ./...
 
 install: go.sum
-	go install $(LDFLAGS) ./cmd
+	go install -mod=readonly $(LDFLAGS) ./cmd/rollytics
 
 clean:
 	go clean
 	rm -f rollytics
 
 build: go.sum
-	go build $(LDFLAGS) -o rollytics ./cmd
+	go build -mod=readonly $(LDFLAGS) -o rollytics ./cmd/rollytics
 
 lint:
-	golangci-lint run --fix --output-format=tab --timeout=15m
+	golangci-lint run --fix --timeout=15m
 
 swagger-gen:
 	swag init -g cmd/api.go --output api/docs
@@ -29,4 +29,4 @@ docker:
 	docker build \
 		--build-arg VERSION=$(VERSION) \
 		--build-arg COMMIT_HASH=$(COMMIT_HASH) \
-		-t rollytics .
+		-t rollytics:$(VERSION) .

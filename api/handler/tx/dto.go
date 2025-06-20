@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	cbjson "github.com/cometbft/cometbft/libs/json"
+
 	"github.com/initia-labs/rollytics/api/handler/common"
 	types "github.com/initia-labs/rollytics/types"
 )

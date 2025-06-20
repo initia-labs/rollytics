@@ -2,9 +2,10 @@ package tx
 
 import (
 	"github.com/gofiber/fiber/v2"
+	"golang.org/x/sync/errgroup"
+
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
 	"github.com/initia-labs/rollytics/types"
-	"golang.org/x/sync/errgroup"
 )
 
 func (sub *TxSubmodule) prepare(block indexertypes.ScrapedBlock) (err error) {

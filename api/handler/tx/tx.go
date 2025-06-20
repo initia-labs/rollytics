@@ -1,10 +1,13 @@
 package tx
 
 import (
+	"errors"
+
 	"github.com/gofiber/fiber/v2"
+	"gorm.io/gorm"
+
 	"github.com/initia-labs/rollytics/api/handler/common"
 	dbtypes "github.com/initia-labs/rollytics/types"
-	"gorm.io/gorm"
 )
 
 // GetTxs handles GET /tx/v1/txs
@@ -173,7 +176,7 @@ func (h *TxHandler) GetTxsCount(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(TxCountResponse{
-		Count: uint64(total),
+		Count: uint64(total), //nolint:gosec
 	})
 }
 
@@ -195,7 +198,7 @@ func (h *TxHandler) GetTxByHash(c *fiber.Ctx) error {
 	if err := h.buildBaseTxQuery().
 		Where("hash = ?", req.Hash).
 		First(&tx).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return fiber.NewError(fiber.StatusNotFound, "Transaction not found")
 		}
 		h.GetLogger().Error(ErrFailedToFetchTx, "error", err)

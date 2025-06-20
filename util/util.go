@@ -15,7 +15,7 @@ func AccAddressFromString(addrStr string) (sdk.AccAddress, error) {
 
 	hexStr := strings.ToLower(strings.TrimLeft(strings.TrimPrefix(addrStr, "0x"), "0"))
 
-	if len(hexStr) <= 40 {
+	if len(hexStr) <= 40 { //nolint:gocritic
 		hexStr = strings.Repeat("0", 40-len(hexStr)) + hexStr
 	} else if len(hexStr) <= 64 {
 		hexStr = strings.Repeat("0", 64-len(hexStr)) + hexStr

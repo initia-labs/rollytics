@@ -10,8 +10,9 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/initia-labs/rollytics/indexer/types"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/initia-labs/rollytics/indexer/types"
 )
 
 func (s *Scraper) fastSync(client *fiber.Client, height int64, blockChan chan<- types.ScrapedBlock, controlChan <-chan string) int64 {
