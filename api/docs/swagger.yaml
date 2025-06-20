@@ -74,12 +74,6 @@ definitions:
         type: array
         x-order:0: true
     type: object
-  tx.EvmTxCountResponse:
-    properties:
-      count:
-        type: integer
-        x-order:0: true
-    type: object
 info:
   contact: {}
 paths:
@@ -539,21 +533,6 @@ paths:
       summary: Get EVM transactions by height
       tags:
       - Evm Transactions
-  /indexer/tx/v1/evm-txs/count:
-    get:
-      consumes:
-      - application/json
-      description: Get the total number of EVM transactions
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/tx.EvmTxCountResponse'
-      summary: Get EVM transaction count
-      tags:
-      - Evm Transactions
   /indexer/tx/v1/txs:
     get:
       consumes:
@@ -581,6 +560,14 @@ paths:
         in: query
         name: pagination.reverse
         type: boolean
+      - collectionFormat: multi
+        description: Message types to filter (comma-separated or multiple params)
+        example: '"cosmos.bank.v1beta1.MsgSend,initia.move.v1.MsgExecute"'
+        in: query
+        items:
+          type: string
+        name: msgs
+        type: array
       produces:
       - application/json
       responses: {}
@@ -636,6 +623,14 @@ paths:
         in: query
         name: pagination.reverse
         type: boolean
+      - collectionFormat: multi
+        description: Message types to filter (comma-separated or multiple params)
+        example: '"cosmos.bank.v1beta1.MsgSend,initia.move.v1.MsgExecute"'
+        in: query
+        items:
+          type: string
+        name: msgs
+        type: array
       produces:
       - application/json
       responses: {}
@@ -674,21 +669,18 @@ paths:
         in: query
         name: pagination.reverse
         type: boolean
+      - collectionFormat: multi
+        description: Message types to filter (comma-separated or multiple params)
+        example: '"cosmos.bank.v1beta1.MsgSend,initia.move.v1.MsgExecute"'
+        in: query
+        items:
+          type: string
+        name: msgs
+        type: array
       produces:
       - application/json
       responses: {}
       summary: Get transactions by height
-      tags:
-      - Transactions
-  /indexer/tx/v1/txs/count:
-    get:
-      consumes:
-      - application/json
-      description: Get the total number of transactions
-      produces:
-      - application/json
-      responses: {}
-      summary: Get transaction count
       tags:
       - Transactions
 swagger: "2.0"

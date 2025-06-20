@@ -659,29 +659,6 @@ const docTemplate = `{
                 "responses": {}
             }
         },
-        "/indexer/tx/v1/evm-txs/count": {
-            "get": {
-                "description": "Get the total number of EVM transactions",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Evm Transactions"
-                ],
-                "summary": "Get EVM transaction count",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/tx.EvmTxCountResponse"
-                        }
-                    }
-                }
-            }
-        },
         "/indexer/tx/v1/evm-txs/{tx_hash}": {
             "get": {
                 "description": "Get a specific EVM transaction by its hash",
@@ -750,6 +727,17 @@ const docTemplate = `{
                         "description": "Reverse order default is true if set to true, the results will be ordered in descending order",
                         "name": "pagination.reverse",
                         "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "multi",
+                        "example": "\"cosmos.bank.v1beta1.MsgSend,initia.move.v1.MsgExecute\"",
+                        "description": "Message types to filter (comma-separated or multiple params)",
+                        "name": "msgs",
+                        "in": "query"
                     }
                 ],
                 "responses": {}
@@ -804,6 +792,17 @@ const docTemplate = `{
                         "type": "boolean",
                         "description": "Reverse order default is true if set to true, the results will be ordered in descending order",
                         "name": "pagination.reverse",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "multi",
+                        "example": "\"cosmos.bank.v1beta1.MsgSend,initia.move.v1.MsgExecute\"",
+                        "description": "Message types to filter (comma-separated or multiple params)",
+                        "name": "msgs",
                         "in": "query"
                     }
                 ],
@@ -860,24 +859,19 @@ const docTemplate = `{
                         "description": "Reverse order default is true if set to true, the results will be ordered in descending order",
                         "name": "pagination.reverse",
                         "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "multi",
+                        "example": "\"cosmos.bank.v1beta1.MsgSend,initia.move.v1.MsgExecute\"",
+                        "description": "Message types to filter (comma-separated or multiple params)",
+                        "name": "msgs",
+                        "in": "query"
                     }
                 ],
-                "responses": {}
-            }
-        },
-        "/indexer/tx/v1/txs/count": {
-            "get": {
-                "description": "Get the total number of transactions",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Transactions"
-                ],
-                "summary": "Get transaction count",
                 "responses": {}
             }
         },
@@ -1016,15 +1010,6 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/nft.Nft"
                     },
-                    "x-order:0": true
-                }
-            }
-        },
-        "tx.EvmTxCountResponse": {
-            "type": "object",
-            "properties": {
-                "count": {
-                    "type": "integer",
                     "x-order:0": true
                 }
             }

@@ -156,29 +156,6 @@ func (h *TxHandler) GetEvmTxsByHeight(c *fiber.Ctx) error {
 	})
 }
 
-// GetEvmTxsCount handles GET /tx/v1/evm-txs/count
-// @Summary Get EVM transaction count
-// @Description Get the total number of EVM transactions
-// @Tags Evm Transactions
-// @Accept json
-// @Produce json
-// @Success 200 {object} EvmTxCountResponse
-// @Router /indexer/tx/v1/evm-txs/count [get]
-func (h *TxHandler) GetEvmTxsCount(c *fiber.Ctx) error {
-	var (
-		total    int64
-		database = h.GetDatabase()
-		logger   = h.GetLogger()
-	)
-
-	if err := database.Model(&dbtypes.CollectedEvmTx{}).Count(&total).Error; err != nil {
-		logger.Error(ErrFailedToCountEvmTx, "error", err)
-		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToCountEvmTx)
-	}
-	resp := EvmTxCountResponse{Count: uint64(total)} //nolint:gosec
-	return c.JSON(resp)
-}
-
 // GetEvmTxByHash handles GET /tx/v1/evm-txs/{tx_hash}
 // @Summary Get EVM transaction by hash
 // @Description Get a specific EVM transaction by its hash

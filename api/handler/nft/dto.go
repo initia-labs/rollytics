@@ -5,8 +5,8 @@ import (
 	"github.com/initia-labs/rollytics/types"
 )
 
-// Colections
 // Request
+// Colections
 type CollectionsRequest struct {
 	Pagination *common.PaginationParams `query:"pagination"`
 }
@@ -25,7 +25,27 @@ type CollectionByAddrRequest struct {
 	CollectionAddr string `param:"collection_addr"`
 }
 
+// Tokens
+type TokensByAccountRequest struct {
+	Account    string                   `param:"account" extensions:"x-order:0"`
+	Pagination *common.PaginationParams `query:"pagination" extensions:"x-order:1"`
+}
+
+type TokensByCollectionRequest struct {
+	CollectionAddr string                   `param:"collection_addr" extensions:"x-order:0"`
+	Pagination     *common.PaginationParams `query:"pagination" extensions:"x-order:1"`
+}
+
+// Txs
+type NftTxsRequest struct {
+	CollectionAddr string                   `param:"collection_addr" extensions:"x-order:0"`
+	TokenId        string                   `param:"token_id" extensions:"x-order:1"`
+	Pagination     *common.PaginationParams `query:"pagination" extensions:"x-order:2"`
+}
+
+
 // Response
+// Collections
 type Collection struct {
 	Creator    string `json:"creator" extensions:"x-order:0"`
 	Address    string `json:"address" extensions:"x-order:1"`
@@ -62,25 +82,6 @@ func BatchToResponseCollections(cols []types.CollectedNftCollection) []Collectio
 }
 
 // Tokens
-// Request
-type TokensByAccountRequest struct {
-	Account    string                   `param:"account" extensions:"x-order:0"`
-	Pagination *common.PaginationParams `query:"pagination" extensions:"x-order:1"`
-}
-
-type TokensByCollectionRequest struct {
-	CollectionAddr string                   `param:"collection_addr" extensions:"x-order:0"`
-	Pagination     *common.PaginationParams `query:"pagination" extensions:"x-order:1"`
-}
-
-type NftTxsRequest struct {
-	CollectionAddr string                   `param:"collection_addr" extensions:"x-order:0"`
-	TokenId        string                   `param:"token_id" extensions:"x-order:1"`
-	Pagination     *common.PaginationParams `query:"pagination" extensions:"x-order:2"`
-}
-
-// Response
-
 type Nft struct {
 	CollectionAddr string `json:"collection_address" extensions:"x-order:0"`
 	ObjectAddr     string `json:"object_addr,omitempty" extensions:"x-order:1"` // only used in Move

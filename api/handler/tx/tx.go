@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/lib/pq"
 	"gorm.io/gorm"
 
 	"github.com/initia-labs/rollytics/api/handler/common"
@@ -21,6 +22,7 @@ import (
 // @Param pagination.limit query int false "Pagination limit, default is 100" default is 100
 // @Param pagination.count_total query bool false "Count total, default is true" default is true
 // @Param pagination.reverse query bool false "Reverse order default is true if set to true, the results will be ordered in descending order"
+// @Param msgs query []string false "Message types to filter (comma-separated or multiple params)" collectionFormat(multi) example("cosmos.bank.v1beta1.MsgSend,initia.move.v1.MsgExecute")
 // @Router /indexer/tx/v1/txs [get]
 func (h *TxHandler) GetTxs(c *fiber.Ctx) error {
 	req, err := ParseTxsRequest(c)
@@ -28,8 +30,13 @@ func (h *TxHandler) GetTxs(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
+	query := h.buildBaseTxQuery()
+	if len(req.Msgs) > 0 {
+		query = query.Where("msg_types && ?", pq.Array(req.Msgs))
+	}
 	txs, pageResp, err := common.NewPaginationBuilder[dbtypes.CollectedTx](req.Pagination).
-		WithQuery(h.buildBaseTxQuery()).
+		WithQuery(query).
+		WithCountQuery(query).
 		WithKeys("sequence").
 		WithKeyExtractor(func(tx dbtypes.CollectedTx) []any {
 			return []any{tx.Sequence}
@@ -65,6 +72,7 @@ func (h *TxHandler) GetTxs(c *fiber.Ctx) error {
 // @Param pagination.limit query int false "Pagination limit, default is 100" default is 100
 // @Param pagination.count_total query bool false "Count total, default is true" default is true
 // @Param pagination.reverse query bool false "Reverse order default is true if set to true, the results will be ordered in descending order"
+// @Param msgs query []string false "Message types to filter (comma-separated or multiple params)" collectionFormat(multi) example("cosmos.bank.v1beta1.MsgSend,initia.move.v1.MsgExecute")
 // @Router /indexer/tx/v1/txs/by_account/{account} [get]
 func (h *TxHandler) GetTxsByAccount(c *fiber.Ctx) error {
 	req, err := ParseTxsByAccountRequest(c)
@@ -79,9 +87,12 @@ func (h *TxHandler) GetTxsByAccount(c *fiber.Ctx) error {
 		Joins("INNER JOIN account_tx ON tx.chain_id = account_tx.chain_id AND tx.hash = account_tx.hash").
 		Where("account_tx.chain_id = ?", chainId).
 		Where("account_tx.account = ?", req.Account)
-
 	countQuery := h.GetDatabase().Model(&dbtypes.CollectedAccountTx{}).
 		Where("chain_id = ? AND account = ?", chainId, req.Account)
+	if len(req.Msgs) > 0 {
+		query = query.Where("msg_types && ?", pq.Array(req.Msgs))
+		countQuery = countQuery.Where("msg_types && ?", pq.Array(req.Msgs))
+	}
 
 	txs, pageResp, err := common.NewPaginationBuilder[dbtypes.CollectedTx](req.Pagination).
 		WithQuery(query).
@@ -121,9 +132,10 @@ func (h *TxHandler) GetTxsByAccount(c *fiber.Ctx) error {
 // @Param pagination.limit query int false "Pagination limit, default is 100" default is 100
 // @Param pagination.count_total query bool false "Count total, default is true" default is true
 // @Param pagination.reverse query bool false "Reverse order default is true if set to true, the results will be ordered in descending order"
+// @Param msgs query []string false "Message types to filter (comma-separated or multiple params)" collectionFormat(multi) example("cosmos.bank.v1beta1.MsgSend,initia.move.v1.MsgExecute")
 // @Router /indexer/tx/v1/txs/by_height/{height} [get]
 func (h *TxHandler) GetTxsByHeight(c *fiber.Ctx) error {
-	req, err := ParseTxsRequestByHeight(c)
+	req, err := ParseTxsByHeightRequest(c)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
@@ -133,6 +145,11 @@ func (h *TxHandler) GetTxsByHeight(c *fiber.Ctx) error {
 
 	countQuery := h.GetDatabase().Model(&dbtypes.CollectedTx{}).
 		Where("chain_id = ? AND height = ?", h.GetChainConfig().ChainId, req.Height)
+
+	if len(req.Msgs) > 0 {
+		query = query.Where("msg_types && ?", pq.Array(req.Msgs))
+		countQuery = countQuery.Where("msg_types && ?", pq.Array(req.Msgs))
+	}
 
 	txs, pageResp, err := common.NewPaginationBuilder[dbtypes.CollectedTx](req.Pagination).
 		WithQuery(query).
@@ -157,26 +174,6 @@ func (h *TxHandler) GetTxsByHeight(c *fiber.Ctx) error {
 	return c.JSON(TxsResponse{
 		Txs:        txsResp,
 		Pagination: pageResp,
-	})
-}
-
-// GetTxsCount handles GET /tx/v1/txs/count
-// @Summary Get transaction count
-// @Description Get the total number of transactions
-// @Tags Transactions
-// @Accept json
-// @Produce json
-// @Router /indexer/tx/v1/txs/count [get]
-func (h *TxHandler) GetTxsCount(c *fiber.Ctx) error {
-	var total int64
-
-	if err := h.buildBaseTxQuery().Count(&total).Error; err != nil {
-		h.GetLogger().Error(ErrFailedToCountTx, "error", err)
-		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToCountTx)
-	}
-
-	return c.JSON(TxCountResponse{
-		Count: uint64(total), //nolint:gosec
 	})
 }
 

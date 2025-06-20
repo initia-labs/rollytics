@@ -15,31 +15,27 @@ import (
 // TxsRequest
 type TxsRequest struct {
 	Pagination *common.PaginationParams `query:"pagination"`
-}
-
-type TxsRequestByHeight struct {
-	Pagination *common.PaginationParams `query:"pagination"`
-	Height     int64                    `param:"height"`
-}
-
-// TxsByAccountRequest
-type TxsByAccountRequest struct {
-	Account    string                   `param:"account"`
-	Pagination *common.PaginationParams `query:"pagination"`
+	Msgs       []string                 `query:"msgs"` // optional, filter by message types
 }
 
 // TxsByHeightRequest
 type TxsByHeightRequest struct {
 	Height     int64                    `param:"height"`
 	Pagination *common.PaginationParams `query:"pagination"`
+	Msgs       []string                 `query:"msgs"` // optional, filter by message types
+}
+
+// TxsByAccountRequest
+type TxsByAccountRequest struct {
+	Account    string                   `param:"account"`
+	Pagination *common.PaginationParams `query:"pagination"`
+	Msgs       []string                 `query:"msgs"` // optional, filter by message types
 }
 
 // TxByHashRequest
 type TxByHashRequest struct {
 	Hash string `param:"tx_hash"`
 }
-
-type TxsCountRequest struct{}
 
 // Response
 type TxResponse struct {
@@ -49,10 +45,6 @@ type TxResponse struct {
 type TxsResponse struct {
 	Txs        []types.TxByHeightRecord `json:"txs" extensions:"x-order:0"`
 	Pagination *common.PageResponse     `json:"pagination" extensions:"x-order:1"`
-}
-
-type TxCountResponse struct {
-	Count uint64 `json:"count" extensions:"x-order:0"`
 }
 
 type AccountTxResponse struct {
@@ -106,8 +98,6 @@ type EvmTxByHashRequest struct {
 	Hash string `param:"tx_hash"`
 }
 
-type EvmTxsCountRequest struct{}
-
 // Response
 type EvmTxResponse struct {
 	Tx *types.EvmTx `json:"tx"`
@@ -116,10 +106,6 @@ type EvmTxResponse struct {
 type EvmTxsResponse struct {
 	Pagination *common.PageResponse `json:"pagination" extensions:"x-order:0"`
 	Txs        []types.EvmTx        `json:"txs" extensions:"x-order:1"`
-}
-
-type EvmTxCountResponse struct {
-	Count uint64 `json:"count" extensions:"x-order:0"`
 }
 
 func ToResponseEvmTx(ctx *types.CollectedEvmTx) (*types.EvmTx, error) {
