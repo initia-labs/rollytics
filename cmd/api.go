@@ -1,4 +1,4 @@
-package cmd
+package main
 
 import (
 	"github.com/initia-labs/rollytics/api"
@@ -10,7 +10,8 @@ import (
 
 func apiCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use: "api",
+		Use:   "api",
+		Short: "run rollytics API server",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.GetConfig()
 			if err != nil {

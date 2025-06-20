@@ -7,7 +7,6 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/initia-labs/initia/app/params"
 	cryptocodec "github.com/initia-labs/initia/crypto/codec"
-	"github.com/initia-labs/rollytics/config"
 )
 
 var cdc codec.Codec
@@ -19,13 +18,11 @@ func init() {
 	cryptocodec.RegisterLegacyAminoCodec(encodingConfig.Amino)
 	cryptocodec.RegisterInterfaces(encodingConfig.InterfaceRegistry)
 	cdc = encodingConfig.Codec
+}
 
-	cfg, err := config.GetConfig()
-	if err != nil {
-		panic(err)
-	}
-
-	prefix := cfg.GetChainConfig().AccountAddressPrefix
+// InitializeSDKConfig initializes the SDK configuration with chain-specific settings
+func InitializeSDKConfig(accountAddressPrefix string) {
+	prefix := accountAddressPrefix
 	accountPubKeyPrefix := prefix + "pub"
 	validatorAddressPrefix := prefix + "valoper"
 	validatorPubKeyPrefix := prefix + "valoperpub"

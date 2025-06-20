@@ -1,4 +1,4 @@
-package cmd
+package main
 
 import (
 	"github.com/initia-labs/rollytics/config"
@@ -10,7 +10,8 @@ import (
 
 func indexerCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use: "indexer",
+		Use:   "indexer",
+		Short: "run rollytics indexer",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.GetConfig()
 			if err != nil {
