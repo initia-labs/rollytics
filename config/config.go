@@ -26,6 +26,8 @@ func setDefaults() {
 	viper.SetDefault("DB_BATCH_SIZE", 100)
 	viper.SetDefault("ACCOUNT_ADDRESS_PREFIX", "init")
 	viper.SetDefault("COOLING_DURATION", 100*time.Millisecond)
+	viper.SetDefault("LOG_LEVEL", "warn")
+	viper.SetDefault("LOG_FORMAT", "plain")
 }
 
 func GetConfig() (*Config, error) {
@@ -131,6 +133,13 @@ func (c Config) Validate() error {
 	if len(c.listenPort) == 0 {
 		return fmt.Errorf("PORT is required")
 	}
+	switch c.logFormat {
+	case "json", "plain":
+		break
+	default:
+		return fmt.Errorf("%s is invalid log format", c.logFormat)
+	}
+
 	if err := c.dbConfig.Validate(); err != nil {
 		return err
 	}

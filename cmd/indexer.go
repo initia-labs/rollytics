@@ -6,7 +6,6 @@ import (
 	"github.com/initia-labs/rollytics/log"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 func indexerCmd() *cobra.Command {
@@ -14,9 +13,6 @@ func indexerCmd() *cobra.Command {
 		Use:   "indexer",
 		Short: "run rollytics indexer",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Set LOG_FORMAT from the persistent flag before loading config
-			viper.Set("LOG_FORMAT", LogFormat)
-
 			cfg, err := config.GetConfig()
 			if err != nil {
 				return err
