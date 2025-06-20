@@ -5,3 +5,9 @@ build
 **/*.no-commit.*
 .env
 .direnv
+
+.cursor/
+.claude/
+.codeium/
+
+/rollytics

@@ -4,9 +4,10 @@ import (
 	"log/slog"
 	"sync"
 
+	"gorm.io/gorm"
+
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/indexer/types"
-	"gorm.io/gorm"
 )
 
 const SubmoduleName = "evm-nft"

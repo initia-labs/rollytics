@@ -24,20 +24,20 @@ func (cc ChainConfig) Validate() error {
 		return fmt.Errorf("RPC_URL is required")
 	}
 	if _, err := url.Parse(cc.RpcUrl); err != nil {
-		return fmt.Errorf("RPC_URL(%s) is invalid: %s", cc.RpcUrl, err)
+		return fmt.Errorf("RPC_URL(%s) is invalid: %w", cc.RpcUrl, err)
 	}
 	if len(cc.RestUrl) == 0 {
 		return fmt.Errorf("REST_URL is required")
 	}
 	if _, err := url.Parse(cc.RestUrl); err != nil {
-		return fmt.Errorf("REST_URL(%s) is invalid: %s", cc.RestUrl, err)
+		return fmt.Errorf("REST_URL(%s) is invalid: %w", cc.RestUrl, err)
 	}
 	if cc.VmType == types.EVM {
 		if len(cc.JsonRpcUrl) == 0 {
 			return fmt.Errorf("JSON_RPC_URL is required")
 		}
 		if _, err := url.Parse(cc.JsonRpcUrl); err != nil {
-			return fmt.Errorf("JSON_RPC_URL(%s) is invalid: %s", cc.JsonRpcUrl, err)
+			return fmt.Errorf("JSON_RPC_URL(%s) is invalid: %w", cc.JsonRpcUrl, err)
 		}
 	}
 	return nil

@@ -3,14 +3,14 @@ package orm
 import (
 	"log/slog"
 
-	"github.com/initia-labs/rollytics/orm/config"
-	"github.com/initia-labs/rollytics/types"
 	sloggorm "github.com/orandin/slog-gorm"
-	"go.uber.org/zap"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"gorm.io/gorm/schema"
+
+	"github.com/initia-labs/rollytics/orm/config"
+	"github.com/initia-labs/rollytics/types"
 )
 
 var (
@@ -25,7 +25,6 @@ var (
 type Database struct {
 	*gorm.DB
 	config *config.Config
-	logger *zap.Logger
 }
 
 func OpenDB(config *config.Config, logger *slog.Logger) (*Database, error) {

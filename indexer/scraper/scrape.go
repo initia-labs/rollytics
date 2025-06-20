@@ -11,9 +11,10 @@ import (
 	cbjson "github.com/cometbft/cometbft/libs/json"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/gofiber/fiber/v2"
+	"golang.org/x/sync/errgroup"
+
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/indexer/types"
-	"golang.org/x/sync/errgroup"
 )
 
 func scrapeBlock(client *fiber.Client, height int64, cfg *config.Config) (types.ScrapedBlock, error) {
@@ -105,15 +106,15 @@ func fetchFromRpc(client *fiber.Client, url string) (body []byte, err error) {
 	return body, nil
 }
 
-func parseScrapedBlock(block GetBlockResponse, blockResults GetBlockResultsResponse, height int64) (ScrapedBlock types.ScrapedBlock, err error) {
+func parseScrapedBlock(block GetBlockResponse, blockResults GetBlockResultsResponse, height int64) (scrapedBlock types.ScrapedBlock, err error) {
 	timestamp, err := time.Parse(layout, block.Result.Block.Header.Time)
 	if err != nil {
-		return ScrapedBlock, err
+		return scrapedBlock, err
 	}
 
 	proposer, err := sdk.ValAddressFromHex(block.Result.Block.Header.ProposerAddress)
 	if err != nil {
-		return ScrapedBlock, err
+		return scrapedBlock, err
 	}
 
 	var preEvents []abci.Event
@@ -130,9 +131,10 @@ func parseScrapedBlock(block GetBlockResponse, blockResults GetBlockResultsRespo
 			continue
 		}
 
-		if lastAttr.Value == "BeginBlock" {
+		switch lastAttr.Value {
+		case "BeginBlock":
 			beginEvents = append(beginEvents, event)
-		} else if lastAttr.Value == "EndBlock" {
+		case "EndBlock":
 			endEvents = append(endEvents, event)
 		}
 	}

@@ -2,9 +2,10 @@ package nft
 
 import (
 	"github.com/gofiber/fiber/v2"
+	"gorm.io/gorm"
+
 	"github.com/initia-labs/rollytics/api/handler/common"
 	dbtypes "github.com/initia-labs/rollytics/types"
-	"gorm.io/gorm"
 )
 
 // GetTokensByAccount handles GET /nft/v1/tokens/by_account/{account}

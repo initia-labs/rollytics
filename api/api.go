@@ -6,6 +6,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/swagger"
+
 	"github.com/initia-labs/rollytics/api/docs"
 	"github.com/initia-labs/rollytics/api/handler"
 	"github.com/initia-labs/rollytics/config"
@@ -62,9 +63,10 @@ func (a *Api) Start() error {
 	}
 	app.Get("/swagger/*", swagger.New(swaggerConfig))
 
-	listenAddr := a.cfg.GetListenAddr()
-	docs.SwaggerInfo.Host = fmt.Sprintf("localhost%s", listenAddr)
-	a.logger.Info("starting API server", slog.String("addr", fmt.Sprintf("http://localhost%s", listenAddr)))
+	port := a.cfg.GetListenPort()
 
-	return app.Listen(listenAddr)
+	docs.SwaggerInfo.Host = fmt.Sprintf("localhost:%s", port)
+	a.logger.Info("starting API server", slog.String("addr", fmt.Sprintf("http://localhost:%s", port)))
+
+	return app.Listen(":" + port)
 }

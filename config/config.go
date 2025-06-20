@@ -6,17 +6,19 @@ import (
 	"os"
 	"time"
 
-	dbconfig "github.com/initia-labs/rollytics/orm/config"
-	"github.com/initia-labs/rollytics/types"
 	"github.com/joho/godotenv"
 	"github.com/spf13/viper"
+
+	dbconfig "github.com/initia-labs/rollytics/orm/config"
+	"github.com/initia-labs/rollytics/types"
 )
 
 type Config struct {
-	listenAddr      string
+	listenPort      string
 	dbConfig        *dbconfig.Config
 	chainConfig     *ChainConfig
 	logLevel        string
+	logFormat       string
 	coolingDuration time.Duration // for indexer only
 }
 
@@ -25,6 +27,8 @@ func setDefaults() {
 	viper.SetDefault("DB_BATCH_SIZE", 100)
 	viper.SetDefault("ACCOUNT_ADDRESS_PREFIX", "init")
 	viper.SetDefault("COOLING_DURATION", 100*time.Millisecond)
+	viper.SetDefault("LOG_LEVEL", "warn")
+	viper.SetDefault("LOG_FORMAT", "plain")
 }
 
 func GetConfig() (*Config, error) {
@@ -65,10 +69,11 @@ func GetConfig() (*Config, error) {
 	}
 
 	config := &Config{
-		listenAddr:      viper.GetString("LISTEN_ADDR"),
+		listenPort:      viper.GetString("PORT"),
 		dbConfig:        dc,
 		chainConfig:     cc,
 		logLevel:        viper.GetString("LOG_LEVEL"),
+		logFormat:       viper.GetString("LOG_FORMAT"),
 		coolingDuration: viper.GetDuration("COOLING_DURATION"),
 	}
 
@@ -79,8 +84,8 @@ func GetConfig() (*Config, error) {
 	return config, nil
 }
 
-func (c Config) GetListenAddr() string {
-	return c.listenAddr
+func (c Config) GetListenPort() string {
+	return c.listenPort
 }
 
 func (c Config) GetDBConfig() *dbconfig.Config {
@@ -118,10 +123,24 @@ func (c Config) GetCoolingDuration() time.Duration {
 	return c.coolingDuration
 }
 
+func (c Config) GetLogFormat() string {
+	if c.logFormat == "json" {
+		return "json"
+	}
+	return "plain"
+}
+
 func (c Config) Validate() error {
-	if len(c.listenAddr) == 0 {
+	if len(c.listenPort) == 0 {
 		return fmt.Errorf("PORT is required")
 	}
+	switch c.logFormat {
+	case "json", "plain":
+		break
+	default:
+		return fmt.Errorf("%s is invalid log format", c.logFormat)
+	}
+
 	if err := c.dbConfig.Validate(); err != nil {
 		return err
 	}

@@ -6,8 +6,9 @@ import (
 	"strings"
 
 	evmtypes "github.com/initia-labs/minievm/x/evm/types"
-	"github.com/initia-labs/rollytics/util"
 	"gorm.io/gorm"
+
+	"github.com/initia-labs/rollytics/util"
 )
 
 const (
@@ -47,5 +48,5 @@ func getCollectionCreator(chainId, addr string, tx *gorm.DB) (string, error) {
 		Limit(1).
 		Scan(&result).Error
 
-	return result.Signer, nil
+	return result.Signer, err
 }

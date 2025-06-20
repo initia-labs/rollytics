@@ -7,14 +7,15 @@ import (
 	"strings"
 
 	evmtypes "github.com/initia-labs/minievm/x/evm/types"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
+
 	nft_pair "github.com/initia-labs/rollytics/indexer/collector/nft-pair"
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
 	indexerutil "github.com/initia-labs/rollytics/indexer/util"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
 	"github.com/initia-labs/rollytics/util"
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 func (sub *EvmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) (err error) {

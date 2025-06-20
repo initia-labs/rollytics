@@ -2,9 +2,10 @@ package tx
 
 import (
 	"github.com/gofiber/fiber/v2"
+	"gorm.io/gorm"
+
 	"github.com/initia-labs/rollytics/api/handler/common"
 	dbtypes "github.com/initia-labs/rollytics/types"
-	"gorm.io/gorm"
 )
 
 // GetEvmTxs handles GET /tx/v1/evm-txs
@@ -174,7 +175,7 @@ func (h *TxHandler) GetEvmTxsCount(c *fiber.Ctx) error {
 		logger.Error(ErrFailedToCountEvmTx, "error", err)
 		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToCountEvmTx)
 	}
-	resp := EvmTxCountResponse{Count: uint64(total)}
+	resp := EvmTxCountResponse{Count: uint64(total)} //nolint:gosec
 	return c.JSON(resp)
 }
 

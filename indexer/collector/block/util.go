@@ -8,8 +8,9 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec/unknownproto"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
-	"github.com/initia-labs/rollytics/types"
 	"gorm.io/gorm"
+
+	"github.com/initia-labs/rollytics/types"
 )
 
 func getBlock(chainId string, height int64, tx *gorm.DB) (block types.CollectedBlock, err error) {

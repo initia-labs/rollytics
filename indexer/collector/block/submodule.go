@@ -4,8 +4,9 @@ import (
 	"log/slog"
 
 	"github.com/cosmos/cosmos-sdk/codec"
-	"github.com/initia-labs/rollytics/indexer/types"
 	"gorm.io/gorm"
+
+	"github.com/initia-labs/rollytics/indexer/types"
 )
 
 const SubmoduleName = "block"

@@ -12,8 +12,8 @@ import (
 
 type PaginationParams struct {
 	Key        string `query:"pagination.key" extensions:"x-order:0"`
-	Offset     uint64 `query:"pagination.offset" extensions:"x-order:1"`
-	Limit      uint64 `query:"pagination.limit" extensions:"x-order:2"`
+	Offset     int    `query:"pagination.offset" extensions:"x-order:1"`
+	Limit      int    `query:"pagination.limit" extensions:"x-order:2"`
 	CountTotal bool   `query:"pagination.count_total" extensions:"x-order:3"`
 	Reverse    bool   `query:"pagination.reverse" extensions:"x-order:4"`
 }
@@ -26,8 +26,8 @@ type PageResponse struct {
 func ExtractPaginationParams(c *fiber.Ctx) (*PaginationParams, error) {
 	params := &PaginationParams{
 		Key:        c.Query("pagination.key"),
-		Offset:     uint64(c.QueryInt("pagination.offset", 0)),
-		Limit:      uint64(c.QueryInt("pagination.limit", 100)),
+		Offset:     c.QueryInt("pagination.offset", 0),
+		Limit:      c.QueryInt("pagination.limit", 100),
 		CountTotal: c.QueryBool("pagination.count_total", true),
 		Reverse:    c.QueryBool("pagination.reverse", true),
 	}
@@ -149,7 +149,7 @@ func (params *PaginationParams) setPageKey(query *gorm.DB, keys []string) (*gorm
 		return nil, fmt.Errorf("invalid key format: expected %d parts, got %d", len(keys), len(parts))
 	}
 
-	if len(parts) == 1 {
+	if len(parts) == 1 { //nolint:gocritic
 		whereClause := fmt.Sprintf("%s %s ?", keys[0], op)
 		query = query.Where(whereClause, parts[0])
 	} else if len(parts) == 2 {

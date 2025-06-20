@@ -5,8 +5,9 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/initia-labs/rollytics/types"
 	"gorm.io/gorm"
+
+	"github.com/initia-labs/rollytics/types"
 )
 
 func getSeqInfo(chainId string, name string, tx *gorm.DB) (seqInfo types.CollectedSeqInfo, err error) {
@@ -35,10 +36,7 @@ func grepMsgTypesFromRestTx(tx RestTx) (msgTypes []string, err error) {
 	}
 
 	for _, msg := range body.Messages {
-		msgType := msg.Type
-		if strings.HasPrefix(msgType, "/") {
-			msgType = msgType[1:]
-		}
+		msgType := strings.TrimPrefix(msg.Type, "/")
 		msgTypeMap[msgType] = nil
 	}
 

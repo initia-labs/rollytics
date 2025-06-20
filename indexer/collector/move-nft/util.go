@@ -1,8 +1,9 @@
 package move_nft
 
 import (
-	"github.com/initia-labs/rollytics/types"
 	"gorm.io/gorm"
+
+	"github.com/initia-labs/rollytics/types"
 )
 
 func getCollectionCreator(chainId, addr string, tx *gorm.DB) (string, error) {

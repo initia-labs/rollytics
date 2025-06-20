@@ -1,10 +1,11 @@
 package block
 
 import (
+	"gorm.io/gorm"
+
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
-	"gorm.io/gorm"
 )
 
 func (sub *BlockSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) (err error) {
