@@ -9,3 +9,5 @@ build
 .cursor/
 .claude/
 .codeium/
+
+/rollytics
