@@ -68,7 +68,7 @@ func GetConfig() (*Config, error) {
 	}
 
 	config := &Config{
-		listenPort:      viper.GetString("LISTEN_ADDR"),
+		listenPort:      viper.GetString("PORT"),
 		dbConfig:        dc,
 		chainConfig:     cc,
 		logLevel:        viper.GetString("LOG_LEVEL"),
