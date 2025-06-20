@@ -36,12 +36,7 @@ You can configure rollytics using CLI flags or environment variables. CLI flags 
 - `--log_format` (`plain`|`json`): Log output format (default: `plain`)
 - `--log_level` (`debug`|`info`|`warn`|`error`): Log level (default: `warn`)
 
-### Example: CLI Flags
-```sh
-./rollytics api --log_format=json --log_level=info
-```
-
-### Example: Environment Variables
+### Example
 ```sh
 export DB_DSN='postgres://user:pass@tcp(localhost:5432)/db'
 export CHAIN_ID='myminitia-1'
