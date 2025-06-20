@@ -17,7 +17,7 @@ Run the rollytics API server.
 
 This command starts the HTTP API service for rollytics, providing endpoints for blockchain analytics and data access.
 
-You can configure database, chain, logging, and server options via flags or environment variables.`,
+You can configure database, chain, logging, and server options via environment variables.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.GetConfig()
 			if err != nil {
