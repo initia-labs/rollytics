@@ -17,7 +17,6 @@ require (
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/viper v1.19.0
 	github.com/swaggo/swag v1.16.4
-	go.uber.org/zap v1.27.0
 	golang.org/x/sync v0.14.0
 	gorm.io/driver/postgres v1.5.11
 	gorm.io/gorm v1.25.12
