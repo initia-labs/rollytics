@@ -33,7 +33,7 @@ func NewRootCmd() *cobra.Command {
 		Use:   "rollytics [flags] [command]",
 		Short: "rollytics - Minitia analytics and indexing tool",
 		Long: `
-		rollytics is a Minitia analytics and indexing tool that provides
+rollytics is a Minitia analytics and indexing tool that provides
 comprehensive data collection and API services for blockchain networks.`,
 		Run: func(cmd *cobra.Command, args []string) {
 			_ = cmd.Help()

@@ -12,7 +12,7 @@ import (
 func apiCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "api",
-		Short: "run rollytics API server",
+		Short: "Run rollytics API server",
 		Long: `
 Run the rollytics API server.
 

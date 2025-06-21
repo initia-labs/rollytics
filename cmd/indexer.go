@@ -12,7 +12,7 @@ import (
 func indexerCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "indexer",
-		Short: "run rollytics indexer",
+		Short: "Run rollytics indexer",
 		Long: `
 Run the rollytics indexer service.
 
