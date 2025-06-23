@@ -14,7 +14,7 @@ import (
 // GetTxs handles GET /tx/v1/txs
 // @Summary Get transactions
 // @Description Get a list of transactions with pagination
-// @Tags Transactions
+// @Tags Tx
 // @Accept json
 // @Produce json
 // @Param pagination.key query string false "Pagination key"
@@ -63,7 +63,7 @@ func (h *TxHandler) GetTxs(c *fiber.Ctx) error {
 // GetTxsByAccount handles GET /tx/v1/txs/by_account/{account}
 // @Summary Get transactions by account
 // @Description Get transactions associated with a specific account
-// @Tags Transactions
+// @Tags Tx
 // @Accept json
 // @Produce json
 // @Param account path string true "Account address"
@@ -123,7 +123,7 @@ func (h *TxHandler) GetTxsByAccount(c *fiber.Ctx) error {
 // GetTxsByHeight handles GET /tx/v1/txs/by_height/{height}
 // @Summary Get transactions by height
 // @Description Get transactions at a specific block height
-// @Tags Transactions
+// @Tags Tx
 // @Accept json
 // @Produce json
 // @Param height path int true "Block height"
@@ -180,7 +180,7 @@ func (h *TxHandler) GetTxsByHeight(c *fiber.Ctx) error {
 // GetTxByHash handles GET /tx/v1/txs/{tx_hash}
 // @Summary Get transaction by hash
 // @Description Get a specific transaction by its hash
-// @Tags Transactions
+// @Tags Tx
 // @Accept json
 // @Produce json
 // @Param tx_hash path string true "Transaction hash"

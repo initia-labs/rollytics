@@ -33,17 +33,17 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Api {
 // @description Rollytics API documentation
 // @BasePath /indexer
 
-// @tag.name Blocks
+// @tag.name Block
 // @tag.description Block related operations
 
-// @tag.name Transactions
+// @tag.name Tx
 // @tag.description Transaction related operations
+
+// @tag.name EVM Tx
+// @tag.description EVM transaction related operations
 
 // @tag.name NFT
 // @tag.description NFT related operations
-
-// @tag.name Evm Transactions
-// @tag.description EVM transaction related operations
 func (a *Api) Start() error {
 	app := fiber.New(fiber.Config{
 		AppName:               "Rollytics API",
@@ -62,7 +62,7 @@ func (a *Api) Start() error {
 		URL:         "/swagger/doc.json",
 		DeepLinking: true,
 		TagsSorter: template.JS(`function(a, b) {
-			const order = ["Blocks", "Transactions", "NFT", "Evm Transactions"];
+			const order = ["Block", "Tx", "EVM Tx", "NFT"];
 			return order.indexOf(a) - order.indexOf(b);
 		}`),
 	}

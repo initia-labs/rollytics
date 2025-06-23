@@ -13,7 +13,7 @@ import (
 // GetBlocks handles GET /block/v1/blocks
 // @Summary Get blocks
 // @Description Get a list of blocks with pagination
-// @Tags Blocks
+// @Tags Block
 // @Accept json
 // @Produce json
 // @Param pagination.key query string false "Pagination key"
@@ -56,7 +56,7 @@ func (h *BlockHandler) GetBlocks(c *fiber.Ctx) error {
 // GetBlockByHeight handles GET /block/v1/blocks/{height}
 // @Summary Get block by height
 // @Description Get a specific block by its height
-// @Tags Blocks
+// @Tags Block
 // @Accept json
 // @Produce json
 // @Param height path string true "Block height"
@@ -90,7 +90,7 @@ func (h *BlockHandler) GetBlockByHeight(c *fiber.Ctx) error {
 // GetAvgBlockTime handles GET /block/v1/avg_blocktime
 // @Summary Get average block time
 // @Description Get the average block time over recent blocks
-// @Tags Blocks
+// @Tags Block
 // @Accept json
 // @Produce json
 // @Router /indexer/block/v1/avg_blocktime [get]

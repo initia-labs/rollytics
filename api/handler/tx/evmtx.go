@@ -11,7 +11,7 @@ import (
 // GetEvmTxs handles GET /tx/v1/evm-txs
 // @Summary Get EVM transactions
 // @Description Get a list of EVM transactions with pagination
-// @Tags Evm Transactions
+// @Tags EVM Tx
 // @Accept json
 // @Produce json
 // @Param pagination.key query string false "Pagination key"
@@ -54,7 +54,7 @@ func (h *TxHandler) GetEvmTxs(c *fiber.Ctx) error {
 // GetEvmTxsByAccount handles GET /tx/v1/evm-txs/by_account/{account}
 // @Summary Get EVM transactions by account
 // @Description Get EVM transactions associated with a specific account
-// @Tags Evm Transactions
+// @Tags EVM Tx
 // @Accept json
 // @Produce json
 // @Param account path string true "Account address"
@@ -108,7 +108,7 @@ func (h *TxHandler) GetEvmTxsByAccount(c *fiber.Ctx) error {
 // GetEvmTxsByHeight handles GET /tx/v1/evm-txs/by_height/{height}
 // @Summary Get EVM transactions by height
 // @Description Get EVM transactions at a specific block height
-// @Tags Evm Transactions
+// @Tags EVM Tx
 // @Accept json
 // @Produce json
 // @Param height path int true "Block height"
@@ -159,7 +159,7 @@ func (h *TxHandler) GetEvmTxsByHeight(c *fiber.Ctx) error {
 // GetEvmTxByHash handles GET /tx/v1/evm-txs/{tx_hash}
 // @Summary Get EVM transaction by hash
 // @Description Get a specific EVM transaction by its hash
-// @Tags Evm Transactions
+// @Tags EVM Tx
 // @Accept json
 // @Produce json
 // @Param tx_hash path string true "Transaction hash"

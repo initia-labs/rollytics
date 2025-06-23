@@ -14,7 +14,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "Blocks"
+                    "Block"
                 ],
                 "summary": "Get average block time",
                 "responses": {}
@@ -30,7 +30,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "Blocks"
+                    "Block"
                 ],
                 "summary": "Get blocks",
                 "parameters": [
@@ -78,7 +78,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "Blocks"
+                    "Block"
                 ],
                 "summary": "Get block by height",
                 "parameters": [
@@ -500,7 +500,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "Evm Transactions"
+                    "EVM Tx"
                 ],
                 "summary": "Get EVM transactions",
                 "parameters": [
@@ -548,7 +548,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "Evm Transactions"
+                    "EVM Tx"
                 ],
                 "summary": "Get EVM transactions by account",
                 "parameters": [
@@ -603,7 +603,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "Evm Transactions"
+                    "EVM Tx"
                 ],
                 "summary": "Get EVM transactions by height",
                 "parameters": [
@@ -658,7 +658,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "Evm Transactions"
+                    "EVM Tx"
                 ],
                 "summary": "Get EVM transaction by hash",
                 "parameters": [
@@ -683,7 +683,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "Transactions"
+                    "Tx"
                 ],
                 "summary": "Get transactions",
                 "parameters": [
@@ -742,7 +742,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "Transactions"
+                    "Tx"
                 ],
                 "summary": "Get transactions by account",
                 "parameters": [
@@ -808,7 +808,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "Transactions"
+                    "Tx"
                 ],
                 "summary": "Get transactions by height",
                 "parameters": [
@@ -874,7 +874,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "Transactions"
+                    "Tx"
                 ],
                 "summary": "Get transaction by hash",
                 "parameters": [

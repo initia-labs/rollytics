@@ -87,7 +87,7 @@ paths:
       responses: {}
       summary: Get average block time
       tags:
-      - Blocks
+      - Block
   /indexer/block/v1/blocks:
     get:
       consumes:
@@ -120,7 +120,7 @@ paths:
       responses: {}
       summary: Get blocks
       tags:
-      - Blocks
+      - Block
   /indexer/block/v1/blocks/{height}:
     get:
       consumes:
@@ -137,7 +137,7 @@ paths:
       responses: {}
       summary: Get block by height
       tags:
-      - Blocks
+      - Block
   /indexer/nft/v1/collections:
     get:
       consumes:
@@ -439,7 +439,7 @@ paths:
       responses: {}
       summary: Get EVM transactions
       tags:
-      - Evm Transactions
+      - EVM Tx
   /indexer/tx/v1/evm-txs/{tx_hash}:
     get:
       consumes:
@@ -456,7 +456,7 @@ paths:
       responses: {}
       summary: Get EVM transaction by hash
       tags:
-      - Evm Transactions
+      - EVM Tx
   /indexer/tx/v1/evm-txs/by_account/{account}:
     get:
       consumes:
@@ -494,7 +494,7 @@ paths:
       responses: {}
       summary: Get EVM transactions by account
       tags:
-      - Evm Transactions
+      - EVM Tx
   /indexer/tx/v1/evm-txs/by_height/{height}:
     get:
       consumes:
@@ -532,7 +532,7 @@ paths:
       responses: {}
       summary: Get EVM transactions by height
       tags:
-      - Evm Transactions
+      - EVM Tx
   /indexer/tx/v1/txs:
     get:
       consumes:
@@ -573,7 +573,7 @@ paths:
       responses: {}
       summary: Get transactions
       tags:
-      - Transactions
+      - Tx
   /indexer/tx/v1/txs/{tx_hash}:
     get:
       consumes:
@@ -590,7 +590,7 @@ paths:
       responses: {}
       summary: Get transaction by hash
       tags:
-      - Transactions
+      - Tx
   /indexer/tx/v1/txs/by_account/{account}:
     get:
       consumes:
@@ -636,7 +636,7 @@ paths:
       responses: {}
       summary: Get transactions by account
       tags:
-      - Transactions
+      - Tx
   /indexer/tx/v1/txs/by_height/{height}:
     get:
       consumes:
@@ -682,5 +682,5 @@ paths:
       responses: {}
       summary: Get transactions by height
       tags:
-      - Transactions
+      - Tx
 swagger: "2.0"

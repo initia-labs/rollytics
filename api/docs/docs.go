@@ -25,7 +25,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Blocks"
+                    "Block"
                 ],
                 "summary": "Get average block time",
                 "responses": {}
@@ -41,7 +41,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Blocks"
+                    "Block"
                 ],
                 "summary": "Get blocks",
                 "parameters": [
@@ -89,7 +89,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Blocks"
+                    "Block"
                 ],
                 "summary": "Get block by height",
                 "parameters": [
@@ -511,7 +511,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Evm Transactions"
+                    "EVM Tx"
                 ],
                 "summary": "Get EVM transactions",
                 "parameters": [
@@ -559,7 +559,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Evm Transactions"
+                    "EVM Tx"
                 ],
                 "summary": "Get EVM transactions by account",
                 "parameters": [
@@ -614,7 +614,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Evm Transactions"
+                    "EVM Tx"
                 ],
                 "summary": "Get EVM transactions by height",
                 "parameters": [
@@ -669,7 +669,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Evm Transactions"
+                    "EVM Tx"
                 ],
                 "summary": "Get EVM transaction by hash",
                 "parameters": [
@@ -694,7 +694,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Transactions"
+                    "Tx"
                 ],
                 "summary": "Get transactions",
                 "parameters": [
@@ -753,7 +753,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Transactions"
+                    "Tx"
                 ],
                 "summary": "Get transactions by account",
                 "parameters": [
@@ -819,7 +819,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Transactions"
+                    "Tx"
                 ],
                 "summary": "Get transactions by height",
                 "parameters": [
@@ -885,7 +885,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Transactions"
+                    "Tx"
                 ],
                 "summary": "Get transaction by hash",
                 "parameters": [
