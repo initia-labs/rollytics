@@ -82,18 +82,22 @@ func ParseTokensByAccountRequest(c *fiber.Ctx) (*TokensByAccountRequest, error) 
 	}
 
 	account := c.Params("account")
+	collectionAddr := c.Query("collection_addr")
+	tokenId := c.Query("token_id")
 	if account == "" {
 		return nil, fiber.NewError(fiber.StatusBadRequest, "account is required")
 	}
 
 	accAddr, err := util.AccAddressFromString(account)
 	if err != nil {
-		return nil, fiber.NewError(fiber.StatusBadRequest, "invalid account")
+		return nil, fiber.NewError(fiber.StatusBadRequest, "invalid account: "+err.Error())
 	}
 
 	return &TokensByAccountRequest{
-		Account:    accAddr.String(),
-		Pagination: pagination,
+		Account:       accAddr.String(),
+		CollectionAddr: collectionAddr,
+		TokenId:      tokenId,
+		Pagination:    pagination,
 	}, nil
 }
 
@@ -103,6 +107,7 @@ func ParseTokensByCollectionRequest(config *config.ChainConfig, c *fiber.Ctx) (*
 		return nil, fiber.NewError(fiber.StatusBadRequest, common.ErrInvalidParams)
 	}
 
+	tokenId := c.Query("token_id")
 	collectionAddr := c.Params("collection_addr")
 	if collectionAddr == "" {
 		return nil, fiber.NewError(fiber.StatusBadRequest, "collection_addr is required")
@@ -114,6 +119,7 @@ func ParseTokensByCollectionRequest(config *config.ChainConfig, c *fiber.Ctx) (*
 	}
 	return &TokensByCollectionRequest{
 		CollectionAddr: collectionAddr,
+		TokenId:        tokenId,
 		Pagination:     pagination,
 	}, nil
 }

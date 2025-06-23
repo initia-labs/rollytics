@@ -338,6 +338,18 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
+                        "description": "Collection address to filter by (optional)",
+                        "name": "collection_addr",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Token ID to filter by (optional)",
+                        "name": "token_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
                         "description": "Pagination key",
                         "name": "pagination.key",
                         "in": "query"
@@ -397,6 +409,12 @@ const docTemplate = `{
                         "name": "collection_addr",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Token ID to filter by (optional)",
+                        "name": "token_id",
+                        "in": "query"
                     },
                     {
                         "type": "string",
@@ -918,25 +936,42 @@ const docTemplate = `{
         "nft.Collection": {
             "type": "object",
             "properties": {
-                "address": {
-                    "type": "string",
+                "collection": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/nft.CollectionDetail"
+                        }
+                    ],
                     "x-order:1": true
                 },
+                "object_addr": {
+                    "type": "string",
+                    "x-order:0": true
+                }
+            }
+        },
+        "nft.CollectionDetail": {
+            "type": "object",
+            "properties": {
                 "creator": {
                     "type": "string",
                     "x-order:0": true
                 },
                 "name": {
                     "type": "string",
-                    "x-order:2": true
+                    "x-order:1": true
                 },
-                "nft_count": {
-                    "type": "integer",
+                "nfts": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/nft.NftHandle"
+                        }
+                    ],
                     "x-order:4": true
                 },
                 "origin_name": {
                     "type": "string",
-                    "x-order:3": true
+                    "x-order:2": true
                 }
             }
         },
@@ -971,26 +1006,60 @@ const docTemplate = `{
         "nft.Nft": {
             "type": "object",
             "properties": {
-                "collection_address": {
+                "collection_addr": {
                     "type": "string",
                     "x-order:0": true
                 },
-                "nft_token_id": {
+                "collection_name": {
+                    "type": "string",
+                    "x-order:1": true
+                },
+                "collection_origin_name": {
                     "type": "string",
                     "x-order:2": true
+                },
+                "nft": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/nft.NftDetails"
+                        }
+                    ],
+                    "x-order:5": true
                 },
                 "object_addr": {
                     "description": "only used in Move",
                     "type": "string",
-                    "x-order:1": true
-                },
-                "owner": {
-                    "type": "string",
                     "x-order:3": true
+                },
+                "owner_addr": {
+                    "type": "string",
+                    "x-order:4": true
+                }
+            }
+        },
+        "nft.NftDetails": {
+            "type": "object",
+            "properties": {
+                "token_id": {
+                    "type": "string",
+                    "x-order:2": true
                 },
                 "uri": {
                     "type": "string",
-                    "x-order:4": true
+                    "x-order:3": true
+                }
+            }
+        },
+        "nft.NftHandle": {
+            "type": "object",
+            "properties": {
+                "handle": {
+                    "type": "string",
+                    "x-order:0": true
+                },
+                "length": {
+                    "type": "integer",
+                    "x-order:1": true
                 }
             }
         },

@@ -10,21 +10,29 @@ definitions:
     type: object
   nft.Collection:
     properties:
-      address:
-        type: string
+      collection:
+        allOf:
+        - $ref: '#/definitions/nft.CollectionDetail'
         x-order:1: true
+      object_addr:
+        type: string
+        x-order:0: true
+    type: object
+  nft.CollectionDetail:
+    properties:
       creator:
         type: string
         x-order:0: true
       name:
         type: string
-        x-order:2: true
-      nft_count:
-        type: integer
+        x-order:1: true
+      nfts:
+        allOf:
+        - $ref: '#/definitions/nft.NftHandle'
         x-order:4: true
       origin_name:
         type: string
-        x-order:3: true
+        x-order:2: true
     type: object
   nft.CollectionResponse:
     properties:
@@ -45,22 +53,44 @@ definitions:
     type: object
   nft.Nft:
     properties:
-      collection_address:
+      collection_addr:
         type: string
         x-order:0: true
-      nft_token_id:
+      collection_name:
+        type: string
+        x-order:1: true
+      collection_origin_name:
         type: string
         x-order:2: true
+      nft:
+        allOf:
+        - $ref: '#/definitions/nft.NftDetails'
+        x-order:5: true
       object_addr:
         description: only used in Move
         type: string
-        x-order:1: true
-      owner:
-        type: string
         x-order:3: true
-      uri:
+      owner_addr:
         type: string
         x-order:4: true
+    type: object
+  nft.NftDetails:
+    properties:
+      token_id:
+        type: string
+        x-order:2: true
+      uri:
+        type: string
+        x-order:3: true
+    type: object
+  nft.NftHandle:
+    properties:
+      handle:
+        type: string
+        x-order:0: true
+      length:
+        type: integer
+        x-order:1: true
     type: object
   nft.NftsResponse:
     properties:
@@ -291,6 +321,14 @@ paths:
         name: account
         required: true
         type: string
+      - description: Collection address to filter by (optional)
+        in: query
+        name: collection_addr
+        type: string
+      - description: Token ID to filter by (optional)
+        in: query
+        name: token_id
+        type: string
       - description: Pagination key
         in: query
         name: pagination.key
@@ -332,6 +370,10 @@ paths:
         in: path
         name: collection_addr
         required: true
+        type: string
+      - description: Token ID to filter by (optional)
+        in: query
+        name: token_id
         type: string
       - description: Pagination key
         in: query
