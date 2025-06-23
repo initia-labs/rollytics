@@ -24,9 +24,7 @@ type Collector struct {
 }
 
 func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Collector {
-	// Initialize SDK configuration
-	InitializeSDKConfig(cfg.GetChainConfig().AccountAddressPrefix)
-
+	cdc := getCodec()
 	blockSubmodule := block.New(logger, cdc)
 	txSubmodule := tx.New(logger, cfg, cdc)
 	var nftSubmodule indexertypes.Submodule
