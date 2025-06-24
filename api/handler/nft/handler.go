@@ -9,7 +9,7 @@ import (
 type NftHandler struct {
 	*common.BaseHandler
 }
-
+ 
 var _ common.HandlerRegistrar = (*NftHandler)(nil)
 
 func NewNftHandler(base *common.BaseHandler) *NftHandler {
@@ -22,14 +22,14 @@ func (h *NftHandler) Register(router fiber.Router) {
 	// Collections routes
 	collections := nfts.Group("/collections")
 	collections.Get("/", h.GetCollections)
-	collections.Get("/by_account/:account", h.GetCollectionsByAccount)
+	collections.Get("/by_account/:account", h.GetCollectionsByOwner)
 	collections.Get("/by_name/:name", h.GetCollectionsByName)
-	collections.Get("/:collection_addr", h.GetCollectionByCollection)
+	collections.Get("/:collection_addr", h.GetCollectionByCollectionAddr)
 
 	// Tokens(NFT) routes
 	tokens := nfts.Group("/tokens")
-	tokens.Get("/by_account/:account", h.GetTokensByAccount)
-	tokens.Get("/by_collection/:collection_addr", h.GetTokensByCollection)
+	tokens.Get("/by_account/:account", h.GetTokensByOwner)
+	tokens.Get("/by_collection/:collection_addr", h.GetTokensByCollectionAddr)
 
 	// NFT transaction routes
 	txs := nfts.Group("/txs")

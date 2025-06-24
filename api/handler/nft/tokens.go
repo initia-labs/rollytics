@@ -8,7 +8,7 @@ import (
 	dbtypes "github.com/initia-labs/rollytics/types"
 )
 
-// GetTokensByAccount handles GET /nft/v1/tokens/by_account/{account}
+// GetTokensByOwner handles GET /nft/v1/tokens/by_account/{account}
 // @Summary Get NFT tokens by account
 // @Description Get NFT tokens owned by a specific account
 // @Tags NFT
@@ -24,7 +24,7 @@ import (
 // @Param pagination.reverse query bool false "Reverse order default is true if set to true, the results will be ordered in descending order"
 // @Success 200 {object} NftsResponse
 // @Router /indexer/nft/v1/tokens/by_account/{account} [get]
-func (h *NftHandler) GetTokensByAccount(c *fiber.Ctx) error {
+func (h *NftHandler) GetTokensByOwner(c *fiber.Ctx) error {
 	req, err := ParseTokensByAccountRequest(c)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
@@ -41,7 +41,7 @@ func (h *NftHandler) GetTokensByAccount(c *fiber.Ctx) error {
 
 	tokens, pageResp, err := common.NewPaginationBuilder[dbtypes.CollectedNft](req.Pagination).
 		WithQuery(query).
-		WithCountQuery(query).
+		WithTotalQuery(query).
 		WithKeys("collection_addr", "token_id").
 		WithKeyExtractor(func(nft dbtypes.CollectedNft) []any {
 			return []any{nft.CollectionAddr, nft.TokenId}
@@ -64,7 +64,7 @@ func (h *NftHandler) GetTokensByAccount(c *fiber.Ctx) error {
 	})
 }
 
-// GetTokensByCollection handles GET /nft/v1/tokens/by_collection/{collection_addr}
+// GetTokensByCollectionAddr handles GET /nft/v1/tokens/by_collection/{collection_addr}
 // @Summary Get NFT tokens by collection
 // @Description Get NFT tokens from a specific collection
 // @Tags NFT
@@ -79,7 +79,7 @@ func (h *NftHandler) GetTokensByAccount(c *fiber.Ctx) error {
 // @Param pagination.reverse query bool false "Reverse order default is true if set to true, the results will be ordered in descending order"
 // @Success 200 {object} NftsResponse
 // @Router /indexer/nft/v1/tokens/by_collection/{collection_addr} [get]
-func (h *NftHandler) GetTokensByCollection(c *fiber.Ctx) error {
+func (h *NftHandler) GetTokensByCollectionAddr(c *fiber.Ctx) error {
 	req, err := ParseTokensByCollectionRequest(h.GetChainConfig(), c)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
@@ -93,7 +93,7 @@ func (h *NftHandler) GetTokensByCollection(c *fiber.Ctx) error {
 	}
 	tokens, pageResp, err := common.NewPaginationBuilder[dbtypes.CollectedNft](req.Pagination).
 		WithQuery(query).
-		WithCountQuery(query).
+		WithTotalQuery(query).
 		WithKeys("token_id").
 		WithKeyExtractor(func(nft dbtypes.CollectedNft) []any {
 			return []any{nft.TokenId}

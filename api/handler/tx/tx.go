@@ -36,7 +36,7 @@ func (h *TxHandler) GetTxs(c *fiber.Ctx) error {
 	}
 	txs, pageResp, err := common.NewPaginationBuilder[dbtypes.CollectedTx](req.Pagination).
 		WithQuery(query).
-		WithCountQuery(query).
+		WithTotalQuery(query).
 		WithKeys("sequence").
 		WithKeyExtractor(func(tx dbtypes.CollectedTx) []any {
 			return []any{tx.Sequence}
@@ -87,16 +87,16 @@ func (h *TxHandler) GetTxsByAccount(c *fiber.Ctx) error {
 		Joins("INNER JOIN account_tx ON tx.chain_id = account_tx.chain_id AND tx.hash = account_tx.hash").
 		Where("account_tx.chain_id = ?", chainId).
 		Where("account_tx.account = ?", req.Account)
-	countQuery := h.GetDatabase().Model(&dbtypes.CollectedAccountTx{}).
+	totalQuery := h.GetDatabase().Model(&dbtypes.CollectedAccountTx{}).
 		Where("chain_id = ? AND account = ?", chainId, req.Account)
 	if len(req.Msgs) > 0 {
 		query = query.Where("msg_types && ?", pq.Array(req.Msgs))
-		countQuery = countQuery.Where("msg_types && ?", pq.Array(req.Msgs))
+		totalQuery = totalQuery.Where("msg_types && ?", pq.Array(req.Msgs))
 	}
 
 	txs, pageResp, err := common.NewPaginationBuilder[dbtypes.CollectedTx](req.Pagination).
 		WithQuery(query).
-		WithCountQuery(countQuery).
+		WithTotalQuery(totalQuery).
 		WithKeys("tx.sequence").
 		WithKeyExtractor(func(tx dbtypes.CollectedTx) []any {
 			return []any{tx.Sequence}
@@ -143,17 +143,13 @@ func (h *TxHandler) GetTxsByHeight(c *fiber.Ctx) error {
 	query := h.buildBaseTxQuery().
 		Where("height = ?", req.Height)
 
-	countQuery := h.GetDatabase().Model(&dbtypes.CollectedTx{}).
-		Where("chain_id = ? AND height = ?", h.GetChainConfig().ChainId, req.Height)
-
 	if len(req.Msgs) > 0 {
 		query = query.Where("msg_types && ?", pq.Array(req.Msgs))
-		countQuery = countQuery.Where("msg_types && ?", pq.Array(req.Msgs))
 	}
 
 	txs, pageResp, err := common.NewPaginationBuilder[dbtypes.CollectedTx](req.Pagination).
 		WithQuery(query).
-		WithCountQuery(countQuery).
+		WithTotalQuery(query).
 		WithKeys("sequence").
 		WithKeyExtractor(func(tx dbtypes.CollectedTx) []any {
 			return []any{tx.Sequence}

@@ -56,7 +56,7 @@ func ParseCollectionsByNameRequest(c *fiber.Ctx) (*CollectionsByNameRequest, err
 	}, nil
 }
 
-func ParseCollectionByAddressRequest(config *config.ChainConfig, c *fiber.Ctx) (*CollectionByAddrRequest, error) {
+func ParseCollectionByCollectionAddrRequest(config *config.ChainConfig, c *fiber.Ctx) (*CollectionByAddrRequest, error) {
 	collectionAddr := c.Params("collection_addr")
 	if collectionAddr == "" {
 		return nil, fiber.NewError(fiber.StatusBadRequest, "collection_addr param is required")
@@ -94,10 +94,10 @@ func ParseTokensByAccountRequest(c *fiber.Ctx) (*TokensByAccountRequest, error) 
 	}
 
 	return &TokensByAccountRequest{
-		Account:       accAddr.String(),
+		Account:        accAddr.String(),
 		CollectionAddr: collectionAddr,
-		TokenId:      tokenId,
-		Pagination:    pagination,
+		TokenId:        tokenId,
+		Pagination:     pagination,
 	}, nil
 }
 
