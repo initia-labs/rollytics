@@ -47,7 +47,7 @@ func (h *NftHandler) GetCollections(c *fiber.Ctx) error {
 	})
 }
 
-// GetCollectionsByAccount handles GET /nft/v1/collections/by_account/{account}
+// GetCollectionsByOwner handles GET /nft/v1/collections/by_account/{account}
 // @Summary Get NFT collections by owner account
 // @Description Get NFT collections owned by a specific account
 // @Tags NFT
@@ -61,7 +61,7 @@ func (h *NftHandler) GetCollections(c *fiber.Ctx) error {
 // @Param pagination.reverse query bool false "Reverse order default is true if set to true, the results will be ordered in descending order"
 // @Success 200 {object} CollectionsResponse
 // @Router /indexer/nft/v1/collections/by_account/{account} [get]
-func (h *NftHandler) GetCollectionsByAccount(c *fiber.Ctx) error {
+func (h *NftHandler) GetCollectionsByOwner(c *fiber.Ctx) error {
 	req, err := ParseCollectionsByAccountRequest(c)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
@@ -70,18 +70,18 @@ func (h *NftHandler) GetCollectionsByAccount(c *fiber.Ctx) error {
 	chainId := h.GetChainConfig().ChainId
 
 	query := h.GetDatabase().Model(&dbtypes.CollectedNftCollection{}).
-		Select("DISTINCT nft_collection.*").
+		Select("nft_collection.*").
 		Joins("INNER JOIN nft ON nft_collection.chain_id = nft.chain_id AND nft_collection.addr = nft.collection_addr").
 		Where("nft_collection.chain_id = ?", chainId).
 		Where("nft.owner = ?", req.Account)
 
-	countQuery := h.GetDatabase().Model(&dbtypes.CollectedNft{}).
+	totalQuery := h.GetDatabase().Model(&dbtypes.CollectedNft{}).
 		Select("DISTINCT nft.collection_addr").
 		Where("chain_id = ? AND owner = ?", chainId, req.Account)
 
 	collections, pageResp, err := common.NewPaginationBuilder[dbtypes.CollectedNftCollection](req.Pagination).
 		WithQuery(query).
-		WithCountQuery(countQuery).
+		WithTotalQuery(totalQuery).
 		WithKeys("nft_collection.height", "nft_collection.addr").
 		WithKeyExtractor(func(col dbtypes.CollectedNftCollection) []any {
 			return []any{col.Height, col.Addr}
@@ -121,12 +121,12 @@ func (h *NftHandler) GetCollectionsByName(c *fiber.Ctx) error {
 	query := h.buildBaseCollectionQuery().
 		Where("name = ?", req.Name)
 
-	countQuery := h.buildBaseCollectionQuery().
+	totalQuery := h.buildBaseCollectionQuery().
 		Where("name = ?", req.Name)
 
 	collections, pageResp, err := common.NewPaginationBuilder[dbtypes.CollectedNftCollection](req.Pagination).
 		WithQuery(query).
-		WithCountQuery(countQuery).
+		WithTotalQuery(totalQuery).
 		WithKeys("height", "addr").
 		WithKeyExtractor(func(col dbtypes.CollectedNftCollection) []any {
 			return []any{col.Height, col.Addr}
@@ -143,7 +143,7 @@ func (h *NftHandler) GetCollectionsByName(c *fiber.Ctx) error {
 	})
 }
 
-// GetCollectionByCollection handles GET /nft/v1/collections/{collection_addr}
+// GetCollectionByCollectionAddr handles GET /nft/v1/collections/{collection_addr}
 // @Summary Get NFT Collections By Collection Address
 // @Description Get NFT collections for a specific address
 // @Tags NFT
@@ -152,8 +152,8 @@ func (h *NftHandler) GetCollectionsByName(c *fiber.Ctx) error {
 // @Param collection_addr path string true "Collection address"
 // @Success 200 {object} CollectionResponse
 // @Router /indexer/nft/v1/collections/{collection_addr} [get]
-func (h *NftHandler) GetCollectionByCollection(c *fiber.Ctx) error {
-	req, err := ParseCollectionByAddressRequest(h.GetChainConfig(), c)
+func (h *NftHandler) GetCollectionByCollectionAddr(c *fiber.Ctx) error {
+	req, err := ParseCollectionByCollectionAddrRequest(h.GetChainConfig(), c)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}

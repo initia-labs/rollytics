@@ -42,7 +42,7 @@ func ExtractPaginationParams(c *fiber.Ctx) (*PaginationParams, error) {
 type PaginationBuilder[T any] struct {
 	params       *PaginationParams
 	query        *gorm.DB
-	countQuery   *gorm.DB
+	totalQuery   *gorm.DB
 	keys         []string
 	keyExtractor func(T) []any
 }
@@ -58,8 +58,8 @@ func (b *PaginationBuilder[T]) WithQuery(query *gorm.DB) *PaginationBuilder[T] {
 	return b
 }
 
-func (b *PaginationBuilder[T]) WithCountQuery(countQuery *gorm.DB) *PaginationBuilder[T] {
-	b.countQuery = countQuery
+func (b *PaginationBuilder[T]) WithTotalQuery(totalQuery *gorm.DB) *PaginationBuilder[T] {
+	b.totalQuery = totalQuery
 	return b
 }
 
@@ -92,11 +92,11 @@ func (b *PaginationBuilder[T]) Execute() ([]T, *PageResponse, error) {
 		nextKey = getNextKey(values...)
 	}
 
-	if b.countQuery == nil {
-		b.countQuery = b.query
+	if b.totalQuery == nil {
+		b.totalQuery = b.query
 	}
 
-	pageResp, err := b.params.getPageResponse(len(results), b.countQuery, nextKey)
+	pageResp, err := b.params.getPageResponse(len(results), b.totalQuery, nextKey)
 	if err != nil {
 		return nil, nil, err
 	}

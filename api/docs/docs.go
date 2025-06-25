@@ -25,7 +25,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Blocks"
+                    "Block"
                 ],
                 "summary": "Get average block time",
                 "responses": {}
@@ -41,7 +41,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Blocks"
+                    "Block"
                 ],
                 "summary": "Get blocks",
                 "parameters": [
@@ -89,7 +89,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Blocks"
+                    "Block"
                 ],
                 "summary": "Get block by height",
                 "parameters": [
@@ -338,6 +338,18 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
+                        "description": "Collection address to filter by (optional)",
+                        "name": "collection_addr",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Token ID to filter by (optional)",
+                        "name": "token_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
                         "description": "Pagination key",
                         "name": "pagination.key",
                         "in": "query"
@@ -397,6 +409,12 @@ const docTemplate = `{
                         "name": "collection_addr",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Token ID to filter by (optional)",
+                        "name": "token_id",
+                        "in": "query"
                     },
                     {
                         "type": "string",
@@ -511,7 +529,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Evm Transactions"
+                    "EVM Tx"
                 ],
                 "summary": "Get EVM transactions",
                 "parameters": [
@@ -559,7 +577,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Evm Transactions"
+                    "EVM Tx"
                 ],
                 "summary": "Get EVM transactions by account",
                 "parameters": [
@@ -614,7 +632,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Evm Transactions"
+                    "EVM Tx"
                 ],
                 "summary": "Get EVM transactions by height",
                 "parameters": [
@@ -659,29 +677,6 @@ const docTemplate = `{
                 "responses": {}
             }
         },
-        "/indexer/tx/v1/evm-txs/count": {
-            "get": {
-                "description": "Get the total number of EVM transactions",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Evm Transactions"
-                ],
-                "summary": "Get EVM transaction count",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/tx.EvmTxCountResponse"
-                        }
-                    }
-                }
-            }
-        },
         "/indexer/tx/v1/evm-txs/{tx_hash}": {
             "get": {
                 "description": "Get a specific EVM transaction by its hash",
@@ -692,7 +687,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Evm Transactions"
+                    "EVM Tx"
                 ],
                 "summary": "Get EVM transaction by hash",
                 "parameters": [
@@ -717,7 +712,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Transactions"
+                    "Tx"
                 ],
                 "summary": "Get transactions",
                 "parameters": [
@@ -750,6 +745,17 @@ const docTemplate = `{
                         "description": "Reverse order default is true if set to true, the results will be ordered in descending order",
                         "name": "pagination.reverse",
                         "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "multi",
+                        "example": "\"cosmos.bank.v1beta1.MsgSend,initia.move.v1.MsgExecute\"",
+                        "description": "Message types to filter (comma-separated or multiple params)",
+                        "name": "msgs",
+                        "in": "query"
                     }
                 ],
                 "responses": {}
@@ -765,7 +771,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Transactions"
+                    "Tx"
                 ],
                 "summary": "Get transactions by account",
                 "parameters": [
@@ -805,6 +811,17 @@ const docTemplate = `{
                         "description": "Reverse order default is true if set to true, the results will be ordered in descending order",
                         "name": "pagination.reverse",
                         "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "multi",
+                        "example": "\"cosmos.bank.v1beta1.MsgSend,initia.move.v1.MsgExecute\"",
+                        "description": "Message types to filter (comma-separated or multiple params)",
+                        "name": "msgs",
+                        "in": "query"
                     }
                 ],
                 "responses": {}
@@ -820,7 +837,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Transactions"
+                    "Tx"
                 ],
                 "summary": "Get transactions by height",
                 "parameters": [
@@ -860,24 +877,19 @@ const docTemplate = `{
                         "description": "Reverse order default is true if set to true, the results will be ordered in descending order",
                         "name": "pagination.reverse",
                         "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "multi",
+                        "example": "\"cosmos.bank.v1beta1.MsgSend,initia.move.v1.MsgExecute\"",
+                        "description": "Message types to filter (comma-separated or multiple params)",
+                        "name": "msgs",
+                        "in": "query"
                     }
                 ],
-                "responses": {}
-            }
-        },
-        "/indexer/tx/v1/txs/count": {
-            "get": {
-                "description": "Get the total number of transactions",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Transactions"
-                ],
-                "summary": "Get transaction count",
                 "responses": {}
             }
         },
@@ -891,7 +903,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Transactions"
+                    "Tx"
                 ],
                 "summary": "Get transaction by hash",
                 "parameters": [
@@ -924,25 +936,42 @@ const docTemplate = `{
         "nft.Collection": {
             "type": "object",
             "properties": {
-                "address": {
-                    "type": "string",
+                "collection": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/nft.CollectionDetail"
+                        }
+                    ],
                     "x-order:1": true
                 },
+                "object_addr": {
+                    "type": "string",
+                    "x-order:0": true
+                }
+            }
+        },
+        "nft.CollectionDetail": {
+            "type": "object",
+            "properties": {
                 "creator": {
                     "type": "string",
                     "x-order:0": true
                 },
                 "name": {
                     "type": "string",
-                    "x-order:2": true
+                    "x-order:1": true
                 },
-                "nft_count": {
-                    "type": "integer",
+                "nfts": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/nft.NftHandle"
+                        }
+                    ],
                     "x-order:4": true
                 },
                 "origin_name": {
                     "type": "string",
-                    "x-order:3": true
+                    "x-order:2": true
                 }
             }
         },
@@ -977,26 +1006,60 @@ const docTemplate = `{
         "nft.Nft": {
             "type": "object",
             "properties": {
-                "collection_address": {
+                "collection_addr": {
                     "type": "string",
                     "x-order:0": true
                 },
-                "nft_token_id": {
+                "collection_name": {
+                    "type": "string",
+                    "x-order:1": true
+                },
+                "collection_origin_name": {
                     "type": "string",
                     "x-order:2": true
+                },
+                "nft": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/nft.NftDetails"
+                        }
+                    ],
+                    "x-order:5": true
                 },
                 "object_addr": {
                     "description": "only used in Move",
                     "type": "string",
-                    "x-order:1": true
-                },
-                "owner": {
-                    "type": "string",
                     "x-order:3": true
+                },
+                "owner_addr": {
+                    "type": "string",
+                    "x-order:4": true
+                }
+            }
+        },
+        "nft.NftDetails": {
+            "type": "object",
+            "properties": {
+                "token_id": {
+                    "type": "string",
+                    "x-order:2": true
                 },
                 "uri": {
                     "type": "string",
-                    "x-order:4": true
+                    "x-order:3": true
+                }
+            }
+        },
+        "nft.NftHandle": {
+            "type": "object",
+            "properties": {
+                "handle": {
+                    "type": "string",
+                    "x-order:0": true
+                },
+                "length": {
+                    "type": "integer",
+                    "x-order:1": true
                 }
             }
         },
@@ -1016,15 +1079,6 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/nft.Nft"
                     },
-                    "x-order:0": true
-                }
-            }
-        },
-        "tx.EvmTxCountResponse": {
-            "type": "object",
-            "properties": {
-                "count": {
-                    "type": "integer",
                     "x-order:0": true
                 }
             }

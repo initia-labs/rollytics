@@ -15,17 +15,28 @@ func ParseTxsRequest(c *fiber.Ctx) (*TxsRequest, error) {
 		return nil, fiber.NewError(fiber.StatusBadRequest, common.ErrInvalidParams)
 	}
 
-	req := &TxsRequest{
-		Pagination: pagination,
+	raw := c.Request().URI().QueryArgs().PeekMulti("msgs")
+	msgs := make([]string, len(raw))
+	for i, b := range raw {
+		msgs[i] = string(b)
 	}
 
-	return req, nil
+	return &TxsRequest{
+		Pagination: pagination,
+		Msgs:       msgs,
+	}, nil
 }
 
-func ParseTxsRequestByHeight(c *fiber.Ctx) (*TxsRequestByHeight, error) {
+func ParseTxsByHeightRequest(c *fiber.Ctx) (*TxsByHeightRequest, error) {
 	pagination, err := common.ExtractPaginationParams(c)
 	if err != nil {
 		return nil, fiber.NewError(fiber.StatusBadRequest, common.ErrInvalidParams)
+	}
+
+	raw := c.Request().URI().QueryArgs().PeekMulti("msgs")
+	msgs := make([]string, len(raw))
+	for i, b := range raw {
+		msgs[i] = string(b)
 	}
 
 	heightStr := c.Params("height")
@@ -34,9 +45,10 @@ func ParseTxsRequestByHeight(c *fiber.Ctx) (*TxsRequestByHeight, error) {
 		return nil, fiber.NewError(fiber.StatusBadRequest, "invalid height param: "+err.Error())
 	}
 
-	return &TxsRequestByHeight{
+	return &TxsByHeightRequest{
 		Pagination: pagination,
 		Height:     height,
+		Msgs:       msgs,
 	}, nil
 }
 
@@ -44,6 +56,12 @@ func ParseTxsByAccountRequest(c *fiber.Ctx) (*TxsByAccountRequest, error) {
 	pagination, err := common.ExtractPaginationParams(c)
 	if err != nil {
 		return nil, fiber.NewError(fiber.StatusBadRequest, common.ErrInvalidParams)
+	}
+
+	raw := c.Request().URI().QueryArgs().PeekMulti("msgs")
+	msgs := make([]string, len(raw))
+	for i, b := range raw {
+		msgs[i] = string(b)
 	}
 
 	account := c.Params("account")
@@ -59,25 +77,7 @@ func ParseTxsByAccountRequest(c *fiber.Ctx) (*TxsByAccountRequest, error) {
 	return &TxsByAccountRequest{
 		Pagination: pagination,
 		Account:    accAddr.String(),
-	}, nil
-}
-
-// ParseTxsByHeightRequest parses and validates the request
-func ParseTxsByHeightRequest(c *fiber.Ctx) (*TxsByHeightRequest, error) {
-	pagination, err := common.ExtractPaginationParams(c)
-	if err != nil {
-		return nil, fiber.NewError(fiber.StatusBadRequest, common.ErrInvalidParams)
-	}
-
-	heightStr := c.Params("height")
-	height, err := strconv.ParseInt(heightStr, 10, 64)
-	if err != nil {
-		return nil, fiber.NewError(fiber.StatusBadRequest, "invalid height param: "+err.Error())
-	}
-
-	return &TxsByHeightRequest{
-		Pagination: pagination,
-		Height:     height,
+		Msgs:       msgs,
 	}, nil
 }
 

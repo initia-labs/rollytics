@@ -5,8 +5,8 @@ import (
 	"github.com/initia-labs/rollytics/types"
 )
 
-// Colections
 // Request
+// Colections
 type CollectionsRequest struct {
 	Pagination *common.PaginationParams `query:"pagination"`
 }
@@ -25,13 +25,45 @@ type CollectionByAddrRequest struct {
 	CollectionAddr string `param:"collection_addr"`
 }
 
+// Tokens
+type TokensByAccountRequest struct {
+	Account        string                   `param:"account" extensions:"x-order:0"`
+	CollectionAddr string                   `param:"collection_addr" extensions:"x-order:1"`
+	TokenId        string                   `param:"token_id" extensions:"x-order:2"`
+	Pagination     *common.PaginationParams `query:"pagination" extensions:"x-order:3"`
+}
+
+type TokensByCollectionRequest struct {
+	CollectionAddr string                   `param:"collection_addr" extensions:"x-order:0"`
+	TokenId        string                   `param:"token_id" extensions:"x-order:1"`
+	Pagination     *common.PaginationParams `query:"pagination" extensions:"x-order:2"`
+}
+
+// Txs
+type NftTxsRequest struct {
+	CollectionAddr string                   `param:"collection_addr" extensions:"x-order:0"`
+	TokenId        string                   `param:"token_id" extensions:"x-order:1"`
+	Pagination     *common.PaginationParams `query:"pagination" extensions:"x-order:2"`
+}
+
 // Response
+// Collections
+
+type NftHandle struct {
+	Handle string `json:"handle" extensions:"x-order:0"`
+	Length int64  `json:"length" extensions:"x-order:1"`
+}
+
+type CollectionDetail struct {
+	Creator    string    `json:"creator" extensions:"x-order:0"`
+	Name       string    `json:"name" extensions:"x-order:1"`
+	OriginName string    `json:"origin_name" extensions:"x-order:2"`
+	Nfts       NftHandle `json:"nfts" extensions:"x-order:4"`
+}
+
 type Collection struct {
-	Creator    string `json:"creator" extensions:"x-order:0"`
-	Address    string `json:"address" extensions:"x-order:1"`
-	Name       string `json:"name" extensions:"x-order:2"`
-	OriginName string `json:"origin_name" extensions:"x-order:3"`
-	NFTCount   int64  `json:"nft_count" extensions:"x-order:4"`
+	Address          string           `json:"object_addr" extensions:"x-order:0"`
+	CollectionDetail CollectionDetail `json:"collection" extensions:"x-order:1"`
 }
 
 type CollectionsResponse struct {
@@ -45,11 +77,16 @@ type CollectionResponse struct {
 
 func ToResponseCollection(col *types.CollectedNftCollection) *Collection {
 	return &Collection{
-		Creator:    col.Creator,
-		Address:    col.Addr,
-		Name:       col.Name,
-		OriginName: col.OriginName,
-		NFTCount:   col.NftCount,
+		Address: col.Addr,
+		CollectionDetail: CollectionDetail{
+			Creator:    col.Creator,
+			Name:       col.Name,
+			OriginName: col.OriginName,
+			Nfts: NftHandle{
+				Handle: "",
+				Length: col.NftCount,
+			},
+		},
 	}
 }
 
@@ -62,31 +99,18 @@ func BatchToResponseCollections(cols []types.CollectedNftCollection) []Collectio
 }
 
 // Tokens
-// Request
-type TokensByAccountRequest struct {
-	Account    string                   `param:"account" extensions:"x-order:0"`
-	Pagination *common.PaginationParams `query:"pagination" extensions:"x-order:1"`
+type NftDetails struct {
+	TokenId string `json:"token_id" extensions:"x-order:2"`
+	Uri     string `json:"uri" extensions:"x-order:3"`
 }
-
-type TokensByCollectionRequest struct {
-	CollectionAddr string                   `param:"collection_addr" extensions:"x-order:0"`
-	Pagination     *common.PaginationParams `query:"pagination" extensions:"x-order:1"`
-}
-
-type NftTxsRequest struct {
-	CollectionAddr string                   `param:"collection_addr" extensions:"x-order:0"`
-	TokenId        string                   `param:"token_id" extensions:"x-order:1"`
-	Pagination     *common.PaginationParams `query:"pagination" extensions:"x-order:2"`
-}
-
-// Response
 
 type Nft struct {
-	CollectionAddr string `json:"collection_address" extensions:"x-order:0"`
-	ObjectAddr     string `json:"object_addr,omitempty" extensions:"x-order:1"` // only used in Move
-	TokenId        string `json:"nft_token_id" extensions:"x-order:2"`
-	Owner          string `json:"owner" extensions:"x-order:3"`
-	Uri            string `json:"uri" extensions:"x-order:4"`
+	CollectionAddr       string     `json:"collection_addr" extensions:"x-order:0"`
+	CollectionName       string     `json:"collection_name" extensions:"x-order:1"`
+	CollectionOriginName string     `json:"collection_origin_name" extensions:"x-order:2"`
+	ObjectAddr           string     `json:"object_addr,omitempty" extensions:"x-order:3"` // only used in Move
+	Owner                string     `json:"owner_addr" extensions:"x-order:4"`
+	Nft                  NftDetails `json:"nft" extensions:"x-order:5"`
 }
 
 type NftsResponse struct {
@@ -94,20 +118,24 @@ type NftsResponse struct {
 	Pagination *common.PageResponse `json:"pagination" extensions:"x-order:1"`
 }
 
-func ToResponseNft(nft *types.CollectedNft) *Nft {
+func ToResponseNft(name, originName string, nft *types.CollectedNft) *Nft {
 	return &Nft{
-		CollectionAddr: nft.CollectionAddr,
-		ObjectAddr:     nft.Addr, // only used in Move
-		TokenId:        nft.TokenId,
-		Owner:          nft.Owner,
-		Uri:            nft.Uri,
+		CollectionAddr:       nft.CollectionAddr,
+		CollectionName:       name,
+		CollectionOriginName: originName,
+		ObjectAddr:           nft.Addr, // only used in Move
+		Owner:                nft.Owner,
+		Nft: NftDetails{
+			TokenId: nft.TokenId,
+			Uri:     nft.Uri,
+		},
 	}
 }
 
-func BatchToResponseNfts(nfts []types.CollectedNft) []Nft {
+func BatchToResponseNfts(name, originName string, nfts []types.CollectedNft) []Nft {
 	nftResponses := make([]Nft, 0, len(nfts))
 	for _, nft := range nfts {
-		nftResponses = append(nftResponses, *ToResponseNft(&nft))
+		nftResponses = append(nftResponses, *ToResponseNft(name, originName, &nft))
 	}
 	return nftResponses
 }

@@ -11,7 +11,7 @@ import (
 // GetEvmTxs handles GET /tx/v1/evm-txs
 // @Summary Get EVM transactions
 // @Description Get a list of EVM transactions with pagination
-// @Tags Evm Transactions
+// @Tags EVM Tx
 // @Accept json
 // @Produce json
 // @Param pagination.key query string false "Pagination key"
@@ -25,9 +25,10 @@ func (h *TxHandler) GetEvmTxs(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
-
+	query := h.buildBaseEvmTxQuery()
 	txs, pageResp, err := common.NewPaginationBuilder[dbtypes.CollectedEvmTx](req.Pagination).
-		WithQuery(h.buildBaseEvmTxQuery()).
+		WithQuery(query).
+		WithTotalQuery(query).
 		WithKeys("sequence").
 		WithKeyExtractor(func(lastTx dbtypes.CollectedEvmTx) []any {
 			return []any{lastTx.Sequence}
@@ -54,7 +55,7 @@ func (h *TxHandler) GetEvmTxs(c *fiber.Ctx) error {
 // GetEvmTxsByAccount handles GET /tx/v1/evm-txs/by_account/{account}
 // @Summary Get EVM transactions by account
 // @Description Get EVM transactions associated with a specific account
-// @Tags Evm Transactions
+// @Tags EVM Tx
 // @Accept json
 // @Produce json
 // @Param account path string true "Account address"
@@ -76,12 +77,12 @@ func (h *TxHandler) GetEvmTxsByAccount(c *fiber.Ctx) error {
 		Where("evm_account_tx.chain_id = ?", h.GetChainConfig().ChainId).
 		Where("evm_account_tx.account = ?", req.Account)
 
-	countQuery := h.GetDatabase().Model(&dbtypes.CollectedEvmAccountTx{}).
+	totalQuery := h.GetDatabase().Model(&dbtypes.CollectedEvmAccountTx{}).
 		Where("chain_id = ? AND account = ?", h.GetChainConfig().ChainId, req.Account)
 
 	txs, pageResp, err := common.NewPaginationBuilder[dbtypes.CollectedEvmTx](req.Pagination).
 		WithQuery(query).
-		WithCountQuery(countQuery).
+		WithTotalQuery(totalQuery).
 		WithKeys("evm_tx.sequence").
 		WithKeyExtractor(func(tx dbtypes.CollectedEvmTx) []any {
 			return []any{tx.Sequence}
@@ -108,7 +109,7 @@ func (h *TxHandler) GetEvmTxsByAccount(c *fiber.Ctx) error {
 // GetEvmTxsByHeight handles GET /tx/v1/evm-txs/by_height/{height}
 // @Summary Get EVM transactions by height
 // @Description Get EVM transactions at a specific block height
-// @Tags Evm Transactions
+// @Tags EVM Tx
 // @Accept json
 // @Produce json
 // @Param height path int true "Block height"
@@ -127,12 +128,12 @@ func (h *TxHandler) GetEvmTxsByHeight(c *fiber.Ctx) error {
 	query := h.buildBaseEvmTxQuery().
 		Where("height = ?", req.Height)
 
-	countQuery := h.GetDatabase().Model(&dbtypes.CollectedEvmTx{}).
+	totalQuery := h.GetDatabase().Model(&dbtypes.CollectedEvmTx{}).
 		Where("chain_id = ? AND height = ?", h.GetChainConfig().ChainId, req.Height)
 
 	txs, pageResp, err := common.NewPaginationBuilder[dbtypes.CollectedEvmTx](req.Pagination).
 		WithQuery(query).
-		WithCountQuery(countQuery).
+		WithTotalQuery(totalQuery).
 		WithKeys("sequence").
 		WithKeyExtractor(func(tx dbtypes.CollectedEvmTx) []any {
 			return []any{tx.Sequence}
@@ -156,33 +157,10 @@ func (h *TxHandler) GetEvmTxsByHeight(c *fiber.Ctx) error {
 	})
 }
 
-// GetEvmTxsCount handles GET /tx/v1/evm-txs/count
-// @Summary Get EVM transaction count
-// @Description Get the total number of EVM transactions
-// @Tags Evm Transactions
-// @Accept json
-// @Produce json
-// @Success 200 {object} EvmTxCountResponse
-// @Router /indexer/tx/v1/evm-txs/count [get]
-func (h *TxHandler) GetEvmTxsCount(c *fiber.Ctx) error {
-	var (
-		total    int64
-		database = h.GetDatabase()
-		logger   = h.GetLogger()
-	)
-
-	if err := database.Model(&dbtypes.CollectedEvmTx{}).Count(&total).Error; err != nil {
-		logger.Error(ErrFailedToCountEvmTx, "error", err)
-		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToCountEvmTx)
-	}
-	resp := EvmTxCountResponse{Count: uint64(total)} //nolint:gosec
-	return c.JSON(resp)
-}
-
 // GetEvmTxByHash handles GET /tx/v1/evm-txs/{tx_hash}
 // @Summary Get EVM transaction by hash
 // @Description Get a specific EVM transaction by its hash
-// @Tags Evm Transactions
+// @Tags EVM Tx
 // @Accept json
 // @Produce json
 // @Param tx_hash path string true "Transaction hash"

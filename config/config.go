@@ -81,6 +81,9 @@ func GetConfig() (*Config, error) {
 		return nil, err
 	}
 
+	// initialize sdk
+	InitializeSDKConfig(cc.AccountAddressPrefix)
+
 	return config, nil
 }
 
