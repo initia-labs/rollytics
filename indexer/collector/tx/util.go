@@ -5,9 +5,10 @@ import (
 	"errors"
 	"strings"
 
-	"gorm.io/gorm"
-
+	abci "github.com/cometbft/cometbft/abci/types"
+	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/types"
+	"gorm.io/gorm"
 )
 
 func getSeqInfo(chainId string, name string, tx *gorm.DB) (seqInfo types.CollectedSeqInfo, err error) {
@@ -42,6 +43,32 @@ func grepMsgTypesFromRestTx(tx RestTx) (msgTypes []string, err error) {
 
 	for msgType := range msgTypeMap {
 		msgTypes = append(msgTypes, msgType)
+	}
+
+	return
+}
+
+func grepTypeTagsFromEvents(cfg *config.Config, events []abci.Event) (typeTags []string, err error) {
+	if cfg.GetVmType() != types.MoveVM {
+		return
+	}
+
+	typeTagMap := make(map[string]interface{})
+
+	for _, event := range events {
+		if event.Type != "move" {
+			continue
+		}
+
+		for _, attr := range event.Attributes {
+			if attr.Key == "type_tag" && attr.Value != "" {
+				typeTagMap[attr.Value] = nil
+			}
+		}
+	}
+
+	for typeTag := range typeTagMap {
+		typeTags = append(typeTags, typeTag)
 	}
 
 	return

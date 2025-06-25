@@ -32,13 +32,14 @@ type CollectedBlock struct {
 }
 
 type CollectedTx struct {
-	ChainId  string          `gorm:"type:text;primaryKey"`
-	Hash     string          `gorm:"type:text;primaryKey;index:tx_hash"`
-	Height   int64           `gorm:"type:bigint;primaryKey;autoIncrement:false;index:tx_height"`
-	Sequence uint64          `gorm:"type:bigint;index:tx_sequence"`
-	Signer   string          `gorm:"type:text"`
-	Data     json.RawMessage `gorm:"type:jsonb"`
-	MsgTypes pq.StringArray  `gorm:"type:text[]"` // apply GIN index at DB initialization
+	ChainId    string          `gorm:"type:text;primaryKey"`
+	Hash       string          `gorm:"type:text;primaryKey;index:tx_hash"`
+	Height     int64           `gorm:"type:bigint;primaryKey;autoIncrement:false;index:tx_height"`
+	Sequence   uint64          `gorm:"type:bigint;index:tx_sequence"`
+	Signer     string          `gorm:"type:text"`
+	Data       json.RawMessage `gorm:"type:jsonb"`
+	MsgTypeIds pq.Int64Array   `gorm:"type:bigint[]"` // apply GIN index at DB initialization
+	TypeTagIds pq.Int64Array   `gorm:"type:bigint[]"` // apply GIN index at DB initialization
 }
 
 type CollectedAccountTx struct {
@@ -100,6 +101,18 @@ type CollectedFAStore struct {
 	Owner     string `gorm:"type:text;index:fa_store_owner"`
 }
 
+// dictionary for msg type
+type CollectedMsgType struct {
+	Id      int64  `gorm:"type:bigint;primaryKey"`
+	MsgType string `gorm:"type:text;uniqueIndex"`
+}
+
+// dictionary for type tag, only for move
+type CollectedTypeTag struct {
+	Id      int64  `gorm:"type:bigint;primaryKey"`
+	TypeTag string `gorm:"type:text;uniqueIndex"`
+}
+
 func (CollectedSeqInfo) TableName() string {
 	return "seq_info"
 }
@@ -138,4 +151,12 @@ func (CollectedNftTx) TableName() string {
 
 func (CollectedFAStore) TableName() string {
 	return "fa_store"
+}
+
+func (CollectedMsgType) TableName() string {
+	return "msg_type"
+}
+
+func (CollectedTypeTag) TableName() string {
+	return "type_tag"
 }

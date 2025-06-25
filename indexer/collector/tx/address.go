@@ -9,6 +9,7 @@ import (
 	evmtypes "github.com/initia-labs/minievm/x/evm/types"
 	"gorm.io/gorm"
 
+	"github.com/initia-labs/rollytics/cache"
 	"github.com/initia-labs/rollytics/types"
 	"github.com/initia-labs/rollytics/util"
 )
@@ -23,7 +24,7 @@ var (
 	regexInitBech = regexp.MustCompile(InitBech32Regex)
 	regexHex      = regexp.MustCompile(InitHexRegex)
 	regexMoveHex  = regexp.MustCompile(MoveHexRegex)
-	cache         = NewFAStoreCache()
+	faStoreCache  = cache.New[string, string](10000)
 )
 
 func findAllBech32Address(attr string) []string {
@@ -95,7 +96,7 @@ func grepAddressesFromTx(chainId string, events []abci.Event, tx *gorm.DB) (grep
 	var owners []string
 	var storeAddrs []string // for querying DB
 	for storeAddr := range storeAddrMap {
-		owner, ok := cache.Get(storeAddr)
+		owner, ok := faStoreCache.Get(storeAddr)
 		if ok {
 			owners = append(owners, owner)
 		} else {
@@ -110,7 +111,7 @@ func grepAddressesFromTx(chainId string, events []abci.Event, tx *gorm.DB) (grep
 		}
 		for _, faStore := range faStores {
 			owners = append(owners, faStore.Owner)
-			cache.Set(faStore.StoreAddr, faStore.Owner)
+			faStoreCache.Set(faStore.StoreAddr, faStore.Owner)
 		}
 	}
 

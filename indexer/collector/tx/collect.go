@@ -90,6 +90,25 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) (e
 			return err
 		}
 
+		// convert to msg type ids
+		msgTypeIds, err := util.GetOrCreateMsgTypeIds(tx, msgTypes)
+		if err != nil {
+			return err
+		}
+
+		res := block.TxResults[txIndex]
+		// grep type tags from events
+		typeTags, err := grepTypeTagsFromEvents(sub.cfg, res.Events)
+		if err != nil {
+			return err
+		}
+
+		// convert to type tag ids
+		typeTagIds, err := util.GetOrCreateTypeTagIds(tx, typeTags)
+		if err != nil {
+			return err
+		}
+
 		var authInfo sdktx.AuthInfo
 		if err = unknownproto.RejectUnknownFieldsStrict(raw.AuthInfoBytes, &authInfo, sub.cdc.InterfaceRegistry()); err != nil {
 			return err
@@ -110,15 +129,10 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) (e
 		if err != nil {
 			return err
 		}
-
-		res := block.TxResults[txIndex]
-		// handle response -> json
-
 		events, err := cbjson.Marshal(res.Events)
 		if err != nil {
 			return err
 		}
-
 		parsedLogs, _ := sdk.ParseABCILogs(res.Log)
 		if parsedLogs == nil {
 			parsedLogs = []sdk.ABCIMessageLog{}
@@ -145,13 +159,14 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) (e
 
 		seqInfo.Sequence++
 		ctxs = append(ctxs, types.CollectedTx{
-			Hash:     txHash,
-			ChainId:  chainId,
-			Height:   height,
-			Sequence: seqInfo.Sequence,
-			Signer:   signer,
-			Data:     json.RawMessage(txByHeightRecordJSON),
-			MsgTypes: msgTypes,
+			Hash:       txHash,
+			ChainId:    chainId,
+			Height:     height,
+			Sequence:   seqInfo.Sequence,
+			Signer:     signer,
+			Data:       json.RawMessage(txByHeightRecordJSON),
+			MsgTypeIds: msgTypeIds,
+			TypeTagIds: typeTagIds,
 		})
 
 		// grep addresses for account tx

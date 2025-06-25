@@ -66,11 +66,17 @@ func (d Database) Migrate() error {
 		&types.CollectedNft{},
 		&types.CollectedNftTx{},
 		&types.CollectedFAStore{},
+		&types.CollectedMsgType{},
+		&types.CollectedTypeTag{},
 	); err != nil {
 		return err
 	}
 
-	return d.Exec(`CREATE INDEX IF NOT EXISTS tx_msg_types ON tx USING GIN ("msg_types")`).Error
+	if err := d.Exec(`CREATE INDEX IF NOT EXISTS tx_msg_type_ids ON tx USING GIN ("msg_type_ids")`).Error; err != nil {
+		return err
+	}
+
+	return d.Exec(`CREATE INDEX IF NOT EXISTS tx_type_tag_ids ON tx USING GIN ("type_tag_ids")`).Error
 }
 
 func (d Database) Close() error {
