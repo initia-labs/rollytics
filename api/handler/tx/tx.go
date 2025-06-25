@@ -9,6 +9,7 @@ import (
 
 	"github.com/initia-labs/rollytics/api/handler/common"
 	dbtypes "github.com/initia-labs/rollytics/types"
+	"github.com/initia-labs/rollytics/util"
 )
 
 // GetTxs handles GET /tx/v1/txs
@@ -30,9 +31,14 @@ func (h *TxHandler) GetTxs(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
+	msgTypeIds, err := util.GetOrCreateMsgTypeIds(h.GetDatabase().DB, req.Msgs, false)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchMsgTypes)
+	}
+
 	query := h.buildBaseTxQuery()
 	if len(req.Msgs) > 0 {
-		query = query.Where("msg_types && ?", pq.Array(req.Msgs))
+		query = query.Where("msg_type_ids && ?", pq.Array(msgTypeIds))
 	}
 	txs, pageResp, err := common.NewPaginationBuilder[dbtypes.CollectedTx](req.Pagination).
 		WithQuery(query).
@@ -89,9 +95,13 @@ func (h *TxHandler) GetTxsByAccount(c *fiber.Ctx) error {
 		Where("account_tx.account = ?", req.Account)
 	totalQuery := h.GetDatabase().Model(&dbtypes.CollectedAccountTx{}).
 		Where("chain_id = ? AND account = ?", chainId, req.Account)
+	msgTypeIds, err := util.GetOrCreateMsgTypeIds(h.GetDatabase().DB, req.Msgs, false)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchMsgTypes)
+	}
 	if len(req.Msgs) > 0 {
-		query = query.Where("msg_types && ?", pq.Array(req.Msgs))
-		totalQuery = totalQuery.Where("msg_types && ?", pq.Array(req.Msgs))
+		query = query.Where("msg_type_ids && ?", pq.Array(msgTypeIds))
+		totalQuery = totalQuery.Where("msg_type_ids && ?", pq.Array(msgTypeIds))
 	}
 
 	txs, pageResp, err := common.NewPaginationBuilder[dbtypes.CollectedTx](req.Pagination).
@@ -143,8 +153,12 @@ func (h *TxHandler) GetTxsByHeight(c *fiber.Ctx) error {
 	query := h.buildBaseTxQuery().
 		Where("height = ?", req.Height)
 
+	msgTypeIds, err := util.GetOrCreateMsgTypeIds(h.GetDatabase().DB, req.Msgs, false)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchMsgTypes)
+	}
 	if len(req.Msgs) > 0 {
-		query = query.Where("msg_types && ?", pq.Array(req.Msgs))
+		query = query.Where("msg_type_ids && ?", pq.Array(msgTypeIds))
 	}
 
 	txs, pageResp, err := common.NewPaginationBuilder[dbtypes.CollectedTx](req.Pagination).

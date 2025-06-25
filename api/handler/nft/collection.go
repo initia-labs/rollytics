@@ -119,14 +119,11 @@ func (h *NftHandler) GetCollectionsByName(c *fiber.Ctx) error {
 	}
 
 	query := h.buildBaseCollectionQuery().
-		Where("name = ?", req.Name)
-
-	totalQuery := h.buildBaseCollectionQuery().
-		Where("name = ?", req.Name)
+		Where("name ILIKE ?", "%"+req.Name+"%")
 
 	collections, pageResp, err := common.NewPaginationBuilder[dbtypes.CollectedNftCollection](req.Pagination).
 		WithQuery(query).
-		WithTotalQuery(totalQuery).
+		WithTotalQuery(query).
 		WithKeys("height", "addr").
 		WithKeyExtractor(func(col dbtypes.CollectedNftCollection) []any {
 			return []any{col.Height, col.Addr}
