@@ -91,7 +91,7 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) (e
 		}
 
 		// convert to msg type ids
-		msgTypeIds, err := util.GetOrCreateMsgTypeIds(tx, msgTypes)
+		msgTypeIds, err := util.GetOrCreateMsgTypeIds(tx, msgTypes, true)
 		if err != nil {
 			return err
 		}
@@ -104,7 +104,7 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) (e
 		}
 
 		// convert to type tag ids
-		typeTagIds, err := util.GetOrCreateTypeTagIds(tx, typeTags)
+		typeTagIds, err := util.GetOrCreateTypeTagIds(tx, typeTags, true)
 		if err != nil {
 			return err
 		}
