@@ -107,6 +107,14 @@ definitions:
 info:
   contact: {}
 paths:
+  /health:
+    get:
+      responses:
+        "200":
+          description: OK
+      summary: Health check
+      tags:
+      - App
   /indexer/block/v1/avg_blocktime:
     get:
       consumes:

@@ -50,9 +50,7 @@ func (a *Api) Start() error {
 		DisableStartupMessage: true,
 	})
 
-	app.Get("/health", func(c *fiber.Ctx) error {
-		return c.SendString("OK")
-	})
+	app.Get("/health", health)
 
 	api := app.Group("/indexer")
 	handler.Register(api, a.db, a.cfg, a.logger)
@@ -78,4 +76,13 @@ func (a *Api) Start() error {
 	a.logger.Info("starting API server", slog.String("addr", fmt.Sprintf("http://localhost:%s", port)))
 
 	return app.Listen(":" + port)
+}
+
+// health handles GET /health
+// @Summary Health check
+// @Tags App
+// @Success 200 "OK"
+// @Router /health [get]
+func health(c *fiber.Ctx) error {
+	return c.SendString("OK")
 }

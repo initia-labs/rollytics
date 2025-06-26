@@ -15,6 +15,19 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/health": {
+            "get": {
+                "tags": [
+                    "App"
+                ],
+                "summary": "Health check",
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
         "/indexer/block/v1/avg_blocktime": {
             "get": {
                 "description": "Get the average block time over recent blocks",

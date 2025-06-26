@@ -1,22 +1,18 @@
 package nft
 
 import (
-	"sync"
-
+	"github.com/initia-labs/rollytics/cache"
 	"github.com/initia-labs/rollytics/orm"
 	dbtypes "github.com/initia-labs/rollytics/types"
 )
 
-// cache for validator responses
+// cache for collection data
 var (
-	collectionCache     = make(map[string]*dbtypes.CollectedNftCollection)
-	collectionCacheLock sync.RWMutex
+	collectionCache = cache.New[string, *dbtypes.CollectedNftCollection](100)
 )
 
 func getCollection(database *orm.Database, collectionAddr string) (*dbtypes.CollectedNftCollection, error) {
-	collectionCacheLock.RLock()
-	cached, ok := collectionCache[collectionAddr]
-	collectionCacheLock.RUnlock()
+	cached, ok := collectionCache.Get(collectionAddr)
 	if ok {
 		return cached, nil
 	}
@@ -26,9 +22,7 @@ func getCollection(database *orm.Database, collectionAddr string) (*dbtypes.Coll
 		return &collection, res.Error
 	}
 
-	collectionCacheLock.Lock()
-	collectionCache[collectionAddr] = &collection
-	collectionCacheLock.Unlock()
+	collectionCache.Set(collectionAddr, &collection)
 
 	return &collection, nil
 }

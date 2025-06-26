@@ -31,13 +31,12 @@ func (h *TxHandler) GetTxs(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
-	msgTypeIds, err := util.GetOrCreateMsgTypeIds(h.GetDatabase().DB, req.Msgs, false)
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchMsgTypes)
-	}
-
 	query := h.buildBaseTxQuery()
 	if len(req.Msgs) > 0 {
+		msgTypeIds, err := util.GetOrCreateMsgTypeIds(h.GetDatabase().DB, req.Msgs, false)
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchMsgTypes)
+		}
 		query = query.Where("msg_type_ids && ?", pq.Array(msgTypeIds))
 	}
 	txs, pageResp, err := common.NewPaginationBuilder[dbtypes.CollectedTx](req.Pagination).
@@ -93,15 +92,21 @@ func (h *TxHandler) GetTxsByAccount(c *fiber.Ctx) error {
 		Joins("INNER JOIN account_tx ON tx.chain_id = account_tx.chain_id AND tx.hash = account_tx.hash").
 		Where("account_tx.chain_id = ?", chainId).
 		Where("account_tx.account = ?", req.Account)
+
 	totalQuery := h.GetDatabase().Model(&dbtypes.CollectedAccountTx{}).
-		Where("chain_id = ? AND account = ?", chainId, req.Account)
-	msgTypeIds, err := util.GetOrCreateMsgTypeIds(h.GetDatabase().DB, req.Msgs, false)
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchMsgTypes)
-	}
+		Where("chain_id = ?", chainId).
+		Where("account = ?", req.Account)
+
 	if len(req.Msgs) > 0 {
+		msgTypeIds, err := util.GetOrCreateMsgTypeIds(h.GetDatabase().DB, req.Msgs, false)
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchMsgTypes)
+		}
+
 		query = query.Where("msg_type_ids && ?", pq.Array(msgTypeIds))
-		totalQuery = totalQuery.Where("msg_type_ids && ?", pq.Array(msgTypeIds))
+		totalQuery = h.GetDatabase().Model(&dbtypes.CollectedAccountTx{}).
+			Where("chain_id = ? AND account = ?", chainId, req.Account).
+			Where("EXISTS (SELECT 1 FROM tx WHERE tx.chain_id = account_tx.chain_id AND tx.hash = account_tx.hash AND msg_type_ids && ?)", pq.Array(msgTypeIds))
 	}
 
 	txs, pageResp, err := common.NewPaginationBuilder[dbtypes.CollectedTx](req.Pagination).
@@ -153,11 +158,11 @@ func (h *TxHandler) GetTxsByHeight(c *fiber.Ctx) error {
 	query := h.buildBaseTxQuery().
 		Where("height = ?", req.Height)
 
-	msgTypeIds, err := util.GetOrCreateMsgTypeIds(h.GetDatabase().DB, req.Msgs, false)
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchMsgTypes)
-	}
 	if len(req.Msgs) > 0 {
+		msgTypeIds, err := util.GetOrCreateMsgTypeIds(h.GetDatabase().DB, req.Msgs, false)
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchMsgTypes)
+		}
 		query = query.Where("msg_type_ids && ?", pq.Array(msgTypeIds))
 	}
 
