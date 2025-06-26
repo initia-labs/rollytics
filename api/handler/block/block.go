@@ -31,7 +31,6 @@ func (h *BlockHandler) GetBlocks(c *fiber.Ctx) error {
 	query := h.buildBaseBlockQuery()
 	blocks, pageResp, err := common.NewPaginationBuilder[dbtypes.CollectedBlock](req.Pagination).
 		WithQuery(query).
-		WithTotalQuery(query).
 		WithKeys("height").
 		WithKeyExtractor(func(block dbtypes.CollectedBlock) []any {
 			return []any{block.Height}

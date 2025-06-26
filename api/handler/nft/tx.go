@@ -35,7 +35,7 @@ func (h *NftHandler) GetNftTxs(c *fiber.Ctx) error {
 	chainId := chainConfig.ChainId
 
 	var query *gorm.DB
-	var totalQuery *gorm.DB
+	var totalQuery func() int64
 
 	if chainConfig.VmType == types.MoveVM {
 		// Move VM: get NFT address and use account transactions
@@ -55,8 +55,14 @@ func (h *NftHandler) GetNftTxs(c *fiber.Ctx) error {
 			Where("account_tx.chain_id = ?", chainId).
 			Where("account_tx.account = ?", nft.Addr)
 
-		totalQuery = h.GetDatabase().Model(&types.CollectedAccountTx{}).
-			Where("chain_id = ? AND account = ?", chainId, nft.Addr)
+		totalQuery = func() int64 {
+			var total int64
+			if h.GetDatabase().Model(&types.CollectedAccountTx{}).
+				Where("chain_id = ? AND account = ?", chainId, nft.Addr).Count(&total).Error != nil {
+				return 0
+			}
+			return total
+		}
 	} else {
 		// EVM/WASM: use nft_tx table
 		query = h.GetDatabase().Model(&types.CollectedTx{}).
@@ -66,8 +72,14 @@ func (h *NftHandler) GetNftTxs(c *fiber.Ctx) error {
 			Where("nft_tx.collection_addr = ?", req.CollectionAddr).
 			Where("nft_tx.token_id = ?", req.TokenId)
 
-		totalQuery = h.GetDatabase().Model(&types.CollectedNftTx{}).
-			Where("chain_id = ? AND collection_addr = ? AND token_id = ?", chainId, req.CollectionAddr, req.TokenId)
+		totalQuery = func() int64 {
+			var total int64
+			if h.GetDatabase().Model(&types.CollectedNftTx{}).
+				Where("chain_id = ? AND collection_addr = ? AND token_id = ?", chainId, req.CollectionAddr, req.TokenId).Count(&total).Error != nil {
+				return 0
+			}
+			return total
+		}
 	}
 
 	nftTxs, pageResp, err := common.NewPaginationBuilder[types.CollectedTx](req.Pagination).

@@ -41,7 +41,6 @@ func (h *NftHandler) GetTokensByOwner(c *fiber.Ctx) error {
 
 	tokens, pageResp, err := common.NewPaginationBuilder[dbtypes.CollectedNft](req.Pagination).
 		WithQuery(query).
-		WithTotalQuery(query).
 		WithKeys("collection_addr", "token_id").
 		WithKeyExtractor(func(nft dbtypes.CollectedNft) []any {
 			return []any{nft.CollectionAddr, nft.TokenId}
@@ -93,7 +92,6 @@ func (h *NftHandler) GetTokensByCollectionAddr(c *fiber.Ctx) error {
 	}
 	tokens, pageResp, err := common.NewPaginationBuilder[dbtypes.CollectedNft](req.Pagination).
 		WithQuery(query).
-		WithTotalQuery(query).
 		WithKeys("token_id").
 		WithKeyExtractor(func(nft dbtypes.CollectedNft) []any {
 			return []any{nft.TokenId}

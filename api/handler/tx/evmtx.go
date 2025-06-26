@@ -26,9 +26,18 @@ func (h *TxHandler) GetEvmTxs(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 	query := h.buildBaseEvmTxQuery()
+
+	totalQuery := func() int64 {
+		var tx dbtypes.CollectedEvmTx
+		if h.buildBaseEvmTxQuery().Select("tx.sequence").Order("tx.sequence DESC").Find(&tx).Error != nil {
+			return 0
+		}
+		return int64(tx.Sequence)
+	}
+
 	txs, pageResp, err := common.NewPaginationBuilder[dbtypes.CollectedEvmTx](req.Pagination).
 		WithQuery(query).
-		WithTotalQuery(query).
+		WithTotalQuery(totalQuery).
 		WithKeys("sequence").
 		WithKeyExtractor(func(lastTx dbtypes.CollectedEvmTx) []any {
 			return []any{lastTx.Sequence}
@@ -77,8 +86,15 @@ func (h *TxHandler) GetEvmTxsByAccount(c *fiber.Ctx) error {
 		Where("evm_account_tx.chain_id = ?", h.GetChainConfig().ChainId).
 		Where("evm_account_tx.account = ?", req.Account)
 
-	totalQuery := h.GetDatabase().Model(&dbtypes.CollectedEvmAccountTx{}).
-		Where("chain_id = ? AND account = ?", h.GetChainConfig().ChainId, req.Account)
+	totalQuery := func() int64 {
+		var total int64
+		if h.GetDatabase().Model(&dbtypes.CollectedEvmAccountTx{}).
+			Where("chain_id = ?", h.GetChainConfig().ChainId).
+			Where("account = ?", req.Account).Count(&total).Error != nil {
+			return 0
+		}
+		return total
+	}
 
 	txs, pageResp, err := common.NewPaginationBuilder[dbtypes.CollectedEvmTx](req.Pagination).
 		WithQuery(query).
@@ -128,12 +144,9 @@ func (h *TxHandler) GetEvmTxsByHeight(c *fiber.Ctx) error {
 	query := h.buildBaseEvmTxQuery().
 		Where("height = ?", req.Height)
 
-	totalQuery := h.GetDatabase().Model(&dbtypes.CollectedEvmTx{}).
-		Where("chain_id = ? AND height = ?", h.GetChainConfig().ChainId, req.Height)
 
 	txs, pageResp, err := common.NewPaginationBuilder[dbtypes.CollectedEvmTx](req.Pagination).
 		WithQuery(query).
-		WithTotalQuery(totalQuery).
 		WithKeys("sequence").
 		WithKeyExtractor(func(tx dbtypes.CollectedEvmTx) []any {
 			return []any{tx.Sequence}

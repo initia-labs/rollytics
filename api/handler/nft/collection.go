@@ -75,9 +75,15 @@ func (h *NftHandler) GetCollectionsByOwner(c *fiber.Ctx) error {
 		Where("nft_collection.chain_id = ?", chainId).
 		Where("nft.owner = ?", req.Account)
 
-	totalQuery := h.GetDatabase().Model(&dbtypes.CollectedNft{}).
-		Select("DISTINCT nft.collection_addr").
-		Where("chain_id = ? AND owner = ?", chainId, req.Account)
+	totalQuery := func() int64 {
+		var total int64
+		if h.GetDatabase().Model(&dbtypes.CollectedNft{}).
+			Select("DISTINCT nft.collection_addr").
+			Where("chain_id = ? AND owner = ?", chainId, req.Account).Count(&total).Error != nil {
+			return 0
+		}
+		return total
+	}
 
 	collections, pageResp, err := common.NewPaginationBuilder[dbtypes.CollectedNftCollection](req.Pagination).
 		WithQuery(query).
@@ -123,7 +129,6 @@ func (h *NftHandler) GetCollectionsByName(c *fiber.Ctx) error {
 
 	collections, pageResp, err := common.NewPaginationBuilder[dbtypes.CollectedNftCollection](req.Pagination).
 		WithQuery(query).
-		WithTotalQuery(query).
 		WithKeys("height", "addr").
 		WithKeyExtractor(func(col dbtypes.CollectedNftCollection) []any {
 			return []any{col.Height, col.Addr}

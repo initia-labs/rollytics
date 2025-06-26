@@ -42,7 +42,7 @@ func ExtractPaginationParams(c *fiber.Ctx) *PaginationParams {
 type PaginationBuilder[T any] struct {
 	params       *PaginationParams
 	query        *gorm.DB
-	totalQuery   *gorm.DB
+	totalQuery   func() int64
 	keys         []string
 	keyExtractor func(T) []any
 }
@@ -58,7 +58,7 @@ func (b *PaginationBuilder[T]) WithQuery(query *gorm.DB) *PaginationBuilder[T] {
 	return b
 }
 
-func (b *PaginationBuilder[T]) WithTotalQuery(totalQuery *gorm.DB) *PaginationBuilder[T] {
+func (b *PaginationBuilder[T]) WithTotalQuery(totalQuery func() int64) *PaginationBuilder[T] {
 	b.totalQuery = totalQuery
 	return b
 }
@@ -81,7 +81,7 @@ func (b *PaginationBuilder[T]) Execute() ([]T, *PageResponse, error) {
 	}
 
 	var results []T
-	if err := query.Find(&results).Error; err != nil {
+	if err := query.Debug().Find(&results).Error; err != nil {
 		return nil, nil, err
 	}
 
@@ -93,7 +93,13 @@ func (b *PaginationBuilder[T]) Execute() ([]T, *PageResponse, error) {
 	}
 
 	if b.totalQuery == nil {
-		b.totalQuery = b.query
+		b.totalQuery = func() int64 {
+			var total int64
+			if b.query.Count(&total).Error != nil {
+				return 0
+			}
+			return total
+		}
 	}
 
 	pageResp, err := b.params.getPageResponse(len(results), b.totalQuery, nextKey)
@@ -163,13 +169,11 @@ func (params *PaginationParams) setPageKey(query *gorm.DB, keys []string) (*gorm
 	return query, nil
 }
 
-func (params *PaginationParams) getPageResponse(len int, totalQuery *gorm.DB, nextKey []byte) (*PageResponse, error) {
+func (params *PaginationParams) getPageResponse(len int, totalQuery func() int64, nextKey []byte) (*PageResponse, error) {
 	resp := PageResponse{}
 
 	if params.CountTotal {
-		if err := totalQuery.Count(&resp.Total).Error; err != nil {
-			return nil, fiber.NewError(fiber.StatusInternalServerError, "failed to count total items: "+err.Error())
-		}
+		resp.Total = totalQuery()
 	}
 
 	if len == int(params.Limit) {
@@ -186,7 +190,7 @@ func getNextKey(values ...any) []byte {
 	if len(values) == 0 {
 		return nil
 	} else if len(values) == 1 {
-		return []byte(fmt.Sprintf("%v", values[0]))
+		return fmt.Appendf(nil, "%v", values[0])
 	}
 
 	var parts []string
