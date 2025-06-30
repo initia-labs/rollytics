@@ -3,11 +3,12 @@ package config
 import "errors"
 
 type Config struct {
-	DSN         string
-	AutoMigrate bool
-	MaxConns    int
-	IdleConns   int
-	BatchSize   int
+	DSN          string
+	AutoMigrate  bool
+	MaxConns     int
+	IdleConns    int
+	BatchSize    int
+	MigrationDir string
 }
 
 func (c Config) Validate() error {
@@ -22,6 +23,9 @@ func (c Config) Validate() error {
 	}
 	if c.BatchSize < 1 {
 		return errors.New("DB_BATCH_SIZE is invalid")
+	}
+	if c.MigrationDir == "" {
+		return errors.New("DB_MIGRATION_DIR is required")
 	}
 	// no check AutoMigrate
 	return nil

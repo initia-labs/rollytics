@@ -1,16 +1,19 @@
 package orm
 
 import (
+	"context"
+	"fmt"
 	"log/slog"
+	"os"
 
+	"ariga.io/atlas-go-sdk/atlasexec"
+	_ "ariga.io/atlas-provider-gorm/gormschema"
+	"github.com/initia-labs/rollytics/orm/config"
 	sloggorm "github.com/orandin/slog-gorm"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"gorm.io/gorm/schema"
-
-	"github.com/initia-labs/rollytics/orm/config"
-	"github.com/initia-labs/rollytics/types"
 )
 
 var (
@@ -55,20 +58,24 @@ func (d Database) Migrate() error {
 		return nil
 	}
 
-	if err := d.AutoMigrate(
-		&types.CollectedSeqInfo{},
-		&types.CollectedBlock{},
-		&types.CollectedTx{},
-		&types.CollectedAccountTx{},
-		&types.CollectedEvmTx{},
-		&types.CollectedEvmAccountTx{},
-		&types.CollectedNftCollection{},
-		&types.CollectedNft{},
-		&types.CollectedNftTx{},
-		&types.CollectedFAStore{},
-		&types.CollectedMsgType{},
-		&types.CollectedTypeTag{},
-	); err != nil {
+	workDir, err := atlasexec.NewWorkingDir(
+		atlasexec.WithMigrations(
+			os.DirFS(d.config.MigrationDir),
+		),
+	)
+	if err != nil {
+		return err
+	}
+	defer workDir.Close()
+
+	client, err := atlasexec.NewClient(workDir.Path(), "atlas")
+	if err != nil {
+		return err
+	}
+
+	if _, err := client.MigrateApply(context.Background(), &atlasexec.MigrateApplyParams{
+		URL: fmt.Sprintf("%s?sslmode=disable", d.config.DSN),
+	}); err != nil {
 		return err
 	}
 

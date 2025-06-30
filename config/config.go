@@ -25,6 +25,7 @@ type Config struct {
 func setDefaults() {
 	viper.SetDefault("DB_AUTO_MIGRATE", false)
 	viper.SetDefault("DB_BATCH_SIZE", 100)
+	viper.SetDefault("DB_MIGRATION_DIR", "orm/migrations")
 	viper.SetDefault("ACCOUNT_ADDRESS_PREFIX", "init")
 	viper.SetDefault("COOLING_DURATION", 100*time.Millisecond)
 	viper.SetDefault("LOG_LEVEL", "warn")
@@ -40,11 +41,12 @@ func GetConfig() (*Config, error) {
 	setDefaults()
 
 	dc := &dbconfig.Config{
-		DSN:         viper.GetString("DB_DSN"),
-		AutoMigrate: viper.GetBool("DB_AUTO_MIGRATE"),
-		MaxConns:    viper.GetInt("DB_MAX_CONNS"),
-		IdleConns:   viper.GetInt("DB_IDLE_CONNS"),
-		BatchSize:   viper.GetInt("DB_BATCH_SIZE"),
+		DSN:          viper.GetString("DB_DSN"),
+		AutoMigrate:  viper.GetBool("DB_AUTO_MIGRATE"),
+		MaxConns:     viper.GetInt("DB_MAX_CONNS"),
+		IdleConns:    viper.GetInt("DB_IDLE_CONNS"),
+		BatchSize:    viper.GetInt("DB_BATCH_SIZE"),
+		MigrationDir: viper.GetString("DB_MIGRATION_DIR"),
 	}
 
 	var vmType types.VMType

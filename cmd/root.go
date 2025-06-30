@@ -46,6 +46,7 @@ comprehensive data collection and API services for blockchain networks.`,
 	cmd.AddCommand(versionCmd())
 	cmd.AddCommand(indexerCmd())
 	cmd.AddCommand(apiCmd())
+	cmd.AddCommand(migrateCmd())
 
 	return cmd
 }
