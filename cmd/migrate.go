@@ -31,7 +31,7 @@ You can configure database options via environment variables.`,
 			rawCmd := exec.CommandContext(context.Background(), "atlas", "migrate", "diff",
 				"migration",
 				"--env", "gorm",
-				"--dev-url", fmt.Sprintf("%s?sslmode=disable", dsn),
+				"--dev-url", dsn,
 				"--dir", migrationDir,
 			)
 			rawCmd.Stdout = os.Stdout

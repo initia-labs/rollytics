@@ -192,6 +192,11 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB
 	}
 
 	// batch insert nft txs
+	seqInfo, err := indexerutil.GetSeqInfo(block.ChainId, "nft_tx", tx)
+	if err != nil {
+		return err
+	}
+
 	var nftTxs []types.CollectedNftTx
 	for txHash, collectionMap := range nftTxMap {
 		if txHash == "" {
@@ -200,17 +205,24 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB
 
 		for collectionAddr, nftMap := range collectionMap {
 			for tokenId := range nftMap {
+				seqInfo.Sequence++
 				nftTxs = append(nftTxs, types.CollectedNftTx{
 					ChainId:        block.ChainId,
 					Hash:           txHash,
 					CollectionAddr: collectionAddr,
 					TokenId:        tokenId,
 					Height:         block.Height,
+					Sequence:       seqInfo.Sequence,
 				})
 			}
 		}
 	}
 	if res := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(nftTxs, batchSize); res.Error != nil {
+		return res.Error
+	}
+
+	// update seq info
+	if res := tx.Clauses(orm.UpdateAllWhenConflict).Create(&seqInfo); res.Error != nil {
 		return res.Error
 	}
 

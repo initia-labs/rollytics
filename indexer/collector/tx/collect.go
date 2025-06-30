@@ -17,15 +17,20 @@ import (
 	"gorm.io/gorm"
 
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
+	indexerutil "github.com/initia-labs/rollytics/indexer/util"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
 	"github.com/initia-labs/rollytics/util"
 )
 
 func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) (err error) {
+	batchSize := sub.cfg.GetDBBatchSize()
+	chainId := block.ChainId
+	height := block.Height
+
 	sub.mtx.Lock()
-	cacheData, ok := sub.cache[block.Height]
-	delete(sub.cache, block.Height)
+	cacheData, ok := sub.cache[height]
+	delete(sub.cache, height)
 	sub.mtx.Unlock()
 
 	if !ok {
@@ -37,10 +42,12 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) (e
 		return err
 	}
 
-	batchSize := sub.cfg.GetDBBatchSize()
-	chainId := block.ChainId
-	height := block.Height
-	seqInfo, err := getSeqInfo(chainId, "tx", tx)
+	// get seq infos
+	txSeqInfo, err := indexerutil.GetSeqInfo(chainId, "tx", tx)
+	if err != nil {
+		return err
+	}
+	acctxSeqInfo, err := indexerutil.GetSeqInfo(chainId, "account_tx", tx)
 	if err != nil {
 		return err
 	}
@@ -157,12 +164,12 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) (e
 			return err
 		}
 
-		seqInfo.Sequence++
+		txSeqInfo.Sequence++
 		ctxs = append(ctxs, types.CollectedTx{
 			Hash:       txHash,
 			ChainId:    chainId,
 			Height:     height,
-			Sequence:   seqInfo.Sequence,
+			Sequence:   txSeqInfo.Sequence,
 			Signer:     signer,
 			Data:       json.RawMessage(txByHeightRecordJSON),
 			MsgTypeIds: msgTypeIds,
@@ -170,7 +177,7 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) (e
 		})
 
 		// grep addresses for account tx
-		addrs, err := grepAddressesFromTx(block.ChainId, res.Events, tx)
+		addrs, err := grepAddressesFromTx(chainId, res.Events, tx)
 		if err != nil {
 			return err
 		}
@@ -185,11 +192,13 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) (e
 	// collect account txs
 	for txHash, accounts := range accountMap {
 		for account := range accounts {
+			acctxSeqInfo.Sequence++
 			acctxs = append(acctxs, types.CollectedAccountTx{
-				Hash:    txHash,
-				Account: account,
-				ChainId: chainId,
-				Height:  height,
+				Hash:     txHash,
+				Account:  account,
+				ChainId:  chainId,
+				Height:   height,
+				Sequence: acctxSeqInfo.Sequence,
 			})
 		}
 	}
@@ -204,8 +213,9 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) (e
 		return res.Error
 	}
 
-	// update seq info
-	if res := tx.Clauses(orm.UpdateAllWhenConflict).Create(&seqInfo); res.Error != nil {
+	// update seq infos
+	seqInfos := []types.CollectedSeqInfo{txSeqInfo, acctxSeqInfo}
+	if res := tx.Clauses(orm.UpdateAllWhenConflict).Create(&seqInfos); res.Error != nil {
 		return res.Error
 	}
 
@@ -218,7 +228,15 @@ func (sub *TxSubmodule) collectEvm(block indexertypes.ScrapedBlock, evmTxs []typ
 	}
 
 	batchSize := sub.cfg.GetDBBatchSize()
-	seqInfo, err := getSeqInfo(block.ChainId, "evm_tx", tx)
+	chainId := block.ChainId
+	height := block.Height
+
+	// get seq infos
+	txSeqInfo, err := indexerutil.GetSeqInfo(chainId, "evm_tx", tx)
+	if err != nil {
+		return err
+	}
+	acctxSeqInfo, err := indexerutil.GetSeqInfo(chainId, "evm_account_tx", tx)
 	if err != nil {
 		return err
 	}
@@ -238,12 +256,12 @@ func (sub *TxSubmodule) collectEvm(block indexertypes.ScrapedBlock, evmTxs []typ
 			return err
 		}
 
-		seqInfo.Sequence++
+		txSeqInfo.Sequence++
 		cetxs = append(cetxs, types.CollectedEvmTx{
-			ChainId:  block.ChainId,
+			ChainId:  chainId,
 			Hash:     evmTx.TxHash,
-			Height:   block.Height,
-			Sequence: seqInfo.Sequence,
+			Height:   height,
+			Sequence: txSeqInfo.Sequence,
 			Signer:   signer.String(),
 			Data:     json.RawMessage(txJSON),
 		})
@@ -264,11 +282,13 @@ func (sub *TxSubmodule) collectEvm(block indexertypes.ScrapedBlock, evmTxs []typ
 	// collect account txs
 	for txHash, accounts := range accountMap {
 		for account := range accounts {
+			acctxSeqInfo.Sequence++
 			acetxs = append(acetxs, types.CollectedEvmAccountTx{
-				ChainId: block.ChainId,
-				Hash:    txHash,
-				Account: account,
-				Height:  block.Height,
+				ChainId:  chainId,
+				Hash:     txHash,
+				Account:  account,
+				Height:   height,
+				Sequence: acctxSeqInfo.Sequence,
 			})
 		}
 	}
@@ -283,8 +303,9 @@ func (sub *TxSubmodule) collectEvm(block indexertypes.ScrapedBlock, evmTxs []typ
 		return res.Error
 	}
 
-	// update seq info
-	if res := tx.Clauses(orm.UpdateAllWhenConflict).Create(&seqInfo); res.Error != nil {
+	// update seq infos
+	seqInfos := []types.CollectedSeqInfo{txSeqInfo, acctxSeqInfo}
+	if res := tx.Clauses(orm.UpdateAllWhenConflict).Create(&seqInfos); res.Error != nil {
 		return res.Error
 	}
 
