@@ -9,7 +9,7 @@ import (
 type NftHandler struct {
 	*common.BaseHandler
 }
- 
+
 var _ common.HandlerRegistrar = (*NftHandler)(nil)
 
 func NewNftHandler(base *common.BaseHandler) *NftHandler {

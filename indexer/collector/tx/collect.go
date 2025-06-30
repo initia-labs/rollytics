@@ -105,10 +105,7 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) (e
 
 		res := block.TxResults[txIndex]
 		// grep type tags from events
-		typeTags, err := grepTypeTagsFromEvents(sub.cfg, res.Events)
-		if err != nil {
-			return err
-		}
+		typeTags := grepTypeTagsFromEvents(sub.cfg, res.Events)
 
 		// convert to type tag ids
 		typeTagIds, err := util.GetOrCreateTypeTagIds(tx, typeTags, true)

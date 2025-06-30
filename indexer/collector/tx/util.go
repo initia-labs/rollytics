@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	abci "github.com/cometbft/cometbft/abci/types"
+
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/types"
 )
@@ -29,7 +30,7 @@ func grepMsgTypesFromRestTx(tx RestTx) (msgTypes []string, err error) {
 	return
 }
 
-func grepTypeTagsFromEvents(cfg *config.Config, events []abci.Event) (typeTags []string, err error) {
+func grepTypeTagsFromEvents(cfg *config.Config, events []abci.Event) (typeTags []string) {
 	if cfg.GetVmType() != types.MoveVM {
 		return
 	}

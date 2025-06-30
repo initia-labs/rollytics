@@ -8,12 +8,13 @@ import (
 
 	"ariga.io/atlas-go-sdk/atlasexec"
 	_ "ariga.io/atlas-provider-gorm/gormschema"
-	"github.com/initia-labs/rollytics/orm/config"
 	sloggorm "github.com/orandin/slog-gorm"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"gorm.io/gorm/schema"
+
+	"github.com/initia-labs/rollytics/orm/config"
 )
 
 var (
@@ -53,7 +54,7 @@ func OpenDB(config *config.Config, logger *slog.Logger) (*Database, error) {
 	return &Database{DB: instance, config: config}, nil
 }
 
-func (d Database) Migrate() error {
+func (d Database) Migrate() (err error) {
 	if !d.config.AutoMigrate {
 		return nil
 	}
@@ -66,7 +67,13 @@ func (d Database) Migrate() error {
 	if err != nil {
 		return err
 	}
-	defer workDir.Close()
+	defer func() {
+		if cerr := workDir.Close(); cerr != nil {
+			if err == nil {
+				err = cerr
+			}
+		}
+	}()
 
 	client, err := atlasexec.NewClient(workDir.Path(), "atlas")
 	if err != nil {

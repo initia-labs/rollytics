@@ -3,9 +3,10 @@ package util
 import (
 	"errors"
 
+	"gorm.io/gorm"
+
 	"github.com/initia-labs/rollytics/cache"
 	"github.com/initia-labs/rollytics/types"
-	"gorm.io/gorm"
 )
 
 var (

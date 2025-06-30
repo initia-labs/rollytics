@@ -22,7 +22,9 @@ func getCollection(database *orm.Database, collectionAddr string) (*dbtypes.Coll
 	}
 
 	var collection dbtypes.CollectedNftCollection
-	database.Where("addr = ?", collectionAddr).First(&collection)
+	if res := database.Where("addr = ?", collectionAddr).First(&collection); res.Error != nil {
+		return &collection, res.Error
+	}
 
 	collectionCacheLock.Lock()
 	collectionCache[collectionAddr] = &collection

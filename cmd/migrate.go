@@ -6,8 +6,9 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/initia-labs/rollytics/config"
 	"github.com/spf13/cobra"
+
+	"github.com/initia-labs/rollytics/config"
 )
 
 func migrateCmd() *cobra.Command {
@@ -28,6 +29,7 @@ You can configure database options via environment variables.`,
 			dsn := fmt.Sprintf("%s?sslmode=disable", cfg.GetDBConfig().DSN)
 			migrationDir := fmt.Sprintf("file://%s", cfg.GetDBConfig().MigrationDir)
 
+			// #nosec G204
 			rawCmd := exec.CommandContext(context.Background(), "atlas", "migrate", "diff",
 				"migration",
 				"--env", "gorm",

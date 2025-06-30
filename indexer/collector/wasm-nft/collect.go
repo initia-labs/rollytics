@@ -4,14 +4,14 @@ import (
 	"errors"
 	"fmt"
 
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
+
 	nft_pair "github.com/initia-labs/rollytics/indexer/collector/nft-pair"
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
 	"github.com/initia-labs/rollytics/indexer/util"
-	indexerutil "github.com/initia-labs/rollytics/indexer/util"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 func (sub *WasmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) (err error) {
@@ -203,7 +203,7 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 	}
 
 	// batch insert nft txs
-	seqInfo, err := indexerutil.GetSeqInfo(block.ChainId, "nft_tx", tx)
+	seqInfo, err := util.GetSeqInfo(block.ChainId, "nft_tx", tx)
 	if err != nil {
 		return err
 	}
