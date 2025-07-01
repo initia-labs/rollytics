@@ -1,6 +1,8 @@
 package nft
 
 import (
+	"log/slog"
+
 	"github.com/gofiber/fiber/v2"
 
 	"github.com/initia-labs/rollytics/api/handler/common"
@@ -34,4 +36,8 @@ func (h *NftHandler) Register(router fiber.Router) {
 	// NFT transaction routes
 	txs := nfts.Group("/txs")
 	txs.Get("/:collection_addr/:token_id", h.GetNftTxs)
+}
+
+func (h *NftHandler) GetLogger() *slog.Logger {
+	return h.BaseHandler.GetLogger().With("handler", "nft")
 }

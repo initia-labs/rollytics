@@ -14,22 +14,22 @@ type HandlerRegistrar interface {
 }
 
 type BaseHandler struct {
-	database *orm.Database
-	config   *config.Config
-	logger   *slog.Logger
+	db     *orm.Database
+	cfg    *config.Config
+	logger *slog.Logger
 }
 
 func NewBaseHandler(db *orm.Database, cfg *config.Config, logger *slog.Logger) *BaseHandler {
 	return &BaseHandler{
-		database: db,
-		config:   cfg,
-		logger:   logger,
+		db:     db,
+		cfg:    cfg,
+		logger: logger,
 	}
 }
 
-func (h *BaseHandler) GetDatabase() *orm.Database { return h.database }
-func (h *BaseHandler) GetConfig() *config.Config  { return h.config }
+func (h *BaseHandler) GetDatabase() *orm.Database { return h.db }
+func (h *BaseHandler) GetConfig() *config.Config  { return h.cfg }
 func (h *BaseHandler) GetLogger() *slog.Logger    { return h.logger }
 func (h *BaseHandler) GetChainConfig() *config.ChainConfig {
-	return h.config.GetChainConfig()
+	return h.cfg.GetChainConfig()
 }

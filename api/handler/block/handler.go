@@ -1,6 +1,8 @@
 package block
 
 import (
+	"log/slog"
+
 	"github.com/gofiber/fiber/v2"
 
 	"github.com/initia-labs/rollytics/api/handler/common"
@@ -22,4 +24,8 @@ func (h *BlockHandler) Register(router fiber.Router) {
 	blocks.Get("/blocks", h.GetBlocks)
 	blocks.Get("/blocks/:height", h.GetBlockByHeight)
 	blocks.Get("/avg_blocktime", h.GetAvgBlockTime)
+}
+
+func (h *BlockHandler) GetLogger() *slog.Logger {
+	return h.BaseHandler.GetLogger().With("handler", "block")
 }
