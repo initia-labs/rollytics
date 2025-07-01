@@ -141,7 +141,7 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) (e
 		if parsedLogs == nil {
 			parsedLogs = []sdk.ABCIMessageLog{}
 		}
-		txByHeightRecord := types.TxByHeightRecord{
+		txRes := types.Tx{
 			TxHash:    txHash,
 			Height:    height,
 			Codespace: res.Codespace,
@@ -156,7 +156,7 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) (e
 			Timestamp: block.Timestamp,
 			Events:    json.RawMessage(events),
 		}
-		txByHeightRecordJSON, err := cbjson.Marshal(txByHeightRecord)
+		txResJSON, err := cbjson.Marshal(txRes)
 		if err != nil {
 			return err
 		}
@@ -168,7 +168,7 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) (e
 			Height:     height,
 			Sequence:   txSeqInfo.Sequence,
 			Signer:     signer,
-			Data:       json.RawMessage(txByHeightRecordJSON),
+			Data:       json.RawMessage(txResJSON),
 			MsgTypeIds: msgTypeIds,
 			TypeTagIds: typeTagIds,
 		})

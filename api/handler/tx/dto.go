@@ -39,31 +39,31 @@ type TxByHashRequest struct {
 
 // Response
 type TxResponse struct {
-	Tx *types.TxByHeightRecord `json:"tx"`
+	Tx *types.Tx `json:"tx"`
 }
 
 type TxsResponse struct {
-	Txs        []types.TxByHeightRecord `json:"txs" extensions:"x-order:0"`
-	Pagination *common.PageResponse     `json:"pagination" extensions:"x-order:1"`
+	Txs        []types.Tx           `json:"txs" extensions:"x-order:0"`
+	Pagination *common.PageResponse `json:"pagination" extensions:"x-order:1"`
 }
 
 type AccountTxResponse struct {
-	Txs        []types.TxByHeightRecord `json:"txs" extensions:"x-order:0"`
-	Pagination *common.PageResponse     `json:"pagination" extensions:"x-order:1"`
+	Txs        []types.Tx           `json:"txs" extensions:"x-order:0"`
+	Pagination *common.PageResponse `json:"pagination" extensions:"x-order:1"`
 }
 
 // Conversion functions
-func ToResponseTx(ctx *types.CollectedTx) (*types.TxByHeightRecord, error) {
-	var record types.TxByHeightRecord
+func ToResponseTx(ctx *types.CollectedTx) (*types.Tx, error) {
+	var record types.Tx
 	if err := cbjson.Unmarshal(ctx.Data, &record); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal TxByHeightRecord: %w", err)
+		return nil, fmt.Errorf("failed to unmarshal Tx: %w", err)
 	}
 
 	return &record, nil
 }
 
-func BatchToResponseTxs(ctxs []types.CollectedTx) ([]types.TxByHeightRecord, error) {
-	txs := make([]types.TxByHeightRecord, 0, len(ctxs))
+func BatchToResponseTxs(ctxs []types.CollectedTx) ([]types.Tx, error) {
+	txs := make([]types.Tx, 0, len(ctxs))
 	for _, ctx := range ctxs {
 		tx, err := ToResponseTx(&ctx)
 		if err != nil {
