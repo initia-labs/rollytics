@@ -26,46 +26,48 @@ import (
 // @Param msgs query []string false "Message types to filter (comma-separated or multiple params)" collectionFormat(multi) example("cosmos.bank.v1beta1.MsgSend,initia.move.v1.MsgExecute")
 // @Router /indexer/tx/v1/txs [get]
 func (h *TxHandler) GetTxs(c *fiber.Ctx) error {
-	req, err := ParseTxsRequest(c)
-	if err != nil {
-		return fiber.NewError(fiber.StatusBadRequest, err.Error())
-	}
+	req := ParseTxsRequest(c)
 
+	var err error
 	query := h.buildBaseTxQuery()
-	totalQuery := func() int64 {
-		var tx dbtypes.CollectedTx
-		if h.buildBaseTxQuery().Select("tx.sequence").Order("tx.sequence DESC").First(&tx).Error != nil {
-			return 0
-		}
-		return int64(tx.Sequence)
-	}
 	if len(req.Msgs) > 0 {
 		msgTypeIds, err := util.GetOrCreateMsgTypeIds(h.GetDatabase().DB, req.Msgs, false)
 		if err != nil {
-			return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchMsgTypes)
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 		}
 		query = query.Where("msg_type_ids && ?", pq.Array(msgTypeIds))
 	}
-
-	txs, pageResp, err := common.NewPaginationBuilder[dbtypes.CollectedTx](req.Pagination).
-		WithQuery(query).
-		WithKeys("sequence").
-		WithTotalQuery(totalQuery).
-		WithKeyExtractor(func(tx dbtypes.CollectedTx) []any {
-			return []any{tx.Sequence}
-		}).
-		Execute()
-
+	query, err = req.Pagination.Apply(query, "sequence")
 	if err != nil {
-		h.GetLogger().Error(ErrFailedToFetchTx, "error", err)
-		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchTx)
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
+	// execute the query with pagination
+	var txs []dbtypes.CollectedTx
+	if err := query.Find(&txs).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return fiber.NewError(fiber.StatusNotFound, "No transactions found")
+		}
+		h.GetLogger().Error("GetTxs", "error", err)
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	// response
 	txsResp, err := BatchToResponseTxs(txs)
 	if err != nil {
-		h.GetLogger().Error(ErrFailedToConvertTx, "error", err)
-		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToConvertTx)
+		h.GetLogger().Error("GetTxs", "error", err)
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
+
+	pageResp := common.GetPageResponse(req.Pagination, txs, func(tx dbtypes.CollectedTx) []any {
+		return []any{tx.Sequence}
+	}, func() int64 {
+		var tx dbtypes.CollectedTx
+		if h.buildBaseTxQuery().Select("sequence").Order("sequence DESC").First(&tx).Error != nil {
+			return 0
+		}
+		return int64(tx.Sequence)
+	})
 
 	return c.JSON(TxsResponse{
 		Txs:        txsResp,
@@ -94,9 +96,8 @@ func (h *TxHandler) GetTxsByAccount(c *fiber.Ctx) error {
 	}
 
 	chainId := h.GetChainConfig().ChainId
-
 	query := h.GetDatabase().Model(&dbtypes.CollectedTx{}).
-		Select("tx.*").
+		Select("tx.data", "account_tx.sequence as sequence").
 		Joins("INNER JOIN account_tx ON tx.chain_id = account_tx.chain_id AND tx.hash = account_tx.hash").
 		Where("account_tx.chain_id = ?", chainId).
 		Where("account_tx.account = ?", req.Account)
@@ -109,10 +110,11 @@ func (h *TxHandler) GetTxsByAccount(c *fiber.Ctx) error {
 		return total
 	}
 
+	// If there are message types specified, filter by them
 	if len(req.Msgs) > 0 {
 		msgTypeIds, err := util.GetOrCreateMsgTypeIds(h.GetDatabase().DB, req.Msgs, false)
 		if err != nil {
-			return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchMsgTypes)
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 		}
 		query = query.Where("msg_type_ids && ?", pq.Array(msgTypeIds))
 		totalQuery = func() int64 {
@@ -124,25 +126,31 @@ func (h *TxHandler) GetTxsByAccount(c *fiber.Ctx) error {
 		}
 	}
 
-	txs, pageResp, err := common.NewPaginationBuilder[dbtypes.CollectedTx](req.Pagination).
-		WithQuery(query).
-		WithTotalQuery(totalQuery).
-		WithKeys("tx.sequence").
-		WithKeyExtractor(func(tx dbtypes.CollectedTx) []any {
-			return []any{tx.Sequence}
-		}).
-		Execute()
-
+	// pagination
+	query, err = req.Pagination.Apply(query, "sequence")
 	if err != nil {
-		h.GetLogger().Error(ErrFailedToFetchTx, "error", err)
-		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchTx)
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
+	var txs []dbtypes.CollectedTx
+	if err := query.Debug().Find(&txs).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return fiber.NewError(fiber.StatusNotFound, "No transactions found for the specified account")
+		}
+		h.GetLogger().Error("GetTxsByAccount", "error", err)
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	// response
 	txsResp, err := BatchToResponseTxs(txs)
 	if err != nil {
-		h.GetLogger().Error(ErrFailedToConvertTx, "error", err)
-		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToConvertTx)
+		h.GetLogger().Error("GetTxsByAccount", "error", err)
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
+
+	pageResp := common.GetPageResponse(req.Pagination, txs, func(tx dbtypes.CollectedTx) []any {
+		return []any{tx.Sequence}
+	}, totalQuery)
 
 	return c.JSON(TxsResponse{
 		Txs:        txsResp,
@@ -173,7 +181,6 @@ func (h *TxHandler) GetTxsByHeight(c *fiber.Ctx) error {
 	query := h.buildBaseTxQuery().
 		Where("height = ?", req.Height)
 
-	// Use a total query to get the total number of transactions at the specified height
 	totalQuery := func() int64 {
 		var block dbtypes.CollectedBlock
 		if h.GetDatabase().Model(&dbtypes.CollectedBlock{}).
@@ -186,7 +193,7 @@ func (h *TxHandler) GetTxsByHeight(c *fiber.Ctx) error {
 	if len(req.Msgs) > 0 {
 		msgTypeIds, err := util.GetOrCreateMsgTypeIds(h.GetDatabase().DB, req.Msgs, false)
 		if err != nil {
-			return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchMsgTypes)
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 		}
 		query = query.Where("msg_type_ids && ?", pq.Array(msgTypeIds))
 		totalQuery = func() int64 {
@@ -198,25 +205,29 @@ func (h *TxHandler) GetTxsByHeight(c *fiber.Ctx) error {
 		}
 	}
 
-	txs, pageResp, err := common.NewPaginationBuilder[dbtypes.CollectedTx](req.Pagination).
-		WithQuery(query).
-		WithTotalQuery(totalQuery).
-		WithKeys("sequence").
-		WithKeyExtractor(func(tx dbtypes.CollectedTx) []any {
-			return []any{tx.Sequence}
-		}).
-		Execute()
-
+	query, err = req.Pagination.Apply(query, "sequence")
 	if err != nil {
-		h.GetLogger().Error(ErrFailedToFetchTx, "error", err)
-		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchTx)
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+
+	var txs []dbtypes.CollectedTx
+	if err := query.Find(&txs).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return fiber.NewError(fiber.StatusNotFound, "No transactions found for the specified height")
+		}
+		h.GetLogger().Error("GetTxsByHeight", "error", err)
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	txsResp, err := BatchToResponseTxs(txs)
 	if err != nil {
-		h.GetLogger().Error(ErrFailedToConvertTx, "error", err)
-		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToConvertTx)
+		h.GetLogger().Error("GetTxsByHeight", "error", err)
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
+
+	pageResp := common.GetPageResponse(req.Pagination, txs, func(tx dbtypes.CollectedTx) []any {
+		return []any{tx.Sequence}
+	}, totalQuery)
 
 	return c.JSON(TxsResponse{
 		Txs:        txsResp,
@@ -245,14 +256,14 @@ func (h *TxHandler) GetTxByHash(c *fiber.Ctx) error {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return fiber.NewError(fiber.StatusNotFound, "Transaction not found")
 		}
-		h.GetLogger().Error(ErrFailedToFetchTx, "error", err)
-		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchTx)
+		h.GetLogger().Error("GetTxByHash", "error", err)
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	txResp, err := ToResponseTx(&tx)
 	if err != nil {
-		h.GetLogger().Error(ErrFailedToConvertTx, "error", err)
-		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToConvertTx)
+		h.GetLogger().Error("GetTxByHash", "error", err)
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	return c.JSON(TxResponse{

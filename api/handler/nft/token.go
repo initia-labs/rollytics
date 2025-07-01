@@ -38,27 +38,36 @@ func (h *NftHandler) GetTokensByOwner(c *fiber.Ctx) error {
 	if req.TokenId != "" {
 		query = query.Where("token_id = ?", req.TokenId)
 	}
-
-	tokens, pageResp, err := common.NewPaginationBuilder[dbtypes.CollectedNft](req.Pagination).
-		WithQuery(query).
-		WithKeys("collection_addr", "token_id").
-		WithKeyExtractor(func(nft dbtypes.CollectedNft) []any {
-			return []any{nft.CollectionAddr, nft.TokenId}
-		}).
-		Execute()
-
+	query, err = req.Pagination.Apply(query, "collection_addr", "token_id")
 	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchNft)
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+
+	var nfts []dbtypes.CollectedNft
+	if err := query.Find(&nfts).Error; err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	// get collection names and origin names
 	collection, err := getCollection(h.GetDatabase(), req.CollectionAddr)
 	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchCollection)
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
+	pageResp := common.GetPageResponse(req.Pagination, nfts, func(nft dbtypes.CollectedNft) []any {
+		return []any{nft.CollectionAddr, nft.TokenId}
+	}, func() int64 {
+		var total int64
+		if err := h.GetDatabase().Model(&dbtypes.CollectedNft{}).
+			Where("chain_id = ? AND owner = ?", h.GetChainConfig().ChainId, req.Account).
+			Count(&total).Error; err != nil {
+			return 0
+		}
+		return total
+	})
+
 	return c.JSON(NftsResponse{
-		Tokens:     BatchToResponseNfts(collection.Name, collection.OriginName, tokens),
+		Tokens:     BatchToResponseNfts(collection.Name, collection.OriginName, nfts),
 		Pagination: pageResp,
 	})
 }
@@ -90,21 +99,34 @@ func (h *NftHandler) GetTokensByCollectionAddr(c *fiber.Ctx) error {
 	if req.TokenId != "" {
 		query = query.Where("token_id = ?", req.TokenId)
 	}
-	tokens, pageResp, err := common.NewPaginationBuilder[dbtypes.CollectedNft](req.Pagination).
-		WithQuery(query).
-		WithKeys("token_id").
-		WithKeyExtractor(func(nft dbtypes.CollectedNft) []any {
-			return []any{nft.TokenId}
-		}).Execute()
 
+	query, err = req.Pagination.Apply(query, "token_id")
 	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchNft)
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
+
+	var tokens []dbtypes.CollectedNft
+	if err := query.Find(&tokens).Error; err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	// get pagination response
+	pageResp := common.GetPageResponse(req.Pagination, tokens, func(token dbtypes.CollectedNft) []any {
+		return []any{token.TokenId}
+	}, func() int64 {
+		var total int64
+		if err := h.GetDatabase().Model(&dbtypes.CollectedNft{}).
+			Where("chain_id = ? AND collection_addr = ?", h.GetChainConfig().ChainId, req.CollectionAddr).
+			Count(&total).Error; err != nil {
+			return 0
+		}
+		return total
+	})
 
 	// get collection name and origin name
 	collection, err := getCollection(h.GetDatabase(), req.CollectionAddr)
 	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchCollection)
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	return c.JSON(NftsResponse{

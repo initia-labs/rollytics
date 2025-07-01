@@ -24,22 +24,28 @@ import (
 // @Success 200 {object} CollectionsResponse
 // @Router /indexer/nft/v1/collections [get]
 func (h *NftHandler) GetCollections(c *fiber.Ctx) error {
-	req, err := ParseCollectionsRequest(c)
+	var err error
+	req := ParseCollectionsRequest(c)
+
+	query := h.buildBaseCollectionQuery()
+	query, err = req.Pagination.Apply(query, "addr")
 	if err != nil {
-		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+	var collections []dbtypes.CollectedNftCollection
+	if err := query.Find(&collections).Error; err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	collections, pageResp, err := common.NewPaginationBuilder[dbtypes.CollectedNftCollection](req.Pagination).
-		WithQuery(h.buildBaseCollectionQuery()).
-		WithKeys("addr").
-		WithKeyExtractor(func(col dbtypes.CollectedNftCollection) []any {
-			return []any{col.Addr}
-		}).
-		Execute()
-
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchCollections)
-	}
+	pageResp := common.GetPageResponse(req.Pagination, collections, func(col dbtypes.CollectedNftCollection) []any {
+		return []any{col.Addr}
+	}, func() int64 {
+		var total int64
+		if h.buildBaseCollectionQuery().Count(&total).Error != nil {
+			return 0
+		}
+		return total
+	})
 
 	return c.JSON(CollectionsResponse{
 		Collections: BatchToResponseCollections(collections),
@@ -68,14 +74,25 @@ func (h *NftHandler) GetCollectionsByOwner(c *fiber.Ctx) error {
 	}
 
 	chainId := h.GetChainConfig().ChainId
-
 	query := h.GetDatabase().Model(&dbtypes.CollectedNftCollection{}).
 		Select("nft_collection.*").
 		Joins("INNER JOIN nft ON nft_collection.chain_id = nft.chain_id AND nft_collection.addr = nft.collection_addr").
 		Where("nft_collection.chain_id = ?", chainId).
 		Where("nft.owner = ?", req.Account)
 
-	totalQuery := func() int64 {
+	query, err = req.Pagination.Apply(query, "nft_collection.height", "nft_collection.addr")
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	var collections []dbtypes.CollectedNftCollection
+	if err := query.Find(&collections).Error; err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	pageResp := common.GetPageResponse(req.Pagination, collections, func(col dbtypes.CollectedNftCollection) []any {
+		return []any{col.Height, col.Addr}
+	}, func() int64 {
 		var total int64
 		if h.GetDatabase().Model(&dbtypes.CollectedNft{}).
 			Select("DISTINCT nft.collection_addr").
@@ -83,20 +100,7 @@ func (h *NftHandler) GetCollectionsByOwner(c *fiber.Ctx) error {
 			return 0
 		}
 		return total
-	}
-
-	collections, pageResp, err := common.NewPaginationBuilder[dbtypes.CollectedNftCollection](req.Pagination).
-		WithQuery(query).
-		WithTotalQuery(totalQuery).
-		WithKeys("nft_collection.height", "nft_collection.addr").
-		WithKeyExtractor(func(col dbtypes.CollectedNftCollection) []any {
-			return []any{col.Height, col.Addr}
-		}).
-		Execute()
-
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchCollections)
-	}
+	})
 
 	return c.JSON(CollectionsResponse{
 		Collections: BatchToResponseCollections(collections),
@@ -126,18 +130,27 @@ func (h *NftHandler) GetCollectionsByName(c *fiber.Ctx) error {
 
 	query := h.buildBaseCollectionQuery().
 		Where("name ILIKE ?", "%"+req.Name+"%")
-
-	collections, pageResp, err := common.NewPaginationBuilder[dbtypes.CollectedNftCollection](req.Pagination).
-		WithQuery(query).
-		WithKeys("height", "addr").
-		WithKeyExtractor(func(col dbtypes.CollectedNftCollection) []any {
-			return []any{col.Height, col.Addr}
-		}).
-		Execute()
-
+	query, err = req.Pagination.Apply(query, "height", "addr")
 	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchCollections)
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
+
+	var collections []dbtypes.CollectedNftCollection
+	if err := query.Find(&collections).Error; err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	pageResp := common.GetPageResponse(req.Pagination, collections, func(col dbtypes.CollectedNftCollection) []any {
+		return []any{col.Height, col.Addr}
+	}, func() int64 {
+		var total int64
+		if h.GetDatabase().Model(&dbtypes.CollectedNftCollection{}).
+			Where("chain_id = ? AND name ILIKE ?", h.GetChainConfig().ChainId, "%"+req.Name+"%").
+			Count(&total).Error != nil {
+			return 0
+		}
+		return total
+	})
 
 	return c.JSON(CollectionsResponse{
 		Collections: BatchToResponseCollections(collections),
@@ -167,7 +180,7 @@ func (h *NftHandler) GetCollectionByCollectionAddr(c *fiber.Ctx) error {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return fiber.NewError(fiber.StatusNotFound, "NFT collection not found")
 		}
-		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchCollections)
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	return c.JSON(CollectionResponse{

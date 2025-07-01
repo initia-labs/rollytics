@@ -23,30 +23,36 @@ import (
 // @Param pagination.reverse query bool false "Reverse order, default is true. if set to true, the results will be ordered in descending order"
 // @Router /indexer/block/v1/blocks [get]
 func (h *BlockHandler) GetBlocks(c *fiber.Ctx) error {
-	req, err := ParseBlocksRequest(c)
+	var err error
+	req := ParseBlocksRequest(c)
+
+	query := h.buildBaseBlockQuery()
+	query, err = req.Pagination.Apply(query, "height")
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
-	query := h.buildBaseBlockQuery()
-	blocks, pageResp, err := common.NewPaginationBuilder[dbtypes.CollectedBlock](req.Pagination).
-		WithQuery(query).
-		WithKeys("height").
-		WithKeyExtractor(func(block dbtypes.CollectedBlock) []any {
-			return []any{block.Height}
-		}).
-		Execute()
-
-	if err != nil {
-		h.GetLogger().Error(ErrFailedToFetchBlock, "error", err)
-		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchBlock)
+	var blocks []dbtypes.CollectedBlock
+	if err := query.Find(&blocks).Error; err != nil {
+		h.GetLogger().Error("GetBlocks", "error", err)
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	blocksResp, err := BatchToResponseBlocks(blocks, h.GetChainConfig().RestUrl)
 	if err != nil {
-		h.GetLogger().Error(ErrFailedToConvertBlock, "error", err)
-		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToConvertBlock)
+		h.GetLogger().Error("GetBlocks", "error", err)
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
+
+	pageResp := common.GetPageResponse(req.Pagination, blocks, func(block dbtypes.CollectedBlock) []any {
+		return []any{block.Height}
+	}, func() int64 {
+		var total int64
+		if err := query.Count(&total).Error; err != nil {
+			return 0
+		}
+		return total
+	})
 
 	return c.JSON(BlocksResponse{
 		Blocks:     blocksResp,
@@ -73,14 +79,14 @@ func (h *BlockHandler) GetBlockByHeight(c *fiber.Ctx) error {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return fiber.NewError(fiber.StatusNotFound, "Block not found")
 		}
-		h.GetLogger().Error(ErrFailedToFetchBlock, "error", err)
-		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchBlock)
+		h.GetLogger().Error("GetBlockByHeight", "error", err)
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	blockResp, err := ToResponseBlock(&block, h.GetChainConfig().RestUrl)
 	if err != nil {
-		h.GetLogger().Error(ErrFailedToConvertBlock, "error", err)
-		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToConvertBlock)
+		h.GetLogger().Error("GetBlockByHeight", "error", err)
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	return c.JSON(BlockResponse{
@@ -101,8 +107,8 @@ func (h *BlockHandler) GetAvgBlockTime(c *fiber.Ctx) error {
 		Order("height DESC").
 		Limit(100).
 		Find(&blocks).Error; err != nil {
-		h.GetLogger().Error(ErrFailedToFetchBlock, "error", err)
-		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchBlock)
+		h.GetLogger().Error("GetAvgBlockTime", "error", err)
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	if len(blocks) < 2 {

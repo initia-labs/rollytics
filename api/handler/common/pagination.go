@@ -39,79 +39,43 @@ func ExtractPaginationParams(c *fiber.Ctx) *PaginationParams {
 	return params
 }
 
-type PaginationBuilder[T any] struct {
-	params       *PaginationParams
-	query        *gorm.DB
-	totalQuery   func() int64
-	keys         []string
-	keyExtractor func(T) []any
-}
-
-func NewPaginationBuilder[T any](params *PaginationParams) *PaginationBuilder[T] {
-	return &PaginationBuilder[T]{
-		params: params,
-	}
-}
-
-func (b *PaginationBuilder[T]) WithQuery(query *gorm.DB) *PaginationBuilder[T] {
-	b.query = query
-	return b
-}
-
-func (b *PaginationBuilder[T]) WithTotalQuery(totalQuery func() int64) *PaginationBuilder[T] {
-	b.totalQuery = totalQuery
-	return b
-}
-
-func (b *PaginationBuilder[T]) WithKeys(keys ...string) *PaginationBuilder[T] {
-	b.keys = keys
-	return b
-}
-
-func (b *PaginationBuilder[T]) WithKeyExtractor(extractor func(T) []any) *PaginationBuilder[T] {
-	b.keyExtractor = extractor
-	return b
-}
-
-func (b *PaginationBuilder[T]) Execute() ([]T, *PageResponse, error) {
-	// Apply pagination to the query
-	query, err := b.params.applyPagination(b.query, b.keys...)
+// Apply applies order, limit, and pagination (cursor/offset) to the query
+func (params *PaginationParams) Apply(query *gorm.DB, keys ...string) (*gorm.DB, error) {
+	// order
+	query = params.ApplyOrder(query, keys...)
+	// pagination
+	query, err := params.ApplyPagination(query, keys...)
 	if err != nil {
-		return nil, nil, fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("%+v", err))
+		return nil, fmt.Errorf("invalid pagination params: %w", err)
 	}
+	// limit
+	query = params.ApplyLimit(query)
 
-	var results []T
-	if err := query.Debug().Find(&results).Error; err != nil {
-		return nil, nil, err
-	}
-
-	// get nextKey for response
-	var nextKey []byte
-	if len(results) > 0 && b.keyExtractor != nil {
-		values := b.keyExtractor(results[len(results)-1])
-		nextKey = getNextKey(values...)
-	}
-
-	if b.totalQuery == nil {
-		b.totalQuery = func() int64 {
-			var total int64
-			if b.query.Count(&total).Error != nil {
-				return 0
-			}
-			return total
-		}
-	}
-
-	pageResp, err := b.params.getPageResponse(len(results), b.totalQuery, nextKey)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return results, pageResp, nil
+	return query, nil
 }
 
-func (params *PaginationParams) applyPagination(query *gorm.DB, keys ...string) (*gorm.DB, error) {
+func (params *PaginationParams) ApplyLimit(query *gorm.DB) *gorm.DB {
+	if params.Limit == 0 {
+		params.Limit = 100
+	}
+	query = query.Limit(int(params.Limit))
+	return query
+}
+
+func (params *PaginationParams) ApplyPagination(query *gorm.DB, keys ...string) (*gorm.DB, error) {
 	var err error
+	if params.Key != "" {
+		query, err = params.applyCursorPagination(query, keys...)
+		if err != nil {
+			return nil, err
+		}
+	} else if params.Offset > 0 {
+		query = query.Offset(int(params.Offset))
+	}
+	return query, nil
+}
+
+func (params *PaginationParams) ApplyOrder(query *gorm.DB, keys ...string) *gorm.DB {
 	for _, key := range keys {
 		if params.Reverse {
 			query = query.Order(key + " DESC")
@@ -119,24 +83,21 @@ func (params *PaginationParams) applyPagination(query *gorm.DB, keys ...string) 
 			query = query.Order(key + " ASC")
 		}
 	}
-	if len(params.Key) > 0 {
-		query, err = params.setPageKey(query, keys)
-		if err != nil {
-			return nil, fmt.Errorf("failed to set page key: %w", err)
-		}
-	} else if params.Offset > 0 {
-		query = query.Offset(int(params.Offset))
-	}
-
-	if params.Limit == 0 {
-		params.Limit = 100
-	}
-	query = query.Limit(int(params.Limit))
-
-	return query, nil
+	return query
 }
 
-func (params *PaginationParams) setPageKey(query *gorm.DB, keys []string) (*gorm.DB, error) {
+func (params *PaginationParams) applyCursorPagination(query *gorm.DB, keys ...string) (*gorm.DB, error) {
+	// decode the base64 key
+	decodedKey, err := base64.StdEncoding.DecodeString(params.Key)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode pagination key: %w", err)
+	}
+
+	parts := strings.Split(string(decodedKey), "|")
+	if len(parts) != len(keys) {
+		return nil, fmt.Errorf("invalid key format: expected %d parts, got %d", len(keys), len(parts))
+	}
+
 	var op string
 	if params.Reverse {
 		op = " < "
@@ -144,48 +105,51 @@ func (params *PaginationParams) setPageKey(query *gorm.DB, keys []string) (*gorm
 		op = " > "
 	}
 
-	decodedKey, err := base64.StdEncoding.DecodeString(params.Key)
-	if err != nil {
-		return nil, err
-	}
-
-	parts := strings.Split(string(decodedKey), "|")
-
-	if len(parts) != len(keys) {
-		return nil, fmt.Errorf("invalid key format: expected %d parts, got %d", len(keys), len(parts))
-	}
-
-	if len(parts) == 1 { //nolint:gocritic
+	// build the where based on the keys
+	switch len(parts) {
+	case 1:
 		whereClause := fmt.Sprintf("%s %s ?", keys[0], op)
 		query = query.Where(whereClause, parts[0])
-	} else if len(parts) == 2 {
+	case 2:
 		whereClause := fmt.Sprintf("(%s %s ?) OR (%s = ? AND %s %s ?)",
 			keys[0], op, keys[0], keys[1], op)
 		query = query.Where(whereClause, parts[0], parts[0], parts[1])
-	} else {
-		return nil, fmt.Errorf("unreachable code: too many parts in key")
+	default:
+		return nil, fmt.Errorf("unsupported key format: maximum 2 parts supported, got %d", len(parts))
 	}
 
 	return query, nil
 }
 
-func (params *PaginationParams) getPageResponse(len int, totalQuery func() int64, nextKey []byte) (*PageResponse, error) {
-	resp := PageResponse{}
 
-	if params.CountTotal {
+// response method to generate a pagination response
+func GetPageResponse[T any](
+	params *PaginationParams,
+	results []T,
+	keyExtractor func(T) []any,
+	totalQuery func() int64,
+) *PageResponse {
+	resp := PageResponse{}
+	if params.CountTotal && totalQuery != nil {
 		resp.Total = totalQuery()
 	}
 
-	if len == int(params.Limit) {
+	if len(results) == int(params.Limit) && len(results) > 0 && keyExtractor != nil {
+		lastResult := results[len(results)-1]
+		values := keyExtractor(lastResult)
+		nextKey := getNextKey(values...)
+
 		if nextKey != nil {
 			encodedKey := base64.StdEncoding.EncodeToString(nextKey)
 			resp.NextKey = &encodedKey
 		}
 	}
 
-	return &resp, nil
+	return &resp
 }
 
+// generate a next key based on the values provided
+// it will concatenate the values with a pipe (|) and return a base64 encoded string
 func getNextKey(values ...any) []byte {
 	if len(values) == 0 {
 		return nil

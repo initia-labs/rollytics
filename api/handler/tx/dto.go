@@ -74,6 +74,8 @@ func BatchToResponseTxs(ctxs []types.CollectedTx) ([]types.Tx, error) {
 	return txs, nil
 }
 
+
+
 // EvmTxs
 // Request
 // TxsRequest

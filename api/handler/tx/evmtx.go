@@ -1,6 +1,8 @@
 package tx
 
 import (
+	"errors"
+
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
 
@@ -21,39 +23,40 @@ import (
 // @Param pagination.reverse query bool false "Reverse order default is true if set to true, the results will be ordered in descending order"
 // @Router /indexer/tx/v1/evm-txs [get]
 func (h *TxHandler) GetEvmTxs(c *fiber.Ctx) error {
-	req, err := ParseEvmTxsRequest(c)
-	if err != nil {
-		return fiber.NewError(fiber.StatusBadRequest, err.Error())
-	}
+	var err error
+	req := ParseEvmTxsRequest(c)
 	query := h.buildBaseEvmTxQuery()
+	query, err = req.Pagination.Apply(query, "sequence")
+	if err != nil {
+		h.GetLogger().Error("GetEvmTxs", "error", err)
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
 
-	totalQuery := func() int64 {
+	var txs []dbtypes.CollectedEvmTx
+	if err := query.Find(&txs).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return fiber.NewError(fiber.StatusNotFound, "No EVM transactions found")
+		}
+		h.GetLogger().Error("GetEvmTxs", "error", err)
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	// response
+	txsResp, err := BatchToResponseEvmTxs(txs)
+	if err != nil {
+		h.GetLogger().Error("GetEvmTxs", "error", err)
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	pageResp := common.GetPageResponse(req.Pagination, txs, func(tx dbtypes.CollectedEvmTx) []any {
+		return []any{tx.Sequence}
+	}, func() int64 {
 		var tx dbtypes.CollectedEvmTx
-		if h.buildBaseEvmTxQuery().Select("tx.sequence").Order("tx.sequence DESC").Find(&tx).Error != nil {
+		if h.buildBaseEvmTxQuery().Select("tx.sequence").Order("tx.sequence DESC").First(&tx).Error != nil {
 			return 0
 		}
 		return int64(tx.Sequence)
-	}
-
-	txs, pageResp, err := common.NewPaginationBuilder[dbtypes.CollectedEvmTx](req.Pagination).
-		WithQuery(query).
-		WithTotalQuery(totalQuery).
-		WithKeys("sequence").
-		WithKeyExtractor(func(lastTx dbtypes.CollectedEvmTx) []any {
-			return []any{lastTx.Sequence}
-		}).
-		Execute()
-
-	if err != nil {
-		h.GetLogger().Error(ErrFailedToFetchEvmTx, "error", err)
-		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchEvmTx)
-	}
-
-	txsResp, err := BatchToResponseEvmTxs(txs)
-	if err != nil {
-		h.GetLogger().Error(ErrFailedToConvertEvmTx, "error", err)
-		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToConvertEvmTx)
-	}
+	})
 
 	return c.JSON(EvmTxsResponse{
 		Txs:        txsResp,
@@ -81,12 +84,25 @@ func (h *TxHandler) GetEvmTxsByAccount(c *fiber.Ctx) error {
 	}
 
 	query := h.GetDatabase().Model(&dbtypes.CollectedEvmTx{}).
-		Select("evm_tx.*").
+		Select("evm_tx.data", "account_tx.sequence as sequence").
 		Joins("INNER JOIN evm_account_tx ON evm_tx.chain_id = evm_account_tx.chain_id AND evm_tx.hash = evm_account_tx.hash").
 		Where("evm_account_tx.chain_id = ?", h.GetChainConfig().ChainId).
 		Where("evm_account_tx.account = ?", req.Account)
+	query, err = req.Pagination.Apply(query, "sequence")
 
-	totalQuery := func() int64 {
+	var txs []dbtypes.CollectedEvmTx
+	if err := query.Debug().Find(&txs).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return fiber.NewError(fiber.StatusNotFound, "No EVM transactions found for the specified account")
+		}
+		h.GetLogger().Error("GetEvmTxsByAccount", "error", err)
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	// response
+	pageResp := common.GetPageResponse(req.Pagination, txs, func(tx dbtypes.CollectedEvmTx) []any {
+		return []any{tx.Sequence}
+	}, func() int64 {
 		var total int64
 		if h.GetDatabase().Model(&dbtypes.CollectedEvmAccountTx{}).
 			Where("chain_id = ?", h.GetChainConfig().ChainId).
@@ -94,26 +110,11 @@ func (h *TxHandler) GetEvmTxsByAccount(c *fiber.Ctx) error {
 			return 0
 		}
 		return total
-	}
-
-	txs, pageResp, err := common.NewPaginationBuilder[dbtypes.CollectedEvmTx](req.Pagination).
-		WithQuery(query).
-		WithTotalQuery(totalQuery).
-		WithKeys("evm_tx.sequence").
-		WithKeyExtractor(func(tx dbtypes.CollectedEvmTx) []any {
-			return []any{tx.Sequence}
-		}).
-		Execute()
-
-	if err != nil {
-		h.GetLogger().Error(ErrFailedToFetchEvmTx, "error", err)
-		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchEvmTx)
-	}
-
+	})
 	txsResp, err := BatchToResponseEvmTxs(txs)
 	if err != nil {
-		h.GetLogger().Error(ErrFailedToConvertEvmTx, "error", err)
-		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToConvertEvmTx)
+		h.GetLogger().Error("GetEvmTxsByAccount", "error", err)
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	return c.JSON(EvmTxsResponse{
@@ -143,26 +144,37 @@ func (h *TxHandler) GetEvmTxsByHeight(c *fiber.Ctx) error {
 
 	query := h.buildBaseEvmTxQuery().
 		Where("height = ?", req.Height)
-
-
-	txs, pageResp, err := common.NewPaginationBuilder[dbtypes.CollectedEvmTx](req.Pagination).
-		WithQuery(query).
-		WithKeys("sequence").
-		WithKeyExtractor(func(tx dbtypes.CollectedEvmTx) []any {
-			return []any{tx.Sequence}
-		}).
-		Execute()
-
+	query, err = req.Pagination.Apply(query, "sequence")
 	if err != nil {
-		h.GetLogger().Error(ErrFailedToFetchEvmTx, "error", err)
-		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchEvmTx)
+		h.GetLogger().Error("GetEvmTxsByHeight", "error", err)
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
+	var txs []dbtypes.CollectedEvmTx
+	if err := query.Find(&txs).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return fiber.NewError(fiber.StatusNotFound, "No EVM transactions found for the specified height")
+		}
+		h.GetLogger().Error("GetEvmTxsByHeight", "error", err)
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	// response
 	txsResp, err := BatchToResponseEvmTxs(txs)
 	if err != nil {
-		h.GetLogger().Error(ErrFailedToConvertEvmTx, "error", err)
-		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToConvertEvmTx)
+		h.GetLogger().Error("GetEvmTxsByHeight", "error", err)
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
+
+	pageResp := common.GetPageResponse(req.Pagination, txs, func(tx dbtypes.CollectedEvmTx) []any {
+		return []any{tx.Sequence}
+	}, func() int64 {
+		var total int64
+		if h.buildBaseEvmTxQuery().Where("height = ?", req.Height).Count(&total).Error != nil {
+			return 0
+		}
+		return total
+	})
 
 	return c.JSON(EvmTxsResponse{
 		Txs:        txsResp,
@@ -192,20 +204,19 @@ func (h *TxHandler) GetEvmTxByHash(c *fiber.Ctx) error {
 
 	var tx dbtypes.CollectedEvmTx
 	if err := query.Find(&tx).Error; err != nil {
-		logger.Error(ErrFailedToFetchEvmTx, "error", err)
-		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchEvmTx)
+		logger.Error("GetEvmTxByHash", "error", err)
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	txResp, err := ToResponseEvmTx(&tx)
 	if err != nil {
-		logger.Error(ErrFailedToConvertEvmTx, "error", err)
-		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToConvertEvmTx)
+		logger.Error("GetEvmTxByHash", "error", err)
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	resp := EvmTxResponse{
+	return c.JSON(EvmTxResponse{
 		Tx: txResp,
-	}
-	return c.JSON(resp)
+	})
 }
 
 func (h *TxHandler) buildBaseEvmTxQuery() *gorm.DB {

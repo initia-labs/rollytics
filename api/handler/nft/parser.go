@@ -8,22 +8,21 @@ import (
 	"github.com/initia-labs/rollytics/api/handler/common"
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/types"
-	"github.com/initia-labs/rollytics/util"
 )
 
-func ParseCollectionsRequest(c *fiber.Ctx) (*CollectionsRequest, error) {
+func ParseCollectionsRequest(c *fiber.Ctx) *CollectionsRequest {
 	pagination := common.ExtractPaginationParams(c)
 
 	return &CollectionsRequest{
 		Pagination: pagination,
-	}, nil
+	}
 }
 
 func ParseCollectionsByAccountRequest(c *fiber.Ctx) (*CollectionsByAccountRequest, error) {
 	pagination := common.ExtractPaginationParams(c)
-	account := c.Params("account")
-	if account == "" {
-		return nil, fiber.NewError(fiber.StatusBadRequest, "account param is required")
+	account, err := common.GetParams(c, "account")
+	if err != nil {
+		return nil, fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
 	return &CollectionsByAccountRequest{
@@ -34,11 +33,10 @@ func ParseCollectionsByAccountRequest(c *fiber.Ctx) (*CollectionsByAccountReques
 
 func ParseCollectionsByNameRequest(c *fiber.Ctx) (*CollectionsByNameRequest, error) {
 	pagination := common.ExtractPaginationParams(c)
-	name := c.Params("name")
-	if name == "" {
-		return nil, fiber.NewError(fiber.StatusBadRequest, "name param is required")
+	name, err := common.GetParams(c, "name")
+	if err != nil {
+		return nil, fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
-
 	return &CollectionsByNameRequest{
 		Name:       name,
 		Pagination: pagination,
@@ -46,16 +44,10 @@ func ParseCollectionsByNameRequest(c *fiber.Ctx) (*CollectionsByNameRequest, err
 }
 
 func ParseCollectionByCollectionAddrRequest(config *config.ChainConfig, c *fiber.Ctx) (*CollectionByAddrRequest, error) {
-	collectionAddr := c.Params("collection_addr")
-	if collectionAddr == "" {
-		return nil, fiber.NewError(fiber.StatusBadRequest, "collection_addr param is required")
-	}
-
-	collectionAddr, err := validateCollectionAddr(config, collectionAddr)
+	collectionAddr, err := getCollectionAddrParam(c, config)
 	if err != nil {
-		return nil, fiber.NewError(fiber.StatusBadRequest, "invalid collection address : "+err.Error())
+		return nil, fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
-
 	req := &CollectionByAddrRequest{
 		CollectionAddr: strings.ToLower(collectionAddr),
 	}
@@ -66,41 +58,28 @@ func ParseCollectionByCollectionAddrRequest(config *config.ChainConfig, c *fiber
 // Tokens
 func ParseTokensByAccountRequest(c *fiber.Ctx) (*TokensByAccountRequest, error) {
 	pagination := common.ExtractPaginationParams(c)
-	account := c.Params("account")
-	collectionAddr := c.Query("collection_addr")
-	tokenId := c.Query("token_id")
-	if account == "" {
-		return nil, fiber.NewError(fiber.StatusBadRequest, "account is required")
-	}
-
-	accAddr, err := util.AccAddressFromString(account)
+	accAddr, err := common.GetAccountParam(c)
 	if err != nil {
-		return nil, fiber.NewError(fiber.StatusBadRequest, "invalid account: "+err.Error())
+		return nil, fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
 	return &TokensByAccountRequest{
 		Account:        accAddr.String(),
-		CollectionAddr: collectionAddr,
-		TokenId:        tokenId,
+		CollectionAddr: c.Query("collection_addr"),
+		TokenId:        c.Query("token_id"),
 		Pagination:     pagination,
 	}, nil
 }
 
 func ParseTokensByCollectionRequest(config *config.ChainConfig, c *fiber.Ctx) (*TokensByCollectionRequest, error) {
 	pagination := common.ExtractPaginationParams(c)
-	tokenId := c.Query("token_id")
-	collectionAddr := c.Params("collection_addr")
-	if collectionAddr == "" {
-		return nil, fiber.NewError(fiber.StatusBadRequest, "collection_addr is required")
-	}
-
-	collectionAddr, err := validateCollectionAddr(config, collectionAddr)
+	collectionAddr, err := getCollectionAddrParam(c, config)
 	if err != nil {
-		return nil, fiber.NewError(fiber.StatusBadRequest, "invalid collection address : "+err.Error())
+		return nil, fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 	return &TokensByCollectionRequest{
 		CollectionAddr: collectionAddr,
-		TokenId:        tokenId,
+		TokenId:        c.Query("token_id"),
 		Pagination:     pagination,
 	}, nil
 }
@@ -108,19 +87,14 @@ func ParseTokensByCollectionRequest(config *config.ChainConfig, c *fiber.Ctx) (*
 // txs
 func ParseNftTxsRequest(config *config.ChainConfig, c *fiber.Ctx) (*NftTxsRequest, error) {
 	pagination := common.ExtractPaginationParams(c)
-	collectionAddr := c.Params("collection_addr")
-	if collectionAddr == "" {
-		return nil, fiber.NewError(fiber.StatusBadRequest, "collection_addr is required")
-	}
-
-	collectionAddr, err := validateCollectionAddr(config, collectionAddr)
+	collectionAddr, err := getCollectionAddrParam(c, config)
 	if err != nil {
-		return nil, fiber.NewError(fiber.StatusBadRequest, "invalid collection address : "+err.Error())
+		return nil, fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
-	tokenId := c.Params("token_id")
-	if tokenId == "" {
-		return nil, fiber.NewError(fiber.StatusBadRequest, "token_id is required")
+	tokenId, err := common.GetParams(c, "token_id")
+	if err != nil {
+		return nil, fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
 	return &NftTxsRequest{
@@ -143,5 +117,18 @@ func validateCollectionAddr(config *config.ChainConfig, collectionAddr string) (
 	}
 
 	collectionAddr = strings.ToLower(collectionAddr)
+	return collectionAddr, nil
+}
+
+func getCollectionAddrParam(c *fiber.Ctx, config *config.ChainConfig) (string, error) {
+	collectionAddr, err := common.GetParams(c, "collection_addr")
+	if err != nil {
+		return "", fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+
+	collectionAddr, err = validateCollectionAddr(config, collectionAddr)
+	if err != nil {
+		return "", fiber.NewError(fiber.StatusBadRequest, "invalid collection address : "+err.Error())
+	}
 	return collectionAddr, nil
 }
