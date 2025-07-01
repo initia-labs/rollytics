@@ -23,7 +23,7 @@ type PageResponse struct {
 	Total   int64   `json:"total,omitempty" extensions:"x-order:1"`
 }
 
-func ExtractPaginationParams(c *fiber.Ctx) (*PaginationParams, error) {
+func ExtractPaginationParams(c *fiber.Ctx) *PaginationParams {
 	params := &PaginationParams{
 		Key:        c.Query("pagination.key"),
 		Offset:     c.QueryInt("pagination.offset", 0),
@@ -36,7 +36,7 @@ func ExtractPaginationParams(c *fiber.Ctx) (*PaginationParams, error) {
 		params.Limit = 100
 	}
 
-	return params, nil
+	return params
 }
 
 type PaginationBuilder[T any] struct {
@@ -77,7 +77,7 @@ func (b *PaginationBuilder[T]) Execute() ([]T, *PageResponse, error) {
 	// Apply pagination to the query
 	query, err := b.params.applyPagination(b.query, b.keys...)
 	if err != nil {
-		return nil, nil, fiber.NewError(fiber.StatusBadRequest, ErrInvalidParams)
+		return nil, nil, fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("%+v", err))
 	}
 
 	var results []T

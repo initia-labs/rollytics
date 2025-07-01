@@ -9,10 +9,7 @@ import (
 )
 
 func ParseBlocksRequest(c *fiber.Ctx) (*BlocksRequest, error) {
-	pagination, err := common.ExtractPaginationParams(c)
-	if err != nil {
-		return nil, fiber.NewError(fiber.StatusBadRequest, common.ErrInvalidParams)
-	}
+	pagination := common.ExtractPaginationParams(c)
 
 	return &BlocksRequest{
 		Pagination: pagination,
