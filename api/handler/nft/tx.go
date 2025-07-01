@@ -89,7 +89,7 @@ func (h *NftHandler) GetNftTxs(c *fiber.Ctx) error {
 	}
 
 	var nftTxs []types.CollectedTx
-	if err := query.Debug().Find(&nftTxs).Error; err != nil {
+	if err := query.Find(&nftTxs).Error; err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 

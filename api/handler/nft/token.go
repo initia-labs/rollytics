@@ -48,12 +48,7 @@ func (h *NftHandler) GetTokensByOwner(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	// get collection names and origin names
-	collection, err := getCollection(h.GetDatabase(), req.CollectionAddr)
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
-	}
-
+	// response
 	pageResp := common.GetPageResponse(req.Pagination, nfts, func(nft dbtypes.CollectedNft) []any {
 		return []any{nft.CollectionAddr, nft.TokenId}
 	}, func() int64 {
@@ -66,8 +61,12 @@ func (h *NftHandler) GetTokensByOwner(c *fiber.Ctx) error {
 		return total
 	})
 
+	tokens, err := BatchToResponseNfts(h.GetDatabase(), nfts)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
 	return c.JSON(NftsResponse{
-		Tokens:     BatchToResponseNfts(collection.Name, collection.OriginName, nfts),
+		Tokens:     tokens,
 		Pagination: pageResp,
 	})
 }
@@ -105,13 +104,13 @@ func (h *NftHandler) GetTokensByCollectionAddr(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
-	var tokens []dbtypes.CollectedNft
-	if err := query.Find(&tokens).Error; err != nil {
+	var nfts []dbtypes.CollectedNft
+	if err := query.Find(&nfts).Error; err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	// get pagination response
-	pageResp := common.GetPageResponse(req.Pagination, tokens, func(token dbtypes.CollectedNft) []any {
+	pageResp := common.GetPageResponse(req.Pagination, nfts, func(token dbtypes.CollectedNft) []any {
 		return []any{token.TokenId}
 	}, func() int64 {
 		var total int64
@@ -122,15 +121,12 @@ func (h *NftHandler) GetTokensByCollectionAddr(c *fiber.Ctx) error {
 		}
 		return total
 	})
-
-	// get collection name and origin name
-	collection, err := getCollection(h.GetDatabase(), req.CollectionAddr)
+	tokens, err := BatchToResponseNfts(h.GetDatabase(), nfts)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
-
 	return c.JSON(NftsResponse{
-		Tokens:     BatchToResponseNfts(collection.Name, collection.OriginName, tokens),
+		Tokens:     tokens,
 		Pagination: pageResp,
 	})
 }

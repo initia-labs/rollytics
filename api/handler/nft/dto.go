@@ -1,7 +1,9 @@
 package nft
 
 import (
+	"github.com/gofiber/fiber/v2"
 	"github.com/initia-labs/rollytics/api/handler/common"
+	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
 )
 
@@ -132,10 +134,15 @@ func ToResponseNft(name, originName string, nft *types.CollectedNft) *Nft {
 	}
 }
 
-func BatchToResponseNfts(name, originName string, nfts []types.CollectedNft) []Nft {
+func BatchToResponseNfts(db *orm.Database, nfts []types.CollectedNft) ([]Nft, error) {
 	nftResponses := make([]Nft, 0, len(nfts))
 	for _, nft := range nfts {
-		nftResponses = append(nftResponses, *ToResponseNft(name, originName, &nft))
+		// get collection names and origin names
+		collection, err := getCollection(db, nft.CollectionAddr)
+		if err != nil {
+			return nil, fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
+		nftResponses = append(nftResponses, *ToResponseNft(collection.Name, collection.OriginName, &nft))
 	}
-	return nftResponses
+	return nftResponses, nil
 }

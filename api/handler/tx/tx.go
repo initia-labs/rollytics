@@ -133,7 +133,7 @@ func (h *TxHandler) GetTxsByAccount(c *fiber.Ctx) error {
 	}
 
 	var txs []dbtypes.CollectedTx
-	if err := query.Debug().Find(&txs).Error; err != nil {
+	if err := query.Find(&txs).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return fiber.NewError(fiber.StatusNotFound, "No transactions found for the specified account")
 		}

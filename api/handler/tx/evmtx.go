@@ -52,7 +52,7 @@ func (h *TxHandler) GetEvmTxs(c *fiber.Ctx) error {
 		return []any{tx.Sequence}
 	}, func() int64 {
 		var tx dbtypes.CollectedEvmTx
-		if h.buildBaseEvmTxQuery().Select("tx.sequence").Order("tx.sequence DESC").First(&tx).Error != nil {
+		if h.buildBaseEvmTxQuery().Select("sequence").Order("sequence DESC").First(&tx).Error != nil {
 			return 0
 		}
 		return int64(tx.Sequence)
@@ -84,14 +84,14 @@ func (h *TxHandler) GetEvmTxsByAccount(c *fiber.Ctx) error {
 	}
 
 	query := h.GetDatabase().Model(&dbtypes.CollectedEvmTx{}).
-		Select("evm_tx.data", "account_tx.sequence as sequence").
+		Select("evm_tx.data", "evm_account_tx.sequence as sequence").
 		Joins("INNER JOIN evm_account_tx ON evm_tx.chain_id = evm_account_tx.chain_id AND evm_tx.hash = evm_account_tx.hash").
 		Where("evm_account_tx.chain_id = ?", h.GetChainConfig().ChainId).
 		Where("evm_account_tx.account = ?", req.Account)
 	query, err = req.Pagination.Apply(query, "sequence")
 
 	var txs []dbtypes.CollectedEvmTx
-	if err := query.Debug().Find(&txs).Error; err != nil {
+	if err := query.Find(&txs).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return fiber.NewError(fiber.StatusNotFound, "No EVM transactions found for the specified account")
 		}
