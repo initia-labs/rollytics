@@ -14,6 +14,7 @@ var (
 	typeTagCache = cache.New[string, int64](10000)
 )
 
+//nolint:dupl
 func GetOrCreateMsgTypeIds(db *gorm.DB, msgTypes []string, createNew bool) (ids []int64, err error) {
 	for _, msgType := range msgTypes {
 		if id, ok := msgTypeCache.Get(msgType); ok {
@@ -43,6 +44,7 @@ func GetOrCreateMsgTypeIds(db *gorm.DB, msgTypes []string, createNew bool) (ids 
 	return ids, nil
 }
 
+//nolint:dupl
 func GetOrCreateTypeTagIds(db *gorm.DB, typeTags []string, createNew bool) (ids []int64, err error) {
 	for _, typeTag := range typeTags {
 		if id, ok := typeTagCache.Get(typeTag); ok {

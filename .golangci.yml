@@ -7,7 +7,7 @@ linters:
     - bodyclose
     # - depguard
     - dogsled
-    # - dupl
+    - dupl
     - durationcheck
     - errorlint
     - forbidigo
@@ -18,7 +18,7 @@ linters:
     - makezero
     - misspell
     - nakedret
-    # - nestif
+    - nestif
     - noctx
     - nolintlint
     - revive

@@ -66,22 +66,22 @@ func getRaw(client *fiber.Client, baseUrl, path string, params map[string]string
 		return nil, err
 	}
 
-	if code != fiber.StatusOK {
-		if code == fiber.StatusInternalServerError {
-			var res types.ErrorResponse
-			if err := json.Unmarshal(body, &res); err != nil {
-				return body, err
-			}
-
-			if res.Message == "codespace sdk code 26: invalid height: cannot query with height in the future; please provide a valid height" {
-				return nil, fmt.Errorf("invalid height")
-			}
-		}
-
-		return nil, fmt.Errorf("http response: %d, body: %s", code, string(body))
+	if code == fiber.StatusOK {
+		return body, nil
 	}
 
-	return body, nil
+	if code == fiber.StatusInternalServerError {
+		var res types.ErrorResponse
+		if err := json.Unmarshal(body, &res); err != nil {
+			return body, err
+		}
+
+		if res.Message == "codespace sdk code 26: invalid height: cannot query with height in the future; please provide a valid height" {
+			return nil, fmt.Errorf("invalid height")
+		}
+	}
+
+	return nil, fmt.Errorf("http response: %d, body: %s", code, string(body))
 }
 
 func Post(client *fiber.Client, coolingDuration time.Duration, baseUrl, path string, payload map[string]interface{}, headers map[string]string) ([]byte, error) {
@@ -126,20 +126,20 @@ func postRaw(client *fiber.Client, baseUrl, path string, payload map[string]inte
 		return nil, err
 	}
 
-	if code != fiber.StatusOK {
-		if code == fiber.StatusInternalServerError {
-			var res types.ErrorResponse
-			if err := json.Unmarshal(body, &res); err != nil {
-				return body, err
-			}
-
-			if res.Message == "codespace sdk code 26: invalid height: cannot query with height in the future; please provide a valid height" {
-				return nil, fmt.Errorf("invalid height")
-			}
-		}
-
-		return nil, fmt.Errorf("http response: %d, body: %s", code, string(body))
+	if code == fiber.StatusOK {
+		return body, nil
 	}
 
-	return body, nil
+	if code == fiber.StatusInternalServerError {
+		var res types.ErrorResponse
+		if err := json.Unmarshal(body, &res); err != nil {
+			return body, err
+		}
+
+		if res.Message == "codespace sdk code 26: invalid height: cannot query with height in the future; please provide a valid height" {
+			return nil, fmt.Errorf("invalid height")
+		}
+	}
+
+	return nil, fmt.Errorf("http response: %d, body: %s", code, string(body))
 }

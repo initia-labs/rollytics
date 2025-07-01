@@ -80,30 +80,30 @@ func fetchFromRpc(client *fiber.Client, url string) (body []byte, err error) {
 		return body, err
 	}
 
-	if code != fiber.StatusOK {
-		if code == fiber.StatusInternalServerError {
-			var res RpcErrorResponse
-			if err := json.Unmarshal(body, &res); err != nil {
-				return body, err
-			}
-
-			reHeight := regexp.MustCompile(`current blockchain height (\d+)`)
-			heightMatches := reHeight.FindStringSubmatch(res.Error.Data)
-			if len(heightMatches) > 1 {
-				return body, fmt.Errorf("current height: %s", heightMatches[1])
-			}
-
-			reNotFound := regexp.MustCompile(`could not find results for height #(\d+)`)
-			notFoundMatches := reNotFound.FindStringSubmatch(res.Error.Data)
-			if len(notFoundMatches) > 1 {
-				return body, fmt.Errorf("could not find results for height: %s", notFoundMatches[1])
-			}
-		}
-
-		return body, fmt.Errorf("http response: %d, body: %s", code, string(body))
+	if code == fiber.StatusOK {
+		return body, nil
 	}
 
-	return body, nil
+	if code == fiber.StatusInternalServerError {
+		var res RpcErrorResponse
+		if err := json.Unmarshal(body, &res); err != nil {
+			return body, err
+		}
+
+		reHeight := regexp.MustCompile(`current blockchain height (\d+)`)
+		heightMatches := reHeight.FindStringSubmatch(res.Error.Data)
+		if len(heightMatches) > 1 {
+			return body, fmt.Errorf("current height: %s", heightMatches[1])
+		}
+
+		reNotFound := regexp.MustCompile(`could not find results for height #(\d+)`)
+		notFoundMatches := reNotFound.FindStringSubmatch(res.Error.Data)
+		if len(notFoundMatches) > 1 {
+			return body, fmt.Errorf("could not find results for height: %s", notFoundMatches[1])
+		}
+	}
+
+	return body, fmt.Errorf("http response: %d, body: %s", code, string(body))
 }
 
 func parseScrapedBlock(block GetBlockResponse, blockResults GetBlockResultsResponse, height int64) (scrapedBlock types.ScrapedBlock, err error) {
