@@ -28,7 +28,6 @@ func (h *TxHandler) GetEvmTxs(c *fiber.Ctx) error {
 	query := h.buildBaseEvmTxQuery()
 	query, err = req.Pagination.Apply(query, "sequence")
 	if err != nil {
-		h.GetLogger().Error("GetEvmTxs", "error", err)
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
@@ -96,6 +95,9 @@ func (h *TxHandler) GetEvmTxsByAccount(c *fiber.Ctx) error {
 	}
 
 	query, err = req.Pagination.Apply(query, "sequence")
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
 
 	var txs []dbtypes.CollectedEvmTx
 	if err := query.Find(&txs).Error; err != nil {
@@ -153,7 +155,6 @@ func (h *TxHandler) GetEvmTxsByHeight(c *fiber.Ctx) error {
 		Where("height = ?", req.Height)
 	query, err = req.Pagination.Apply(query, "sequence")
 	if err != nil {
-		h.GetLogger().Error("GetEvmTxsByHeight", "error", err)
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 

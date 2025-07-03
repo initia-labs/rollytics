@@ -135,7 +135,7 @@ func (h *TxHandler) GetTxsByAccount(c *fiber.Ctx) error {
 	// pagination
 	query, err = req.Pagination.Apply(query, "sequence")
 	if err != nil {
-		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	var txs []dbtypes.CollectedTx
@@ -213,7 +213,7 @@ func (h *TxHandler) GetTxsByHeight(c *fiber.Ctx) error {
 
 	query, err = req.Pagination.Apply(query, "sequence")
 	if err != nil {
-		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	var txs []dbtypes.CollectedTx

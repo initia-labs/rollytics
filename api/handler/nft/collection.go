@@ -132,7 +132,7 @@ func (h *NftHandler) GetCollectionsByName(c *fiber.Ctx) error {
 		Where("name ILIKE ?", "%"+req.Name+"%")
 	query, err = req.Pagination.Apply(query, "height", "addr")
 	if err != nil {
-		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	var collections []dbtypes.CollectedNftCollection
