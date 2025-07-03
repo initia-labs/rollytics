@@ -539,6 +539,10 @@ paths:
         in: query
         name: pagination.reverse
         type: boolean
+      - description: Filter by signer accounts, default is false
+        in: query
+        name: is_signer
+        type: boolean
       produces:
       - application/json
       responses: {}
@@ -672,6 +676,10 @@ paths:
           be ordered in descending order
         in: query
         name: pagination.reverse
+        type: boolean
+      - description: Filter by signer accounts, default is false
+        in: query
+        name: is_signer
         type: boolean
       - collectionFormat: multi
         description: Message types to filter (comma-separated or multiple params)

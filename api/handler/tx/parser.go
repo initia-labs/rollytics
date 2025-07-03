@@ -44,6 +44,7 @@ func ParseTxsByAccountRequest(c *fiber.Ctx) (*TxsByAccountRequest, error) {
 		Pagination: pagination,
 		Account:    accAddr.String(),
 		Msgs:       msgs,
+		IsSigner:   c.Query("is_signer", "false") == "true",
 	}, nil
 }
 
@@ -75,6 +76,7 @@ func ParseEvmTxsByAccountRequest(c *fiber.Ctx) (*EvmTxsByAccountRequest, error) 
 	return &EvmTxsByAccountRequest{
 		Pagination: pagination,
 		Account:    accAddr.String(),
+		IsSigner:   c.Query("is_signer", "false") == "true",
 	}, nil
 }
 

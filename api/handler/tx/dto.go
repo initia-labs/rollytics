@@ -29,7 +29,8 @@ type TxsByHeightRequest struct {
 type TxsByAccountRequest struct {
 	Account    string                   `param:"account"`
 	Pagination *common.PaginationParams `query:"pagination"`
-	Msgs       []string                 `query:"msgs"` // optional, filter by message types
+	Msgs       []string                 `query:"msgs"`      // optional, filter by message types
+	IsSigner   bool                     `query:"is_signer"` // optional, filter by whether the account is a signer
 }
 
 // TxByHashRequest
@@ -74,8 +75,6 @@ func BatchToResponseTxs(ctxs []types.CollectedTx) ([]types.Tx, error) {
 	return txs, nil
 }
 
-
-
 // EvmTxs
 // Request
 // TxsRequest
@@ -87,6 +86,7 @@ type EvmTxsRequest struct {
 type EvmTxsByAccountRequest struct {
 	Account    string                   `param:"account"`
 	Pagination *common.PaginationParams `query:"pagination"`
+	IsSigner   bool                     `query:"is_signer"` // optional, filter by whether the account is a signer
 }
 
 // EvmTxsByHeightRequest
