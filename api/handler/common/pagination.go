@@ -24,19 +24,13 @@ type PageResponse struct {
 }
 
 func ExtractPaginationParams(c *fiber.Ctx) *PaginationParams {
-	params := &PaginationParams{
+	return &PaginationParams{
 		Key:        c.Query("pagination.key"),
 		Offset:     c.QueryInt("pagination.offset", 0),
 		Limit:      c.QueryInt("pagination.limit", 100),
 		CountTotal: c.QueryBool("pagination.count_total", true),
 		Reverse:    c.QueryBool("pagination.reverse", true),
 	}
-
-	if params.Limit == 0 {
-		params.Limit = 100
-	}
-
-	return params
 }
 
 // Apply applies order, limit, and pagination (cursor/offset) to the query
@@ -120,7 +114,6 @@ func (params *PaginationParams) applyCursorPagination(query *gorm.DB, keys ...st
 
 	return query, nil
 }
-
 
 // response method to generate a pagination response
 func GetPageResponse[T any](

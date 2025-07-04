@@ -63,8 +63,7 @@ func ToResponseTx(ctx *types.CollectedTx) (*types.Tx, error) {
 	return &record, nil
 }
 
-func BatchToResponseTxs(ctxs []types.CollectedTx) ([]types.Tx, error) {
-	txs := make([]types.Tx, 0, len(ctxs))
+func BatchToResponseTxs(ctxs []types.CollectedTx) (txs []types.Tx, err error) {
 	for _, ctx := range ctxs {
 		tx, err := ToResponseTx(&ctx)
 		if err != nil {
@@ -118,8 +117,7 @@ func ToResponseEvmTx(ctx *types.CollectedEvmTx) (*types.EvmTx, error) {
 	return &evmTx, nil
 }
 
-func BatchToResponseEvmTxs(ctxs []types.CollectedEvmTx) ([]types.EvmTx, error) {
-	txs := make([]types.EvmTx, 0, len(ctxs))
+func BatchToResponseEvmTxs(ctxs []types.CollectedEvmTx) (txs []types.EvmTx, err error) {
 	for _, ctx := range ctxs {
 		tx, err := ToResponseEvmTx(&ctx)
 		if err != nil {

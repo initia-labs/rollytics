@@ -15,7 +15,7 @@ func ParseBlocksRequest(c *fiber.Ctx) *BlocksRequest {
 }
 
 func ParseBlockByHeightRequest(c *fiber.Ctx) (*BlockByHeightRequest, error) {
-	height, err := common.GetParamInt(c, "height")
+	height, err := common.GetHeightParam(c)
 	if err != nil {
 		return nil, fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}

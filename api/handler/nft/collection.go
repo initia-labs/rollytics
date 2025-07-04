@@ -23,8 +23,7 @@ import (
 // @Param pagination.reverse query bool false "Reverse order default is true if set to true, the results will be ordered in descending order"
 // @Success 200 {object} CollectionsResponse
 // @Router /indexer/nft/v1/collections [get]
-func (h *NftHandler) GetCollections(c *fiber.Ctx) error {
-	var err error
+func (h *NftHandler) GetCollections(c *fiber.Ctx) (err error) {
 	req := ParseCollectionsRequest(c)
 
 	query := h.buildBaseCollectionQuery()

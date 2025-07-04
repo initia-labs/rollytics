@@ -1,6 +1,7 @@
 package common
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
@@ -9,11 +10,10 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-func GetMsgsParams(c *fiber.Ctx) []string {
+func GetMsgsParams(c *fiber.Ctx) (msgs []string) {
 	raw := c.Request().URI().QueryArgs().PeekMulti("msgs")
-	msgs := make([]string, len(raw))
-	for i, b := range raw {
-		msgs[i] = string(b)
+	for _, bytes := range raw {
+		msgs = append(msgs, string(bytes))
 	}
 	return msgs
 }
@@ -21,24 +21,26 @@ func GetMsgsParams(c *fiber.Ctx) []string {
 func GetParams(c *fiber.Ctx, key string) (string, error) {
 	value := c.Params(key)
 	if value == "" {
-		return "", fiber.NewError(fiber.StatusBadRequest, key+" param is required")
+		return "", fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("missing parameter: %s", key))
 	}
 	return value, nil
 }
 
-func GetParamInt(c *fiber.Ctx, key string) (int64, error) {
-	value, err := GetParams(c, key)
+func GetHeightParam(c *fiber.Ctx) (int64, error) {
+	value, err := GetParams(c, "height")
 	if err != nil {
 		return 0, err
-	}
-	if value == "" {
-		return 0, fiber.NewError(fiber.StatusBadRequest, "missing parameter: "+key)
 	}
 
 	intValue, err := strconv.ParseInt(value, 10, 64)
 	if err != nil {
-		return 0, fiber.NewError(fiber.StatusBadRequest, "invalid parameter: "+key+" - "+err.Error())
+		return 0, fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("invalid height: %s", err.Error()))
 	}
+
+	if intValue < 1 {
+		return 0, fiber.NewError(fiber.StatusBadRequest, "height must be positive integer")
+	}
+
 	return intValue, nil
 }
 
@@ -50,7 +52,7 @@ func GetAccountParam(c *fiber.Ctx) (sdk.AccAddress, error) {
 
 	accAddr, err := util.AccAddressFromString(account)
 	if err != nil {
-		return nil, fiber.NewError(fiber.StatusBadRequest, "invalid account: "+err.Error())
+		return nil, fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("invalid account: %s", err.Error()))
 	}
 	return accAddr, nil
 }

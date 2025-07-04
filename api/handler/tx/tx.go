@@ -25,10 +25,9 @@ import (
 // @Param pagination.reverse query bool false "Reverse order default is true if set to true, the results will be ordered in descending order"
 // @Param msgs query []string false "Message types to filter (comma-separated or multiple params)" collectionFormat(multi) example("cosmos.bank.v1beta1.MsgSend,initia.move.v1.MsgExecute")
 // @Router /indexer/tx/v1/txs [get]
-func (h *TxHandler) GetTxs(c *fiber.Ctx) error {
+func (h *TxHandler) GetTxs(c *fiber.Ctx) (err error) {
 	req := ParseTxsRequest(c)
 
-	var err error
 	query := h.buildBaseTxQuery()
 	if len(req.Msgs) > 0 {
 		msgTypeIds, err := util.GetOrCreateMsgTypeIds(h.GetDatabase().DB, req.Msgs, false)
@@ -115,7 +114,7 @@ func (h *TxHandler) GetTxsByAccount(c *fiber.Ctx) error {
 	if req.IsSigner {
 		query = query.Where("tx.signer = ?", req.Account)
 	}
-	
+
 	// If there are message types specified, filter by them
 	if len(req.Msgs) > 0 {
 		msgTypeIds, err := util.GetOrCreateMsgTypeIds(h.GetDatabase().DB, req.Msgs, false)

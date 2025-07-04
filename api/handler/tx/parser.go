@@ -19,7 +19,7 @@ func ParseTxsRequest(c *fiber.Ctx) *TxsRequest {
 func ParseTxsByHeightRequest(c *fiber.Ctx) (*TxsByHeightRequest, error) {
 	pagination := common.ExtractPaginationParams(c)
 	msgs := common.GetMsgsParams(c)
-	height, err := common.GetParamInt(c, "height")
+	height, err := common.GetHeightParam(c)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +83,7 @@ func ParseEvmTxsByAccountRequest(c *fiber.Ctx) (*EvmTxsByAccountRequest, error) 
 // ParseEvmTxsByHeightRequest parses and validates the request
 func ParseEvmTxsByHeightRequest(c *fiber.Ctx) (*EvmTxsByHeightRequest, error) {
 	pagination := common.ExtractPaginationParams(c)
-	height, err := common.GetParamInt(c, "height")
+	height, err := common.GetHeightParam(c)
 	if err != nil {
 		return nil, err
 	}

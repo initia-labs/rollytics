@@ -22,8 +22,7 @@ import (
 // @Param pagination.count_total query bool false "Count total, default is true" default is true
 // @Param pagination.reverse query bool false "Reverse order default is true if set to true, the results will be ordered in descending order"
 // @Router /indexer/tx/v1/evm-txs [get]
-func (h *TxHandler) GetEvmTxs(c *fiber.Ctx) error {
-	var err error
+func (h *TxHandler) GetEvmTxs(c *fiber.Ctx) (err error) {
 	req := ParseEvmTxsRequest(c)
 	query := h.buildBaseEvmTxQuery()
 	query, err = req.Pagination.Apply(query, "sequence")

@@ -1,6 +1,7 @@
 package nft
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -108,11 +109,11 @@ func validateCollectionAddr(config *config.ChainConfig, collectionAddr string) (
 	switch config.VmType {
 	case types.MoveVM, types.EVM:
 		if !strings.HasPrefix(collectionAddr, "0x") {
-			return "", fiber.NewError(fiber.StatusBadRequest, "should be hex address starting with 0x")
+			return "", fiber.NewError(fiber.StatusBadRequest, "collection addr should be hex address")
 		}
 	case types.WasmVM:
 		if !strings.HasPrefix(collectionAddr, config.AccountAddressPrefix) {
-			return "", fiber.NewError(fiber.StatusBadRequest, "should be bech32 address with prefix "+config.AccountAddressPrefix)
+			return "", fiber.NewError(fiber.StatusBadRequest, "collection addr should be bech32 address")
 		}
 	}
 
@@ -128,7 +129,7 @@ func getCollectionAddrParam(c *fiber.Ctx, config *config.ChainConfig) (string, e
 
 	collectionAddr, err = validateCollectionAddr(config, collectionAddr)
 	if err != nil {
-		return "", fiber.NewError(fiber.StatusBadRequest, "invalid collection address : "+err.Error())
+		return "", fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("invalid collection address: %s", err.Error()))
 	}
 	return collectionAddr, nil
 }
