@@ -33,13 +33,11 @@ func (h *BlockHandler) GetBlocks(c *fiber.Ctx) (err error) {
 
 	var blocks []dbtypes.CollectedBlock
 	if err := query.Find(&blocks).Error; err != nil {
-		h.GetLogger().Error("GetBlocks", "error", err)
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	blocksResp, err := BatchToResponseBlocks(blocks, h.GetChainConfig().RestUrl)
 	if err != nil {
-		h.GetLogger().Error("GetBlocks", "error", err)
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
@@ -78,13 +76,11 @@ func (h *BlockHandler) GetBlockByHeight(c *fiber.Ctx) error {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return fiber.NewError(fiber.StatusNotFound, "Block not found")
 		}
-		h.GetLogger().Error("GetBlockByHeight", "error", err)
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	blockResp, err := ToResponseBlock(&block, h.GetChainConfig().RestUrl)
 	if err != nil {
-		h.GetLogger().Error("GetBlockByHeight", "error", err)
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
@@ -106,7 +102,6 @@ func (h *BlockHandler) GetAvgBlockTime(c *fiber.Ctx) error {
 		Order("height DESC").
 		Limit(100).
 		Find(&blocks).Error; err != nil {
-		h.GetLogger().Error("GetAvgBlockTime", "error", err)
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 

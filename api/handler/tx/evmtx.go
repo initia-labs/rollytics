@@ -1,8 +1,6 @@
 package tx
 
 import (
-	"errors"
-
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
 
@@ -32,17 +30,12 @@ func (h *TxHandler) GetEvmTxs(c *fiber.Ctx) (err error) {
 
 	var txs []dbtypes.CollectedEvmTx
 	if err := query.Find(&txs).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return fiber.NewError(fiber.StatusNotFound, "No EVM transactions found")
-		}
-		h.GetLogger().Error("GetEvmTxs", "error", err)
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	// response
 	txsResp, err := BatchToResponseEvmTxs(txs)
 	if err != nil {
-		h.GetLogger().Error("GetEvmTxs", "error", err)
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
@@ -100,10 +93,6 @@ func (h *TxHandler) GetEvmTxsByAccount(c *fiber.Ctx) error {
 
 	var txs []dbtypes.CollectedEvmTx
 	if err := query.Find(&txs).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return fiber.NewError(fiber.StatusNotFound, "No EVM transactions found for the specified account")
-		}
-		h.GetLogger().Error("GetEvmTxsByAccount", "error", err)
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
@@ -121,7 +110,6 @@ func (h *TxHandler) GetEvmTxsByAccount(c *fiber.Ctx) error {
 	})
 	txsResp, err := BatchToResponseEvmTxs(txs)
 	if err != nil {
-		h.GetLogger().Error("GetEvmTxsByAccount", "error", err)
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
@@ -159,17 +147,12 @@ func (h *TxHandler) GetEvmTxsByHeight(c *fiber.Ctx) error {
 
 	var txs []dbtypes.CollectedEvmTx
 	if err := query.Find(&txs).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return fiber.NewError(fiber.StatusNotFound, "No EVM transactions found for the specified height")
-		}
-		h.GetLogger().Error("GetEvmTxsByHeight", "error", err)
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	// response
 	txsResp, err := BatchToResponseEvmTxs(txs)
 	if err != nil {
-		h.GetLogger().Error("GetEvmTxsByHeight", "error", err)
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
@@ -198,9 +181,6 @@ func (h *TxHandler) GetEvmTxsByHeight(c *fiber.Ctx) error {
 // @Param tx_hash path string true "Transaction hash"
 // @Router /indexer/tx/v1/evm-txs/{tx_hash} [get]
 func (h *TxHandler) GetEvmTxByHash(c *fiber.Ctx) error {
-	var (
-		logger = h.GetLogger()
-	)
 	req, err := ParseEvmTxByHashRequest(c)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
@@ -211,13 +191,11 @@ func (h *TxHandler) GetEvmTxByHash(c *fiber.Ctx) error {
 
 	var tx dbtypes.CollectedEvmTx
 	if err := query.Find(&tx).Error; err != nil {
-		logger.Error("GetEvmTxByHash", "error", err)
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	txResp, err := ToResponseEvmTx(&tx)
 	if err != nil {
-		logger.Error("GetEvmTxByHash", "error", err)
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 

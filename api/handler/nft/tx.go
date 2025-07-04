@@ -44,7 +44,7 @@ func (h *NftHandler) GetNftTxs(c *fiber.Ctx) error {
 			Where("chain_id = ? AND collection_addr = ? AND token_id = ?", chainId, req.CollectionAddr, req.TokenId).
 			First(&nft).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return fiber.NewError(fiber.StatusNotFound, err.Error())
+				return fiber.NewError(fiber.StatusNotFound, "NFT not found")
 			}
 			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 		}

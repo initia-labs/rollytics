@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/gofiber/fiber/v2"
-	"github.com/initia-labs/rollytics/util"
-
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/gofiber/fiber/v2"
+
+	"github.com/initia-labs/rollytics/util"
 )
 
 func GetMsgsParams(c *fiber.Ctx) (msgs []string) {

@@ -1,9 +1,11 @@
 package api
 
 import (
+	"errors"
 	"fmt"
 	"html/template"
 	"log/slog"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/swagger"
@@ -48,6 +50,20 @@ func (a *Api) Start() error {
 	app := fiber.New(fiber.Config{
 		AppName:               "Rollytics API",
 		DisableStartupMessage: true,
+		ErrorHandler: func(c *fiber.Ctx, err error) error {
+			errString := err.Error()
+			if !strings.HasPrefix(errString, "Cannot GET") {
+				a.logger.Error(errString, "path", c.Path(), "method", c.Method())
+			}
+
+			code := fiber.StatusInternalServerError
+			e := &fiber.Error{}
+			if errors.As(err, &e) {
+				code = e.Code
+			}
+
+			return c.Status(code).SendString(errString)
+		},
 	})
 
 	app.Get("/health", health)

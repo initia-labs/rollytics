@@ -44,17 +44,12 @@ func (h *TxHandler) GetTxs(c *fiber.Ctx) (err error) {
 	// execute the query with pagination
 	var txs []dbtypes.CollectedTx
 	if err := query.Find(&txs).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return fiber.NewError(fiber.StatusNotFound, "No transactions found")
-		}
-		h.GetLogger().Error("GetTxs", "error", err)
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	// response
 	txsResp, err := BatchToResponseTxs(txs)
 	if err != nil {
-		h.GetLogger().Error("GetTxs", "error", err)
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
@@ -139,17 +134,12 @@ func (h *TxHandler) GetTxsByAccount(c *fiber.Ctx) error {
 
 	var txs []dbtypes.CollectedTx
 	if err := query.Find(&txs).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return fiber.NewError(fiber.StatusNotFound, "No transactions found for the specified account")
-		}
-		h.GetLogger().Error("GetTxsByAccount", "error", err)
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	// response
 	txsResp, err := BatchToResponseTxs(txs)
 	if err != nil {
-		h.GetLogger().Error("GetTxsByAccount", "error", err)
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
@@ -217,16 +207,11 @@ func (h *TxHandler) GetTxsByHeight(c *fiber.Ctx) error {
 
 	var txs []dbtypes.CollectedTx
 	if err := query.Find(&txs).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return fiber.NewError(fiber.StatusNotFound, "No transactions found for the specified height")
-		}
-		h.GetLogger().Error("GetTxsByHeight", "error", err)
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	txsResp, err := BatchToResponseTxs(txs)
 	if err != nil {
-		h.GetLogger().Error("GetTxsByHeight", "error", err)
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
@@ -261,13 +246,11 @@ func (h *TxHandler) GetTxByHash(c *fiber.Ctx) error {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return fiber.NewError(fiber.StatusNotFound, "Transaction not found")
 		}
-		h.GetLogger().Error("GetTxByHash", "error", err)
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	txResp, err := ToResponseTx(&tx)
 	if err != nil {
-		h.GetLogger().Error("GetTxByHash", "error", err)
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 

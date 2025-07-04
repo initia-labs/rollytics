@@ -15,7 +15,7 @@ type Table struct {
 type CollectedSeqInfo struct {
 	ChainId  string `gorm:"type:text;primaryKey"`
 	Name     string `gorm:"type:text;primaryKey"`
-	Sequence uint64 `gorm:"type:bigint"`
+	Sequence int64  `gorm:"type:bigint"`
 }
 
 type CollectedBlock struct {
@@ -35,7 +35,7 @@ type CollectedTx struct {
 	ChainId    string          `gorm:"type:text;primaryKey"`
 	Hash       string          `gorm:"type:text;primaryKey;index:tx_hash"`
 	Height     int64           `gorm:"type:bigint;primaryKey;autoIncrement:false;index:tx_height"`
-	Sequence   uint64          `gorm:"type:bigint;index:tx_sequence"`
+	Sequence   int64           `gorm:"type:bigint;index:tx_sequence"`
 	Signer     string          `gorm:"type:text"`
 	Data       json.RawMessage `gorm:"type:jsonb"`
 	MsgTypeIds pq.Int64Array   `gorm:"type:bigint[]"` // apply GIN index at DB initialization
@@ -47,14 +47,14 @@ type CollectedAccountTx struct {
 	Hash     string `gorm:"type:text;primaryKey;index:account_tx_hash"`
 	Account  string `gorm:"type:text;primaryKey;index:account_tx_account"`
 	Height   int64  `gorm:"type:bigint;primaryKey;autoIncrement:false;index:account_tx_height"`
-	Sequence uint64 `gorm:"type:bigint;index:account_tx_sequence"`
+	Sequence int64  `gorm:"type:bigint;index:account_tx_sequence"`
 }
 
 type CollectedEvmTx struct {
 	ChainId  string          `gorm:"type:text;primaryKey"`
 	Hash     string          `gorm:"type:text;primaryKey;index:evm_tx_hash"`
 	Height   int64           `gorm:"type:bigint;primaryKey;autoIncrement:false;index:evm_tx_height"`
-	Sequence uint64          `gorm:"type:bigint;index:evm_tx_sequence"`
+	Sequence int64           `gorm:"type:bigint;index:evm_tx_sequence"`
 	Signer   string          `gorm:"type:text"`
 	Data     json.RawMessage `gorm:"type:jsonb"`
 }
@@ -64,7 +64,7 @@ type CollectedEvmAccountTx struct {
 	Hash     string `gorm:"type:text;primaryKey;index:evm_account_tx_hash"`
 	Account  string `gorm:"type:text;primaryKey;index:evm_account_tx_account"`
 	Height   int64  `gorm:"type:bigint;primaryKey;autoIncrement:false;index:evm_account_tx_height"`
-	Sequence uint64 `gorm:"type:bigint;index:evm_account_tx_sequence"`
+	Sequence int64  `gorm:"type:bigint;index:evm_account_tx_sequence"`
 }
 
 type CollectedNftCollection struct {
@@ -94,7 +94,7 @@ type CollectedNftTx struct {
 	CollectionAddr string `gorm:"type:text;primaryKey;index:nft_tx_collection_addr"`
 	TokenId        string `gorm:"type:text;primaryKey;index:nft_tx_token_id"`
 	Height         int64  `gorm:"type:bigint;primaryKey;autoIncrement:false;index:nft_tx_height"`
-	Sequence       uint64 `gorm:"type:bigint;index:nft_tx_sequence"`
+	Sequence       int64  `gorm:"type:bigint;index:nft_tx_sequence"`
 }
 
 // only for move

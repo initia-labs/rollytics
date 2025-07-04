@@ -2,6 +2,7 @@ package nft
 
 import (
 	"github.com/gofiber/fiber/v2"
+
 	"github.com/initia-labs/rollytics/api/handler/common"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"

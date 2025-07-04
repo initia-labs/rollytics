@@ -100,9 +100,9 @@ func (h *NftHandler) GetTokensByCollectionAddr(c *fiber.Ctx) error {
 	}
 
 	query, err = req.Pagination.Apply(query, "token_id")
-		if err != nil {
-			return fiber.NewError(fiber.StatusBadRequest, err.Error())
-		}
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
 
 	var nfts []dbtypes.CollectedNft
 	if err := query.Find(&nfts).Error; err != nil {
