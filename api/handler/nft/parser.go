@@ -1,6 +1,7 @@
 package nft
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -23,7 +24,7 @@ func ParseCollectionsByAccountRequest(c *fiber.Ctx) (*CollectionsByAccountReques
 	pagination := common.ExtractPaginationParams(c)
 	account, err := common.GetParams(c, "account")
 	if err != nil {
-		return nil, fiber.NewError(fiber.StatusBadRequest, err.Error())
+		return nil, err
 	}
 
 	return &CollectionsByAccountRequest{
@@ -36,7 +37,7 @@ func ParseCollectionsByNameRequest(c *fiber.Ctx) (*CollectionsByNameRequest, err
 	pagination := common.ExtractPaginationParams(c)
 	name, err := common.GetParams(c, "name")
 	if err != nil {
-		return nil, fiber.NewError(fiber.StatusBadRequest, err.Error())
+		return nil, err
 	}
 	return &CollectionsByNameRequest{
 		Name:       name,
@@ -47,7 +48,7 @@ func ParseCollectionsByNameRequest(c *fiber.Ctx) (*CollectionsByNameRequest, err
 func ParseCollectionByCollectionAddrRequest(config *config.ChainConfig, c *fiber.Ctx) (*CollectionByAddrRequest, error) {
 	collectionAddr, err := getCollectionAddrParam(c, config)
 	if err != nil {
-		return nil, fiber.NewError(fiber.StatusBadRequest, err.Error())
+		return nil, err
 	}
 	req := &CollectionByAddrRequest{
 		CollectionAddr: strings.ToLower(collectionAddr),
@@ -61,7 +62,7 @@ func ParseTokensByAccountRequest(c *fiber.Ctx) (*TokensByAccountRequest, error) 
 	pagination := common.ExtractPaginationParams(c)
 	accAddr, err := common.GetAccountParam(c)
 	if err != nil {
-		return nil, fiber.NewError(fiber.StatusBadRequest, err.Error())
+		return nil, err
 	}
 
 	return &TokensByAccountRequest{
@@ -76,7 +77,7 @@ func ParseTokensByCollectionRequest(config *config.ChainConfig, c *fiber.Ctx) (*
 	pagination := common.ExtractPaginationParams(c)
 	collectionAddr, err := getCollectionAddrParam(c, config)
 	if err != nil {
-		return nil, fiber.NewError(fiber.StatusBadRequest, err.Error())
+		return nil, err
 	}
 	return &TokensByCollectionRequest{
 		CollectionAddr: collectionAddr,
@@ -90,12 +91,12 @@ func ParseNftTxsRequest(config *config.ChainConfig, c *fiber.Ctx) (*NftTxsReques
 	pagination := common.ExtractPaginationParams(c)
 	collectionAddr, err := getCollectionAddrParam(c, config)
 	if err != nil {
-		return nil, fiber.NewError(fiber.StatusBadRequest, err.Error())
+		return nil, err
 	}
 
 	tokenId, err := common.GetParams(c, "token_id")
 	if err != nil {
-		return nil, fiber.NewError(fiber.StatusBadRequest, err.Error())
+		return nil, err
 	}
 
 	return &NftTxsRequest{
@@ -109,11 +110,11 @@ func validateCollectionAddr(config *config.ChainConfig, collectionAddr string) (
 	switch config.VmType {
 	case types.MoveVM, types.EVM:
 		if !strings.HasPrefix(collectionAddr, "0x") {
-			return "", fiber.NewError(fiber.StatusBadRequest, "collection addr should be hex address")
+			return "", errors.New("collection address should be hex address")
 		}
 	case types.WasmVM:
 		if !strings.HasPrefix(collectionAddr, config.AccountAddressPrefix) {
-			return "", fiber.NewError(fiber.StatusBadRequest, "collection addr should be bech32 address")
+			return "", errors.New("collection address should be bech32 address")
 		}
 	}
 
@@ -124,12 +125,12 @@ func validateCollectionAddr(config *config.ChainConfig, collectionAddr string) (
 func getCollectionAddrParam(c *fiber.Ctx, config *config.ChainConfig) (string, error) {
 	collectionAddr, err := common.GetParams(c, "collection_addr")
 	if err != nil {
-		return "", fiber.NewError(fiber.StatusBadRequest, err.Error())
+		return "", err
 	}
 
 	collectionAddr, err = validateCollectionAddr(config, collectionAddr)
 	if err != nil {
-		return "", fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("invalid collection address: %s", err.Error()))
+		return "", fmt.Errorf("invalid collection address: %s", err.Error())
 	}
 	return collectionAddr, nil
 }

@@ -1,6 +1,7 @@
 package common
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 
@@ -21,7 +22,7 @@ func GetMsgsParams(c *fiber.Ctx) (msgs []string) {
 func GetParams(c *fiber.Ctx, key string) (string, error) {
 	value := c.Params(key)
 	if value == "" {
-		return "", fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("missing parameter: %s", key))
+		return "", fmt.Errorf("missing parameter: %s", key)
 	}
 	return value, nil
 }
@@ -34,11 +35,11 @@ func GetHeightParam(c *fiber.Ctx) (int64, error) {
 
 	intValue, err := strconv.ParseInt(value, 10, 64)
 	if err != nil {
-		return 0, fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("invalid height: %s", err.Error()))
+		return 0, fmt.Errorf("invalid height: %s", err.Error())
 	}
 
 	if intValue < 1 {
-		return 0, fiber.NewError(fiber.StatusBadRequest, "height must be positive integer")
+		return 0, errors.New("height must be positive integer")
 	}
 
 	return intValue, nil
@@ -52,7 +53,7 @@ func GetAccountParam(c *fiber.Ctx) (sdk.AccAddress, error) {
 
 	accAddr, err := util.AccAddressFromString(account)
 	if err != nil {
-		return nil, fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("invalid account: %s", err.Error()))
+		return nil, fmt.Errorf("invalid account: %s", err.Error())
 	}
 	return accAddr, nil
 }
