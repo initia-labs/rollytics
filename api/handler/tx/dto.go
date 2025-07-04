@@ -44,13 +44,13 @@ type TxResponse struct {
 }
 
 type TxsResponse struct {
-	Txs        []types.Tx           `json:"txs" extensions:"x-order:0"`
-	Pagination *common.PageResponse `json:"pagination" extensions:"x-order:1"`
+	Txs        []types.Tx          `json:"txs" extensions:"x-order:0"`
+	Pagination common.PageResponse `json:"pagination" extensions:"x-order:1"`
 }
 
 type AccountTxResponse struct {
-	Txs        []types.Tx           `json:"txs" extensions:"x-order:0"`
-	Pagination *common.PageResponse `json:"pagination" extensions:"x-order:1"`
+	Txs        []types.Tx          `json:"txs" extensions:"x-order:0"`
+	Pagination common.PageResponse `json:"pagination" extensions:"x-order:1"`
 }
 
 // Conversion functions
@@ -106,8 +106,8 @@ type EvmTxResponse struct {
 }
 
 type EvmTxsResponse struct {
-	Pagination *common.PageResponse `json:"pagination" extensions:"x-order:0"`
-	Txs        []types.EvmTx        `json:"txs" extensions:"x-order:1"`
+	Pagination common.PageResponse `json:"pagination" extensions:"x-order:0"`
+	Txs        []types.EvmTx       `json:"txs" extensions:"x-order:1"`
 }
 
 func ToResponseEvmTx(ctx *types.CollectedEvmTx) (*types.EvmTx, error) {

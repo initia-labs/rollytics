@@ -68,8 +68,8 @@ type Collection struct {
 }
 
 type CollectionsResponse struct {
-	Collections []Collection         `json:"collections" extensions:"x-order:0"`
-	Pagination  *common.PageResponse `json:"pagination" extensions:"x-order:1"`
+	Collections []Collection        `json:"collections" extensions:"x-order:0"`
+	Pagination  common.PageResponse `json:"pagination" extensions:"x-order:1"`
 }
 
 type CollectionResponse struct {
@@ -109,14 +109,14 @@ type Nft struct {
 	CollectionAddr       string     `json:"collection_addr" extensions:"x-order:0"`
 	CollectionName       string     `json:"collection_name" extensions:"x-order:1"`
 	CollectionOriginName string     `json:"collection_origin_name" extensions:"x-order:2"`
-	ObjectAddr           string     `json:"object_addr,omitempty" extensions:"x-order:3"` // only used in Move
+	ObjectAddr           string     `json:"object_addr" extensions:"x-order:3"` // only used in Move
 	Owner                string     `json:"owner_addr" extensions:"x-order:4"`
 	Nft                  NftDetails `json:"nft" extensions:"x-order:5"`
 }
 
 type NftsResponse struct {
-	Tokens     []Nft                `json:"tokens" extensions:"x-order:0"`
-	Pagination *common.PageResponse `json:"pagination" extensions:"x-order:1"`
+	Tokens     []Nft               `json:"tokens" extensions:"x-order:0"`
+	Pagination common.PageResponse `json:"pagination" extensions:"x-order:1"`
 }
 
 func ToResponseNft(name, originName string, nft *types.CollectedNft) *Nft {

@@ -20,7 +20,7 @@ type PaginationParams struct {
 
 type PageResponse struct {
 	NextKey *string `json:"next_key" extensions:"x-order:0"`
-	Total   int64   `json:"total,omitempty" extensions:"x-order:1"`
+	Total   int64   `json:"total" extensions:"x-order:1"`
 }
 
 func ExtractPaginationParams(c *fiber.Ctx) *PaginationParams {
@@ -121,8 +121,7 @@ func GetPageResponse[T any](
 	results []T,
 	keyExtractor func(T) []any,
 	totalQuery func() int64,
-) *PageResponse {
-	resp := PageResponse{}
+) (resp PageResponse) {
 	if params.CountTotal && totalQuery != nil {
 		resp.Total = totalQuery()
 	}
@@ -138,7 +137,7 @@ func GetPageResponse[T any](
 		}
 	}
 
-	return &resp
+	return resp
 }
 
 // generate a next key based on the values provided

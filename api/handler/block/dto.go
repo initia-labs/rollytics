@@ -47,8 +47,8 @@ type Proposer struct {
 
 // Response types for blocks
 type BlocksResponse struct {
-	Blocks     []Block              `json:"blocks" extensions:"x-order:0"`
-	Pagination *common.PageResponse `json:"pagination" extensions:"x-order:1"`
+	Blocks     []Block             `json:"blocks" extensions:"x-order:0"`
+	Pagination common.PageResponse `json:"pagination" extensions:"x-order:1"`
 }
 
 type BlockResponse struct {

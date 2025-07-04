@@ -66,7 +66,7 @@ func ParseTokensByAccountRequest(c *fiber.Ctx) (*TokensByAccountRequest, error) 
 	}
 
 	return &TokensByAccountRequest{
-		Account:        accAddr.String(),
+		Account:        accAddr,
 		CollectionAddr: c.Query("collection_addr"),
 		TokenId:        c.Query("token_id"),
 		Pagination:     pagination,

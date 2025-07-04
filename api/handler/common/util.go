@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strconv"
 
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/gofiber/fiber/v2"
 
 	"github.com/initia-labs/rollytics/util"
@@ -45,15 +44,15 @@ func GetHeightParam(c *fiber.Ctx) (int64, error) {
 	return intValue, nil
 }
 
-func GetAccountParam(c *fiber.Ctx) (sdk.AccAddress, error) {
+func GetAccountParam(c *fiber.Ctx) (string, error) {
 	account, err := GetParams(c, "account")
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	accAddr, err := util.AccAddressFromString(account)
 	if err != nil {
-		return nil, fmt.Errorf("invalid account: %s", err.Error())
+		return "nil", fmt.Errorf("invalid account: %s", err.Error())
 	}
-	return accAddr, nil
+	return accAddr.String(), nil
 }
