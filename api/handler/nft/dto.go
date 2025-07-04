@@ -93,7 +93,8 @@ func ToResponseCollection(col *types.CollectedNftCollection) *Collection {
 	}
 }
 
-func BatchToResponseCollections(cols []types.CollectedNftCollection) (collections []Collection) {
+func BatchToResponseCollections(cols []types.CollectedNftCollection) []Collection {
+	collections := make([]Collection, 0, len(cols))
 	for _, col := range cols {
 		collections = append(collections, *ToResponseCollection(&col))
 	}
@@ -134,7 +135,8 @@ func ToResponseNft(name, originName string, nft *types.CollectedNft) *Nft {
 	}
 }
 
-func BatchToResponseNfts(db *orm.Database, nfts []types.CollectedNft) (nftResponses []Nft, err error) {
+func BatchToResponseNfts(db *orm.Database, nfts []types.CollectedNft) ([]Nft, error) {
+	nftResponses := make([]Nft, 0, len(nfts))
 	for _, nft := range nfts {
 		// get collection names and origin names
 		collection, err := getCollection(db, nft.CollectionAddr)

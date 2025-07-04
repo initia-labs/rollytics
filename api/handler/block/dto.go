@@ -86,7 +86,8 @@ func ToResponseBlock(cb *types.CollectedBlock, restUrl string) (*Block, error) {
 	}, nil
 }
 
-func BatchToResponseBlocks(cbs []types.CollectedBlock, restUrl string) (blocks []Block, err error) {
+func BatchToResponseBlocks(cbs []types.CollectedBlock, restUrl string) ([]Block, error) {
+	blocks := make([]Block, 0, len(cbs))
 	for _, cb := range cbs {
 		block, err := ToResponseBlock(&cb, restUrl)
 		if err != nil {
