@@ -17,17 +17,18 @@ import (
 )
 
 type Indexer struct {
-	cfg         *config.Config
-	logger      *slog.Logger
-	db          *orm.Database
-	scraper     *scraper.Scraper
-	collector   *collector.Collector
-	blockMap    map[int64]indexertypes.ScrapedBlock
-	blockChan   chan indexertypes.ScrapedBlock
-	controlChan chan string
-	paused      bool
-	mtx         sync.Mutex
-	height      int64
+	cfg          *config.Config
+	logger       *slog.Logger
+	db           *orm.Database
+	scraper      *scraper.Scraper
+	collector    *collector.Collector
+	blockMap     map[int64]indexertypes.ScrapedBlock
+	blockChan    chan indexertypes.ScrapedBlock
+	controlChan  chan string
+	paused       bool
+	mtx          sync.Mutex
+	height       int64
+	prepareCount int
 }
 
 func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Indexer {
@@ -69,6 +70,10 @@ func (i *Indexer) prepare() {
 			continue
 		}
 
+		i.mtx.Lock()
+		i.prepareCount++
+		i.mtx.Unlock()
+
 		b := block
 		go func() {
 			if err := i.collector.Prepare(b); err != nil {
@@ -77,6 +82,7 @@ func (i *Indexer) prepare() {
 
 			i.mtx.Lock()
 			i.blockMap[b.Height] = b
+			i.prepareCount--
 			i.mtx.Unlock()
 		}()
 	}
@@ -87,10 +93,10 @@ func (i *Indexer) collect() {
 		i.mtx.Lock()
 
 		switch {
-		case len(i.blockMap) > 100 && !i.paused:
+		case i.prepareCount > 100 && !i.paused:
 			i.controlChan <- "stop"
 			i.paused = true
-		case len(i.blockMap) < 50 && i.paused:
+		case i.prepareCount < 50 && i.paused:
 			i.controlChan <- "start"
 			i.paused = false
 		}
