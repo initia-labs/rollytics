@@ -93,10 +93,10 @@ func (i *Indexer) collect() {
 		i.mtx.Lock()
 
 		switch {
-		case i.prepareCount > 100 && !i.paused:
+		case (len(i.blockMap) > 100 || i.prepareCount > 100) && !i.paused:
 			i.controlChan <- "stop"
 			i.paused = true
-		case i.prepareCount < 50 && i.paused:
+		case len(i.blockMap) < 50 && i.prepareCount < 50 && i.paused:
 			i.controlChan <- "start"
 			i.paused = false
 		}
