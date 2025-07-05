@@ -8,8 +8,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/initia-labs/rollytics/api/handler/common"
-	dbtypes "github.com/initia-labs/rollytics/types"
-	"github.com/initia-labs/rollytics/util"
+	"github.com/initia-labs/rollytics/types"
 )
 
 // GetTxs handles GET /tx/v1/txs
@@ -26,46 +25,52 @@ import (
 // @Param msgs query []string false "Message types to filter (comma-separated or multiple params)" collectionFormat(multi) example("cosmos.bank.v1beta1.MsgSend,initia.move.v1.MsgExecute")
 // @Router /indexer/tx/v1/txs [get]
 func (h *TxHandler) GetTxs(c *fiber.Ctx) (err error) {
-	req := ParseTxsRequest(c)
+	msgs := common.GetMsgsParams(c)
+	pagination, err := common.ParsePagination(c)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
 
 	query := h.buildBaseTxQuery()
-	if len(req.Msgs) > 0 {
-		msgTypeIds, err := util.GetOrCreateMsgTypeIds(h.GetDatabase().DB, req.Msgs, false)
+
+	var total int64
+	if len(msgs) > 0 {
+		msgTypeIds, err := h.GetMsgTypeIds(msgs)
 		if err != nil {
 			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 		}
 		query = query.Where("msg_type_ids && ?", pq.Array(msgTypeIds))
-	}
-	query, err = req.Pagination.Apply(query, "sequence")
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
-	}
-
-	// execute the query with pagination
-	var txs []dbtypes.CollectedTx
-	if err := query.Find(&txs).Error; err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
-	}
-
-	// response
-	txsResp, err := BatchToResponseTxs(txs)
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
-	}
-
-	pageResp := common.GetPageResponse(req.Pagination, txs, func(tx dbtypes.CollectedTx) []any {
-		return []any{tx.Sequence}
-	}, func() int64 {
-		var tx dbtypes.CollectedTx
-		if h.buildBaseTxQuery().Select("sequence").Order("sequence DESC").First(&tx).Error != nil {
-			return 0
+		if err := query.Count(&total).Error; err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 		}
-		return int64(tx.Sequence)
-	})
+	} else {
+		var lastTx types.CollectedTx
+		if err := h.buildBaseTxQuery().
+			Order("sequence DESC").
+			Limit(1).
+			First(&lastTx).Error; err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
+		total = lastTx.Sequence
+	}
+
+	var txs []types.CollectedTx
+	if err := query.
+		Order(pagination.OrderBy("sequence")).
+		Offset(pagination.Offset).
+		Limit(pagination.Limit).
+		Find(&txs).Error; err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	txsRes, err := ToTxsResponse(txs)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
 
 	return c.JSON(TxsResponse{
-		Txs:        txsResp,
-		Pagination: pageResp,
+		Txs:        txsRes,
+		Pagination: pagination.ToResponse(total),
 	})
 }
 
@@ -85,71 +90,55 @@ func (h *TxHandler) GetTxs(c *fiber.Ctx) (err error) {
 // @Param msgs query []string false "Message types to filter (comma-separated or multiple params)" collectionFormat(multi) example("cosmos.bank.v1beta1.MsgSend,initia.move.v1.MsgExecute")
 // @Router /indexer/tx/v1/txs/by_account/{account} [get]
 func (h *TxHandler) GetTxsByAccount(c *fiber.Ctx) error {
-	req, err := ParseTxsByAccountRequest(c)
+	account, err := common.GetAccountParam(c)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+	msgs := common.GetMsgsParams(c)
+	isSigner := c.Query("is_signer", "false") == "true"
+	pagination, err := common.ParsePagination(c)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
-	chainId := h.GetChainConfig().ChainId
-	query := h.GetDatabase().Model(&dbtypes.CollectedTx{}).
-		Select("tx.data", "account_tx.sequence as sequence").
+	query := h.buildBaseTxQuery().
 		Joins("INNER JOIN account_tx ON tx.chain_id = account_tx.chain_id AND tx.hash = account_tx.hash").
-		Where("account_tx.chain_id = ?", chainId).
-		Where("account_tx.account = ?", req.Account)
+		Where("account_tx.account = ?", account)
 
-	totalQuery := func() int64 {
-		var total int64
-		h.GetDatabase().Model(&dbtypes.CollectedAccountTx{}).
-			Where("chain_id = ?", chainId).
-			Where("account = ?", req.Account).Count(&total)
-		return total
-	}
-
-	// If the IsSigner flag is set, filter by signer accounts
-	if req.IsSigner {
-		query = query.Where("tx.signer = ?", req.Account)
-	}
-
-	// If there are message types specified, filter by them
-	if len(req.Msgs) > 0 {
-		msgTypeIds, err := util.GetOrCreateMsgTypeIds(h.GetDatabase().DB, req.Msgs, false)
+	if len(msgs) > 0 {
+		msgTypeIds, err := h.GetMsgTypeIds(msgs)
 		if err != nil {
 			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 		}
 		query = query.Where("msg_type_ids && ?", pq.Array(msgTypeIds))
-		totalQuery = func() int64 {
-			var total int64
-			h.GetDatabase().Model(&dbtypes.CollectedAccountTx{}).
-				Where("chain_id = ? AND account = ?", chainId, req.Account).
-				Where("EXISTS (SELECT 1 FROM tx WHERE tx.chain_id = account_tx.chain_id AND tx.hash = account_tx.hash AND msg_type_ids && ?)", pq.Array(msgTypeIds)).Count(&total)
-			return total
-		}
 	}
 
-	// pagination
-	query, err = req.Pagination.Apply(query, "sequence")
+	if isSigner {
+		query = query.Where("signer = ?", account)
+	}
+
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	var txs []types.CollectedTx
+	if err := query.
+		Order(pagination.OrderBy("sequence")).
+		Offset(pagination.Offset).
+		Limit(pagination.Limit).
+		Find(&txs).Error; err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	txsRes, err := ToTxsResponse(txs)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
-
-	var txs []dbtypes.CollectedTx
-	if err := query.Find(&txs).Error; err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
-	}
-
-	// response
-	txsResp, err := BatchToResponseTxs(txs)
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
-	}
-
-	pageResp := common.GetPageResponse(req.Pagination, txs, func(tx dbtypes.CollectedTx) []any {
-		return []any{tx.Sequence}
-	}, totalQuery)
 
 	return c.JSON(TxsResponse{
-		Txs:        txsResp,
-		Pagination: pageResp,
+		Txs:        txsRes,
+		Pagination: pagination.ToResponse(total),
 	})
 }
 
@@ -168,60 +157,48 @@ func (h *TxHandler) GetTxsByAccount(c *fiber.Ctx) error {
 // @Param msgs query []string false "Message types to filter (comma-separated or multiple params)" collectionFormat(multi) example("cosmos.bank.v1beta1.MsgSend,initia.move.v1.MsgExecute")
 // @Router /indexer/tx/v1/txs/by_height/{height} [get]
 func (h *TxHandler) GetTxsByHeight(c *fiber.Ctx) error {
-	req, err := ParseTxsByHeightRequest(c)
+	height, err := common.GetHeightParam(c)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+	msgs := common.GetMsgsParams(c)
+	pagination, err := common.ParsePagination(c)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
-	query := h.buildBaseTxQuery().
-		Where("height = ?", req.Height)
+	query := h.buildBaseTxQuery().Where("height = ?", height)
 
-	totalQuery := func() int64 {
-		var block dbtypes.CollectedBlock
-		if h.GetDatabase().Model(&dbtypes.CollectedBlock{}).
-			Where("chain_id = ? AND height = ?", h.GetChainConfig().ChainId, req.Height).First(&block).Error != nil {
-			return 0
-		}
-		return int64(block.TxCount)
-	}
-
-	if len(req.Msgs) > 0 {
-		msgTypeIds, err := util.GetOrCreateMsgTypeIds(h.GetDatabase().DB, req.Msgs, false)
+	if len(msgs) > 0 {
+		msgTypeIds, err := h.GetMsgTypeIds(msgs)
 		if err != nil {
 			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 		}
 		query = query.Where("msg_type_ids && ?", pq.Array(msgTypeIds))
-		totalQuery = func() int64 {
-			var count int64
-			if query.Count(&count).Error != nil {
-				return 0
-			}
-			return count
-		}
 	}
 
-	query, err = req.Pagination.Apply(query, "sequence")
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	var txs []types.CollectedTx
+	if err := query.
+		Order(pagination.OrderBy("sequence")).
+		Offset(pagination.Offset).
+		Limit(pagination.Limit).
+		Find(&txs).Error; err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	txsRes, err := ToTxsResponse(txs)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
-
-	var txs []dbtypes.CollectedTx
-	if err := query.Find(&txs).Error; err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
-	}
-
-	txsResp, err := BatchToResponseTxs(txs)
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
-	}
-
-	pageResp := common.GetPageResponse(req.Pagination, txs, func(tx dbtypes.CollectedTx) []any {
-		return []any{tx.Sequence}
-	}, totalQuery)
 
 	return c.JSON(TxsResponse{
-		Txs:        txsResp,
-		Pagination: pageResp,
+		Txs:        txsRes,
+		Pagination: pagination.ToResponse(total),
 	})
 }
 
@@ -233,33 +210,36 @@ func (h *TxHandler) GetTxsByHeight(c *fiber.Ctx) error {
 // @Produce json
 // @Param tx_hash path string true "Transaction hash"
 // @Router /indexer/tx/v1/txs/{tx_hash} [get]
+//
+//nolint:dupl
 func (h *TxHandler) GetTxByHash(c *fiber.Ctx) error {
-	req, err := ParseTxByHashRequest(c)
+	hash, err := common.GetParams(c, "tx_hash")
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
-	var tx dbtypes.CollectedTx
+	var tx types.CollectedTx
 	if err := h.buildBaseTxQuery().
-		Where("hash = ?", req.Hash).
+		Where("hash = ?", hash).
 		First(&tx).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return fiber.NewError(fiber.StatusNotFound, "Transaction not found")
+			return fiber.NewError(fiber.StatusNotFound, "tx not found")
 		}
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	txResp, err := ToResponseTx(&tx)
+	txRes, err := ToTxResponse(&tx)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	return c.JSON(TxResponse{
-		Tx: txResp,
+		Tx: txRes,
 	})
 }
 
 func (h *TxHandler) buildBaseTxQuery() *gorm.DB {
-	return h.GetDatabase().Model(&dbtypes.CollectedTx{}).
-		Where("chain_id = ?", h.GetChainConfig().ChainId)
+	return h.GetDatabase().
+		Model(&types.CollectedTx{}).
+		Where("tx.chain_id = ?", h.GetChainId())
 }

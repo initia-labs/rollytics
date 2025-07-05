@@ -5,10 +5,10 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/initia-labs/rollytics/api/handler/common"
-	dbtypes "github.com/initia-labs/rollytics/types"
+	"github.com/initia-labs/rollytics/types"
 )
 
-// GetTokensByOwner handles GET /nft/v1/tokens/by_account/{account}
+// GetTokensByAccount handles GET /nft/v1/tokens/by_account/{account}
 // @Summary Get NFT tokens by account
 // @Description Get NFT tokens owned by a specific account
 // @Tags NFT
@@ -24,50 +24,49 @@ import (
 // @Param pagination.reverse query bool false "Reverse order default is true if set to true, the results will be ordered in descending order"
 // @Success 200 {object} NftsResponse
 // @Router /indexer/nft/v1/tokens/by_account/{account} [get]
-func (h *NftHandler) GetTokensByOwner(c *fiber.Ctx) error {
-	req, err := ParseTokensByAccountRequest(c)
+func (h *NftHandler) GetTokensByAccount(c *fiber.Ctx) error {
+	account, err := common.GetAccountParam(c)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+	collectionAddr := c.Query("collection_addr")
+	tokenId := c.Query("token_id")
+	pagination, err := common.ParsePagination(c)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
-	query := h.buildBaseNftQuery().
-		Where("owner = ?", req.Account)
-	if req.CollectionAddr != "" {
-		query = query.Where("collection_addr = ?", req.CollectionAddr)
+	query := h.buildBaseNftQuery().Where("owner = ?", account)
+
+	if collectionAddr != "" {
+		query = query.Where("collection_addr = ?", collectionAddr)
 	}
-	if req.TokenId != "" {
-		query = query.Where("token_id = ?", req.TokenId)
+	if tokenId != "" {
+		query = query.Where("token_id = ?", tokenId)
 	}
-	query, err = req.Pagination.Apply(query, "collection_addr", "token_id")
+
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	var nfts []types.CollectedNft
+	if err := query.
+		Order(pagination.OrderBy("collection_addr", "token_id")).
+		Offset(pagination.Offset).
+		Limit(pagination.Limit).
+		Find(&nfts).Error; err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	nftsRes, err := ToNftsResponse(h.GetDatabase(), nfts)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	var nfts []dbtypes.CollectedNft
-	if err := query.Find(&nfts).Error; err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
-	}
-
-	// response
-	pageResp := common.GetPageResponse(req.Pagination, nfts, func(nft dbtypes.CollectedNft) []any {
-		return []any{nft.CollectionAddr, nft.TokenId}
-	}, func() int64 {
-		var total int64
-		if err := h.GetDatabase().Model(&dbtypes.CollectedNft{}).
-			Where("chain_id = ? AND owner = ?", h.GetChainConfig().ChainId, req.Account).
-			Count(&total).Error; err != nil {
-			return 0
-		}
-		return total
-	})
-
-	tokens, err := BatchToResponseNfts(h.GetDatabase(), nfts)
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
-	}
 	return c.JSON(NftsResponse{
-		Tokens:     tokens,
-		Pagination: pageResp,
+		Tokens:     nftsRes,
+		Pagination: pagination.ToResponse(total),
 	})
 }
 
@@ -87,51 +86,49 @@ func (h *NftHandler) GetTokensByOwner(c *fiber.Ctx) error {
 // @Success 200 {object} NftsResponse
 // @Router /indexer/nft/v1/tokens/by_collection/{collection_addr} [get]
 func (h *NftHandler) GetTokensByCollectionAddr(c *fiber.Ctx) error {
-	req, err := ParseTokensByCollectionRequest(h.GetChainConfig(), c)
+	collectionAddr, err := common.GetCollectionAddrParam(c, h.GetChainConfig())
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+	tokenId := c.Query("token_id")
+	pagination, err := common.ParsePagination(c)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
-	query := h.buildBaseNftQuery().
-		Where("collection_addr = ?", req.CollectionAddr)
+	query := h.buildBaseNftQuery().Where("collection_addr = ?", collectionAddr)
 
-	if req.TokenId != "" {
-		query = query.Where("token_id = ?", req.TokenId)
+	if tokenId != "" {
+		query = query.Where("token_id = ?", tokenId)
 	}
 
-	query, err = req.Pagination.Apply(query, "token_id")
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	var nfts []types.CollectedNft
+	if err := query.
+		Order(pagination.OrderBy("token_id")).
+		Offset(pagination.Offset).
+		Limit(pagination.Limit).
+		Find(&nfts).Error; err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	nftsRes, err := ToNftsResponse(h.GetDatabase(), nfts)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	var nfts []dbtypes.CollectedNft
-	if err := query.Find(&nfts).Error; err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
-	}
-
-	// get pagination response
-	pageResp := common.GetPageResponse(req.Pagination, nfts, func(token dbtypes.CollectedNft) []any {
-		return []any{token.TokenId}
-	}, func() int64 {
-		var total int64
-		if err := h.GetDatabase().Model(&dbtypes.CollectedNft{}).
-			Where("chain_id = ? AND collection_addr = ?", h.GetChainConfig().ChainId, req.CollectionAddr).
-			Count(&total).Error; err != nil {
-			return 0
-		}
-		return total
-	})
-	tokens, err := BatchToResponseNfts(h.GetDatabase(), nfts)
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
-	}
 	return c.JSON(NftsResponse{
-		Tokens:     tokens,
-		Pagination: pageResp,
+		Tokens:     nftsRes,
+		Pagination: pagination.ToResponse(total),
 	})
 }
 
 func (h *NftHandler) buildBaseNftQuery() *gorm.DB {
-	return h.GetDatabase().Model(&dbtypes.CollectedNft{}).
-		Where("chain_id = ?", h.GetChainConfig().ChainId)
+	return h.GetDatabase().
+		Model(&types.CollectedNft{}).
+		Where("nft.chain_id = ?", h.GetChainId())
 }

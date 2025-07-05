@@ -45,7 +45,7 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Indexer {
 
 func (i *Indexer) Run() error {
 	var lastBlock types.CollectedBlock
-	res := i.db.Where("chain_id = ?", i.cfg.GetChainConfig().ChainId).Order("height desc").Limit(1).Take(&lastBlock)
+	res := i.db.Where("chain_id = ?", i.cfg.GetChainId()).Order("height desc").Limit(1).Take(&lastBlock)
 	if res.Error != nil && !errors.Is(res.Error, gorm.ErrRecordNotFound) {
 		i.logger.Error("failed to get the last block from db", slog.Any("error", res.Error))
 		return errors.New("failed to get the last block from db")

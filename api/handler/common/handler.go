@@ -7,6 +7,8 @@ import (
 
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/orm"
+	"github.com/initia-labs/rollytics/types"
+	"github.com/initia-labs/rollytics/util"
 )
 
 type HandlerRegistrar interface {
@@ -32,4 +34,16 @@ func (h *BaseHandler) GetConfig() *config.Config  { return h.cfg }
 func (h *BaseHandler) GetLogger() *slog.Logger    { return h.logger }
 func (h *BaseHandler) GetChainConfig() *config.ChainConfig {
 	return h.cfg.GetChainConfig()
+}
+func (h *BaseHandler) GetChainId() string {
+	return h.cfg.GetChainId()
+}
+func (h *BaseHandler) GetRestUrl() string {
+	return h.cfg.GetChainConfig().RestUrl
+}
+func (h *BaseHandler) GetVmType() types.VMType {
+	return h.cfg.GetChainConfig().VmType
+}
+func (h *BaseHandler) GetMsgTypeIds(msgs []string) ([]int64, error) {
+	return util.GetOrCreateMsgTypeIds(h.db.DB, msgs, false)
 }

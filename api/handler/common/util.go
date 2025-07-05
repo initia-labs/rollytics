@@ -4,9 +4,12 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 
+	"github.com/initia-labs/rollytics/config"
+	"github.com/initia-labs/rollytics/types"
 	"github.com/initia-labs/rollytics/util"
 )
 
@@ -55,4 +58,24 @@ func GetAccountParam(c *fiber.Ctx) (string, error) {
 		return "nil", fmt.Errorf("invalid account: %s", err.Error())
 	}
 	return accAddr.String(), nil
+}
+
+func GetCollectionAddrParam(c *fiber.Ctx, config *config.ChainConfig) (string, error) {
+	collectionAddr, err := GetParams(c, "collection_addr")
+	if err != nil {
+		return "", err
+	}
+
+	switch config.VmType {
+	case types.MoveVM, types.EVM:
+		if !strings.HasPrefix(collectionAddr, "0x") {
+			return "", errors.New("collection address should be hex address")
+		}
+	case types.WasmVM:
+		if !strings.HasPrefix(collectionAddr, config.AccountAddressPrefix) {
+			return "", errors.New("collection address should be bech32 address")
+		}
+	}
+
+	return strings.ToLower(collectionAddr), nil
 }

@@ -2,25 +2,26 @@ package block
 
 import (
 	"encoding/json"
-	"strconv"
+	"fmt"
 	"time"
 
 	"github.com/initia-labs/rollytics/api/handler/common"
 	"github.com/initia-labs/rollytics/types"
 )
 
-// Request
-type BlocksRequest struct {
-	Pagination *common.PaginationParams `query:"pagination"`
+type BlocksResponse struct {
+	Blocks     []Block                   `json:"blocks" extensions:"x-order:0"`
+	Pagination common.PaginationResponse `json:"pagination" extensions:"x-order:1"`
 }
 
-type BlockByHeightRequest struct {
-	Height int64 `param:"height"`
+type BlockResponse struct {
+	Block *Block `json:"block"`
 }
 
-type AvgBlockTimeRequest struct{}
+type AvgBlockTimeResponse struct {
+	AvgBlockTime float64 `json:"avg_block_time"`
+}
 
-// Response
 type Block struct {
 	ChainID   string   `json:"chain_id" extensions:"x-order:0"`
 	Height    string   `json:"height" extensions:"x-order:1"`
@@ -45,21 +46,19 @@ type Proposer struct {
 	OperatorAddress string `json:"operator_address" extensions:"x-order:2"`
 }
 
-// Response types for blocks
-type BlocksResponse struct {
-	Blocks     []Block             `json:"blocks" extensions:"x-order:0"`
-	Pagination common.PageResponse `json:"pagination" extensions:"x-order:1"`
+func ToBlocksResponse(cbs []types.CollectedBlock, restUrl string) ([]Block, error) {
+	blocks := make([]Block, 0, len(cbs))
+	for _, cb := range cbs {
+		block, err := ToBlockResponse(&cb, restUrl)
+		if err != nil {
+			return nil, err
+		}
+		blocks = append(blocks, *block)
+	}
+	return blocks, nil
 }
 
-type BlockResponse struct {
-	Block *Block `json:"block"`
-}
-
-type AvgBlockTimeResponse struct {
-	AvgBlockTime float64 `json:"avg_block_time"`
-}
-
-func ToResponseBlock(cb *types.CollectedBlock, restUrl string) (*Block, error) {
+func ToBlockResponse(cb *types.CollectedBlock, restUrl string) (*Block, error) {
 	var fees []Fee
 	if err := json.Unmarshal(cb.TotalFee, &fees); err != nil {
 		return nil, err
@@ -69,31 +68,20 @@ func ToResponseBlock(cb *types.CollectedBlock, restUrl string) (*Block, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return &Block{
 		ChainID:   cb.ChainId,
-		Height:    strconv.FormatInt(cb.Height, 10),
+		Height:    fmt.Sprintf("%d", cb.Height),
 		Hash:      cb.Hash,
-		BlockTime: strconv.FormatInt(cb.BlockTime, 10),
+		BlockTime: fmt.Sprintf("%d", cb.BlockTime),
 		Timestamp: cb.Timestamp.Format(time.RFC3339),
-		GasUsed:   strconv.FormatInt(cb.GasUsed, 10),
-		GasWanted: strconv.FormatInt(cb.GasWanted, 10),
-		TxCount:   strconv.Itoa(cb.TxCount),
+		GasUsed:   fmt.Sprintf("%d", cb.GasUsed),
+		GasWanted: fmt.Sprintf("%d", cb.GasWanted),
+		TxCount:   fmt.Sprintf("%d", cb.TxCount),
 		TotalFee:  fees,
 		Proposer: Proposer{
 			Moniker:         validator.Validator.Moniker,
 			OperatorAddress: validator.Validator.OperatorAddress,
 		},
 	}, nil
-}
-
-func BatchToResponseBlocks(cbs []types.CollectedBlock, restUrl string) ([]Block, error) {
-	blocks := make([]Block, 0, len(cbs))
-	for _, cb := range cbs {
-		block, err := ToResponseBlock(&cb, restUrl)
-		if err != nil {
-			return nil, err
-		}
-		blocks = append(blocks, *block)
-	}
-	return blocks, nil
 }
