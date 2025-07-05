@@ -78,21 +78,21 @@ func (h *NftHandler) GetNftTxs(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	var ctxs []types.CollectedTx
+	var txs []types.CollectedTx
 	if err := query.
 		Offset(pagination.Offset).
 		Limit(pagination.Limit).
-		Find(&ctxs).Error; err != nil {
+		Find(&txs).Error; err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	txs, err := tx.ToTxsResponse(ctxs)
+	txsRes, err := tx.ToTxsResponse(txs)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	return c.JSON(tx.TxsResponse{
-		Txs:        txs,
+		Txs:        txsRes,
 		Pagination: pagination.ToResponse(total),
 	})
 }
