@@ -1,8 +1,6 @@
 package tx
 
 import (
-	"log/slog"
-
 	"github.com/gofiber/fiber/v2"
 
 	"github.com/initia-labs/rollytics/api/handler/common"
@@ -36,8 +34,4 @@ func (h *TxHandler) Register(router fiber.Router) {
 	} else {
 		evmTxs.All("/*", h.NotFound)
 	}
-}
-
-func (h *TxHandler) GetLogger() *slog.Logger {
-	return h.BaseHandler.GetLogger().With("handler", "tx")
 }

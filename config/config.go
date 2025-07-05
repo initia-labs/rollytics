@@ -105,6 +105,10 @@ func (c Config) GetDBBatchSize() int {
 	return c.dbConfig.BatchSize
 }
 
+func (c Config) GetChainId() string {
+	return c.chainConfig.ChainId
+}
+
 func (c Config) GetVmType() types.VMType {
 	return c.chainConfig.VmType
 }

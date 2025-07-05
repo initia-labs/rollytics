@@ -9,6 +9,7 @@ import (
 	"github.com/initia-labs/rollytics/api/handler/common"
 	"github.com/initia-labs/rollytics/api/handler/tx"
 	"github.com/initia-labs/rollytics/types"
+	"github.com/initia-labs/rollytics/util"
 )
 
 // GetNftTxs handles GET "/txs/:collection_addr/:token_id"
@@ -26,70 +27,72 @@ import (
 // @Param pagination.reverse query bool false "Reverse order default is true if set to true, the results will be ordered in descending order"
 // @Router /indexer/nft/v1/txs/{collection_addr}/{token_id} [get]
 func (h *NftHandler) GetNftTxs(c *fiber.Ctx) error {
-	req, err := ParseNftTxsRequest(h.GetChainConfig(), c)
+	collectionAddr, err := common.GetCollectionAddrParam(c, h.GetChainConfig())
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+	tokenId, err := common.GetParams(c, "token_id")
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+	pagination, err := common.ParsePagination(c)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
-	chainConfig := h.GetChainConfig()
-	chainId := chainConfig.ChainId
+	var nft types.CollectedNft
+	if err := h.GetDatabase().
+		Where("chain_id = ? AND collection_addr = ? AND token_id = ?", h.GetChainId(), collectionAddr, tokenId).
+		First(&nft).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return c.JSON(tx.TxsResponse{
+				Txs:        []types.Tx{},
+				Pagination: pagination.ToResponse(0),
+			})
+		}
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
 
-	var query *gorm.DB
-	var totalQuery *gorm.DB
+	query := h.GetDatabase().
+		Model(&types.CollectedTx{}).
+		Where("tx.chain_id = ?", h.GetChainId()).
+		Order(pagination.OrderBy("sequence"))
 
-	if chainConfig.VmType == types.MoveVM {
-		// Move VM: get NFT address and use account transactions
-		var nft types.CollectedNft
-		if err := h.GetDatabase().Model(&types.CollectedNft{}).
-			Where("chain_id = ? AND collection_addr = ? AND token_id = ?", chainId, req.CollectionAddr, req.TokenId).
-			First(&nft).Error; err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return fiber.NewError(fiber.StatusNotFound, ErrFailedToFetchNft)
-			}
-			return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchNft)
+	if h.GetVmType() == types.MoveVM {
+		accAddr, err := util.AccAddressFromString(nft.Addr)
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 		}
 
-		query = h.GetDatabase().Model(&types.CollectedTx{}).
-			Select("tx.*").
+		query = query.
 			Joins("INNER JOIN account_tx ON tx.chain_id = account_tx.chain_id AND tx.hash = account_tx.hash").
-			Where("account_tx.chain_id = ?", chainId).
-			Where("account_tx.account = ?", nft.Addr)
-
-		totalQuery = h.GetDatabase().Model(&types.CollectedAccountTx{}).
-			Where("chain_id = ? AND account = ?", chainId, nft.Addr)
+			Where("account_tx.account = ?", accAddr.String())
 	} else {
-		// EVM/WASM: use nft_tx table
-		query = h.GetDatabase().Model(&types.CollectedTx{}).
-			Select("tx.*").
+		query = query.
 			Joins("INNER JOIN nft_tx ON tx.chain_id = nft_tx.chain_id AND tx.hash = nft_tx.hash").
-			Where("nft_tx.chain_id = ?", chainId).
-			Where("nft_tx.collection_addr = ?", req.CollectionAddr).
-			Where("nft_tx.token_id = ?", req.TokenId)
-
-		totalQuery = h.GetDatabase().Model(&types.CollectedNftTx{}).
-			Where("chain_id = ? AND collection_addr = ? AND token_id = ?", chainId, req.CollectionAddr, req.TokenId)
+			Where("nft_tx.collection_addr = ? AND nft_tx.token_id = ?", collectionAddr, tokenId)
 	}
 
-	nftTxs, pageResp, err := common.NewPaginationBuilder[types.CollectedTx](req.Pagination).
-		WithQuery(query).
-		WithTotalQuery(totalQuery).
-		WithKeys("tx.sequence").
-		WithKeyExtractor(func(tx types.CollectedTx) []any {
-			return []any{tx.Sequence}
-		}).
-		Execute()
-
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, ErrFailedToFetchNftTxs)
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	txsResp, err := tx.BatchToResponseTxs(nftTxs)
+	var ctxs []types.CollectedTx
+	if err := query.
+		Offset(pagination.Offset).
+		Limit(pagination.Limit).
+		Find(&ctxs).Error; err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	txs, err := tx.ToTxsResponse(ctxs)
 	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, tx.ErrFailedToConvertTx)
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	return c.JSON(tx.TxsResponse{
-		Txs:        txsResp,
-		Pagination: pageResp,
+		Txs:        txs,
+		Pagination: pagination.ToResponse(total),
 	})
 }

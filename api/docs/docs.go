@@ -15,6 +15,19 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/health": {
+            "get": {
+                "tags": [
+                    "App"
+                ],
+                "summary": "Health check",
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
         "/indexer/block/v1/avg_blocktime": {
             "get": {
                 "description": "Get the average block time over recent blocks",
@@ -171,7 +184,7 @@ const docTemplate = `{
                 "tags": [
                     "NFT"
                 ],
-                "summary": "Get NFT collections by owner account",
+                "summary": "Get NFT collections by account",
                 "parameters": [
                     {
                         "type": "string",
@@ -617,6 +630,12 @@ const docTemplate = `{
                         "description": "Reverse order default is true if set to true, the results will be ordered in descending order",
                         "name": "pagination.reverse",
                         "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Filter by signer accounts, default is false",
+                        "name": "is_signer",
+                        "in": "query"
                     }
                 ],
                 "responses": {}
@@ -813,6 +832,12 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "type": "boolean",
+                        "description": "Filter by signer accounts, default is false",
+                        "name": "is_signer",
+                        "in": "query"
+                    },
+                    {
                         "type": "array",
                         "items": {
                             "type": "string"
@@ -920,7 +945,7 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "common.PageResponse": {
+        "common.PaginationResponse": {
             "type": "object",
             "properties": {
                 "next_key": {
@@ -928,7 +953,7 @@ const docTemplate = `{
                     "x-order:0": true
                 },
                 "total": {
-                    "type": "integer",
+                    "type": "string",
                     "x-order:1": true
                 }
             }
@@ -996,7 +1021,7 @@ const docTemplate = `{
                 "pagination": {
                     "allOf": [
                         {
-                            "$ref": "#/definitions/common.PageResponse"
+                            "$ref": "#/definitions/common.PaginationResponse"
                         }
                     ],
                     "x-order:1": true
@@ -1031,7 +1056,7 @@ const docTemplate = `{
                     "type": "string",
                     "x-order:3": true
                 },
-                "owner_addr": {
+                "owner": {
                     "type": "string",
                     "x-order:4": true
                 }
@@ -1069,7 +1094,7 @@ const docTemplate = `{
                 "pagination": {
                     "allOf": [
                         {
-                            "$ref": "#/definitions/common.PageResponse"
+                            "$ref": "#/definitions/common.PaginationResponse"
                         }
                     ],
                     "x-order:1": true
