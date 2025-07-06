@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/initia-labs/rollytics/api/handler/common"
+	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/types"
 )
 
@@ -46,10 +47,10 @@ type Proposer struct {
 	OperatorAddress string `json:"operator_address" extensions:"x-order:2"`
 }
 
-func ToBlocksResponse(cbs []types.CollectedBlock, restUrl string) ([]Block, error) {
+func ToBlocksResponse(cbs []types.CollectedBlock, cfg *config.Config) ([]Block, error) {
 	blocks := make([]Block, 0, len(cbs))
 	for _, cb := range cbs {
-		block, err := ToBlockResponse(&cb, restUrl)
+		block, err := ToBlockResponse(&cb, cfg)
 		if err != nil {
 			return nil, err
 		}
@@ -58,13 +59,13 @@ func ToBlocksResponse(cbs []types.CollectedBlock, restUrl string) ([]Block, erro
 	return blocks, nil
 }
 
-func ToBlockResponse(cb *types.CollectedBlock, restUrl string) (*Block, error) {
+func ToBlockResponse(cb *types.CollectedBlock, cfg *config.Config) (*Block, error) {
 	var fees []Fee
 	if err := json.Unmarshal(cb.TotalFee, &fees); err != nil {
 		return nil, err
 	}
 
-	validator, err := getValidator(restUrl, cb.Proposer)
+	validator, err := getValidator(cb.Proposer, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -80,8 +81,8 @@ func ToBlockResponse(cb *types.CollectedBlock, restUrl string) (*Block, error) {
 		TxCount:   fmt.Sprintf("%d", cb.TxCount),
 		TotalFee:  fees,
 		Proposer: Proposer{
-			Moniker:         validator.Validator.Moniker,
-			OperatorAddress: validator.Validator.OperatorAddress,
+			Moniker:         validator.Moniker,
+			OperatorAddress: validator.OperatorAddress,
 		},
 	}, nil
 }

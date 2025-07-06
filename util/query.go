@@ -9,11 +9,14 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-
-	"github.com/initia-labs/rollytics/indexer/types"
 )
 
 const maxRetries = 5
+
+type ErrorResponse struct {
+	Code    int64  `json:"code"`
+	Message string `json:"message"`
+}
 
 func Get(client *fiber.Client, coolingDuration time.Duration, baseUrl, path string, params map[string]string, headers map[string]string) ([]byte, error) {
 	retryCount := 0
@@ -71,7 +74,7 @@ func getRaw(client *fiber.Client, baseUrl, path string, params map[string]string
 	}
 
 	if code == fiber.StatusInternalServerError {
-		var res types.ErrorResponse
+		var res ErrorResponse
 		if err := json.Unmarshal(body, &res); err != nil {
 			return body, err
 		}
@@ -131,7 +134,7 @@ func postRaw(client *fiber.Client, baseUrl, path string, payload map[string]inte
 	}
 
 	if code == fiber.StatusInternalServerError {
-		var res types.ErrorResponse
+		var res ErrorResponse
 		if err := json.Unmarshal(body, &res); err != nil {
 			return body, err
 		}

@@ -7,9 +7,7 @@ import (
 )
 
 // cache for collection data
-var (
-	collectionCache = cache.New[string, *types.CollectedNftCollection](100)
-)
+var collectionCache = cache.New[string, *types.CollectedNftCollection](100)
 
 func getCollection(database *orm.Database, collectionAddr string) (*types.CollectedNftCollection, error) {
 	cached, ok := collectionCache.Get(collectionAddr)

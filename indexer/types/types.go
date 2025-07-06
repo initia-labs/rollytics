@@ -31,8 +31,3 @@ type ParsedEvent struct {
 	abci.Event
 	AttrMap map[string]string
 }
-
-type ErrorResponse struct {
-	Code    int64  `json:"code"`
-	Message string `json:"message"`
-}

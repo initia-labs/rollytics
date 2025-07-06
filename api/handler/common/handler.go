@@ -38,9 +38,6 @@ func (h *BaseHandler) GetChainConfig() *config.ChainConfig {
 func (h *BaseHandler) GetChainId() string {
 	return h.cfg.GetChainId()
 }
-func (h *BaseHandler) GetRestUrl() string {
-	return h.cfg.GetChainConfig().RestUrl
-}
 func (h *BaseHandler) GetVmType() types.VMType {
 	return h.cfg.GetChainConfig().VmType
 }

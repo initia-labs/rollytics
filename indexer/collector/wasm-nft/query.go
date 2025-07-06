@@ -9,7 +9,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/initia-labs/rollytics/config"
-	"github.com/initia-labs/rollytics/indexer/util"
+	"github.com/initia-labs/rollytics/util"
 )
 
 var (

@@ -3,11 +3,12 @@ package block
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
-	"sync"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
+
+	"github.com/initia-labs/rollytics/cache"
+	"github.com/initia-labs/rollytics/config"
+	"github.com/initia-labs/rollytics/util"
 )
 
 type ValidatorResponse struct {
@@ -26,16 +27,11 @@ type ConsensusPubkey struct {
 	Key  string `json:"key"`
 }
 
-// cache for validator responses
-var (
-	validatorCache     = make(map[string]*ValidatorResponse)
-	validatorCacheLock sync.RWMutex
-)
+// cache for validators
+var validatorCache = cache.New[string, *Validator](100)
 
-func getValidator(restUrl string, validatorAddr string) (*ValidatorResponse, error) {
-	validatorCacheLock.RLock()
-	cached, ok := validatorCache[validatorAddr]
-	validatorCacheLock.RUnlock()
+func getValidator(validatorAddr string, cfg *config.Config) (*Validator, error) {
+	cached, ok := validatorCache.Get(validatorAddr)
 	if ok {
 		return cached, nil
 	}
@@ -43,25 +39,18 @@ func getValidator(restUrl string, validatorAddr string) (*ValidatorResponse, err
 	client := fiber.AcquireClient()
 	defer fiber.ReleaseClient(client)
 
-	baseUrl := strings.TrimSuffix(restUrl, "/")
-	endpoint := fmt.Sprintf("/opinit/opchild/v1/validator/%s", validatorAddr)
-	fullUrl := fmt.Sprintf("%s%s", baseUrl, endpoint)
-	req := client.Get(fullUrl)
-
-	code, body, errs := req.Timeout(5 * time.Second).Bytes()
-	if code != fiber.StatusOK {
-		return nil, fmt.Errorf("failed to fetch validator info: %s", errs)
-	}
-
-	res := &ValidatorResponse{}
-	err := json.Unmarshal(body, res)
+	path := fmt.Sprintf("/opinit/opchild/v1/validator/%s", validatorAddr)
+	body, err := util.Get(client, cfg.GetCoolingDuration(), cfg.GetChainConfig().RestUrl, path, nil, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal validator response: %w", err)
+		return nil, err
 	}
 
-	validatorCacheLock.Lock()
-	validatorCache[validatorAddr] = res
-	validatorCacheLock.Unlock()
+	var response ValidatorResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, err
+	}
 
-	return res, nil
+	validatorCache.Set(validatorAddr, &response.Validator)
+
+	return &response.Validator, nil
 }

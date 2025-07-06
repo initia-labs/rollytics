@@ -7,7 +7,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 
 	"github.com/initia-labs/rollytics/config"
-	"github.com/initia-labs/rollytics/indexer/util"
+	"github.com/initia-labs/rollytics/util"
 )
 
 func getMoveResource(addr string, structTag string, client *fiber.Client, cfg *config.Config, height int64) (resource QueryMoveResourceResponse, err error) {

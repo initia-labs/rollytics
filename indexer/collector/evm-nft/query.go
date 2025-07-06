@@ -11,7 +11,7 @@ import (
 	"github.com/initia-labs/minievm/x/evm/contracts/erc721"
 
 	"github.com/initia-labs/rollytics/config"
-	"github.com/initia-labs/rollytics/indexer/util"
+	"github.com/initia-labs/rollytics/util"
 )
 
 func getCollectionName(collectionAddr string, client *fiber.Client, cfg *config.Config, height int64) (name string, err error) {

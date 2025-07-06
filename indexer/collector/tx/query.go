@@ -8,8 +8,8 @@ import (
 	"github.com/gofiber/fiber/v2"
 
 	"github.com/initia-labs/rollytics/config"
-	"github.com/initia-labs/rollytics/indexer/util"
 	"github.com/initia-labs/rollytics/types"
+	"github.com/initia-labs/rollytics/util"
 )
 
 const maxRetries = 5
