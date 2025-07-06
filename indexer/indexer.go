@@ -92,11 +92,12 @@ func (i *Indexer) collect() {
 	for {
 		i.mtx.Lock()
 
+		inflightCount := len(i.blockMap) + i.prepareCount
 		switch {
-		case (len(i.blockMap) > 100 || i.prepareCount > 100) && !i.paused:
+		case inflightCount > 100 && !i.paused:
 			i.controlChan <- "stop"
 			i.paused = true
-		case len(i.blockMap) < 50 && i.prepareCount < 50 && i.paused:
+		case inflightCount < 50 && i.paused:
 			i.controlChan <- "start"
 			i.paused = false
 		}
