@@ -36,7 +36,7 @@ type CollectedTx struct {
 	Hash       string          `gorm:"type:text;primaryKey;index:tx_hash"`
 	Height     int64           `gorm:"type:bigint;primaryKey;autoIncrement:false;index:tx_height"`
 	Sequence   int64           `gorm:"type:bigint;index:tx_sequence"`
-	Signer     string          `gorm:"type:text"`
+	Signer     string          `gorm:"type:text;index:tx_signer"`
 	Data       json.RawMessage `gorm:"type:jsonb"`
 	MsgTypeIds pq.Int64Array   `gorm:"type:bigint[]"` // apply GIN index at DB initialization
 	TypeTagIds pq.Int64Array   `gorm:"type:bigint[]"` // apply GIN index at DB initialization
@@ -55,7 +55,7 @@ type CollectedEvmTx struct {
 	Hash     string          `gorm:"type:text;primaryKey;index:evm_tx_hash"`
 	Height   int64           `gorm:"type:bigint;primaryKey;autoIncrement:false;index:evm_tx_height"`
 	Sequence int64           `gorm:"type:bigint;index:evm_tx_sequence"`
-	Signer   string          `gorm:"type:text"`
+	Signer   string          `gorm:"type:text;index:evm_tx_signer"`
 	Data     json.RawMessage `gorm:"type:jsonb"`
 }
 
