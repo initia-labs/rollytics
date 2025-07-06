@@ -47,8 +47,8 @@ type EvmTxResponse struct {
 }
 
 type EvmTxsResponse struct {
-	Pagination common.PaginationResponse `json:"pagination" extensions:"x-order:0"`
-	Txs        []types.EvmTx             `json:"txs" extensions:"x-order:1"`
+	Txs        []types.EvmTx             `json:"txs" extensions:"x-order:0"`
+	Pagination common.PaginationResponse `json:"pagination" extensions:"x-order:1"`
 }
 
 func ToEvmTxsResponse(ctxs []types.CollectedEvmTx) ([]types.EvmTx, error) {
