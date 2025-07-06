@@ -63,8 +63,10 @@ func Collect(block indexertypes.ScrapedBlock, cfg *config.Config, tx *gorm.DB) (
 	}
 
 	for l2CollectionName, l1CollectionName := range collectionPairMap {
-		if res := tx.Model(&types.CollectedNftCollection{}).Where("chain_id = ? AND name = ?", block.ChainId, l2CollectionName).Updates(map[string]interface{}{"origin_name": l1CollectionName}); res.Error != nil {
-			return res.Error
+		if err := tx.Model(&types.CollectedNftCollection{}).
+			Where("chain_id = ? AND name = ?", block.ChainId, l2CollectionName).
+			Updates(map[string]interface{}{"origin_name": l1CollectionName}).Error; err != nil {
+			return err
 		}
 	}
 

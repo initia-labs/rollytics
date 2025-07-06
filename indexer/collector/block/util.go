@@ -14,8 +14,11 @@ import (
 )
 
 func getBlock(chainId string, height int64, tx *gorm.DB) (block types.CollectedBlock, err error) {
-	res := tx.Where("chain_id = ? AND height = ?", chainId, height).Take(&block)
-	return block, res.Error
+	if err := tx.Where("chain_id = ? AND height = ?", chainId, height).First(&block).Error; err != nil {
+		return block, err
+	}
+
+	return block, nil
 }
 
 func getTotalFee(txs []string, cdc codec.Codec) (fee []byte, err error) {

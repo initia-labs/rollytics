@@ -9,16 +9,16 @@ import (
 )
 
 func GetSeqInfo(chainId string, name string, tx *gorm.DB) (seqInfo types.CollectedSeqInfo, err error) {
-	if res := tx.Where("chain_id = ? AND name = ?", chainId, name).Take(&seqInfo); res.Error != nil {
+	if err := tx.Where("chain_id = ? AND name = ?", chainId, name).First(&seqInfo).Error; err != nil {
 		// initialize if not found
-		if errors.Is(res.Error, gorm.ErrRecordNotFound) {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			seqInfo = types.CollectedSeqInfo{
 				ChainId:  chainId,
 				Name:     name,
 				Sequence: 0,
 			}
 		} else {
-			return seqInfo, res.Error
+			return seqInfo, err
 		}
 	}
 

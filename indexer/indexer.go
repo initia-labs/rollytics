@@ -1,12 +1,10 @@
 package indexer
 
 import (
-	"errors"
+	"fmt"
 	"log/slog"
 	"sync"
 	"time"
-
-	"gorm.io/gorm"
 
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/indexer/collector"
@@ -46,10 +44,13 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Indexer {
 
 func (i *Indexer) Run() error {
 	var lastBlock types.CollectedBlock
-	res := i.db.Where("chain_id = ?", i.cfg.GetChainId()).Order("height desc").Limit(1).Take(&lastBlock)
-	if res.Error != nil && !errors.Is(res.Error, gorm.ErrRecordNotFound) {
-		i.logger.Error("failed to get the last block from db", slog.Any("error", res.Error))
-		return errors.New("failed to get the last block from db")
+	if err := i.db.
+		Where("chain_id = ?", i.cfg.GetChainId()).
+		Order("height desc").
+		Limit(1).
+		First(&lastBlock).Error; err != nil {
+		i.logger.Error("failed to get the last block from db", slog.Any("error", err))
+		return fmt.Errorf("failed to get the last block from db: %s", err.Error())
 	}
 	i.height = lastBlock.Height + 1
 

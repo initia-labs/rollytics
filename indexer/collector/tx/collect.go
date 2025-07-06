@@ -42,12 +42,8 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) (e
 		return err
 	}
 
-	// get seq infos
-	txSeqInfo, err := indexerutil.GetSeqInfo(chainId, "tx", tx)
-	if err != nil {
-		return err
-	}
-	acctxSeqInfo, err := indexerutil.GetSeqInfo(chainId, "account_tx", tx)
+	// get seq info
+	seqInfo, err := indexerutil.GetSeqInfo(chainId, "tx", tx)
 	if err != nil {
 		return err
 	}
@@ -161,12 +157,12 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) (e
 			return err
 		}
 
-		txSeqInfo.Sequence++
+		seqInfo.Sequence++
 		ctxs = append(ctxs, types.CollectedTx{
 			Hash:       txHash,
 			ChainId:    chainId,
 			Height:     height,
-			Sequence:   txSeqInfo.Sequence,
+			Sequence:   seqInfo.Sequence,
 			Signer:     signer,
 			Data:       json.RawMessage(txResJSON),
 			MsgTypeIds: msgTypeIds,
@@ -189,31 +185,28 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) (e
 	// collect account txs
 	for txHash, accounts := range accountMap {
 		for account := range accounts {
-			acctxSeqInfo.Sequence++
 			acctxs = append(acctxs, types.CollectedAccountTx{
-				Hash:     txHash,
-				Account:  account,
-				ChainId:  chainId,
-				Height:   height,
-				Sequence: acctxSeqInfo.Sequence,
+				Hash:    txHash,
+				Account: account,
+				ChainId: chainId,
+				Height:  height,
 			})
 		}
 	}
 
 	// insert txs
-	if res := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(ctxs, batchSize); res.Error != nil {
-		return res.Error
+	if err := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(ctxs, batchSize).Error; err != nil {
+		return err
 	}
 
 	// insert acctxs
-	if res := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(acctxs, batchSize); res.Error != nil {
-		return res.Error
+	if err := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(acctxs, batchSize).Error; err != nil {
+		return err
 	}
 
-	// update seq infos
-	seqInfos := []types.CollectedSeqInfo{txSeqInfo, acctxSeqInfo}
-	if res := tx.Clauses(orm.UpdateAllWhenConflict).Create(&seqInfos); res.Error != nil {
-		return res.Error
+	// update seq info
+	if err := tx.Clauses(orm.UpdateAllWhenConflict).Create(&seqInfo).Error; err != nil {
+		return err
 	}
 
 	return sub.collectEvm(block, cacheData.EvmTxs, tx)
@@ -228,12 +221,8 @@ func (sub *TxSubmodule) collectEvm(block indexertypes.ScrapedBlock, evmTxs []typ
 	chainId := block.ChainId
 	height := block.Height
 
-	// get seq infos
-	txSeqInfo, err := indexerutil.GetSeqInfo(chainId, "evm_tx", tx)
-	if err != nil {
-		return err
-	}
-	acctxSeqInfo, err := indexerutil.GetSeqInfo(chainId, "evm_account_tx", tx)
+	// get seq info
+	seqInfo, err := indexerutil.GetSeqInfo(chainId, "evm_tx", tx)
 	if err != nil {
 		return err
 	}
@@ -253,12 +242,12 @@ func (sub *TxSubmodule) collectEvm(block indexertypes.ScrapedBlock, evmTxs []typ
 			return err
 		}
 
-		txSeqInfo.Sequence++
+		seqInfo.Sequence++
 		cetxs = append(cetxs, types.CollectedEvmTx{
 			ChainId:  chainId,
 			Hash:     evmTx.TxHash,
 			Height:   height,
-			Sequence: txSeqInfo.Sequence,
+			Sequence: seqInfo.Sequence,
 			Signer:   signer.String(),
 			Data:     json.RawMessage(txJSON),
 		})
@@ -279,31 +268,28 @@ func (sub *TxSubmodule) collectEvm(block indexertypes.ScrapedBlock, evmTxs []typ
 	// collect account txs
 	for txHash, accounts := range accountMap {
 		for account := range accounts {
-			acctxSeqInfo.Sequence++
 			acetxs = append(acetxs, types.CollectedEvmAccountTx{
-				ChainId:  chainId,
-				Hash:     txHash,
-				Account:  account,
-				Height:   height,
-				Sequence: acctxSeqInfo.Sequence,
+				ChainId: chainId,
+				Hash:    txHash,
+				Account: account,
+				Height:  height,
 			})
 		}
 	}
 
 	// insert evm txs
-	if res := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(cetxs, batchSize); res.Error != nil {
-		return res.Error
+	if err := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(cetxs, batchSize).Error; err != nil {
+		return err
 	}
 
 	// insert evm account txs
-	if res := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(acetxs, batchSize); res.Error != nil {
-		return res.Error
+	if err := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(acetxs, batchSize).Error; err != nil {
+		return err
 	}
 
-	// update seq infos
-	seqInfos := []types.CollectedSeqInfo{txSeqInfo, acctxSeqInfo}
-	if res := tx.Clauses(orm.UpdateAllWhenConflict).Create(&seqInfos); res.Error != nil {
-		return res.Error
+	// update seq info
+	if err := tx.Clauses(orm.UpdateAllWhenConflict).Create(&seqInfo).Error; err != nil {
+		return err
 	}
 
 	return nil

@@ -113,8 +113,8 @@ func (sub *MoveNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 	}
 
 	// batch insert collections
-	if res := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(mintedCols, batchSize); res.Error != nil {
-		return res.Error
+	if err := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(mintedCols, batchSize).Error; err != nil {
+		return err
 	}
 
 	// batch insert nfts
@@ -146,21 +146,25 @@ func (sub *MoveNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 			})
 		}
 	}
-	if res := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(mintedNfts, batchSize); res.Error != nil {
-		return res.Error
+	if err := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(mintedNfts, batchSize).Error; err != nil {
+		return err
 	}
 
 	// update transferred nfts
 	for nftAddr, owner := range transferMap {
-		if res := tx.Model(&types.CollectedNft{}).Where("chain_id = ? AND addr = ?", block.ChainId, nftAddr).Updates(map[string]interface{}{"height": block.Height, "owner": owner}); res.Error != nil {
-			return res.Error
+		if err := tx.Model(&types.CollectedNft{}).
+			Where("chain_id = ? AND addr = ?", block.ChainId, nftAddr).
+			Updates(map[string]interface{}{"height": block.Height, "owner": owner}).Error; err != nil {
+			return err
 		}
 	}
 
 	// update mutated nfts
 	for nftAddr, uri := range mutMap {
-		if res := tx.Model(&types.CollectedNft{}).Where("chain_id = ? AND addr = ?", block.ChainId, nftAddr).Updates(map[string]interface{}{"height": block.Height, "uri": uri}); res.Error != nil {
-			return res.Error
+		if err := tx.Model(&types.CollectedNft{}).
+			Where("chain_id = ? AND addr = ?", block.ChainId, nftAddr).
+			Updates(map[string]interface{}{"height": block.Height, "uri": uri}).Error; err != nil {
+			return err
 		}
 	}
 
@@ -169,18 +173,24 @@ func (sub *MoveNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 	for nftAddr := range burnMap {
 		burnedNfts = append(burnedNfts, nftAddr)
 	}
-	if res := tx.Where("chain_id = ? AND addr IN ?", block.ChainId, burnedNfts).Delete(&types.CollectedNft{}); res.Error != nil {
-		return res.Error
+	if err := tx.
+		Where("chain_id = ? AND addr IN ?", block.ChainId, burnedNfts).
+		Delete(&types.CollectedNft{}).Error; err != nil {
+		return err
 	}
 
 	// update nft count
 	for collectionAddr := range updateCountMap {
 		var nftCount int64
-		if res := tx.Model(&types.CollectedNft{}).Where("chain_id = ? AND collection_addr = ?", block.ChainId, collectionAddr).Count(&nftCount); res.Error != nil {
-			return res.Error
+		if err := tx.Model(&types.CollectedNft{}).
+			Where("chain_id = ? AND collection_addr = ?", block.ChainId, collectionAddr).
+			Count(&nftCount).Error; err != nil {
+			return err
 		}
-		if res := tx.Model(&types.CollectedNftCollection{}).Where("chain_id = ? AND addr = ?", block.ChainId, collectionAddr).Updates(map[string]interface{}{"nft_count": nftCount}); res.Error != nil {
-			return res.Error
+		if err := tx.Model(&types.CollectedNftCollection{}).
+			Where("chain_id = ? AND addr = ?", block.ChainId, collectionAddr).
+			Updates(map[string]interface{}{"nft_count": nftCount}).Error; err != nil {
+			return err
 		}
 	}
 

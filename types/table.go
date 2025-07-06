@@ -43,11 +43,10 @@ type CollectedTx struct {
 }
 
 type CollectedAccountTx struct {
-	ChainId  string `gorm:"type:text;primaryKey"`
-	Hash     string `gorm:"type:text;primaryKey;index:account_tx_hash;index:account_tx_account_hash,priority:2"`
-	Account  string `gorm:"type:text;primaryKey;index:account_tx_account;index:account_tx_account_hash,priority:1"`
-	Height   int64  `gorm:"type:bigint;primaryKey;autoIncrement:false;index:account_tx_height"`
-	Sequence int64  `gorm:"type:bigint;index:account_tx_sequence"`
+	ChainId string `gorm:"type:text;primaryKey"`
+	Hash    string `gorm:"type:text;primaryKey;index:account_tx_hash;index:account_tx_account_hash,priority:2"`
+	Account string `gorm:"type:text;primaryKey;index:account_tx_account;index:account_tx_account_hash,priority:1"`
+	Height  int64  `gorm:"type:bigint;primaryKey;autoIncrement:false;index:account_tx_height"`
 }
 
 type CollectedEvmTx struct {
@@ -60,11 +59,10 @@ type CollectedEvmTx struct {
 }
 
 type CollectedEvmAccountTx struct {
-	ChainId  string `gorm:"type:text;primaryKey"`
-	Hash     string `gorm:"type:text;primaryKey;index:evm_account_tx_hash;index:evm_account_tx_account_hash,priority:2"`
-	Account  string `gorm:"type:text;primaryKey;index:evm_account_tx_account;index:evm_account_tx_account_hash,priority:1"`
-	Height   int64  `gorm:"type:bigint;primaryKey;autoIncrement:false;index:evm_account_tx_height"`
-	Sequence int64  `gorm:"type:bigint;index:evm_account_tx_sequence"`
+	ChainId string `gorm:"type:text;primaryKey"`
+	Hash    string `gorm:"type:text;primaryKey;index:evm_account_tx_hash;index:evm_account_tx_account_hash,priority:2"`
+	Account string `gorm:"type:text;primaryKey;index:evm_account_tx_account;index:evm_account_tx_account_hash,priority:1"`
+	Height  int64  `gorm:"type:bigint;primaryKey;autoIncrement:false;index:evm_account_tx_height"`
 }
 
 type CollectedNftCollection struct {
@@ -94,7 +92,6 @@ type CollectedNftTx struct {
 	CollectionAddr string `gorm:"type:text;primaryKey;index:nft_tx_collection_addr"`
 	TokenId        string `gorm:"type:text;primaryKey;index:nft_tx_token_id"`
 	Height         int64  `gorm:"type:bigint;primaryKey;autoIncrement:false;index:nft_tx_height"`
-	Sequence       int64  `gorm:"type:bigint;index:nft_tx_sequence"`
 }
 
 // only for move

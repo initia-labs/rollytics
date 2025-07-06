@@ -106,8 +106,10 @@ func grepAddressesFromTx(chainId string, events []abci.Event, tx *gorm.DB) (grep
 
 	if len(storeAddrs) > 0 {
 		var faStores []types.CollectedFAStore
-		if res := tx.Where("chain_id = ? AND store_addr IN ?", chainId, storeAddrs).Find(&faStores); res.Error != nil {
-			return grepped, res.Error
+		if err := tx.
+			Where("chain_id = ? AND store_addr IN ?", chainId, storeAddrs).
+			Find(&faStores).Error; err != nil {
+			return grepped, err
 		}
 		for _, faStore := range faStores {
 			owners = append(owners, faStore.Owner)

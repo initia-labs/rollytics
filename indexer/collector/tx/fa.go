@@ -47,8 +47,8 @@ func collectFA(block indexertypes.ScrapedBlock, cfg *config.Config, tx *gorm.DB)
 	}
 
 	// insert fa stores
-	if res := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(stores, batchSize); res.Error != nil {
-		return res.Error
+	if err := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(stores, batchSize).Error; err != nil {
+		return err
 	}
 
 	return nil
