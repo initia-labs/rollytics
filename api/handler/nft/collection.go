@@ -123,7 +123,8 @@ func (h *NftHandler) GetCollectionsByName(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
-	query := h.buildBaseCollectionQuery().Where("name ILIKE ?", "%"+name+"%")
+	query := h.buildBaseCollectionQuery().
+		Where("name ILIKE ? OR origin_name ILIKE ?", "%"+name+"%", "%"+name+"%")
 
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
