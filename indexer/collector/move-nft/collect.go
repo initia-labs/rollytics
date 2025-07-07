@@ -15,7 +15,7 @@ import (
 	"github.com/initia-labs/rollytics/util"
 )
 
-func (sub *MoveNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) (err error) {
+func (sub *MoveNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) error {
 	sub.mtx.Lock()
 	cacheData, ok := sub.cache[block.Height]
 	delete(sub.cache, block.Height)

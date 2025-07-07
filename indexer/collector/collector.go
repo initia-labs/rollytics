@@ -53,7 +53,7 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Collector {
 	}
 }
 
-func (c *Collector) Prepare(sb indexertypes.ScrapedBlock) (err error) {
+func (c *Collector) Prepare(sb indexertypes.ScrapedBlock) error {
 	var g errgroup.Group
 
 	for _, sub := range c.submodules {
@@ -63,7 +63,7 @@ func (c *Collector) Prepare(sb indexertypes.ScrapedBlock) (err error) {
 		})
 	}
 
-	if err = g.Wait(); err != nil {
+	if err := g.Wait(); err != nil {
 		return err
 	}
 
@@ -71,8 +71,8 @@ func (c *Collector) Prepare(sb indexertypes.ScrapedBlock) (err error) {
 	return nil
 }
 
-func (c *Collector) Collect(sb indexertypes.ScrapedBlock) (err error) {
-	err = c.db.Transaction(func(tx *gorm.DB) error {
+func (c *Collector) Collect(sb indexertypes.ScrapedBlock) error {
+	err := c.db.Transaction(func(tx *gorm.DB) error {
 		// skip if block already exists
 		_, err := block.GetBlock(sb.ChainId, sb.Height, tx)
 		if err == nil {
@@ -92,6 +92,7 @@ func (c *Collector) Collect(sb indexertypes.ScrapedBlock) (err error) {
 		return nil
 	}, &sql.TxOptions{Isolation: sql.LevelSerializable})
 
+	// handle serialization error
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == "40001" {
 		c.logger.Info("block already indexed", slog.Int64("height", sb.Height))

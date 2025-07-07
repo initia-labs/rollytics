@@ -24,7 +24,7 @@ import (
 // @Param pagination.reverse query bool false "Reverse order default is true if set to true, the results will be ordered in descending order"
 // @Param msgs query []string false "Message types to filter (comma-separated or multiple params)" collectionFormat(multi) example("cosmos.bank.v1beta1.MsgSend,initia.move.v1.MsgExecute")
 // @Router /indexer/tx/v1/txs [get]
-func (h *TxHandler) GetTxs(c *fiber.Ctx) (err error) {
+func (h *TxHandler) GetTxs(c *fiber.Ctx) error {
 	msgs := common.GetMsgsParams(c)
 	pagination, err := common.ParsePagination(c)
 	if err != nil {

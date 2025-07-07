@@ -12,7 +12,7 @@ import (
 	"github.com/initia-labs/rollytics/types"
 )
 
-func collectFA(block indexertypes.ScrapedBlock, cfg *config.Config, tx *gorm.DB) (err error) {
+func collectFA(block indexertypes.ScrapedBlock, cfg *config.Config, tx *gorm.DB) error {
 	if cfg.GetVmType() != types.MoveVM {
 		return nil
 	}

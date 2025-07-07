@@ -13,7 +13,7 @@ import (
 
 const nftStructTag = "0x1::nft::Nft"
 
-func (sub *MoveNftSubmodule) prepare(block indexertypes.ScrapedBlock) (err error) {
+func (sub *MoveNftSubmodule) prepare(block indexertypes.ScrapedBlock) error {
 	client := fiber.AcquireClient()
 	defer fiber.ReleaseClient(client)
 

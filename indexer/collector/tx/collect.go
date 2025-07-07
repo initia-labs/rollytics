@@ -23,7 +23,7 @@ import (
 	"github.com/initia-labs/rollytics/util"
 )
 
-func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) (err error) {
+func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) error {
 	batchSize := sub.cfg.GetDBBatchSize()
 	chainId := block.ChainId
 	height := block.Height
@@ -38,7 +38,7 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) (e
 	}
 
 	// collect fa before collecting tx (only for move)
-	if err = collectFA(block, sub.cfg, tx); err != nil {
+	if err := collectFA(block, sub.cfg, tx); err != nil {
 		return err
 	}
 

@@ -13,7 +13,7 @@ import (
 	"github.com/initia-labs/rollytics/types"
 )
 
-func Collect(block indexertypes.ScrapedBlock, cfg *config.Config, tx *gorm.DB) (err error) {
+func Collect(block indexertypes.ScrapedBlock, cfg *config.Config, tx *gorm.DB) error {
 	collectionPairMap := make(map[string]string) // l2 collection name -> l1 collection name
 	events, err := util.ExtractEvents(block, "recv_packet")
 	if err != nil {

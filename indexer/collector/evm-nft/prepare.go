@@ -14,7 +14,7 @@ import (
 	"github.com/initia-labs/rollytics/indexer/util"
 )
 
-func (sub *EvmNftSubmodule) prepare(block indexertypes.ScrapedBlock) (err error) {
+func (sub *EvmNftSubmodule) prepare(block indexertypes.ScrapedBlock) error {
 	client := fiber.AcquireClient()
 	defer fiber.ReleaseClient(client)
 

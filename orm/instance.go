@@ -54,7 +54,7 @@ func OpenDB(config *config.Config, logger *slog.Logger) (*Database, error) {
 	return &Database{DB: instance, config: config}, nil
 }
 
-func (d Database) Migrate() (err error) {
+func (d Database) Migrate() error {
 	if !d.config.AutoMigrate {
 		return nil
 	}
@@ -86,11 +86,17 @@ func (d Database) Migrate() (err error) {
 		return err
 	}
 
-	if err := d.Exec(`CREATE INDEX IF NOT EXISTS tx_msg_type_ids ON tx USING GIN ("msg_type_ids")`).Error; err != nil {
-		return err
-	}
+	return d.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec(`CREATE INDEX IF NOT EXISTS tx_msg_type_ids ON tx USING GIN ("msg_type_ids")`).Error; err != nil {
+			return err
+		}
 
-	return d.Exec(`CREATE INDEX IF NOT EXISTS tx_type_tag_ids ON tx USING GIN ("type_tag_ids")`).Error
+		if err := tx.Exec(`CREATE INDEX IF NOT EXISTS tx_type_tag_ids ON tx USING GIN ("type_tag_ids")`).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
 }
 
 func (d Database) Close() error {

@@ -8,7 +8,7 @@ import (
 	"github.com/initia-labs/rollytics/types"
 )
 
-func (sub *TxSubmodule) prepare(block indexertypes.ScrapedBlock) (err error) {
+func (sub *TxSubmodule) prepare(block indexertypes.ScrapedBlock) error {
 	client := fiber.AcquireClient()
 	defer fiber.ReleaseClient(client)
 
@@ -36,7 +36,7 @@ func (sub *TxSubmodule) prepare(block indexertypes.ScrapedBlock) (err error) {
 		return nil
 	})
 
-	if err = g.Wait(); err != nil {
+	if err := g.Wait(); err != nil {
 		return err
 	}
 
