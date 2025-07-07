@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/lib/pq"
 	"gorm.io/gorm"
 
 	"github.com/initia-labs/rollytics/api/handler/common"
@@ -82,9 +83,11 @@ func (h *TxHandler) GetEvmTxsByAccount(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
-	query := h.buildBaseEvmTxQuery().
-		Joins("INNER JOIN evm_account_tx ON evm_tx.chain_id = evm_account_tx.chain_id AND evm_tx.hash = evm_account_tx.hash").
-		Where("evm_account_tx.account = ?", account)
+	accountIds, err := h.GetAccountIds([]string{account})
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+	query := h.buildBaseEvmTxQuery().Where("account_ids && ?", pq.Array(accountIds))
 
 	if isSigner {
 		query = query.Where("signer = ?", account)
@@ -202,9 +205,7 @@ func (h *TxHandler) GetEvmTxByHash(c *fiber.Ctx) error {
 }
 
 func (h *TxHandler) buildBaseEvmTxQuery() *gorm.DB {
-	return h.GetDatabase().
-		Model(&types.CollectedEvmTx{}).
-		Where("evm_tx.chain_id = ?", h.GetChainId())
+	return h.GetDatabase().Model(&types.CollectedEvmTx{})
 }
 
 func (h *TxHandler) NotFound(c *fiber.Ctx) error {

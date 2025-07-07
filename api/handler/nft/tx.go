@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/lib/pq"
 	"gorm.io/gorm"
 
 	"github.com/initia-labs/rollytics/api/handler/common"
@@ -42,7 +43,7 @@ func (h *NftHandler) GetNftTxs(c *fiber.Ctx) error {
 
 	var nft types.CollectedNft
 	if err := h.GetDatabase().
-		Where("chain_id = ? AND collection_addr = ? AND token_id = ?", h.GetChainId(), collectionAddr, tokenId).
+		Where("collection_addr = ? AND token_id = ?", collectionAddr, tokenId).
 		First(&nft).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return c.JSON(tx.TxsResponse{
@@ -53,24 +54,30 @@ func (h *NftHandler) GetNftTxs(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	query := h.GetDatabase().
-		Model(&types.CollectedTx{}).
-		Where("tx.chain_id = ?", h.GetChainId()).
-		Order(pagination.OrderBy("sequence"))
+	query := h.GetDatabase().Model(&types.CollectedTx{}).Order(pagination.OrderBy("sequence"))
 
 	if h.GetVmType() == types.MoveVM {
 		accAddr, err := util.AccAddressFromString(nft.Addr)
 		if err != nil {
 			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 		}
+		accountIds, err := h.GetAccountIds([]string{accAddr.String()})
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
 
-		query = query.
-			Joins("INNER JOIN account_tx ON tx.chain_id = account_tx.chain_id AND tx.hash = account_tx.hash").
-			Where("account_tx.account = ?", accAddr.String())
+		query = query.Where("account_ids && ?", pq.Array(accountIds))
 	} else {
-		query = query.
-			Joins("INNER JOIN nft_tx ON tx.chain_id = nft_tx.chain_id AND tx.hash = nft_tx.hash").
-			Where("nft_tx.collection_addr = ? AND nft_tx.token_id = ?", collectionAddr, tokenId)
+		nftKey := util.NftKey{
+			CollectionAddr: nft.CollectionAddr,
+			TokenId:        nft.TokenId,
+		}
+		nftIds, err := h.GetNftIds([]util.NftKey{nftKey})
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
+
+		query = query.Where("nft_ids && ?", pq.Array(nftIds))
 	}
 
 	var total int64

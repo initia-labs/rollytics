@@ -41,6 +41,12 @@ func (h *BaseHandler) GetChainId() string {
 func (h *BaseHandler) GetVmType() types.VMType {
 	return h.cfg.GetChainConfig().VmType
 }
+func (h *BaseHandler) GetAccountIds(accounts []string) ([]int64, error) {
+	return util.GetOrCreateAccountIds(h.db.DB, accounts, false)
+}
 func (h *BaseHandler) GetMsgTypeIds(msgs []string) ([]int64, error) {
 	return util.GetOrCreateMsgTypeIds(h.db.DB, msgs, false)
+}
+func (h *BaseHandler) GetNftIds(keys []util.NftKey) ([]int64, error) {
+	return util.GetOrCreateNftIds(h.db.DB, keys, false)
 }

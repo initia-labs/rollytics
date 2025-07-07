@@ -76,7 +76,7 @@ func (h *NftHandler) GetCollectionsByAccount(c *fiber.Ctx) error {
 	}
 
 	query := h.buildBaseCollectionQuery().
-		Joins("INNER JOIN nft ON nft_collection.chain_id = nft.chain_id AND nft_collection.addr = nft.collection_addr").
+		Joins("INNER JOIN nft ON nft_collection.addr = nft.collection_addr").
 		Where("nft.owner = ?", account)
 
 	var total int64
@@ -177,7 +177,5 @@ func (h *NftHandler) GetCollectionByCollectionAddr(c *fiber.Ctx) error {
 }
 
 func (h *NftHandler) buildBaseCollectionQuery() *gorm.DB {
-	return h.GetDatabase().
-		Model(&types.CollectedNftCollection{}).
-		Where("nft_collection.chain_id = ?", h.GetChainId())
+	return h.GetDatabase().Model(&types.CollectedNftCollection{})
 }
