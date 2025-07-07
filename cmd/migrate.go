@@ -26,7 +26,7 @@ You can configure database options via environment variables.`,
 			if err != nil {
 				return err
 			}
-			dsn := fmt.Sprintf("%s?sslmode=disable", cfg.GetDBConfig().DSN)
+			dsn := cfg.GetDBConfig().DSN
 			migrationDir := fmt.Sprintf("file://%s", cfg.GetDBConfig().MigrationDir)
 
 			// #nosec G204

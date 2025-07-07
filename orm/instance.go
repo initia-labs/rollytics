@@ -2,7 +2,6 @@ package orm
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"os"
 
@@ -81,7 +80,7 @@ func (d Database) Migrate() error {
 	}
 
 	if _, err := client.MigrateApply(context.Background(), &atlasexec.MigrateApplyParams{
-		URL: fmt.Sprintf("%s?sslmode=disable", d.config.DSN),
+		URL: d.config.DSN,
 	}); err != nil {
 		return err
 	}
