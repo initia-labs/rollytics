@@ -128,7 +128,5 @@ func (h *NftHandler) GetTokensByCollectionAddr(c *fiber.Ctx) error {
 }
 
 func (h *NftHandler) buildBaseNftQuery() *gorm.DB {
-	return h.GetDatabase().
-		Model(&types.CollectedNft{}).
-		Where("nft.chain_id = ?", h.GetChainId())
+	return h.GetDatabase().Model(&types.CollectedNft{})
 }

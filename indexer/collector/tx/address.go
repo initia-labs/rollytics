@@ -39,7 +39,7 @@ func findAllMoveHexAddress(attr string) []string {
 	return regexMoveHex.FindAllString(attr, -1)
 }
 
-func grepAddressesFromTx(chainId string, events []abci.Event, tx *gorm.DB) (grepped []string, err error) {
+func grepAddressesFromTx(events []abci.Event, tx *gorm.DB) (grepped []string, err error) {
 	storeAddrMap := make(map[string]interface{}) // set of fa store addrs
 
 	for _, event := range events {
@@ -107,7 +107,7 @@ func grepAddressesFromTx(chainId string, events []abci.Event, tx *gorm.DB) (grep
 	if len(storeAddrs) > 0 {
 		var faStores []types.CollectedFAStore
 		if err := tx.
-			Where("chain_id = ? AND store_addr IN ?", chainId, storeAddrs).
+			Where("store_addr IN ?", storeAddrs).
 			Find(&faStores).Error; err != nil {
 			return grepped, err
 		}

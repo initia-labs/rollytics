@@ -40,7 +40,6 @@ func collectFA(block indexertypes.ScrapedBlock, cfg *config.Config, tx *gorm.DB)
 		}
 
 		stores = append(stores, types.CollectedFAStore{
-			ChainId:   block.ChainId,
 			StoreAddr: event.StoreAddr,
 			Owner:     event.OwnerAddr,
 		})

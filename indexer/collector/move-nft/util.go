@@ -6,10 +6,10 @@ import (
 	"github.com/initia-labs/rollytics/types"
 )
 
-func getCollectionCreator(chainId, addr string, tx *gorm.DB) (string, error) {
+func getCollectionCreator(addr string, tx *gorm.DB) (string, error) {
 	var collection types.CollectedNftCollection
 	if err := tx.
-		Where("chain_id = ? AND addr = ?", chainId, addr).
+		Where("addr = ?", addr).
 		Limit(1).
 		First(&collection).Error; err != nil {
 		return "", err

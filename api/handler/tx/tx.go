@@ -101,9 +101,11 @@ func (h *TxHandler) GetTxsByAccount(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
-	query := h.buildBaseTxQuery().
-		Joins("INNER JOIN account_tx ON tx.chain_id = account_tx.chain_id AND tx.hash = account_tx.hash").
-		Where("account_tx.account = ?", account)
+	accountIds, err := h.GetAccountIds([]string{account})
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+	query := h.buildBaseTxQuery().Where("account_ids && ?", pq.Array(accountIds))
 
 	if len(msgs) > 0 {
 		msgTypeIds, err := h.GetMsgTypeIds(msgs)
@@ -239,7 +241,5 @@ func (h *TxHandler) GetTxByHash(c *fiber.Ctx) error {
 }
 
 func (h *TxHandler) buildBaseTxQuery() *gorm.DB {
-	return h.GetDatabase().
-		Model(&types.CollectedTx{}).
-		Where("tx.chain_id = ?", h.GetChainId())
+	return h.GetDatabase().Model(&types.CollectedTx{})
 }
