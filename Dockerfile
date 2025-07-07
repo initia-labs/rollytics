@@ -41,6 +41,9 @@ RUN chown -R rollytics:rollytics /app
 # Switch to non-root user
 USER rollytics
 
+# Install atlas
+RUN curl -sSf https://atlasgo.sh | sh -s -- --yes --community
+
 # Expose port (adjust if needed based on your API configuration)
 EXPOSE 8080
 
