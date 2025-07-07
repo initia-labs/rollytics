@@ -15,7 +15,7 @@ func (sub *BlockSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB)
 	cb.Hash = block.Hash
 	cb.Timestamp = block.Timestamp
 	if block.Height > 1 {
-		prevBlock, err := getBlock(block.ChainId, block.Height-1, tx)
+		prevBlock, err := GetBlock(block.ChainId, block.Height-1, tx)
 		if err != nil {
 			return err
 		}

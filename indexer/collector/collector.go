@@ -1,10 +1,15 @@
 package collector
 
 import (
+	"database/sql"
+	"errors"
+	"fmt"
 	"log/slog"
 
 	"golang.org/x/sync/errgroup"
 	"gorm.io/gorm"
+
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/indexer/collector/block"
@@ -48,13 +53,13 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Collector {
 	}
 }
 
-func (c *Collector) Prepare(block indexertypes.ScrapedBlock) (err error) {
+func (c *Collector) Prepare(sb indexertypes.ScrapedBlock) (err error) {
 	var g errgroup.Group
 
 	for _, sub := range c.submodules {
 		s := sub
 		g.Go(func() error {
-			return s.Prepare(block)
+			return s.Prepare(sb)
 		})
 	}
 
@@ -62,30 +67,36 @@ func (c *Collector) Prepare(block indexertypes.ScrapedBlock) (err error) {
 		return err
 	}
 
-	c.logger.Info("prepared data", slog.Int64("height", block.Height))
+	c.logger.Info("prepared data", slog.Int64("height", sb.Height))
 	return nil
 }
 
-func (c *Collector) Collect(block indexertypes.ScrapedBlock) (err error) {
-	tx := c.db.Begin()
-	defer func() {
-		if err != nil {
-			tx.Rollback()
-		} else {
-			if err = tx.Commit().Error; err != nil {
-				c.logger.Error("failed to commit db transaction while handling commit", slog.Any("error", err))
-			}
+func (c *Collector) Collect(sb indexertypes.ScrapedBlock) (err error) {
+	err = c.db.Transaction(func(tx *gorm.DB) error {
+		// skip if block already exists
+		_, err := block.GetBlock(sb.ChainId, sb.Height, tx)
+		if err == nil {
+			c.logger.Info("block already indexed", slog.Int64("height", sb.Height))
+			return nil
+		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return fmt.Errorf("failed to get block %d, %+w", sb.Height, err)
 		}
-	}()
 
-	return tx.Transaction(func(tx *gorm.DB) error {
 		for _, sub := range c.submodules {
-			if err := sub.Collect(block, tx); err != nil {
+			if err := sub.Collect(sb, tx); err != nil {
 				return err
 			}
 		}
 
-		c.logger.Info("indexed block", slog.Int64("height", block.Height))
+		c.logger.Info("indexed block", slog.Int64("height", sb.Height))
 		return nil
-	})
+	}, &sql.TxOptions{Isolation: sql.LevelSerializable})
+
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "40001" {
+		c.logger.Info("block already indexed", slog.Int64("height", sb.Height))
+		return nil
+	}
+
+	return err
 }

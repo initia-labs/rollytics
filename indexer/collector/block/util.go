@@ -13,7 +13,7 @@ import (
 	"github.com/initia-labs/rollytics/types"
 )
 
-func getBlock(chainId string, height int64, tx *gorm.DB) (block types.CollectedBlock, err error) {
+func GetBlock(chainId string, height int64, tx *gorm.DB) (block types.CollectedBlock, err error) {
 	if err := tx.Where("chain_id = ? AND height = ?", chainId, height).First(&block).Error; err != nil {
 		return block, err
 	}
