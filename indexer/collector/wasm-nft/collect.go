@@ -7,6 +7,8 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
+	"github.com/lib/pq"
+
 	nft_pair "github.com/initia-labs/rollytics/indexer/collector/nft-pair"
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
 	indexerutil "github.com/initia-labs/rollytics/indexer/util"
@@ -227,7 +229,7 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 
 		if err := tx.Model(&types.CollectedTx{}).
 			Where("hash = ?", txHash).
-			Updates(map[string]interface{}{"nft_ids": nftIds}).Error; err != nil {
+			Updates(map[string]interface{}{"nft_ids": pq.Array(nftIds)}).Error; err != nil {
 			return err
 		}
 	}

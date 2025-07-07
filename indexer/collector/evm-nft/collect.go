@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	evmtypes "github.com/initia-labs/minievm/x/evm/types"
+	"github.com/lib/pq"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
@@ -215,7 +216,7 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB
 
 		if err := tx.Model(&types.CollectedTx{}).
 			Where("hash = ?", txHash).
-			Updates(map[string]interface{}{"nft_ids": nftIds}).Error; err != nil {
+			Updates(map[string]interface{}{"nft_ids": pq.Array(nftIds)}).Error; err != nil {
 			return err
 		}
 	}

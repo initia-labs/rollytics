@@ -6,8 +6,10 @@ import (
 	"strings"
 
 	evmtypes "github.com/initia-labs/minievm/x/evm/types"
+	"github.com/lib/pq"
 	"gorm.io/gorm"
 
+	"github.com/initia-labs/rollytics/types"
 	"github.com/initia-labs/rollytics/util"
 )
 
@@ -35,18 +37,19 @@ func getCollectionCreator(addr string, tx *gorm.DB) (string, error) {
 		return "", err
 	}
 
-	var result struct {
-		Signer string
+	var accountDict types.CollectedAccountDict
+	if err := tx.Where("account = ?", bechAddr.String()).First(&accountDict).Error; err != nil {
+		return "", err
 	}
 
-	err = tx.
-		Table("account_tx AS a").
-		Select("t.signer").
-		Joins("JOIN tx AS t ON t.chain_id = a.chain_id AND t.hash = a.hash").
-		Where("a.account = ?", bechAddr.String()).
-		Order("t.sequence ASC").
+	var ctx types.CollectedTx
+	if err := tx.
+		Where("account_ids && ?", pq.Array([]int64{accountDict.Id})).
+		Order("sequence ASC").
 		Limit(1).
-		Scan(&result).Error
+		First(&ctx).Error; err != nil {
+		return "", err
+	}
 
-	return result.Signer, err
+	return ctx.Signer, nil
 }
