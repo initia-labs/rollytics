@@ -118,13 +118,12 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB
 			return fmt.Errorf("collection name info not found for collection address %s", collectionAddr)
 		}
 
-		creator, err := getCollectionCreator(block.ChainId, collectionAddr, tx)
+		creator, err := getCollectionCreator(collectionAddr, tx)
 		if err != nil {
 			return err
 		}
 
 		mintedCols = append(mintedCols, types.CollectedNftCollection{
-			ChainId: block.ChainId,
 			Addr:    collectionAddr,
 			Height:  block.Height,
 			Name:    name,
@@ -133,7 +132,6 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB
 
 		for tokenId, owner := range nftMap {
 			mintedNfts = append(mintedNfts, types.CollectedNft{
-				ChainId:        block.ChainId,
 				CollectionAddr: collectionAddr,
 				TokenId:        tokenId,
 				Height:         block.Height,
@@ -154,7 +152,6 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB
 	for collectionAddr, nftMap := range transferMap {
 		for tokenId, owner := range nftMap {
 			transferredNfts = append(transferredNfts, types.CollectedNft{
-				ChainId:        block.ChainId,
 				CollectionAddr: collectionAddr,
 				TokenId:        tokenId,
 				Owner:          owner,
@@ -163,7 +160,7 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB
 		}
 	}
 	if err := tx.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "chain_id"}, {Name: "collection_addr"}, {Name: "token_id"}},
+		Columns:   []clause.Column{{Name: "collection_addr"}, {Name: "token_id"}},
 		DoUpdates: clause.AssignmentColumns([]string{"height", "owner"}),
 	}).CreateInBatches(transferredNfts, batchSize).Error; err != nil {
 		return err
@@ -176,7 +173,7 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB
 			tokenIds = append(tokenIds, tokenId)
 		}
 		if err := tx.
-			Where("chain_id = ? AND collection_addr = ? AND token_id IN ?", block.ChainId, collectionAddr, tokenIds).
+			Where("collection_addr = ? AND token_id IN ?", collectionAddr, tokenIds).
 			Delete(&types.CollectedNft{}).Error; err != nil {
 			return err
 		}
@@ -186,39 +183,41 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB
 	for collectionAddr := range updateCountMap {
 		var nftCount int64
 		if err := tx.Model(&types.CollectedNft{}).
-			Where("chain_id = ? AND collection_addr = ?", block.ChainId, collectionAddr).
+			Where("collection_addr = ?", collectionAddr).
 			Count(&nftCount).Error; err != nil {
 			return err
 		}
 		if err := tx.Model(&types.CollectedNftCollection{}).
-			Where("chain_id = ? AND addr = ?", block.ChainId, collectionAddr).
+			Where("addr = ?", collectionAddr).
 			Updates(map[string]interface{}{"nft_count": nftCount}).Error; err != nil {
 			return err
 		}
 	}
 
-	// batch insert nft txs
-	var nftTxs []types.CollectedNftTx
+	// update nft ids to tx table
 	for txHash, collectionMap := range nftTxMap {
 		if txHash == "" {
 			continue
 		}
 
+		var keys []util.NftKey
 		for collectionAddr, nftMap := range collectionMap {
 			for tokenId := range nftMap {
-				nftTxs = append(nftTxs, types.CollectedNftTx{
-					ChainId:        block.ChainId,
-					Hash:           txHash,
-					CollectionAddr: collectionAddr,
-					TokenId:        tokenId,
-					Height:         block.Height,
-				})
+				key := util.NftKey{CollectionAddr: collectionAddr, TokenId: tokenId}
+				keys = append(keys, key)
 			}
 		}
-	}
 
-	if err := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(nftTxs, batchSize).Error; err != nil {
-		return err
+		nftIds, err := util.GetOrCreateNftIds(tx, keys, true)
+		if err != nil {
+			return err
+		}
+
+		if err := tx.Model(&types.CollectedTx{}).
+			Where("hash = ?", txHash).
+			Updates(map[string]interface{}{"nft_ids": nftIds}).Error; err != nil {
+			return err
+		}
 	}
 
 	return nft_pair.Collect(block, sub.cfg, tx)

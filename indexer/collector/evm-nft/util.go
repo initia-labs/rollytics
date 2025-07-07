@@ -29,7 +29,7 @@ func convertHexStringToDecString(hex string) (string, error) {
 	return bi.String(), nil
 }
 
-func getCollectionCreator(chainId, addr string, tx *gorm.DB) (string, error) {
+func getCollectionCreator(addr string, tx *gorm.DB) (string, error) {
 	bechAddr, err := util.AccAddressFromString(addr)
 	if err != nil {
 		return "", err
@@ -43,7 +43,7 @@ func getCollectionCreator(chainId, addr string, tx *gorm.DB) (string, error) {
 		Table("account_tx AS a").
 		Select("t.signer").
 		Joins("JOIN tx AS t ON t.chain_id = a.chain_id AND t.hash = a.hash").
-		Where("a.chain_id = ? AND a.account = ?", chainId, bechAddr.String()).
+		Where("a.account = ?", bechAddr.String()).
 		Order("t.sequence ASC").
 		Limit(1).
 		Scan(&result).Error

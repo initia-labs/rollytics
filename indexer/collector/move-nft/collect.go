@@ -59,7 +59,6 @@ func (sub *MoveNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 				return err
 			}
 			mintedCols = append(mintedCols, types.CollectedNftCollection{
-				ChainId: block.ChainId,
 				Addr:    event.Collection,
 				Height:  block.Height,
 				Name:    event.Name,
@@ -120,7 +119,7 @@ func (sub *MoveNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 	// batch insert nfts
 	var mintedNfts []types.CollectedNft
 	for collectionAddr, nftMap := range mintMap {
-		creator, err := getCollectionCreator(block.ChainId, collectionAddr, tx)
+		creator, err := getCollectionCreator(collectionAddr, tx)
 		if err != nil {
 			return err
 		}
@@ -136,7 +135,6 @@ func (sub *MoveNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 			}
 			nftResource.Trim()
 			mintedNfts = append(mintedNfts, types.CollectedNft{
-				ChainId:        block.ChainId,
 				CollectionAddr: collectionAddr,
 				TokenId:        nftResource.Data.TokenId,
 				Addr:           nftAddr,
@@ -153,7 +151,7 @@ func (sub *MoveNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 	// update transferred nfts
 	for nftAddr, owner := range transferMap {
 		if err := tx.Model(&types.CollectedNft{}).
-			Where("chain_id = ? AND addr = ?", block.ChainId, nftAddr).
+			Where("addr = ?", nftAddr).
 			Updates(map[string]interface{}{"height": block.Height, "owner": owner}).Error; err != nil {
 			return err
 		}
@@ -162,7 +160,7 @@ func (sub *MoveNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 	// update mutated nfts
 	for nftAddr, uri := range mutMap {
 		if err := tx.Model(&types.CollectedNft{}).
-			Where("chain_id = ? AND addr = ?", block.ChainId, nftAddr).
+			Where("addr = ?", nftAddr).
 			Updates(map[string]interface{}{"height": block.Height, "uri": uri}).Error; err != nil {
 			return err
 		}
@@ -174,7 +172,7 @@ func (sub *MoveNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 		burnedNfts = append(burnedNfts, nftAddr)
 	}
 	if err := tx.
-		Where("chain_id = ? AND addr IN ?", block.ChainId, burnedNfts).
+		Where("addr IN ?", burnedNfts).
 		Delete(&types.CollectedNft{}).Error; err != nil {
 		return err
 	}
@@ -183,12 +181,12 @@ func (sub *MoveNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 	for collectionAddr := range updateCountMap {
 		var nftCount int64
 		if err := tx.Model(&types.CollectedNft{}).
-			Where("chain_id = ? AND collection_addr = ?", block.ChainId, collectionAddr).
+			Where("collection_addr = ?", collectionAddr).
 			Count(&nftCount).Error; err != nil {
 			return err
 		}
 		if err := tx.Model(&types.CollectedNftCollection{}).
-			Where("chain_id = ? AND addr = ?", block.ChainId, collectionAddr).
+			Where("addr = ?", collectionAddr).
 			Updates(map[string]interface{}{"nft_count": nftCount}).Error; err != nil {
 			return err
 		}

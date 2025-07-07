@@ -87,11 +87,23 @@ func (d Database) Migrate() error {
 	}
 
 	return d.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec(`CREATE INDEX IF NOT EXISTS tx_account_ids ON tx USING GIN ("account_ids")`).Error; err != nil {
+			return err
+		}
+
+		if err := tx.Exec(`CREATE INDEX IF NOT EXISTS tx_nft_ids ON tx USING GIN ("nft_ids")`).Error; err != nil {
+			return err
+		}
+
 		if err := tx.Exec(`CREATE INDEX IF NOT EXISTS tx_msg_type_ids ON tx USING GIN ("msg_type_ids")`).Error; err != nil {
 			return err
 		}
 
 		if err := tx.Exec(`CREATE INDEX IF NOT EXISTS tx_type_tag_ids ON tx USING GIN ("type_tag_ids")`).Error; err != nil {
+			return err
+		}
+
+		if err := tx.Exec(`CREATE INDEX IF NOT EXISTS evm_tx_account_ids ON evm_tx USING GIN ("account_ids")`).Error; err != nil {
 			return err
 		}
 

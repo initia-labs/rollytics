@@ -25,7 +25,6 @@ import (
 
 func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) error {
 	batchSize := sub.cfg.GetDBBatchSize()
-	chainId := block.ChainId
 	height := block.Height
 
 	sub.mtx.Lock()
@@ -43,7 +42,7 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) er
 	}
 
 	// get seq info
-	seqInfo, err := indexerutil.GetSeqInfo(chainId, "tx", tx)
+	seqInfo, err := indexerutil.GetSeqInfo("tx", tx)
 	if err != nil {
 		return err
 	}
@@ -58,8 +57,6 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) er
 	}
 
 	var ctxs []types.CollectedTx
-	var acctxs []types.CollectedAccountTx
-	accountMap := make(map[string]map[string]interface{}) // txHash -> accounts
 	for txIndex, txRaw := range block.Txs {
 		txByte, err := base64.StdEncoding.DecodeString(txRaw)
 		if err != nil {
@@ -105,6 +102,28 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) er
 
 		// convert to type tag ids
 		typeTagIds, err := util.GetOrCreateTypeTagIds(tx, typeTags, true)
+		if err != nil {
+			return err
+		}
+
+		// grep addresses from events
+		addrs, err := grepAddressesFromTx(res.Events, tx)
+		if err != nil {
+			return err
+		}
+
+		// create account map to get unique accounts
+		accountMap := make(map[string]interface{})
+		for _, addr := range addrs {
+			accountMap[addr] = nil
+		}
+		var uniqueAccounts []string
+		for account := range accountMap {
+			uniqueAccounts = append(uniqueAccounts, account)
+		}
+
+		// convert to account ids
+		accountIds, err := util.GetOrCreateAccountIds(tx, uniqueAccounts, true)
 		if err != nil {
 			return err
 		}
@@ -160,47 +179,18 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) er
 		seqInfo.Sequence++
 		ctxs = append(ctxs, types.CollectedTx{
 			Hash:       txHash,
-			ChainId:    chainId,
 			Height:     height,
 			Sequence:   seqInfo.Sequence,
 			Signer:     signer,
 			Data:       json.RawMessage(txResJSON),
 			MsgTypeIds: msgTypeIds,
 			TypeTagIds: typeTagIds,
+			AccountIds: accountIds,
 		})
-
-		// grep addresses for account tx
-		addrs, err := grepAddressesFromTx(chainId, res.Events, tx)
-		if err != nil {
-			return err
-		}
-
-		// initialize account list
-		accountMap[txHash] = make(map[string]interface{})
-		for _, addr := range addrs {
-			accountMap[txHash][addr] = nil
-		}
-	}
-
-	// collect account txs
-	for txHash, accounts := range accountMap {
-		for account := range accounts {
-			acctxs = append(acctxs, types.CollectedAccountTx{
-				Hash:    txHash,
-				Account: account,
-				ChainId: chainId,
-				Height:  height,
-			})
-		}
 	}
 
 	// insert txs
 	if err := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(ctxs, batchSize).Error; err != nil {
-		return err
-	}
-
-	// insert acctxs
-	if err := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(acctxs, batchSize).Error; err != nil {
 		return err
 	}
 
@@ -218,19 +208,15 @@ func (sub *TxSubmodule) collectEvm(block indexertypes.ScrapedBlock, evmTxs []typ
 	}
 
 	batchSize := sub.cfg.GetDBBatchSize()
-	chainId := block.ChainId
 	height := block.Height
 
 	// get seq info
-	seqInfo, err := indexerutil.GetSeqInfo(chainId, "evm_tx", tx)
+	seqInfo, err := indexerutil.GetSeqInfo("evm_tx", tx)
 	if err != nil {
 		return err
 	}
 
 	var cetxs []types.CollectedEvmTx
-	var acetxs []types.CollectedEvmAccountTx
-	accountMap := make(map[string]map[string]interface{})
-
 	for _, evmTx := range evmTxs {
 		txJSON, err := json.Marshal(evmTx)
 		if err != nil {
@@ -242,48 +228,41 @@ func (sub *TxSubmodule) collectEvm(block indexertypes.ScrapedBlock, evmTxs []typ
 			return err
 		}
 
-		seqInfo.Sequence++
-		cetxs = append(cetxs, types.CollectedEvmTx{
-			ChainId:  chainId,
-			Hash:     evmTx.TxHash,
-			Height:   height,
-			Sequence: seqInfo.Sequence,
-			Signer:   signer.String(),
-			Data:     json.RawMessage(txJSON),
-		})
-
-		// grep addresses for account tx
+		// grep addresses from events
 		addrs, err := grepAddressesFromEvmTx(evmTx)
 		if err != nil {
 			return err
 		}
 
-		// initialize account list
-		accountMap[evmTx.TxHash] = make(map[string]interface{})
+		// create account map to get unique accounts
+		accountMap := make(map[string]interface{})
 		for _, addr := range addrs {
-			accountMap[evmTx.TxHash][addr] = nil
+			accountMap[addr] = nil
 		}
-	}
+		var uniqueAccounts []string
+		for account := range accountMap {
+			uniqueAccounts = append(uniqueAccounts, account)
+		}
 
-	// collect account txs
-	for txHash, accounts := range accountMap {
-		for account := range accounts {
-			acetxs = append(acetxs, types.CollectedEvmAccountTx{
-				ChainId: chainId,
-				Hash:    txHash,
-				Account: account,
-				Height:  height,
-			})
+		// convert to account ids
+		accountIds, err := util.GetOrCreateAccountIds(tx, uniqueAccounts, true)
+		if err != nil {
+			return err
 		}
+
+		seqInfo.Sequence++
+		cetxs = append(cetxs, types.CollectedEvmTx{
+			Hash:       evmTx.TxHash,
+			Height:     height,
+			Sequence:   seqInfo.Sequence,
+			Signer:     signer.String(),
+			Data:       json.RawMessage(txJSON),
+			AccountIds: accountIds,
+		})
 	}
 
 	// insert evm txs
 	if err := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(cetxs, batchSize).Error; err != nil {
-		return err
-	}
-
-	// insert evm account txs
-	if err := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(acetxs, batchSize).Error; err != nil {
 		return err
 	}
 
