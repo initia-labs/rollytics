@@ -30,7 +30,7 @@ You can configure database, chain, logging, and indexer options via environment 
 			if err != nil {
 				return err
 			}
-			defer db.Close()
+			defer db.Close() //nolint:errcheck
 
 			if err := db.Migrate(); err != nil {
 				return err

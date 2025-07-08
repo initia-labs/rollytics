@@ -6,6 +6,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/initia-labs/rollytics/cache"
+	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
 )
 
@@ -37,7 +38,7 @@ func GetOrCreateAccountIds(db *gorm.DB, accounts []string, createNew bool) (ids 
 			}
 
 			entry = types.CollectedAccountDict{Account: account}
-			if err := db.Create(&entry).Error; err != nil {
+			if err := db.Clauses(orm.DoNothingWhenConflict).Create(&entry).Error; err != nil {
 				return ids, err
 			}
 		} else if err != nil {
@@ -66,7 +67,7 @@ func GetOrCreateNftIds(db *gorm.DB, keys []NftKey, createNew bool) (ids []int64,
 			}
 
 			entry = types.CollectedNftDict{CollectionAddr: key.CollectionAddr, TokenId: key.TokenId}
-			if err := db.Create(&entry).Error; err != nil {
+			if err := db.Clauses(orm.DoNothingWhenConflict).Create(&entry).Error; err != nil {
 				return ids, err
 			}
 		} else if err != nil {
@@ -96,7 +97,7 @@ func GetOrCreateMsgTypeIds(db *gorm.DB, msgTypes []string, createNew bool) (ids 
 			}
 
 			entry = types.CollectedMsgTypeDict{MsgType: msgType}
-			if err := db.Create(&entry).Error; err != nil {
+			if err := db.Clauses(orm.DoNothingWhenConflict).Create(&entry).Error; err != nil {
 				return ids, err
 			}
 		} else if err != nil {
@@ -126,7 +127,7 @@ func GetOrCreateTypeTagIds(db *gorm.DB, typeTags []string, createNew bool) (ids 
 			}
 
 			entry = types.CollectedTypeTagDict{TypeTag: typeTag}
-			if err := db.Create(&entry).Error; err != nil {
+			if err := db.Clauses(orm.DoNothingWhenConflict).Create(&entry).Error; err != nil {
 				return ids, err
 			}
 		} else if err != nil {

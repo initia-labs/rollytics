@@ -46,7 +46,7 @@ func GetAccountParam(c *fiber.Ctx) (string, error) {
 
 	accAddr, err := util.AccAddressFromString(account)
 	if err != nil {
-		return "nil", fmt.Errorf("invalid account: %s", err.Error())
+		return "", fmt.Errorf("invalid account: %s", err.Error())
 	}
 	return accAddr.String(), nil
 }
