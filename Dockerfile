@@ -16,8 +16,6 @@ RUN go mod download
 COPY . .
 
 # Build the application using make
-ARG VERSION
-ARG COMMIT_HASH
 RUN make build
 
 FROM alpine:latest
@@ -38,11 +36,11 @@ COPY --from=builder /app/rollytics .
 # Change ownership to non-root user
 RUN chown -R rollytics:rollytics /app
 
-# Switch to non-root user
-USER rollytics
-
 # Install atlas
 RUN curl -sSf https://atlasgo.sh | sh -s -- --yes --community
+
+# Switch to non-root user
+USER rollytics
 
 # Expose port (adjust if needed based on your API configuration)
 EXPOSE 8080

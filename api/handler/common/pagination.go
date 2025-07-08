@@ -36,8 +36,8 @@ func ParsePagination(c *fiber.Ctx) (*Pagination, error) {
 		}
 
 		offset, err = strconv.Atoi(string(decoded))
-		if err != nil || offset < 1 {
-			return nil, errors.New("pagination.key must decode to a positive integer")
+		if err != nil || offset < 0 {
+			return nil, errors.New("pagination.key must decode to a nonnegative integer")
 		}
 	}
 

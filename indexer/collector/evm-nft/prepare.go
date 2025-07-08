@@ -2,7 +2,6 @@ package evm_nft
 
 import (
 	"encoding/json"
-	"fmt"
 	"strings"
 	"sync"
 
@@ -39,8 +38,7 @@ func (sub *EvmNftSubmodule) prepare(block indexertypes.ScrapedBlock) error {
 		g.Go(func() error {
 			name, err := getCollectionName(addr, client, sub.cfg, block.Height)
 			if err != nil {
-				errString := fmt.Sprintf("%+v", err)
-				if strings.Contains(errString, "revert: 0x: Reverted: EVMCall failed") {
+				if isEvmRevertError(err) {
 					sub.AddToBlacklist(addr)
 					return nil
 				}
@@ -60,8 +58,7 @@ func (sub *EvmNftSubmodule) prepare(block indexertypes.ScrapedBlock) error {
 			g.Go(func() error {
 				tokenUri, err := getTokenUri(addr, id, client, sub.cfg, block.Height)
 				if err != nil {
-					errString := fmt.Sprintf("%+v", err)
-					if strings.Contains(errString, "revert: 0x: Reverted: EVMCall failed") {
+					if isEvmRevertError(err) {
 						return nil
 					}
 

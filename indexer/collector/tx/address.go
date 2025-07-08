@@ -133,10 +133,10 @@ func grepAddressesFromEvmTx(evmTx types.EvmTx) (grepped []string, err error) {
 	var addrs []string
 
 	if evmTx.From != "" {
-		grepped = append(grepped, evmTx.From)
+		addrs = append(addrs, evmTx.From)
 	}
 	if evmTx.To != "" {
-		grepped = append(grepped, evmTx.To)
+		addrs = append(addrs, evmTx.To)
 	}
 
 	for _, log := range evmTx.Logs {

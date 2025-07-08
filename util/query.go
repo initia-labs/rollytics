@@ -20,7 +20,7 @@ type ErrorResponse struct {
 
 func Get(client *fiber.Client, coolingDuration time.Duration, baseUrl, path string, params map[string]string, headers map[string]string) ([]byte, error) {
 	retryCount := 0
-	for retryCount <= maxRetries {
+	for retryCount < maxRetries {
 		body, err := getRaw(client, baseUrl, path, params, headers)
 		if err == nil {
 			return body, nil
@@ -33,9 +33,6 @@ func Get(client *fiber.Client, coolingDuration time.Duration, baseUrl, path stri
 		}
 
 		retryCount++
-		if retryCount > maxRetries {
-			return nil, err
-		}
 		time.Sleep(coolingDuration)
 	}
 
@@ -89,7 +86,7 @@ func getRaw(client *fiber.Client, baseUrl, path string, params map[string]string
 
 func Post(client *fiber.Client, coolingDuration time.Duration, baseUrl, path string, payload map[string]interface{}, headers map[string]string) ([]byte, error) {
 	retryCount := 0
-	for retryCount <= maxRetries {
+	for retryCount < maxRetries {
 		body, err := postRaw(client, baseUrl, path, payload, headers)
 		if err == nil {
 			return body, nil
@@ -102,9 +99,6 @@ func Post(client *fiber.Client, coolingDuration time.Duration, baseUrl, path str
 		}
 
 		retryCount++
-		if retryCount > maxRetries {
-			return nil, err
-		}
 		time.Sleep(coolingDuration)
 	}
 

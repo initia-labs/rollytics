@@ -25,7 +25,7 @@ import (
 // @Param msgs query []string false "Message types to filter (comma-separated or multiple params)" collectionFormat(multi) example("cosmos.bank.v1beta1.MsgSend,initia.move.v1.MsgExecute")
 // @Router /indexer/tx/v1/txs [get]
 func (h *TxHandler) GetTxs(c *fiber.Ctx) error {
-	msgs := common.GetMsgsParams(c)
+	msgs := common.GetMsgsQuery(c)
 	pagination, err := common.ParsePagination(c)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
@@ -94,7 +94,7 @@ func (h *TxHandler) GetTxsByAccount(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
-	msgs := common.GetMsgsParams(c)
+	msgs := common.GetMsgsQuery(c)
 	isSigner := c.Query("is_signer", "false") == "true"
 	pagination, err := common.ParsePagination(c)
 	if err != nil {
@@ -163,7 +163,7 @@ func (h *TxHandler) GetTxsByHeight(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
-	msgs := common.GetMsgsParams(c)
+	msgs := common.GetMsgsQuery(c)
 	pagination, err := common.ParsePagination(c)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())

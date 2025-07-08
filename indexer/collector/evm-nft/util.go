@@ -2,6 +2,7 @@ package evm_nft
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 	"strings"
 
@@ -52,4 +53,9 @@ func getCollectionCreator(addr string, tx *gorm.DB) (string, error) {
 	}
 
 	return ctx.Signer, nil
+}
+
+func isEvmRevertError(err error) bool {
+	errString := fmt.Sprintf("%+v", err)
+	return strings.Contains(errString, "revert: 0x: Reverted: EVMCall failed")
 }

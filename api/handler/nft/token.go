@@ -29,7 +29,10 @@ func (h *NftHandler) GetTokensByAccount(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
-	collectionAddr := c.Query("collection_addr")
+	collectionAddr, err := common.GetCollectionAddrQuery(c, h.GetChainConfig())
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
 	tokenId := c.Query("token_id")
 	pagination, err := common.ParsePagination(c)
 	if err != nil {
