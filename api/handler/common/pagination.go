@@ -17,8 +17,9 @@ type Pagination struct {
 }
 
 type PaginationResponse struct {
-	NextKey *string `json:"next_key" extensions:"x-order:0"`
-	Total   string  `json:"total" extensions:"x-order:1"`
+	PreviousKey *string `json:"previous_key" extensions:"x-order:0"`
+	NextKey     *string `json:"next_key" extensions:"x-order:1"`
+	Total       string  `json:"total" extensions:"x-order:2"`
 }
 
 func ParsePagination(c *fiber.Ctx) (*Pagination, error) {
@@ -66,6 +67,11 @@ func (p *Pagination) ToResponse(total int64) (res PaginationResponse) {
 	if total > int64(p.Offset+p.Limit) {
 		nextKey := base64.StdEncoding.EncodeToString([]byte(strconv.Itoa(p.Offset + p.Limit)))
 		res.NextKey = &nextKey
+	}
+	// if offset is greater than limit, previousKey can be set 
+	if p.Offset > 0 && p.Offset > p.Limit {
+		previousKey := base64.StdEncoding.EncodeToString([]byte(strconv.Itoa(p.Offset - p.Limit)))
+		res.PreviousKey = &previousKey
 	}
 	res.Total = fmt.Sprintf("%d", total)
 	return
