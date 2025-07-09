@@ -1,7 +1,10 @@
 package nft
 
 import (
+	"time"
+
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cache"
 
 	"github.com/initia-labs/rollytics/api/handler/common"
 )
@@ -21,17 +24,17 @@ func (h *NftHandler) Register(router fiber.Router) {
 
 	// Collections routes
 	collections := nfts.Group("/collections")
-	collections.Get("/", h.GetCollections)
-	collections.Get("/by_account/:account", h.GetCollectionsByAccount)
-	collections.Get("/by_name/:name", h.GetCollectionsByName)
-	collections.Get("/:collection_addr", h.GetCollectionByCollectionAddr)
+	collections.Get("/", cache.New(cache.Config{Expiration: time.Second}), h.GetCollections)
+	collections.Get("/by_account/:account", cache.New(cache.Config{Expiration: time.Second}), h.GetCollectionsByAccount)
+	collections.Get("/by_name/:name", cache.New(cache.Config{Expiration: time.Second}), h.GetCollectionsByName)
+	collections.Get("/:collection_addr", cache.New(cache.Config{Expiration: 10 * time.Second}), h.GetCollectionByCollectionAddr)
 
 	// Tokens(NFT) routes
 	tokens := nfts.Group("/tokens")
-	tokens.Get("/by_account/:account", h.GetTokensByAccount)
-	tokens.Get("/by_collection/:collection_addr", h.GetTokensByCollectionAddr)
+	tokens.Get("/by_account/:account", cache.New(cache.Config{Expiration: time.Second}), h.GetTokensByAccount)
+	tokens.Get("/by_collection/:collection_addr", cache.New(cache.Config{Expiration: time.Second}), h.GetTokensByCollectionAddr)
 
 	// NFT transaction routes
 	txs := nfts.Group("/txs")
-	txs.Get("/:collection_addr/:token_id", h.GetNftTxs)
+	txs.Get("/:collection_addr/:token_id", cache.New(cache.Config{Expiration: time.Second}), h.GetNftTxs)
 }
