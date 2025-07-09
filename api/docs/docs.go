@@ -950,11 +950,15 @@ const docTemplate = `{
             "properties": {
                 "next_key": {
                     "type": "string",
+                    "x-order:1": true
+                },
+                "previous_key": {
+                    "type": "string",
                     "x-order:0": true
                 },
                 "total": {
                     "type": "string",
-                    "x-order:1": true
+                    "x-order:2": true
                 }
             }
         },
