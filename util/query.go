@@ -11,7 +11,12 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-const maxRetries = 5
+const (
+	maxRetries            = 5
+	maxConcurrentRequests = 50
+)
+
+var limiter = make(chan interface{}, maxConcurrentRequests)
 
 type ErrorResponse struct {
 	Code    int64  `json:"code"`
@@ -40,6 +45,9 @@ func Get(client *fiber.Client, coolingDuration time.Duration, baseUrl, path stri
 }
 
 func getRaw(client *fiber.Client, baseUrl, path string, params map[string]string, headers map[string]string) (body []byte, err error) {
+	limiter <- nil
+	defer func() { <-limiter }()
+
 	parsedUrl, err := url.Parse(fmt.Sprintf("%s%s", baseUrl, path))
 	if err != nil {
 		return nil, err
@@ -106,6 +114,9 @@ func Post(client *fiber.Client, coolingDuration time.Duration, baseUrl, path str
 }
 
 func postRaw(client *fiber.Client, baseUrl, path string, payload map[string]interface{}, headers map[string]string) (body []byte, err error) {
+	limiter <- nil
+	defer func() { <-limiter }()
+
 	req := client.Post(fmt.Sprintf("%s%s", baseUrl, path))
 
 	// set payload
