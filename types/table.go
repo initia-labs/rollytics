@@ -96,6 +96,23 @@ type CollectedTypeTagDict struct {
 	TypeTag string `gorm:"type:text;uniqueIndex:type_tag_dict_type_tag"`
 }
 
+type CollectedEvmInternalTx struct {
+	Height     int64           `gorm:"type:bigint;primaryKey"`
+	Hash       string          `gorm:"type:text;primaryKey"`
+	Index      int64           `gorm:"type:bigint;primaryKey;index:evm_internal_tx_index"`
+	Type       string          `gorm:"type:text;index:evm_internal_tx_type"`
+	From       string          `gorm:"type:text;index:evm_internal_tx_from"`
+	To         string          `gorm:"type:text;index:evm_internal_tx_to"`
+	Input      string          `gorm:"type:text"`
+	Output     string          `gorm:"type:text"`
+	Value      int64           `gorm:"type:bigint"`
+	Gas        int64           `gorm:"type:bigint"`
+	GasUsed    int64           `gorm:"type:bigint"`
+	AccountIds pq.Int64Array   `gorm:"type:bigint[]"` // apply GIN index at DB initialization
+	PreState   json.RawMessage `gorm:"type:jsonb"`
+	PostState  json.RawMessage `gorm:"type:jsonb"`
+}
+
 func (CollectedSeqInfo) TableName() string {
 	return "seq_info"
 }

@@ -10,6 +10,7 @@ import (
 type ChainConfig struct {
 	ChainId              string
 	VmType               types.VMType
+	InternalTx           bool
 	RpcUrl               string
 	RestUrl              string
 	JsonRpcUrl           string
