@@ -34,6 +34,7 @@ type Config struct {
 	cacheSize       int
 	cacheTTL        time.Duration // for api only
 	pollingInterval time.Duration // for api only
+	internalTx      bool
 }
 
 func setDefaults() {
@@ -48,6 +49,7 @@ func setDefaults() {
 	viper.SetDefault("CACHE_SIZE", 1000)
 	viper.SetDefault("CACHE_TTL", 10*time.Minute)
 	viper.SetDefault("POLLING_INTERVAL", 3*time.Second)
+	viper.SetDefault("INTERNAL_TX", false)
 }
 
 func GetConfig() (*Config, error) {
@@ -99,6 +101,7 @@ func GetConfig() (*Config, error) {
 		cacheSize:       viper.GetInt("CACHE_SIZE"),
 		cacheTTL:        viper.GetDuration("CACHE_TTL"),
 		pollingInterval: viper.GetDuration("POLLING_INTERVAL"),
+		internalTx:      viper.GetBool("INTERNAL_TX"),
 	}
 
 	if err := config.Validate(); err != nil {
@@ -145,6 +148,10 @@ func (c Config) GetChainId() string {
 
 func (c Config) GetVmType() types.VMType {
 	return c.chainConfig.VmType
+}
+
+func (c Config) EnableInternalTx() bool {
+	return c.internalTx
 }
 
 func (c Config) GetLogLevel() slog.Level {
