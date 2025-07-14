@@ -1,9 +1,10 @@
 package internaltx
 
 import (
+	"log/slog"
+
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/orm"
-	"log/slog"
 )
 
 type InternalTxIndexer struct {
