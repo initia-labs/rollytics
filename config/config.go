@@ -150,7 +150,7 @@ func (c Config) GetVmType() types.VMType {
 	return c.chainConfig.VmType
 }
 
-func (c Config) EnableInternalTx() bool {
+func (c Config) InternalTxEnabled() bool {
 	return c.internalTx
 }
 
