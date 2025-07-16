@@ -194,7 +194,7 @@ func (h *TxHandler) GetEvmTxByHash(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	txRes, err := ToEvmTxResponse(&tx)
+	txRes, err := ToEvmTxResponse(tx)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}

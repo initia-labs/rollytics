@@ -16,7 +16,7 @@ type BlocksResponse struct {
 }
 
 type BlockResponse struct {
-	Block *Block `json:"block"`
+	Block Block `json:"block"`
 }
 
 type AvgBlockTimeResponse struct {
@@ -50,27 +50,27 @@ type Proposer struct {
 func ToBlocksResponse(cbs []types.CollectedBlock, cfg *config.Config) ([]Block, error) {
 	blocks := make([]Block, 0, len(cbs))
 	for _, cb := range cbs {
-		block, err := ToBlockResponse(&cb, cfg)
+		block, err := ToBlockResponse(cb, cfg)
 		if err != nil {
 			return nil, err
 		}
-		blocks = append(blocks, *block)
+		blocks = append(blocks, block)
 	}
 	return blocks, nil
 }
 
-func ToBlockResponse(cb *types.CollectedBlock, cfg *config.Config) (*Block, error) {
+func ToBlockResponse(cb types.CollectedBlock, cfg *config.Config) (block Block, err error) {
 	var fees []Fee
 	if err := json.Unmarshal(cb.TotalFee, &fees); err != nil {
-		return nil, err
+		return block, err
 	}
 
 	validator, err := getValidator(cb.Proposer, cfg)
 	if err != nil {
-		return nil, err
+		return block, err
 	}
 
-	return &Block{
+	return Block{
 		ChainID:   cb.ChainId,
 		Height:    fmt.Sprintf("%d", cb.Height),
 		Hash:      cb.Hash,

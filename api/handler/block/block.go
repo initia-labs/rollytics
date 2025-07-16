@@ -81,7 +81,7 @@ func (h *BlockHandler) GetBlockByHeight(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	blockRes, err := ToBlockResponse(&block, h.GetConfig())
+	blockRes, err := ToBlockResponse(block, h.GetConfig())
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}

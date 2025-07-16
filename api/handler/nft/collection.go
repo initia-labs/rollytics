@@ -172,7 +172,7 @@ func (h *NftHandler) GetCollectionByCollectionAddr(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(CollectionResponse{
-		Collection: ToCollectionResponse(&collection),
+		Collection: ToCollectionResponse(collection),
 	})
 }
 

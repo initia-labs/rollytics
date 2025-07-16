@@ -12,7 +12,7 @@ import (
 
 // Tx
 type TxResponse struct {
-	Tx *types.Tx `json:"tx"`
+	Tx types.Tx `json:"tx"`
 }
 
 type TxsResponse struct {
@@ -23,27 +23,26 @@ type TxsResponse struct {
 func ToTxsResponse(ctxs []types.CollectedTx) ([]types.Tx, error) {
 	txs := make([]types.Tx, 0, len(ctxs))
 	for _, ctx := range ctxs {
-		tx, err := ToTxResponse(&ctx)
+		tx, err := ToTxResponse(ctx)
 		if err != nil {
 			return nil, err
 		}
-		txs = append(txs, *tx)
+		txs = append(txs, tx)
 	}
 	return txs, nil
 }
 
-func ToTxResponse(ctx *types.CollectedTx) (*types.Tx, error) {
-	var record types.Tx
-	if err := cbjson.Unmarshal(ctx.Data, &record); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal Tx: %w", err)
+func ToTxResponse(ctx types.CollectedTx) (tx types.Tx, err error) {
+	if err := cbjson.Unmarshal(ctx.Data, &tx); err != nil {
+		return tx, fmt.Errorf("failed to unmarshal Tx: %w", err)
 	}
 
-	return &record, nil
+	return tx, nil
 }
 
 // Evm Tx
 type EvmTxResponse struct {
-	Tx *types.EvmTx `json:"tx"`
+	Tx types.EvmTx `json:"tx"`
 }
 
 type EvmTxsResponse struct {
@@ -54,19 +53,18 @@ type EvmTxsResponse struct {
 func ToEvmTxsResponse(ctxs []types.CollectedEvmTx) ([]types.EvmTx, error) {
 	txs := make([]types.EvmTx, 0, len(ctxs))
 	for _, ctx := range ctxs {
-		tx, err := ToEvmTxResponse(&ctx)
+		tx, err := ToEvmTxResponse(ctx)
 		if err != nil {
 			return nil, err
 		}
-		txs = append(txs, *tx)
+		txs = append(txs, tx)
 	}
 	return txs, nil
 }
 
-func ToEvmTxResponse(ctx *types.CollectedEvmTx) (*types.EvmTx, error) {
-	var evmTx types.EvmTx
+func ToEvmTxResponse(ctx types.CollectedEvmTx) (evmTx types.EvmTx, err error) {
 	if err := json.Unmarshal(ctx.Data, &evmTx); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal evm tx data: %w", err)
+		return evmTx, fmt.Errorf("failed to unmarshal evm tx data: %w", err)
 	}
-	return &evmTx, nil
+	return evmTx, nil
 }

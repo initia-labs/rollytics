@@ -230,7 +230,7 @@ func (h *TxHandler) GetTxByHash(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	txRes, err := ToTxResponse(&tx)
+	txRes, err := ToTxResponse(tx)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}

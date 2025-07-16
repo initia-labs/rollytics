@@ -30,11 +30,11 @@ type CollectionsResponse struct {
 }
 
 type CollectionResponse struct {
-	Collection *Collection `json:"collection"`
+	Collection Collection `json:"collection"`
 }
 
-func ToCollectionResponse(col *types.CollectedNftCollection) *Collection {
-	return &Collection{
+func ToCollectionResponse(col types.CollectedNftCollection) Collection {
+	return Collection{
 		Address: col.Addr,
 		CollectionDetail: CollectionDetail{
 			Creator:    col.Creator,
@@ -51,7 +51,7 @@ func ToCollectionResponse(col *types.CollectedNftCollection) *Collection {
 func ToCollectionsResponse(cols []types.CollectedNftCollection) []Collection {
 	collections := make([]Collection, 0, len(cols))
 	for _, col := range cols {
-		collections = append(collections, *ToCollectionResponse(&col))
+		collections = append(collections, ToCollectionResponse(col))
 	}
 	return collections
 }
@@ -76,8 +76,8 @@ type NftsResponse struct {
 	Pagination common.PaginationResponse `json:"pagination" extensions:"x-order:1"`
 }
 
-func ToNftResponse(name, originName string, nft *types.CollectedNft) *Nft {
-	return &Nft{
+func ToNftResponse(name, originName string, nft types.CollectedNft) Nft {
+	return Nft{
 		CollectionAddr:       nft.CollectionAddr,
 		CollectionName:       name,
 		CollectionOriginName: originName,
@@ -98,7 +98,7 @@ func ToNftsResponse(db *orm.Database, nfts []types.CollectedNft) ([]Nft, error) 
 		if err != nil {
 			return nil, err
 		}
-		nftResponses = append(nftResponses, *ToNftResponse(collection.Name, collection.OriginName, &nft))
+		nftResponses = append(nftResponses, ToNftResponse(collection.Name, collection.OriginName, nft))
 	}
 	return nftResponses, nil
 }
