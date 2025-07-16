@@ -137,6 +137,9 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) er
 			return err
 		}
 
+		if len(authInfo.SignerInfos) == 0 {
+			return fmt.Errorf("no signer info for txhash %s", txHash)
+		}
 		pubkey := authInfo.SignerInfos[0].PublicKey
 		var pk cryptotypes.PubKey
 		if err = sub.cdc.UnpackAny(pubkey, &pk); err != nil {
