@@ -147,10 +147,6 @@ paths:
         in: query
         name: pagination.limit
         type: integer
-      - description: Count total, default is true
-        in: query
-        name: pagination.count_total
-        type: boolean
       - description: Reverse order, default is true. if set to true, the results will
           be ordered in descending order
         in: query
@@ -197,10 +193,6 @@ paths:
         in: query
         name: pagination.limit
         type: integer
-      - description: Count total, default is true
-        in: query
-        name: pagination.count_total
-        type: boolean
       - description: Reverse order default is true if set to true, the results will
           be ordered in descending order
         in: query
@@ -260,10 +252,6 @@ paths:
         in: query
         name: pagination.limit
         type: integer
-      - description: Count total, default is true
-        in: query
-        name: pagination.count_total
-        type: boolean
       - description: Reverse order default is true if set to true, the results will
           be ordered in descending order
         in: query
@@ -302,10 +290,6 @@ paths:
         in: query
         name: pagination.limit
         type: integer
-      - description: Count total, default is true
-        in: query
-        name: pagination.count_total
-        type: boolean
       - description: Reverse order default is true if set to true, the results will
           be ordered in descending order
         in: query
@@ -352,10 +336,6 @@ paths:
         in: query
         name: pagination.limit
         type: integer
-      - description: Count total, default is true
-        in: query
-        name: pagination.count_total
-        type: boolean
       - description: Reverse order default is true if set to true, the results will
           be ordered in descending order
         in: query
@@ -398,10 +378,6 @@ paths:
         in: query
         name: pagination.limit
         type: integer
-      - description: Count total, default is true
-        in: query
-        name: pagination.count_total
-        type: boolean
       - description: Reverse order default is true if set to true, the results will
           be ordered in descending order
         in: query
@@ -445,10 +421,6 @@ paths:
         in: query
         name: pagination.limit
         type: integer
-      - description: Count total, default is true
-        in: query
-        name: pagination.count_total
-        type: boolean
       - description: Reverse order default is true if set to true, the results will
           be ordered in descending order
         in: query
@@ -478,10 +450,6 @@ paths:
         in: query
         name: pagination.limit
         type: integer
-      - description: Count total, default is true
-        in: query
-        name: pagination.count_total
-        type: boolean
       - description: Reverse order default is true if set to true, the results will
           be ordered in descending order
         in: query
@@ -533,10 +501,6 @@ paths:
         in: query
         name: pagination.limit
         type: integer
-      - description: Count total, default is true
-        in: query
-        name: pagination.count_total
-        type: boolean
       - description: Reverse order default is true if set to true, the results will
           be ordered in descending order
         in: query
@@ -575,10 +539,6 @@ paths:
         in: query
         name: pagination.limit
         type: integer
-      - description: Count total, default is true
-        in: query
-        name: pagination.count_total
-        type: boolean
       - description: Reverse order default is true if set to true, the results will
           be ordered in descending order
         in: query
@@ -608,10 +568,6 @@ paths:
         in: query
         name: pagination.limit
         type: integer
-      - description: Count total, default is true
-        in: query
-        name: pagination.count_total
-        type: boolean
       - description: Reverse order default is true if set to true, the results will
           be ordered in descending order
         in: query
@@ -671,10 +627,6 @@ paths:
         in: query
         name: pagination.limit
         type: integer
-      - description: Count total, default is true
-        in: query
-        name: pagination.count_total
-        type: boolean
       - description: Reverse order default is true if set to true, the results will
           be ordered in descending order
         in: query
@@ -721,10 +673,6 @@ paths:
         in: query
         name: pagination.limit
         type: integer
-      - description: Count total, default is true
-        in: query
-        name: pagination.count_total
-        type: boolean
       - description: Reverse order default is true if set to true, the results will
           be ordered in descending order
         in: query

@@ -78,12 +78,6 @@ const docTemplate = `{
                     },
                     {
                         "type": "boolean",
-                        "description": "Count total, default is true",
-                        "name": "pagination.count_total",
-                        "in": "query"
-                    },
-                    {
-                        "type": "boolean",
                         "description": "Reverse order, default is true. if set to true, the results will be ordered in descending order",
                         "name": "pagination.reverse",
                         "in": "query"
@@ -151,12 +145,6 @@ const docTemplate = `{
                     },
                     {
                         "type": "boolean",
-                        "description": "Count total, default is true",
-                        "name": "pagination.count_total",
-                        "in": "query"
-                    },
-                    {
-                        "type": "boolean",
                         "description": "Reverse order default is true if set to true, the results will be ordered in descending order",
                         "name": "pagination.reverse",
                         "in": "query"
@@ -213,12 +201,6 @@ const docTemplate = `{
                     },
                     {
                         "type": "boolean",
-                        "description": "Count total, default is true",
-                        "name": "pagination.count_total",
-                        "in": "query"
-                    },
-                    {
-                        "type": "boolean",
                         "description": "Reverse order default is true if set to true, the results will be ordered in descending order",
                         "name": "pagination.reverse",
                         "in": "query"
@@ -271,12 +253,6 @@ const docTemplate = `{
                         "type": "integer",
                         "description": "Pagination limit, default is 100",
                         "name": "pagination.limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "boolean",
-                        "description": "Count total, default is true",
-                        "name": "pagination.count_total",
                         "in": "query"
                     },
                     {
@@ -381,12 +357,6 @@ const docTemplate = `{
                     },
                     {
                         "type": "boolean",
-                        "description": "Count total, default is true",
-                        "name": "pagination.count_total",
-                        "in": "query"
-                    },
-                    {
-                        "type": "boolean",
                         "description": "Reverse order default is true if set to true, the results will be ordered in descending order",
                         "name": "pagination.reverse",
                         "in": "query"
@@ -445,12 +415,6 @@ const docTemplate = `{
                         "type": "integer",
                         "description": "Pagination limit, default is 100",
                         "name": "pagination.limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "boolean",
-                        "description": "Count total, default is true",
-                        "name": "pagination.count_total",
                         "in": "query"
                     },
                     {
@@ -518,12 +482,6 @@ const docTemplate = `{
                     },
                     {
                         "type": "boolean",
-                        "description": "Count total, default is true",
-                        "name": "pagination.count_total",
-                        "in": "query"
-                    },
-                    {
-                        "type": "boolean",
                         "description": "Reverse order default is true if set to true, the results will be ordered in descending order",
                         "name": "pagination.reverse",
                         "in": "query"
@@ -562,12 +520,6 @@ const docTemplate = `{
                         "type": "integer",
                         "description": "Pagination limit, default is 100",
                         "name": "pagination.limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "boolean",
-                        "description": "Count total, default is true",
-                        "name": "pagination.count_total",
                         "in": "query"
                     },
                     {
@@ -617,12 +569,6 @@ const docTemplate = `{
                         "type": "integer",
                         "description": "Pagination limit, default is 100",
                         "name": "pagination.limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "boolean",
-                        "description": "Count total, default is true",
-                        "name": "pagination.count_total",
                         "in": "query"
                     },
                     {
@@ -678,12 +624,6 @@ const docTemplate = `{
                         "type": "integer",
                         "description": "Pagination limit, default is 100",
                         "name": "pagination.limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "boolean",
-                        "description": "Count total, default is true",
-                        "name": "pagination.count_total",
                         "in": "query"
                     },
                     {
@@ -755,12 +695,6 @@ const docTemplate = `{
                     },
                     {
                         "type": "boolean",
-                        "description": "Count total, default is true",
-                        "name": "pagination.count_total",
-                        "in": "query"
-                    },
-                    {
-                        "type": "boolean",
                         "description": "Reverse order default is true if set to true, the results will be ordered in descending order",
                         "name": "pagination.reverse",
                         "in": "query"
@@ -817,12 +751,6 @@ const docTemplate = `{
                         "type": "integer",
                         "description": "Pagination limit, default is 100",
                         "name": "pagination.limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "boolean",
-                        "description": "Count total, default is true",
-                        "name": "pagination.count_total",
                         "in": "query"
                     },
                     {
@@ -889,12 +817,6 @@ const docTemplate = `{
                         "type": "integer",
                         "description": "Pagination limit, default is 100",
                         "name": "pagination.limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "boolean",
-                        "description": "Count total, default is true",
-                        "name": "pagination.count_total",
                         "in": "query"
                     },
                     {

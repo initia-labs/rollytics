@@ -24,7 +24,6 @@ import (
 // @Param pagination.key query string false "Pagination key"
 // @Param pagination.offset query int false "Pagination offset"
 // @Param pagination.limit query int false "Pagination limit, default is 100" default is 100
-// @Param pagination.count_total query bool false "Count total, default is true" default is true
 // @Param pagination.reverse query bool false "Reverse order default is true if set to true, the results will be ordered in descending order"
 // @Router /indexer/nft/v1/txs/{collection_addr}/{token_id} [get]
 func (h *NftHandler) GetNftTxs(c *fiber.Ctx) error {
