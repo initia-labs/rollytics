@@ -20,6 +20,7 @@ type Config struct {
 	logLevel        string
 	logFormat       string
 	coolingDuration time.Duration // for indexer only
+	queryTimeout    time.Duration // for indexer only
 }
 
 func setDefaults() {
@@ -28,6 +29,7 @@ func setDefaults() {
 	viper.SetDefault("DB_MIGRATION_DIR", "orm/migrations")
 	viper.SetDefault("ACCOUNT_ADDRESS_PREFIX", "init")
 	viper.SetDefault("COOLING_DURATION", 100*time.Millisecond)
+	viper.SetDefault("QUERY_TIMEOUT", 10*time.Second)
 	viper.SetDefault("LOG_LEVEL", "warn")
 	viper.SetDefault("LOG_FORMAT", "plain")
 }
@@ -77,6 +79,7 @@ func GetConfig() (*Config, error) {
 		logLevel:        viper.GetString("LOG_LEVEL"),
 		logFormat:       viper.GetString("LOG_FORMAT"),
 		coolingDuration: viper.GetDuration("COOLING_DURATION"),
+		queryTimeout:    viper.GetDuration("QUERY_TIMEOUT"),
 	}
 
 	if err := config.Validate(); err != nil {
@@ -130,6 +133,10 @@ func (c Config) GetLogLevel() slog.Level {
 
 func (c Config) GetCoolingDuration() time.Duration {
 	return c.coolingDuration
+}
+
+func (c Config) GetQueryTimeout() time.Duration {
+	return c.queryTimeout
 }
 
 func (c Config) GetLogFormat() string {

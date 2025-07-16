@@ -44,7 +44,7 @@ func scrapeBlock(client *fiber.Client, height int64, cfg *config.Config) (types.
 
 func fetchBlock(client *fiber.Client, height int64, cfg *config.Config, getBlockRes chan<- GetBlockResponse) error {
 	url := fmt.Sprintf("%s/block?height=%d", cfg.GetChainConfig().RpcUrl, height)
-	body, err := fetchFromRpc(client, url)
+	body, err := fetchFromRpc(client, cfg.GetQueryTimeout(), url)
 	if err != nil {
 		return err
 	}
@@ -60,7 +60,7 @@ func fetchBlock(client *fiber.Client, height int64, cfg *config.Config, getBlock
 
 func fetchBlockResults(client *fiber.Client, height int64, cfg *config.Config, getBlockResultsRes chan<- GetBlockResultsResponse) error {
 	url := fmt.Sprintf("%s/block_results?height=%d", cfg.GetChainConfig().RpcUrl, height)
-	body, err := fetchFromRpc(client, url)
+	body, err := fetchFromRpc(client, cfg.GetQueryTimeout(), url)
 	if err != nil {
 		return err
 	}
@@ -74,8 +74,8 @@ func fetchBlockResults(client *fiber.Client, height int64, cfg *config.Config, g
 	return nil
 }
 
-func fetchFromRpc(client *fiber.Client, url string) (body []byte, err error) {
-	code, body, errs := client.Get(url).Timeout(10 * time.Second).Bytes()
+func fetchFromRpc(client *fiber.Client, timeout time.Duration, url string) (body []byte, err error) {
+	code, body, errs := client.Get(url).Timeout(timeout).Bytes()
 	if err := errors.Join(errs...); err != nil {
 		return body, err
 	}

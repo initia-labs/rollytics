@@ -88,5 +88,5 @@ func getCollectionCreator(collectionAddr string, client *fiber.Client, cfg *conf
 func querySmart(contractAddr, queryData string, client *fiber.Client, cfg *config.Config, height int64) (response []byte, err error) {
 	headers := map[string]string{"x-cosmos-block-height": fmt.Sprintf("%d", height)}
 	path := fmt.Sprintf("/cosmwasm/wasm/v1/contract/%s/smart/%s", contractAddr, queryData)
-	return util.Get(client, cfg.GetCoolingDuration(), cfg.GetChainConfig().RestUrl, path, nil, headers)
+	return util.Get(client, cfg.GetCoolingDuration(), cfg.GetQueryTimeout(), cfg.GetChainConfig().RestUrl, path, nil, headers)
 }

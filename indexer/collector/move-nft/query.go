@@ -14,7 +14,7 @@ func getMoveResource(addr string, structTag string, client *fiber.Client, cfg *c
 	params := map[string]string{"struct_tag": structTag}
 	headers := map[string]string{"x-cosmos-block-height": fmt.Sprintf("%d", height)}
 	path := fmt.Sprintf("/initia/move/v1/accounts/%s/resources/by_struct_tag", addr)
-	body, err := util.Get(client, cfg.GetCoolingDuration(), cfg.GetChainConfig().RestUrl, path, params, headers)
+	body, err := util.Get(client, cfg.GetCoolingDuration(), cfg.GetQueryTimeout(), cfg.GetChainConfig().RestUrl, path, params, headers)
 	if err != nil {
 		return resource, err
 	}

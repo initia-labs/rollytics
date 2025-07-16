@@ -23,10 +23,10 @@ type ErrorResponse struct {
 	Message string `json:"message"`
 }
 
-func Get(client *fiber.Client, coolingDuration time.Duration, baseUrl, path string, params map[string]string, headers map[string]string) ([]byte, error) {
+func Get(client *fiber.Client, coolingDuration, timeout time.Duration, baseUrl, path string, params map[string]string, headers map[string]string) ([]byte, error) {
 	retryCount := 0
 	for retryCount < maxRetries {
-		body, err := getRaw(client, baseUrl, path, params, headers)
+		body, err := getRaw(client, timeout, baseUrl, path, params, headers)
 		if err == nil {
 			return body, nil
 		}
@@ -44,7 +44,7 @@ func Get(client *fiber.Client, coolingDuration time.Duration, baseUrl, path stri
 	return nil, fmt.Errorf("failed to fetch data after %d retries", maxRetries)
 }
 
-func getRaw(client *fiber.Client, baseUrl, path string, params map[string]string, headers map[string]string) (body []byte, err error) {
+func getRaw(client *fiber.Client, timeout time.Duration, baseUrl, path string, params map[string]string, headers map[string]string) (body []byte, err error) {
 	limiter <- nil
 	defer func() { <-limiter }()
 
@@ -69,7 +69,7 @@ func getRaw(client *fiber.Client, baseUrl, path string, params map[string]string
 		req.Set(key, value)
 	}
 
-	code, body, errs := req.Timeout(10 * time.Second).Bytes()
+	code, body, errs := req.Timeout(timeout).Bytes()
 	if err := errors.Join(errs...); err != nil {
 		return nil, err
 	}
@@ -92,10 +92,10 @@ func getRaw(client *fiber.Client, baseUrl, path string, params map[string]string
 	return nil, fmt.Errorf("http response: %d, body: %s", code, string(body))
 }
 
-func Post(client *fiber.Client, coolingDuration time.Duration, baseUrl, path string, payload map[string]interface{}, headers map[string]string) ([]byte, error) {
+func Post(client *fiber.Client, coolingDuration, timeout time.Duration, baseUrl, path string, payload map[string]interface{}, headers map[string]string) ([]byte, error) {
 	retryCount := 0
 	for retryCount < maxRetries {
-		body, err := postRaw(client, baseUrl, path, payload, headers)
+		body, err := postRaw(client, timeout, baseUrl, path, payload, headers)
 		if err == nil {
 			return body, nil
 		}
@@ -113,7 +113,7 @@ func Post(client *fiber.Client, coolingDuration time.Duration, baseUrl, path str
 	return nil, fmt.Errorf("failed to post data after %d retries", maxRetries)
 }
 
-func postRaw(client *fiber.Client, baseUrl, path string, payload map[string]interface{}, headers map[string]string) (body []byte, err error) {
+func postRaw(client *fiber.Client, timeout time.Duration, baseUrl, path string, payload map[string]interface{}, headers map[string]string) (body []byte, err error) {
 	limiter <- nil
 	defer func() { <-limiter }()
 
@@ -129,7 +129,7 @@ func postRaw(client *fiber.Client, baseUrl, path string, payload map[string]inte
 		req.Set(key, value)
 	}
 
-	code, body, errs := req.Timeout(10 * time.Second).Bytes()
+	code, body, errs := req.Timeout(timeout).Bytes()
 	if err := errors.Join(errs...); err != nil {
 		return nil, err
 	}

@@ -67,7 +67,7 @@ func evmCall(contractAddr string, input []byte, client *fiber.Client, cfg *confi
 	}
 	headers := map[string]string{"x-cosmos-block-height": fmt.Sprintf("%d", height)}
 	path := "/minievm/evm/v1/call"
-	body, err := util.Post(client, cfg.GetCoolingDuration(), cfg.GetChainConfig().RestUrl, path, payload, headers)
+	body, err := util.Post(client, cfg.GetCoolingDuration(), cfg.GetQueryTimeout(), cfg.GetChainConfig().RestUrl, path, payload, headers)
 	if err != nil {
 		return response, err
 	}
