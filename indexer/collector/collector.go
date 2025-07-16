@@ -45,7 +45,7 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Collector {
 	return &Collector{
 		logger: logger.With("module", "collector"),
 		db:     db,
-		submodules: []indexertypes.Submodule{
+		submodules: []indexertypes.Submodule{ // NOTE: order should be preserved
 			blockSubmodule,
 			txSubmodule,
 			nftSubmodule,

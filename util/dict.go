@@ -33,6 +33,7 @@ func GetOrCreateAccountIds(db *gorm.DB, accounts []string, createNew bool) (ids 
 		var entry types.CollectedAccountDict
 		err = db.Where("account = ?", account).First(&entry).Error
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// createNew flag is used to prevent api queries from spamming and creating new entries that are meaningless
 			if !createNew {
 				continue
 			}
@@ -62,6 +63,7 @@ func GetOrCreateNftIds(db *gorm.DB, keys []NftKey, createNew bool) (ids []int64,
 		var entry types.CollectedNftDict
 		err = db.Where("collection_addr = ? AND token_id = ?", key.CollectionAddr, key.TokenId).First(&entry).Error
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// createNew flag is used to prevent api queries from spamming and creating new entries that are meaningless
 			if !createNew {
 				continue
 			}
@@ -92,6 +94,7 @@ func GetOrCreateMsgTypeIds(db *gorm.DB, msgTypes []string, createNew bool) (ids 
 		var entry types.CollectedMsgTypeDict
 		err = db.Where("msg_type = ?", msgType).First(&entry).Error
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// createNew flag is used to prevent api queries from spamming and creating new entries that are meaningless
 			if !createNew {
 				continue
 			}
@@ -122,6 +125,7 @@ func GetOrCreateTypeTagIds(db *gorm.DB, typeTags []string, createNew bool) (ids 
 		var entry types.CollectedTypeTagDict
 		err = db.Where("type_tag = ?", typeTag).First(&entry).Error
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// createNew flag is used to prevent api queries from spamming and creating new entries that are meaningless
 			if !createNew {
 				continue
 			}
