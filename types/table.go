@@ -36,10 +36,10 @@ type CollectedTx struct {
 	Sequence   int64           `gorm:"type:bigint;index:tx_sequence;index:tx_sequence_desc,sort:desc"`
 	Signer     string          `gorm:"type:text;index:tx_signer"`
 	Data       json.RawMessage `gorm:"type:jsonb"`
-	AccountIds pq.Int64Array   `gorm:"type:bigint[]"` // apply GIN index at DB initialization
-	NftIds     pq.Int64Array   `gorm:"type:bigint[]"` // apply GIN index at DB initialization
-	MsgTypeIds pq.Int64Array   `gorm:"type:bigint[]"` // apply GIN index at DB initialization
-	TypeTagIds pq.Int64Array   `gorm:"type:bigint[]"` // apply GIN index at DB initialization
+	AccountIds pq.Int64Array   `gorm:"type:bigint[];index:tx_account_ids,type:gin"`
+	NftIds     pq.Int64Array   `gorm:"type:bigint[];index:tx_nft_ids,type:gin"`
+	MsgTypeIds pq.Int64Array   `gorm:"type:bigint[];index:tx_msg_type_ids,type:gin"`
+	TypeTagIds pq.Int64Array   `gorm:"type:bigint[];index:tx_type_tag_ids,type:gin"`
 }
 
 type CollectedEvmTx struct {
@@ -48,7 +48,7 @@ type CollectedEvmTx struct {
 	Sequence   int64           `gorm:"type:bigint;index:evm_tx_sequence;index:evm_tx_sequence_desc,sort:desc"`
 	Signer     string          `gorm:"type:text;index:evm_tx_signer"`
 	Data       json.RawMessage `gorm:"type:jsonb"`
-	AccountIds pq.Int64Array   `gorm:"type:bigint[]"` // apply GIN index at DB initialization
+	AccountIds pq.Int64Array   `gorm:"type:bigint[];index:evm_tx_account_ids,type:gin"`
 }
 
 type CollectedNftCollection struct {
