@@ -4,7 +4,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/initia-labs/rollytics/config"
-	"github.com/initia-labs/rollytics/internaltx"
+	"github.com/initia-labs/rollytics/curated"
 	"github.com/initia-labs/rollytics/log"
 	"github.com/initia-labs/rollytics/orm"
 )
@@ -12,8 +12,8 @@ import (
 func evmInternalTxCmd() *cobra.Command {
 	cmd :=
 		&cobra.Command{
-			Use:   "evm-internaltx",
-			Short: "Index EVM internal transactions",
+			Use:   "curated",
+			Short: "Run Curated Indexer for EVM Internal Transactions",
 			Long:  "Start the Rollytics service to index internal transactions on EVM-compatible chains",
 			RunE: func(cmd *cobra.Command, args []string) error {
 				cfg, err := config.GetConfig()
@@ -29,7 +29,7 @@ func evmInternalTxCmd() *cobra.Command {
 				}
 				defer db.Close()
 
-				indexer := internaltx.New(cfg, logger, db)
+				indexer := curated.New(cfg, logger, db)
 				return indexer.Run()
 			},
 		}

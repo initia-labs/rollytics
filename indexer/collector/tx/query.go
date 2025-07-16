@@ -45,8 +45,6 @@ func getEvmTxs(client *fiber.Client, cfg *config.Config, height int64) (txs []ty
 	if cfg.GetVmType() != types.EVM {
 		return
 	}
-	// TODO: add block in internal transaction queue, without waiting for the result
-	evmTxQueue <- height
 
 	payload := map[string]interface{}{
 		"jsonrpc": "2.0",
