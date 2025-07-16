@@ -31,3 +31,8 @@ type ParsedEvent struct {
 	abci.Event
 	AttrMap map[string]string
 }
+
+type NftCount struct {
+	CollectionAddr string
+	Count          int64
+}

@@ -178,16 +178,24 @@ func (sub *MoveNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 	}
 
 	// update nft count
+	var updateAddrs []string
 	for collectionAddr := range updateCountMap {
-		var nftCount int64
-		if err := tx.Model(&types.CollectedNft{}).
-			Where("collection_addr = ?", collectionAddr).
-			Count(&nftCount).Error; err != nil {
-			return err
-		}
+		updateAddrs = append(updateAddrs, collectionAddr)
+	}
+
+	var nftCounts []indexertypes.NftCount
+	if err := tx.Table("nft").
+		Select("collection_addr, COUNT(*) as count").
+		Where("collection_addr IN ?", updateAddrs).
+		Group("collection_addr").
+		Scan(&nftCounts).Error; err != nil {
+		return err
+	}
+
+	for _, nftCount := range nftCounts {
 		if err := tx.Model(&types.CollectedNftCollection{}).
-			Where("addr = ?", collectionAddr).
-			Updates(map[string]interface{}{"nft_count": nftCount}).Error; err != nil {
+			Where("addr = ?", nftCount.CollectionAddr).
+			Update("nft_count", nftCount.Count).Error; err != nil {
 			return err
 		}
 	}

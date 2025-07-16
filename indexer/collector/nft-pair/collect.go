@@ -65,7 +65,7 @@ func Collect(block indexertypes.ScrapedBlock, cfg *config.Config, tx *gorm.DB) e
 	for l2CollectionName, l1CollectionName := range collectionPairMap {
 		if err := tx.Model(&types.CollectedNftCollection{}).
 			Where("name = ?", l2CollectionName).
-			Updates(map[string]interface{}{"origin_name": l1CollectionName}).Error; err != nil {
+			Update("origin_name", l1CollectionName).Error; err != nil {
 			return err
 		}
 	}
