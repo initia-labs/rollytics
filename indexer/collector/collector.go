@@ -92,6 +92,7 @@ func (c *Collector) Collect(sb indexertypes.ScrapedBlock) error {
 		return nil
 	}, &sql.TxOptions{Isolation: sql.LevelSerializable})
 
+	// TODO: if vm type is EVM, produce a message to a queue for EVM internal txs
 	// handle serialization error
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == "40001" {
