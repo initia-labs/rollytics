@@ -74,7 +74,7 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) er
 		}
 
 		// get rest tx from map
-		var sigStrings []string
+		sigStrings := make([]string, 0, len(raw.Signatures))
 		for _, sig := range raw.Signatures {
 			sigStrings = append(sigStrings, base64.StdEncoding.EncodeToString(sig))
 		}

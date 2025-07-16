@@ -24,6 +24,7 @@ var (
 
 //nolint:dupl
 func GetOrCreateAccountIds(db *gorm.DB, accounts []string, createNew bool) (ids []int64, err error) {
+	ids = make([]int64, 0, len(accounts))
 	for _, account := range accounts {
 		if id, ok := accountCache.Get(account); ok {
 			ids = append(ids, id)
@@ -54,6 +55,7 @@ func GetOrCreateAccountIds(db *gorm.DB, accounts []string, createNew bool) (ids 
 }
 
 func GetOrCreateNftIds(db *gorm.DB, keys []NftKey, createNew bool) (ids []int64, err error) {
+	ids = make([]int64, 0, len(keys))
 	for _, key := range keys {
 		if id, ok := nftCache.Get(key); ok {
 			ids = append(ids, id)
@@ -85,6 +87,7 @@ func GetOrCreateNftIds(db *gorm.DB, keys []NftKey, createNew bool) (ids []int64,
 
 //nolint:dupl
 func GetOrCreateMsgTypeIds(db *gorm.DB, msgTypes []string, createNew bool) (ids []int64, err error) {
+	ids = make([]int64, 0, len(msgTypes))
 	for _, msgType := range msgTypes {
 		if id, ok := msgTypeCache.Get(msgType); ok {
 			ids = append(ids, id)
@@ -116,6 +119,7 @@ func GetOrCreateMsgTypeIds(db *gorm.DB, msgTypes []string, createNew bool) (ids 
 
 //nolint:dupl
 func GetOrCreateTypeTagIds(db *gorm.DB, typeTags []string, createNew bool) (ids []int64, err error) {
+	ids = make([]int64, 0, len(typeTags))
 	for _, typeTag := range typeTags {
 		if id, ok := typeTagCache.Get(typeTag); ok {
 			ids = append(ids, id)
