@@ -127,7 +127,7 @@ func (c Config) GetLogLevel() slog.Level {
 	case "error":
 		return slog.LevelError
 	default:
-		return slog.LevelDebug
+		return slog.LevelWarn
 	}
 }
 
