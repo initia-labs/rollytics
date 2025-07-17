@@ -19,7 +19,7 @@ type EvmNftSubmodule struct {
 	logger    *slog.Logger
 	cfg       *config.Config
 	cache     map[int64]CacheData
-	blacklist *cache.Cache[string, struct{}]
+	blacklist *cache.Cache[string, interface{}]
 	mtx       sync.Mutex
 }
 
@@ -28,7 +28,7 @@ func New(logger *slog.Logger, cfg *config.Config) *EvmNftSubmodule {
 		logger: logger.With("submodule", SubmoduleName),
 		cfg:    cfg,
 		cache:  make(map[int64]CacheData),
-		blacklist: cache.New[string, struct{}](1000),
+		blacklist: cache.New[string, interface{}](1000),
 	}
 }
 
@@ -55,7 +55,7 @@ func (sub *EvmNftSubmodule) Collect(block types.ScrapedBlock, tx *gorm.DB) error
 }
 
 func (sub *EvmNftSubmodule) AddToBlacklist(addr string) {
-	sub.blacklist.Set(addr, struct{}{})
+	sub.blacklist.Set(addr, nil)
 }
 
 func (sub *EvmNftSubmodule) IsBlacklisted(addr string) bool {
