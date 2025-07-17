@@ -34,7 +34,8 @@ func getValidator(validatorAddr string, cfg *config.Config) (*Validator, error) 
 	if ok {
 		return cached, nil
 	}
-
+	// FIXME
+	fmt.Println("Fetching validator from API:", validatorAddr)
 	client := fiber.AcquireClient()
 	defer fiber.ReleaseClient(client)
 

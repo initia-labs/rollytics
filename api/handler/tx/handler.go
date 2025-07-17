@@ -21,7 +21,7 @@ func NewTxHandler(base *common.BaseHandler) *TxHandler {
 }
 
 func (h *TxHandler) Register(router fiber.Router) {
-	txs := router.Group("/tx/v1")
+	txs := router.Group("indexer/tx/v1")
 
 	txs.Get("/txs", cache.New(cache.Config{Expiration: time.Second}), h.GetTxs)
 	txs.Get("/txs/by_account/:account", cache.New(cache.Config{Expiration: time.Second}), h.GetTxsByAccount)

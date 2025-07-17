@@ -29,6 +29,8 @@ You can configure database, chain, logging, and server options via environment v
 			if err != nil {
 				return err
 			}
+			// set version and commit hash
+			cfg.SetVersion(version, commitHash)
 
 			logger := log.NewLogger(cfg)
 			db, err := orm.OpenDB(cfg.GetDBConfig(), logger)

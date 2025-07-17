@@ -21,6 +21,9 @@ type Config struct {
 	logFormat       string
 	coolingDuration time.Duration // for indexer only
 	queryTimeout    time.Duration // for indexer only
+
+	version    string
+	commitHash string
 }
 
 func setDefaults() {
@@ -164,4 +167,17 @@ func (c Config) Validate() error {
 		return err
 	}
 	return nil
+}
+
+func (c *Config) SetVersion(v, commit string) {
+	c.version = v
+	c.commitHash = commit
+}
+
+func (c *Config) GetVersion() string {
+	return c.version
+}
+
+func (c *Config) GetCommitHash() string {
+	return c.commitHash
 }

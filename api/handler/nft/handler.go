@@ -20,7 +20,7 @@ func NewNftHandler(base *common.BaseHandler) *NftHandler {
 }
 
 func (h *NftHandler) Register(router fiber.Router) {
-	nfts := router.Group("/nft/v1")
+	nfts := router.Group("indexer/nft/v1")
 
 	// Collections routes
 	collections := nfts.Group("/collections")

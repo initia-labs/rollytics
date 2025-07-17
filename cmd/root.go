@@ -6,9 +6,14 @@ import (
 )
 
 var (
-	Version    = "dev"
-	CommitHash = "unknown"
+	version    = "dev"
+	commitHash = "unknown"
 )
+
+func SetVersion(v, commit string) {
+    version = v
+    commitHash = commit
+}
 
 func versionCmd() *cobra.Command {
 	var verbose bool
@@ -17,9 +22,9 @@ func versionCmd() *cobra.Command {
 		Short: "Show version information",
 		Run: func(cmd *cobra.Command, args []string) {
 			if verbose {
-				cmd.Printf("Version: %s\nCommit: %s\n", Version, CommitHash)
+				cmd.Printf("Version: %s\nCommit: %s\n", version, commitHash)
 			} else {
-				cmd.Println(Version)
+				cmd.Println(version)
 			}
 		},
 	}

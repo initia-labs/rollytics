@@ -43,9 +43,7 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Api {
 		},
 	})
 
-	app.Get("/health", health)
-	api := app.Group("/indexer")
-	handler.Register(api, db, cfg, logger)
+	handler.Register(app, db, cfg, logger)
 
 	// Swagger documentation
 	swaggerConfig := swagger.Config{
@@ -96,11 +94,3 @@ func (a *Api) Shutdown() error {
 	return a.app.Shutdown()
 }
 
-// health handles GET /health
-// @Summary Health check
-// @Tags App
-// @Success 200 "OK"
-// @Router /health [get]
-func health(c *fiber.Ctx) error {
-	return c.SendString("OK")
-}
