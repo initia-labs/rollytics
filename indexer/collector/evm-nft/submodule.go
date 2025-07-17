@@ -6,6 +6,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"github.com/initia-labs/rollytics/cache"
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/indexer/types"
 )
@@ -18,7 +19,7 @@ type EvmNftSubmodule struct {
 	logger    *slog.Logger
 	cfg       *config.Config
 	cache     map[int64]CacheData
-	blacklist sync.Map
+	blacklist *cache.Cache[string, struct{}]
 	mtx       sync.Mutex
 }
 
@@ -27,6 +28,7 @@ func New(logger *slog.Logger, cfg *config.Config) *EvmNftSubmodule {
 		logger: logger.With("submodule", SubmoduleName),
 		cfg:    cfg,
 		cache:  make(map[int64]CacheData),
+		blacklist: cache.New[string, struct{}](1000),
 	}
 }
 
@@ -53,10 +55,10 @@ func (sub *EvmNftSubmodule) Collect(block types.ScrapedBlock, tx *gorm.DB) error
 }
 
 func (sub *EvmNftSubmodule) AddToBlacklist(addr string) {
-	sub.blacklist.Store(addr, nil)
+	sub.blacklist.Set(addr, struct{}{})
 }
 
 func (sub *EvmNftSubmodule) IsBlacklisted(addr string) bool {
-	_, found := sub.blacklist.Load(addr)
+	_, found := sub.blacklist.Get(addr)
 	return found
 }
