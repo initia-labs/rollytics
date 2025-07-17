@@ -1,13 +1,15 @@
 package nft
 
 import (
+	"time"
+
 	"github.com/initia-labs/rollytics/cache"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
 )
 
 // cache for collection data
-var collectionCache = cache.New[string, *types.CollectedNftCollection](100)
+var collectionCache = cache.NewTTL[string, *types.CollectedNftCollection](100, 10*time.Minute)
 
 func getCollection(database *orm.Database, collectionAddr string) (*types.CollectedNftCollection, error) {
 	cached, ok := collectionCache.Get(collectionAddr)
