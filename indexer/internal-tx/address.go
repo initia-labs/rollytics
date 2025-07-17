@@ -1,4 +1,4 @@
-package curated
+package internal_tx
 
 import (
 	"strings"

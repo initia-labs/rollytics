@@ -1,4 +1,4 @@
-package curated
+package internal_tx
 
 import (
 	"database/sql"
@@ -6,50 +6,48 @@ import (
 	"fmt"
 	"log/slog"
 	"strconv"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
-	curtypes "github.com/initia-labs/rollytics/curated/types"
+	"github.com/jackc/pgx/v5/pgconn"
+
+	indexerutil "github.com/initia-labs/rollytics/indexer/util"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
 	"github.com/initia-labs/rollytics/util"
-	"github.com/jackc/pgx/v5/pgconn"
 	"golang.org/x/sync/errgroup"
 	"gorm.io/gorm"
 )
 
-// TODO: it may be replaced with external queue system like RabbitMQ or Kafka
-var evmTxQueue = make(chan int64, 100)
-
-func (i *InternalTxIndexer) collect() {
-	go func() {
-		for {
-			// TODO: replace this one to use rabbitmq
-			height := <-evmTxQueue
-			if height <= 0 {
-				continue
-			}
-
-			if err := i.collectEvmInternalTxs(i.db, height); err != nil {
-				// TODO: replay
-				i.logger.Error("failed to collect EVM internal txs", slog.Any("height", height), slog.Any("error", err))
-			}
+func (i *Indexer) collect(heightChan <-chan int64) {
+	for height := range heightChan {
+		// 1. Scrap internal transactions from the EVM block
+		callTraceRes, prestateRes, err := i.scrapInternalTxs(height)
+		if err != nil {
+			i.logger.Error("failed to scrap internal transactions", slog.Int64("height", height), slog.Any("error", err))
+			continue
 		}
-
-	}()
+		// 2. Collect internal transactions
+		if err := i.collectInternalTxs(i.db, height, callTraceRes, prestateRes); err != nil {
+			i.logger.Error("failed to collect internal transactions", slog.Int64("height", height), slog.Any("error", err))
+			continue
+		}
+		time.Sleep(i.cfg.GetCoolingDuration())
+	}
 }
 
-func (i *InternalTxIndexer) collectEvmInternalTxs(db *orm.Database, blockHeight int64) error {
-	var g errgroup.Group
-	var err error
-
+// Get EVM internal transactions for the debug_traceBlock
+func (i *Indexer) scrapInternalTxs(height int64) (*CallTracerResponse, *PrestateTracerResponse, error) {
 	client := fiber.AcquireClient()
 	defer fiber.ReleaseClient(client)
-
-	var callTracerBlockRes *curtypes.CallTracerResponse
-	var prestateTracerBlockRes *curtypes.PrestateTracerResponse
-	// 1. Get EVM internal transactions for the debug_traceBlock
+	var (
+		g                errgroup.Group
+		err              error
+		callTraceRes     *CallTracerResponse
+		prestateTraceRes *PrestateTracerResponse
+	)
 	g.Go(func() error {
-		prestateTracerBlockRes, err = prestateTracerByBlock(i.cfg, client, blockHeight)
+		callTraceRes, err = TraceCallByBlock(i.cfg, client, height)
 		if err != nil {
 			return err
 		}
@@ -57,7 +55,7 @@ func (i *InternalTxIndexer) collectEvmInternalTxs(db *orm.Database, blockHeight 
 	})
 
 	g.Go(func() error {
-		callTracerBlockRes, err = callTracerByBlock(i.cfg, client, blockHeight)
+		prestateTraceRes, err = TraceStateByBlock(i.cfg, client, height)
 		if err != nil {
 			return err
 		}
@@ -65,13 +63,21 @@ func (i *InternalTxIndexer) collectEvmInternalTxs(db *orm.Database, blockHeight 
 	})
 
 	if err := g.Wait(); err != nil {
-		return err
+		return nil, nil, err
 	}
+	return callTraceRes, prestateTraceRes, nil
+}
 
-	err = db.Transaction(func(tx *gorm.DB) error {
+func (i *Indexer) collectInternalTxs(db *orm.Database, height int64, callTraceRes *CallTracerResponse, prestateTraceRes *PrestateTracerResponse) error {
+	// Iterate over the internal calls of transaction
+	err := db.Transaction(func(tx *gorm.DB) error {
+		seqInfo, err := indexerutil.GetSeqInfo("evm_internal_tx", tx)
+		if err != nil {
+			return err
+		}
 		var evmTxs []types.CollectedEvmTx
 		if err := tx.Model(&types.CollectedEvmTx{}).
-			Where("height = ?", blockHeight).
+			Where("height = ?", height).
 			Order("sequence ASC").
 			Select("hash, height, account_ids").
 			Find(&evmTxs).Error; err != nil {
@@ -79,15 +85,15 @@ func (i *InternalTxIndexer) collectEvmInternalTxs(db *orm.Database, blockHeight 
 			return err
 		}
 
-		if len(callTracerBlockRes.Result) != len(evmTxs) || len(prestateTracerBlockRes.Result) != len(evmTxs) {
+		if len(callTraceRes.Result) != len(evmTxs) || len(prestateTraceRes.Result) != len(evmTxs) {
 			// error handling: number of internal transactions does not match the number of EVM transactions
 			return fmt.Errorf("number of internal transactions (%d) does not match the number of EVM transactions (%d) at height %d",
-				len(callTracerBlockRes.Result), len(evmTxs), blockHeight)
+				len(callTraceRes.Result), len(evmTxs), height)
 		}
 
-		// 2. Iterate over the internal calls of transaction
 		var internalTxs []types.CollectedEvmInternalTx
-		for idx, traceTxRes := range callTracerBlockRes.Result {
+		for idx, traceTxRes := range callTraceRes.Result {
+			prestateTracing := prestateTraceRes.Result[idx]
 			evmTx := evmTxs[idx]
 			evmTxAccountIds := evmTx.AccountIds
 			accountMap := make(map[int64]any)
@@ -122,9 +128,12 @@ func (i *InternalTxIndexer) collectEvmInternalTxs(db *orm.Database, blockHeight 
 				for _, accId := range subAccIds {
 					accountMap[accId] = nil
 				}
+				seqInfo.Sequence++
+
 				internalTxs = append(internalTxs, types.CollectedEvmInternalTx{
 					Height:     evmTx.Height,
 					Hash:       evmTx.Hash,
+					Sequence:   int64(seqInfo.Sequence),
 					Index:      int64(subIdx),
 					Type:       internalTx.Type,
 					From:       internalTx.From,
@@ -135,6 +144,8 @@ func (i *InternalTxIndexer) collectEvmInternalTxs(db *orm.Database, blockHeight 
 					Gas:        gas,
 					GasUsed:    gasUsed,
 					AccountIds: subAccIds,
+					PreState:   prestateTracing.Result.Pre,
+					PostState:  prestateTracing.Result.Post,
 				})
 
 			}
@@ -160,10 +171,10 @@ func (i *InternalTxIndexer) collectEvmInternalTxs(db *orm.Database, blockHeight 
 	})
 
 	if err != nil {
-		// handle serialization error
+		// handle intended serialization error
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "40001" {
-			i.logger.Info("block already indexed", slog.Int64("height", blockHeight))
+			i.logger.Info("block already indexed", slog.Int64("height", height))
 			return nil
 		}
 

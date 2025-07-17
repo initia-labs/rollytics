@@ -1,4 +1,4 @@
-package curated
+package internal_tx
 
 import (
 	"encoding/json"
@@ -6,11 +6,10 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/initia-labs/rollytics/config"
-	curtypes "github.com/initia-labs/rollytics/curated/types"
 	"github.com/initia-labs/rollytics/util"
 )
 
-func callTracerByBlock(cfg *config.Config, client *fiber.Client, height int64) (*curtypes.CallTracerResponse, error) {
+func TraceCallByBlock(cfg *config.Config, client *fiber.Client, height int64) (*CallTracerResponse, error) {
 	payload := map[string]interface{}{
 		"jsonrpc": "2.0",
 		"method":  "debug_traceBlockByNumber",
@@ -24,14 +23,14 @@ func callTracerByBlock(cfg *config.Config, client *fiber.Client, height int64) (
 		return nil, err
 	}
 
-	var res curtypes.CallTracerResponse
+	var res CallTracerResponse
 	if err := json.Unmarshal(body, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
 }
 
-func prestateTracerByBlock(cfg *config.Config, client *fiber.Client, height int64) (*curtypes.PrestateTracerResponse, error) {
+func TraceStateByBlock(cfg *config.Config, client *fiber.Client, height int64) (*PrestateTracerResponse, error) {
 	payload := map[string]interface{}{
 		"jsonrpc": "2.0",
 		"method":  "debug_traceBlockByNumber",
@@ -53,7 +52,7 @@ func prestateTracerByBlock(cfg *config.Config, client *fiber.Client, height int6
 		return nil, err
 	}
 
-	var res curtypes.PrestateTracerResponse
+	var res PrestateTracerResponse
 	if err := json.Unmarshal(body, &res); err != nil {
 		return nil, err
 	}

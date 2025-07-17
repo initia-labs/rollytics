@@ -1,6 +1,10 @@
-package types
+package internal_tx
 
-import "github.com/initia-labs/rollytics/types"
+import (
+	"encoding/json"
+
+	"github.com/initia-labs/rollytics/types"
+)
 
 type CallTracerResponse struct {
 	Result []TracingCall `json:"result"`
@@ -19,15 +23,15 @@ type TracingCall struct {
 }
 
 type PrestateTracerResponse struct {
-	Result []PrestateTracerTx `json:"result"`
+	Result []PrestateTraceResult `json:"result"`
 }
 
-type PrestateTracerTx struct {
+type PrestateTraceResult struct {
 	TxHash string                `json:"txHash"`
 	Result PrestateTracerTxState `json:"result"`
 }
 
 type PrestateTracerTxState struct {
-	Post map[string]interface{} `json:"post"`
-	Pre  map[string]interface{} `json:"pre"`
+	Post json.RawMessage `json:"post"`
+	Pre  json.RawMessage `json:"pre"`
 }

@@ -45,7 +45,6 @@ comprehensive data collection and API services for blockchain networks.`,
 	cmd.AddCommand(indexerCmd())
 	cmd.AddCommand(apiCmd())
 	cmd.AddCommand(migrateCmd())
-	cmd.AddCommand(evmInternalTxCmd())
 
 	return cmd
 }
