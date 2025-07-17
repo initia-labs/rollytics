@@ -1,4 +1,4 @@
-name: Scan API Image delivery
+name: Rollytics Indexer Image delivery
 
 on:
   workflow_dispatch:
