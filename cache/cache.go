@@ -1,34 +1,27 @@
 package cache
 
-import "sync"
+import (
+	"fmt"
 
-type BoundedCache[K comparable, V any] struct {
-	m       map[K]V
-	mtx     sync.RWMutex
-	maxSize int
+	lru "github.com/hashicorp/golang-lru/v2"
+)
+
+type Cache[K comparable, V any] struct {
+	cache *lru.Cache[K, V]
 }
 
-func New[K comparable, V any](maxSize int) *BoundedCache[K, V] {
-	return &BoundedCache[K, V]{
-		m:       make(map[K]V),
-		maxSize: maxSize,
+func New[K comparable, V any](maxSize int) *Cache[K, V] {
+	c, err := lru.New[K, V](maxSize)
+	if err != nil {
+		panic(fmt.Sprintf("failed to initialize LRU cache: %s", err.Error()))
 	}
+	return &Cache[K, V]{cache: c}
 }
 
-func (cache *BoundedCache[K, V]) Get(key K) (V, bool) {
-	cache.mtx.RLock()
-	defer cache.mtx.RUnlock()
-	val, ok := cache.m[key]
-	return val, ok
+func (c *Cache[K, V]) Get(key K) (V, bool) {
+	return c.cache.Get(key)
 }
 
-func (cache *BoundedCache[K, V]) Set(key K, value V) {
-	cache.mtx.Lock()
-	defer cache.mtx.Unlock()
-
-	if len(cache.m) >= cache.maxSize {
-		cache.m = make(map[K]V)
-	}
-
-	cache.m[key] = value
+func (c *Cache[K, V]) Set(key K, value V) {
+	c.cache.Add(key, value)
 }

@@ -9,6 +9,7 @@ require (
 	github.com/cosmos/cosmos-sdk v0.50.13
 	github.com/gofiber/fiber/v2 v2.52.8
 	github.com/gofiber/swagger v1.1.1
+	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/initia-labs/initia v1.1.2
 	github.com/initia-labs/minievm v1.1.4
 	github.com/jackc/pgx/v5 v5.7.4
