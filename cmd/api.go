@@ -1,6 +1,11 @@
 package cmd
 
 import (
+	"log/slog"
+	"os"
+	"os/signal"
+	"syscall"
+
 	"github.com/spf13/cobra"
 
 	"github.com/initia-labs/rollytics/api"
@@ -33,6 +38,20 @@ You can configure database, chain, logging, and server options via environment v
 			defer db.Close() //nolint:errcheck
 
 			server := api.New(cfg, logger, db)
+
+			// graceful shutdown
+			sigChan := make(chan os.Signal, 1)
+			signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+			go func() {
+				<-sigChan
+				logger.Info("shutting down API server...")
+				if err := server.Shutdown(); err != nil {
+					logger.Error("graceful shutdown failed", slog.String("error", err.Error()))
+					os.Exit(1)
+				}
+				os.Exit(0)
+			}()
+
 			return server.Start()
 		},
 	}
