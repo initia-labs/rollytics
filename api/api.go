@@ -85,7 +85,6 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Api {
 // @tag.description NFT related operations
 func (a *Api) Start() error {
 	port := a.cfg.GetListenPort()
-	docs.SwaggerInfo.Host = fmt.Sprintf("localhost:%s", port)
 	docs.SwaggerInfo.Title = "Rollytics API"
 	docs.SwaggerInfo.Description = "Rollytics API"
 
