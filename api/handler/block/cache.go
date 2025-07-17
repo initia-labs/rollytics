@@ -19,7 +19,6 @@ type Validator struct {
 	Moniker         string          `json:"moniker"`
 	OperatorAddress string          `json:"operator_address"`
 	ConsensusPubkey ConsensusPubkey `json:"consensus_pubkey"`
-	ConsPower       string          `json:"cons_power"`
 }
 
 type ConsensusPubkey struct {
