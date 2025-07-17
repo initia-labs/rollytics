@@ -83,6 +83,14 @@ func filterWasmData(block indexertypes.ScrapedBlock) (colAddrs []string, err err
 		if !found || action != "mint" {
 			continue
 		}
+		_, found = event.AttrMap["owner"]
+		if !found {
+			continue
+		}
+		_, found = event.AttrMap["token_id"]
+		if !found {
+			continue
+		}
 
 		collectionAddrMap[collectionAddr] = nil
 	}
