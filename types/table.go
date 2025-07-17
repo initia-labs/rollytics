@@ -54,10 +54,10 @@ type CollectedEvmTx struct {
 type CollectedNftCollection struct {
 	Addr       string `gorm:"type:text;primaryKey"`
 	Height     int64  `gorm:"type:bigint;index:nft_collection_height"`
-	Name       string `gorm:"type:text;index:nft_collection_name"`
-	OriginName string `gorm:"type:text;index:nft_collection_origin_name"`
-	Creator    string `gorm:"type:text"`
-	NftCount   int64  `gorm:"type:bigint"`
+	Name       string `gorm:"type:text;index:nft_collection_name_btree,priority:1;"`
+	OriginName string `gorm:"type:text;index:nft_collection_origin_name_btree,priority:1;"`
+	Creator   string `gorm:"type:text"`
+	NftCount  int64  `gorm:"type:bigint"`
 }
 
 type CollectedNft struct {

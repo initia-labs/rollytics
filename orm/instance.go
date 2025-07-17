@@ -79,7 +79,20 @@ func (d Database) Migrate() error {
 		return err
 	}
 
-	return nil
+	return d.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec(`CREATE EXTENSION IF NOT EXISTS pg_trgm`).Error; err != nil {
+			return err
+		}
+
+		if err := tx.Exec(`CREATE INDEX IF NOT EXISTS nft_collection_name_trgm ON nft_collection USING GIN (name gin_trgm_ops)`).Error; err != nil {
+			return err
+		}
+
+		if err := tx.Exec(`CREATE INDEX IF NOT EXISTS nft_collection_origin_name_trgm ON nft_collection USING GIN (origin_name gin_trgm_ops)`).Error; err != nil {
+			return err
+		}
+		return nil
+	})
 }
 
 func (d Database) Close() error {
