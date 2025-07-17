@@ -70,3 +70,6 @@ Start the indexer:
 
 ## License
 - Proprietary. All rights reserved. 
+
+## Changelog
+For full version history, see **[CHANGELOG.md](CHANGELOG.md)**.
