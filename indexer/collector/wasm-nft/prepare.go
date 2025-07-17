@@ -99,5 +99,5 @@ func filterWasmData(block indexertypes.ScrapedBlock) (colAddrs []string, err err
 		colAddrs = append(colAddrs, addr)
 	}
 
-	return
+	return colAddrs, err
 }

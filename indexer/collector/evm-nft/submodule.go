@@ -25,9 +25,9 @@ type EvmNftSubmodule struct {
 
 func New(logger *slog.Logger, cfg *config.Config) *EvmNftSubmodule {
 	return &EvmNftSubmodule{
-		logger: logger.With("submodule", SubmoduleName),
-		cfg:    cfg,
-		cache:  make(map[int64]CacheData),
+		logger:    logger.With("submodule", SubmoduleName),
+		cfg:       cfg,
+		cache:     make(map[int64]CacheData),
 		blacklist: cache.New[string, interface{}](1000),
 	}
 }
