@@ -8,8 +8,6 @@ import (
 var (
 	Version    = "dev"
 	CommitHash = "unknown"
-	LogFormat  = "plain"
-	LogLevel   = "warn"
 )
 
 func versionCmd() *cobra.Command {
@@ -41,8 +39,8 @@ comprehensive data collection and API services for blockchain networks.`,
 		},
 	}
 
-	cmd.PersistentFlags().StringVar(&LogFormat, "log_format", "plain", "Log format: plain (default) or json")
-	cmd.PersistentFlags().StringVar(&LogLevel, "log_level", "warn", "Log level: debug, info, warn (default), error")
+	cmd.PersistentFlags().String("log_format", "plain", "Log format: plain (default) or json")
+	cmd.PersistentFlags().String("log_level", "warn", "Log level: debug, info, warn (default), error")
 	_ = viper.BindPFlag("LOG_FORMAT", cmd.PersistentFlags().Lookup("log_format"))
 	_ = viper.BindPFlag("LOG_LEVEL", cmd.PersistentFlags().Lookup("log_level"))
 
