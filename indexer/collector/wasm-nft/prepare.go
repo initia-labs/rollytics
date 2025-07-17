@@ -2,7 +2,7 @@ package wasm_nft
 
 import (
 	"fmt"
-	"strings"
+	"regexp"
 	"sync"
 
 	"github.com/gofiber/fiber/v2"
@@ -11,6 +11,8 @@ import (
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
 	"github.com/initia-labs/rollytics/indexer/util"
 )
+
+var parseErrRegex = regexp.MustCompile(`Error parsing into type [^:]+::msg::QueryMsg: unknown variant`)
 
 func (sub *WasmNftSubmodule) prepare(block indexertypes.ScrapedBlock) error {
 	client := fiber.AcquireClient()
@@ -36,7 +38,7 @@ func (sub *WasmNftSubmodule) prepare(block indexertypes.ScrapedBlock) error {
 			info, err := getCollectionInfo(addr, client, sub.cfg, block.Height)
 			if err != nil {
 				errString := fmt.Sprintf("%+v", err)
-				if strings.Contains(errString, "Error parsing into type sg721_base::msg::QueryMsg: unknown variant") {
+				if parseErrRegex.MatchString(errString) {
 					sub.AddToBlacklist(addr)
 					return nil
 				}
