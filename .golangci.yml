@@ -1,0 +1,66 @@
+version: "2"
+run:
+  tests: true
+linters:
+  enable:
+    - asasalint
+    - bodyclose
+    # - depguard
+    - dogsled
+    - dupl
+    - durationcheck
+    - errorlint
+    - forbidigo
+    # - gocognit
+    - gocritic
+    # - gocyclo
+    - gosec
+    - makezero
+    - misspell
+    - nakedret
+    - nestif
+    - noctx
+    - nolintlint
+    - revive
+    - rowserrcheck
+    - staticcheck
+    - thelper
+    - tparallel
+    - unparam
+    - wastedassign
+    - whitespace
+    # - wrapcheck
+    - zerologlint
+  settings:
+    dupl:
+      threshold: 100
+    gocyclo:
+      min-complexity: 20
+    lll:
+      line-length: 120
+      tab-width: 4
+    revive:
+      severity: warning
+  exclusions:
+    generated: lax
+    rules:
+      - path: (.+)\.go$
+        text: should have comment or be unexported
+      - path: (.+)\.go$
+        text: 'fieldalignment: struct of size.*could be.*smaller'
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    gofmt:
+      simplify: true
+    goimports:
+      local-prefixes:
+        - github.com/initia-labs/rollytics
+  exclusions:
+    generated: lax
+    

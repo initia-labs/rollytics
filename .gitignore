@@ -1,0 +1,13 @@
+.idea
+.vscode
+.DS_Store
+build
+**/*.no-commit.*
+.env
+.direnv
+
+.cursor/
+.claude/
+.codeium/
+
+/rollytics

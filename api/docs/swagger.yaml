@@ -1,0 +1,718 @@
+definitions:
+  common.PaginationResponse:
+    properties:
+      next_key:
+        type: string
+        x-order:1: true
+      previous_key:
+        type: string
+        x-order:0: true
+      total:
+        type: string
+        x-order:2: true
+    type: object
+  nft.Collection:
+    properties:
+      collection:
+        allOf:
+        - $ref: '#/definitions/nft.CollectionDetail'
+        x-order:1: true
+      object_addr:
+        type: string
+        x-order:0: true
+    type: object
+  nft.CollectionDetail:
+    properties:
+      creator:
+        type: string
+        x-order:0: true
+      name:
+        type: string
+        x-order:1: true
+      nfts:
+        allOf:
+        - $ref: '#/definitions/nft.NftHandle'
+        x-order:4: true
+      origin_name:
+        type: string
+        x-order:2: true
+    type: object
+  nft.CollectionResponse:
+    properties:
+      collection:
+        $ref: '#/definitions/nft.Collection'
+    type: object
+  nft.CollectionsResponse:
+    properties:
+      collections:
+        items:
+          $ref: '#/definitions/nft.Collection'
+        type: array
+        x-order:0: true
+      pagination:
+        allOf:
+        - $ref: '#/definitions/common.PaginationResponse'
+        x-order:1: true
+    type: object
+  nft.Nft:
+    properties:
+      collection_addr:
+        type: string
+        x-order:0: true
+      collection_name:
+        type: string
+        x-order:1: true
+      collection_origin_name:
+        type: string
+        x-order:2: true
+      nft:
+        allOf:
+        - $ref: '#/definitions/nft.NftDetails'
+        x-order:5: true
+      object_addr:
+        description: only used in Move
+        type: string
+        x-order:3: true
+      owner:
+        type: string
+        x-order:4: true
+    type: object
+  nft.NftDetails:
+    properties:
+      token_id:
+        type: string
+        x-order:2: true
+      uri:
+        type: string
+        x-order:3: true
+    type: object
+  nft.NftHandle:
+    properties:
+      handle:
+        type: string
+        x-order:0: true
+      length:
+        type: integer
+        x-order:1: true
+    type: object
+  nft.NftsResponse:
+    properties:
+      pagination:
+        allOf:
+        - $ref: '#/definitions/common.PaginationResponse'
+        x-order:1: true
+      tokens:
+        items:
+          $ref: '#/definitions/nft.Nft'
+        type: array
+        x-order:0: true
+    type: object
+  status.StatusResponse:
+    properties:
+      chain_id:
+        type: string
+        x-order:2: true
+      commit_hash:
+        type: string
+        x-order:1: true
+      height:
+        type: integer
+        x-order:3: true
+      version:
+        type: string
+        x-order:0: true
+    type: object
+info:
+  contact: {}
+paths:
+  /indexer/block/v1/avg_blocktime:
+    get:
+      consumes:
+      - application/json
+      description: Get the average block time over recent blocks
+      produces:
+      - application/json
+      responses: {}
+      summary: Get average block time
+      tags:
+      - Block
+  /indexer/block/v1/blocks:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of blocks with pagination
+      parameters:
+      - description: Pagination key
+        in: query
+        name: pagination.key
+        type: string
+      - description: Pagination offset
+        in: query
+        name: pagination.offset
+        type: integer
+      - description: Pagination limit, default is 100
+        in: query
+        name: pagination.limit
+        type: integer
+      - description: Reverse order, default is true. if set to true, the results will
+          be ordered in descending order
+        in: query
+        name: pagination.reverse
+        type: boolean
+      produces:
+      - application/json
+      responses: {}
+      summary: Get blocks
+      tags:
+      - Block
+  /indexer/block/v1/blocks/{height}:
+    get:
+      consumes:
+      - application/json
+      description: Get a specific block by its height
+      parameters:
+      - description: Block height
+        in: path
+        name: height
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses: {}
+      summary: Get block by height
+      tags:
+      - Block
+  /indexer/nft/v1/collections:
+    get:
+      consumes:
+      - application/json
+      description: Get NFT collections
+      parameters:
+      - description: Pagination key
+        in: query
+        name: pagination.key
+        type: string
+      - description: Pagination offset
+        in: query
+        name: pagination.offset
+        type: integer
+      - description: Pagination limit, default is 100
+        in: query
+        name: pagination.limit
+        type: integer
+      - description: Reverse order default is true if set to true, the results will
+          be ordered in descending order
+        in: query
+        name: pagination.reverse
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/nft.CollectionsResponse'
+      summary: Get NFT collections
+      tags:
+      - NFT
+  /indexer/nft/v1/collections/{collection_addr}:
+    get:
+      consumes:
+      - application/json
+      description: Get NFT collections for a specific address
+      parameters:
+      - description: Collection address
+        in: path
+        name: collection_addr
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/nft.CollectionResponse'
+      summary: Get NFT Collections By Collection Address
+      tags:
+      - NFT
+  /indexer/nft/v1/collections/by_account/{account}:
+    get:
+      consumes:
+      - application/json
+      description: Get NFT collections owned by a specific account
+      parameters:
+      - description: Account address
+        in: path
+        name: account
+        required: true
+        type: string
+      - description: Pagination key
+        in: query
+        name: pagination.key
+        type: string
+      - description: Pagination offset
+        in: query
+        name: pagination.offset
+        type: integer
+      - description: Pagination limit, default is 100
+        in: query
+        name: pagination.limit
+        type: integer
+      - description: Reverse order default is true if set to true, the results will
+          be ordered in descending order
+        in: query
+        name: pagination.reverse
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/nft.CollectionsResponse'
+      summary: Get NFT collections by account
+      tags:
+      - NFT
+  /indexer/nft/v1/collections/by_name/{name}:
+    get:
+      consumes:
+      - application/json
+      description: Get NFT collections for a specific name
+      parameters:
+      - description: Collection name
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: Pagination key
+        in: query
+        name: pagination.key
+        type: string
+      - description: Pagination offset
+        in: query
+        name: pagination.offset
+        type: integer
+      - description: Pagination limit, default is 100
+        in: query
+        name: pagination.limit
+        type: integer
+      - description: Reverse order default is true if set to true, the results will
+          be ordered in descending order
+        in: query
+        name: pagination.reverse
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/nft.CollectionsResponse'
+      summary: Get NFT collections by name
+      tags:
+      - NFT
+  /indexer/nft/v1/tokens/by_account/{account}:
+    get:
+      consumes:
+      - application/json
+      description: Get NFT tokens owned by a specific account
+      parameters:
+      - description: Account address
+        in: path
+        name: account
+        required: true
+        type: string
+      - description: Collection address to filter by (optional)
+        in: query
+        name: collection_addr
+        type: string
+      - description: Token ID to filter by (optional)
+        in: query
+        name: token_id
+        type: string
+      - description: Pagination key
+        in: query
+        name: pagination.key
+        type: string
+      - description: Pagination offset
+        in: query
+        name: pagination.offset
+        type: integer
+      - description: Pagination limit, default is 100
+        in: query
+        name: pagination.limit
+        type: integer
+      - description: Reverse order default is true if set to true, the results will
+          be ordered in descending order
+        in: query
+        name: pagination.reverse
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/nft.NftsResponse'
+      summary: Get NFT tokens by account
+      tags:
+      - NFT
+  /indexer/nft/v1/tokens/by_collection/{collection_addr}:
+    get:
+      consumes:
+      - application/json
+      description: Get NFT tokens from a specific collection
+      parameters:
+      - description: Collection address
+        in: path
+        name: collection_addr
+        required: true
+        type: string
+      - description: Token ID to filter by (optional)
+        in: query
+        name: token_id
+        type: string
+      - description: Pagination key
+        in: query
+        name: pagination.key
+        type: string
+      - description: Pagination offset
+        in: query
+        name: pagination.offset
+        type: integer
+      - description: Pagination limit, default is 100
+        in: query
+        name: pagination.limit
+        type: integer
+      - description: Reverse order default is true if set to true, the results will
+          be ordered in descending order
+        in: query
+        name: pagination.reverse
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/nft.NftsResponse'
+      summary: Get NFT tokens by collection
+      tags:
+      - NFT
+  /indexer/nft/v1/txs/{collection_addr}/{token_id}:
+    get:
+      consumes:
+      - application/json
+      description: Get NFT transactions for a specific collection and token ID
+      parameters:
+      - description: Collection address
+        in: path
+        name: collection_addr
+        required: true
+        type: string
+      - description: Token ID
+        in: path
+        name: token_id
+        required: true
+        type: string
+      - description: Pagination key
+        in: query
+        name: pagination.key
+        type: string
+      - description: Pagination offset
+        in: query
+        name: pagination.offset
+        type: integer
+      - description: Pagination limit, default is 100
+        in: query
+        name: pagination.limit
+        type: integer
+      - description: Reverse order default is true if set to true, the results will
+          be ordered in descending order
+        in: query
+        name: pagination.reverse
+        type: boolean
+      produces:
+      - application/json
+      responses: {}
+      summary: Get NFT transactions by collection and token ID
+      tags:
+      - NFT
+  /indexer/tx/v1/evm-txs:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of EVM transactions with pagination
+      parameters:
+      - description: Pagination key
+        in: query
+        name: pagination.key
+        type: string
+      - description: Pagination offset
+        in: query
+        name: pagination.offset
+        type: integer
+      - description: Pagination limit, default is 100
+        in: query
+        name: pagination.limit
+        type: integer
+      - description: Reverse order default is true if set to true, the results will
+          be ordered in descending order
+        in: query
+        name: pagination.reverse
+        type: boolean
+      produces:
+      - application/json
+      responses: {}
+      summary: Get EVM transactions
+      tags:
+      - EVM Tx
+  /indexer/tx/v1/evm-txs/{tx_hash}:
+    get:
+      consumes:
+      - application/json
+      description: Get a specific EVM transaction by its hash
+      parameters:
+      - description: Transaction hash
+        in: path
+        name: tx_hash
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses: {}
+      summary: Get EVM transaction by hash
+      tags:
+      - EVM Tx
+  /indexer/tx/v1/evm-txs/by_account/{account}:
+    get:
+      consumes:
+      - application/json
+      description: Get EVM transactions associated with a specific account
+      parameters:
+      - description: Account address
+        in: path
+        name: account
+        required: true
+        type: string
+      - description: Pagination key
+        in: query
+        name: pagination.key
+        type: string
+      - description: Pagination offset
+        in: query
+        name: pagination.offset
+        type: integer
+      - description: Pagination limit, default is 100
+        in: query
+        name: pagination.limit
+        type: integer
+      - description: Reverse order default is true if set to true, the results will
+          be ordered in descending order
+        in: query
+        name: pagination.reverse
+        type: boolean
+      - description: Filter by signer accounts, default is false
+        in: query
+        name: is_signer
+        type: boolean
+      produces:
+      - application/json
+      responses: {}
+      summary: Get EVM transactions by account
+      tags:
+      - EVM Tx
+  /indexer/tx/v1/evm-txs/by_height/{height}:
+    get:
+      consumes:
+      - application/json
+      description: Get EVM transactions at a specific block height
+      parameters:
+      - description: Block height
+        in: path
+        name: height
+        required: true
+        type: integer
+      - description: Pagination key
+        in: query
+        name: pagination.key
+        type: string
+      - description: Pagination offset
+        in: query
+        name: pagination.offset
+        type: integer
+      - description: Pagination limit, default is 100
+        in: query
+        name: pagination.limit
+        type: integer
+      - description: Reverse order default is true if set to true, the results will
+          be ordered in descending order
+        in: query
+        name: pagination.reverse
+        type: boolean
+      produces:
+      - application/json
+      responses: {}
+      summary: Get EVM transactions by height
+      tags:
+      - EVM Tx
+  /indexer/tx/v1/txs:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of transactions with pagination
+      parameters:
+      - description: Pagination key
+        in: query
+        name: pagination.key
+        type: string
+      - description: Pagination offset
+        in: query
+        name: pagination.offset
+        type: integer
+      - description: Pagination limit, default is 100
+        in: query
+        name: pagination.limit
+        type: integer
+      - description: Reverse order default is true if set to true, the results will
+          be ordered in descending order
+        in: query
+        name: pagination.reverse
+        type: boolean
+      - collectionFormat: multi
+        description: Message types to filter (comma-separated or multiple params)
+        example: '"cosmos.bank.v1beta1.MsgSend,initia.move.v1.MsgExecute"'
+        in: query
+        items:
+          type: string
+        name: msgs
+        type: array
+      produces:
+      - application/json
+      responses: {}
+      summary: Get transactions
+      tags:
+      - Tx
+  /indexer/tx/v1/txs/{tx_hash}:
+    get:
+      consumes:
+      - application/json
+      description: Get a specific transaction by its hash
+      parameters:
+      - description: Transaction hash
+        in: path
+        name: tx_hash
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses: {}
+      summary: Get transaction by hash
+      tags:
+      - Tx
+  /indexer/tx/v1/txs/by_account/{account}:
+    get:
+      consumes:
+      - application/json
+      description: Get transactions associated with a specific account
+      parameters:
+      - description: Account address
+        in: path
+        name: account
+        required: true
+        type: string
+      - description: Pagination key
+        in: query
+        name: pagination.key
+        type: string
+      - description: Pagination offset
+        in: query
+        name: pagination.offset
+        type: integer
+      - description: Pagination limit, default is 100
+        in: query
+        name: pagination.limit
+        type: integer
+      - description: Reverse order default is true if set to true, the results will
+          be ordered in descending order
+        in: query
+        name: pagination.reverse
+        type: boolean
+      - description: Filter by signer accounts, default is false
+        in: query
+        name: is_signer
+        type: boolean
+      - collectionFormat: multi
+        description: Message types to filter (comma-separated or multiple params)
+        example: '"cosmos.bank.v1beta1.MsgSend,initia.move.v1.MsgExecute"'
+        in: query
+        items:
+          type: string
+        name: msgs
+        type: array
+      produces:
+      - application/json
+      responses: {}
+      summary: Get transactions by account
+      tags:
+      - Tx
+  /indexer/tx/v1/txs/by_height/{height}:
+    get:
+      consumes:
+      - application/json
+      description: Get transactions at a specific block height
+      parameters:
+      - description: Block height
+        in: path
+        name: height
+        required: true
+        type: integer
+      - description: Pagination key
+        in: query
+        name: pagination.key
+        type: string
+      - description: Pagination offset
+        in: query
+        name: pagination.offset
+        type: integer
+      - description: Pagination limit, default is 100
+        in: query
+        name: pagination.limit
+        type: integer
+      - description: Reverse order default is true if set to true, the results will
+          be ordered in descending order
+        in: query
+        name: pagination.reverse
+        type: boolean
+      - collectionFormat: multi
+        description: Message types to filter (comma-separated or multiple params)
+        example: '"cosmos.bank.v1beta1.MsgSend,initia.move.v1.MsgExecute"'
+        in: query
+        items:
+          type: string
+        name: msgs
+        type: array
+      produces:
+      - application/json
+      responses: {}
+      summary: Get transactions by height
+      tags:
+      - Tx
+  /status:
+    get:
+      consumes:
+      - application/json
+      description: Get current indexer status including chain ID and latest block
+        height
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/status.StatusResponse'
+      summary: Status check
+      tags:
+      - App
+swagger: "2.0"
