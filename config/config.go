@@ -6,11 +6,11 @@ import (
 	"os"
 	"time"
 
-	"github.com/joho/godotenv"
-	"github.com/spf13/viper"
-
 	dbconfig "github.com/initia-labs/rollytics/orm/config"
 	"github.com/initia-labs/rollytics/types"
+
+	"github.com/joho/godotenv"
+	"github.com/spf13/viper"
 )
 
 var (
@@ -41,11 +41,12 @@ type Config struct {
 }
 
 type RabbitMQConfig struct {
-	Host     string
-	Port     int
-	VHost    string
-	User     string
-	Password string
+	Host       string
+	Port       int
+	VHost      string
+	User       string
+	Password   string
+	Partitions int
 }
 
 func setDefaults() {
@@ -66,6 +67,7 @@ func setDefaults() {
 	viper.SetDefault("RABBITMQ_VHOST", "rollytics")
 	viper.SetDefault("RABBITMQ_USER", "admin")
 	viper.SetDefault("RABBITMQ_PASSWORD", "admin")
+	viper.SetDefault("RABBITMQ_PARTITIONS", 3)
 }
 
 func GetConfig() (*Config, error) {
@@ -121,11 +123,12 @@ func GetConfig() (*Config, error) {
 
 		// RabbitMQ config
 		rabbitmq: RabbitMQConfig{
-			Host:     viper.GetString("RABBITMQ_HOST"),
-			Port:     viper.GetInt("RABBITMQ_PORT"),
-			VHost:    viper.GetString("RABBITMQ_VHOST"),
-			User:     viper.GetString("RABBITMQ_USER"),
-			Password: viper.GetString("RABBITMQ_PASSWORD"),
+			Host:       viper.GetString("RABBITMQ_HOST"),
+			Port:       viper.GetInt("RABBITMQ_PORT"),
+			VHost:      viper.GetString("RABBITMQ_VHOST"),
+			User:       viper.GetString("RABBITMQ_USER"),
+			Password:   viper.GetString("RABBITMQ_PASSWORD"),
+			Partitions: viper.GetInt("RABBITMQ_PARTITIONS"),
 		},
 	}
 
