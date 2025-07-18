@@ -31,8 +31,6 @@ type Config struct {
 	logFormat       string
 	coolingDuration time.Duration // for indexer only
 	queryTimeout    time.Duration // for indexer only
-	version         string
-	commitHash      string
 }
 
 func setDefaults() {
