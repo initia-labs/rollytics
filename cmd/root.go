@@ -3,11 +3,8 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-)
 
-var (
-	Version    = "dev"
-	CommitHash = "unknown"
+	"github.com/initia-labs/rollytics/config"
 )
 
 func versionCmd() *cobra.Command {
@@ -17,9 +14,9 @@ func versionCmd() *cobra.Command {
 		Short: "Show version information",
 		Run: func(cmd *cobra.Command, args []string) {
 			if verbose {
-				cmd.Printf("Version: %s\nCommit: %s\n", Version, CommitHash)
+				cmd.Printf("Version: %s\nCommit: %s\n", config.Version, config.CommitHash)
 			} else {
-				cmd.Println(Version)
+				cmd.Println(config.Version)
 			}
 		},
 	}

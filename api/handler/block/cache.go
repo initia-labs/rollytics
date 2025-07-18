@@ -34,7 +34,6 @@ func getValidator(validatorAddr string, cfg *config.Config) (*Validator, error) 
 	if ok {
 		return cached, nil
 	}
-
 	client := fiber.AcquireClient()
 	defer fiber.ReleaseClient(client)
 

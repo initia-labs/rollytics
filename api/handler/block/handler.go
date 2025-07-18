@@ -20,7 +20,7 @@ func NewBlockHandler(base *common.BaseHandler) *BlockHandler {
 }
 
 func (h *BlockHandler) Register(router fiber.Router) {
-	blocks := router.Group("/block/v1")
+	blocks := router.Group("indexer/block/v1")
 
 	blocks.Get("/blocks", cache.New(cache.Config{Expiration: time.Second}), h.GetBlocks)
 	blocks.Get("/blocks/:height", cache.New(cache.Config{Expiration: 10 * time.Second}), h.GetBlockByHeight)

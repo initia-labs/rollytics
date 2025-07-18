@@ -13,6 +13,16 @@ import (
 	"github.com/initia-labs/rollytics/types"
 )
 
+var (
+	Version    = "dev"
+	CommitHash = "unknown"
+)
+
+func SetBuildInfo(v, commit string) {
+	Version = v
+	CommitHash = commit
+}
+
 type Config struct {
 	listenPort      string
 	dbConfig        *dbconfig.Config

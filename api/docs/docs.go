@@ -15,19 +15,6 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/health": {
-            "get": {
-                "tags": [
-                    "App"
-                ],
-                "summary": "Health check",
-                "responses": {
-                    "200": {
-                        "description": "OK"
-                    }
-                }
-            }
-        },
         "/indexer/block/v1/avg_blocktime": {
             "get": {
                 "description": "Get the average block time over recent blocks",
@@ -864,6 +851,29 @@ const docTemplate = `{
                 ],
                 "responses": {}
             }
+        },
+        "/status": {
+            "get": {
+                "description": "Get current indexer status including chain ID and latest block height",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "App"
+                ],
+                "summary": "Status check",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/status.StatusResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -1030,6 +1040,27 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/nft.Nft"
                     },
+                    "x-order:0": true
+                }
+            }
+        },
+        "status.StatusResponse": {
+            "type": "object",
+            "properties": {
+                "chain_id": {
+                    "type": "string",
+                    "x-order:2": true
+                },
+                "commit_hash": {
+                    "type": "string",
+                    "x-order:1": true
+                },
+                "height": {
+                    "type": "integer",
+                    "x-order:3": true
+                },
+                "version": {
+                    "type": "string",
                     "x-order:0": true
                 }
             }
