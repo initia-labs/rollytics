@@ -1,5 +1,12 @@
-VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo 'dev')
-COMMIT_HASH ?= $(shell git rev-parse HEAD 2>/dev/null || echo 'unknown')
+# don't override user values of COMMIT and VERSION
+ifeq (,$(COMMIT_HASH))
+  COMMIT_HASH := $(shell git rev-parse HEAD 2>/dev/null || echo 'unknown')
+endif
+
+ifeq (,$(VERSION))
+  VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo 'dev')
+endif
+
 LDFLAGS := -ldflags "-s -w -X main.Version=$(VERSION) -X main.CommitHash=$(COMMIT_HASH) -X main.BuildTime=$(shell date -u '+%Y-%m-%d_%H:%M:%S')"
 
 .PHONY: test install
