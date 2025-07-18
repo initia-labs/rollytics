@@ -67,7 +67,7 @@ func setDefaults() {
 	viper.SetDefault("RABBITMQ_VHOST", "rollytics")
 	viper.SetDefault("RABBITMQ_USER", "admin")
 	viper.SetDefault("RABBITMQ_PASSWORD", "admin")
-	viper.SetDefault("RABBITMQ_PARTITIONS", 3)
+	viper.SetDefault("RABBITMQ_PARTITIONS", 1)
 }
 
 func GetConfig() (*Config, error) {
