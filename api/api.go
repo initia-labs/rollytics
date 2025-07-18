@@ -93,4 +93,3 @@ func (a *Api) Start() error {
 func (a *Api) Shutdown() error {
 	return a.app.Shutdown()
 }
-

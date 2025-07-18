@@ -1,9 +1,10 @@
 package cmd
 
 import (
-	"github.com/initia-labs/rollytics/config"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+
+	"github.com/initia-labs/rollytics/config"
 )
 
 func versionCmd() *cobra.Command {

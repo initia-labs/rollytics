@@ -2,6 +2,7 @@ package status
 
 import (
 	"github.com/gofiber/fiber/v2"
+
 	"github.com/initia-labs/rollytics/api/handler/common"
 )
 
