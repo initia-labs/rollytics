@@ -41,6 +41,7 @@ You can configure rollytics using CLI flags or environment variables. CLI flags 
 export DB_DSN='postgres://user:pass@tcp(localhost:5432)/db'
 export CHAIN_ID='myminitia-1'
 export VM_TYPE='evm'
+export JSON_RPC_URL='http://localhost:8545'
 export RPC_URL='http://localhost:26657'
 export REST_URL='http://localhost:1317'
 export PORT='8080'
@@ -52,15 +53,62 @@ export LOG_LEVEL='info'
 ## Usage
 
 ### API Server
-Start the API server:
+Start the API server :
 ```sh
 ./rollytics api
 ```
 
+By Docker :
+```sh
+# Run API server with Docker
+docker run -d \
+  --name rollytics-api \
+  -p 8080:8080 \
+  -e DB_DSN= $DB_DSN\
+  -e DB_MAX_CONNS=10 \
+  -e DB_IDLE_CONNS=10 \
+  -e COOLING_DURATION=100ms \
+  -e CHAIN_ID=$CHAIN_ID \
+  -e VM_TYPE=$VM_TYPE \
+  -e RPC_URL=$RPC_URL \
+  -e REST_URL=$REST_URL \
+  -e JSON_RPC_URL=$JSON_RPC_URL \
+  -e LOG_LEVEL='info' \
+  -e PORT='3000' \
+  -e DB_AUTO_MIGRATE='false' \
+  rollytics:$VERSION api
+
+# Check logs
+docker logs -f rollytics-api
+```
+
 ### Indexer
-Start the indexer:
+Start the indexer :
 ```sh
 ./rollytics indexer
+```
+By Docker :
+```sh
+# Run indexer with Docker
+docker run -d \
+  --name rollytics-indexer \
+  -p 3000:3000 \
+  -e DB_DSN=$DB_DSN \
+  -e DB_MAX_CONNS=10 \
+  -e DB_IDLE_CONNS=10 \
+  -e COOLING_DURATION=100ms \
+  -e CHAIN_ID=$CHAIN_ID \
+  -e VM_TYPE=$VM_TYPE \
+  -e RPC_URL=$RPC_URL \
+  -e REST_URL=$REST_URL \
+  -e JSON_RPC_URL=$JSON_RPC_URL \
+  -e LOG_LEVEL='info' \
+  -e PORT='3000' \
+  -e DB_AUTO_MIGRATE='true' \
+  rollytics:$VERSION indexer
+
+# Check logs
+docker logs -f rollytics-indexer
 ```
 
 ## Development
