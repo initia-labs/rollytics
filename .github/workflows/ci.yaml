@@ -1,16 +1,16 @@
-name: Rollytics API Image delivery
+name: Rollytics Image delivery
 
 on:
   workflow_dispatch:
   push:
     tags:
-      - "rollytics-api-v*"
+      - "v*"
     branches:
       - "main"
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: rollytics-api
+  IMAGE_NAME: rollytics
 
 jobs:
   docker:
@@ -27,6 +27,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Log in to the Container registry
         uses: docker/login-action@v3
@@ -41,7 +43,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=match,pattern=rollytics-api-v(.*),group=1,prefix=v
+            type=match,pattern=v(.*),group=1,prefix=v
             type=ref,event=branch
 
       - name: Build and push
