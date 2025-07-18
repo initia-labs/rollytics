@@ -1,5 +1,10 @@
 FROM golang:1.24-alpine AS builder
 
+# Set build info
+ARG VERSION
+
+ARG COMMIT_HASH
+
 # Install build dependencies
 RUN apk add --no-cache git ca-certificates tzdata make
 
