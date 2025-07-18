@@ -120,15 +120,8 @@ func (h *NftHandler) GetCollectionsByName(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
-	var query *gorm.DB
-	if len(name) < 3 {
-		// If name is too short, use prefix match for perf to use btree index
-		query = h.buildBaseCollectionQuery().
-			Where("name LIKE ? OR origin_name LIKE ?", name+"%", name+"%")
-	} else {
-		query = h.buildBaseCollectionQuery().
-			Where("name ILIKE ? OR origin_name ILIKE ?", "%"+name+"%", "%"+name+"%")
-	}
+	query := h.buildBaseCollectionQuery().
+		Where("name ILIKE ? OR origin_name ILIKE ?", "%"+name+"%", "%"+name+"%")
 
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
