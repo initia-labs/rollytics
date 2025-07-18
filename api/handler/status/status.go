@@ -2,6 +2,7 @@ package status
 
 import (
 	"github.com/gofiber/fiber/v2"
+	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/types"
 )
 
@@ -14,7 +15,6 @@ import (
 // @Success 200 {object} StatusResponse
 // @Router /status [get]
 func (h *StatusHandler) GetStatus(c *fiber.Ctx) error {
-	cfg := h.GetConfig()
 	var lastBlock types.CollectedBlock
 	if err := h.GetDatabase().
 		Model(&types.CollectedBlock{}).
@@ -26,8 +26,8 @@ func (h *StatusHandler) GetStatus(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(&StatusResponse{
-		Version:    cfg.GetVersion(),
-		CommitHash: cfg.GetCommitHash(),
+		Version:    config.Version,
+		CommitHash: config.CommitHash,
 		ChainId:    h.GetChainId(),
 		Height:     lastBlock.Height,
 	})

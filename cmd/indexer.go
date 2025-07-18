@@ -25,9 +25,6 @@ You can configure database, chain, logging, and indexer options via environment 
 				return err
 			}
 
-			// set version and commit hash
-			cfg.SetVersion(version, commitHash)
-
 			logger := log.NewLogger(cfg)
 			db, err := orm.OpenDB(cfg.GetDBConfig(), logger)
 			if err != nil {

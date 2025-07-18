@@ -1,6 +1,9 @@
 package main
 
-import "github.com/initia-labs/rollytics/cmd"
+import (
+	"github.com/initia-labs/rollytics/cmd"
+	"github.com/initia-labs/rollytics/config"
+)
 
 var (
 	Version    = "dev"
@@ -8,7 +11,7 @@ var (
 )
 
 func main() {
-	cmd.SetVersion(Version, CommitHash)
+	config.SetBuildInfo(Version, CommitHash)
 	if err := cmd.NewRootCmd().Execute(); err != nil {
 		panic(err)
 	}
