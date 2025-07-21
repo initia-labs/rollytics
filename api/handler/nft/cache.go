@@ -15,10 +15,10 @@ import (
 )
 
 // cache for collection data
-var addr2Collections = cache.NewTTL[string, *types.CollectedNftCollection](100, 10*time.Minute)
+var collectionCacheMap = cache.NewTTL[string, *types.CollectedNftCollection](100, 10*time.Minute)
 
 func getCollectionByAddr(database *orm.Database, collectionAddr string) (*types.CollectedNftCollection, error) {
-	cached, ok := addr2Collections.Get(collectionAddr)
+	cached, ok := collectionCacheMap.Get(collectionAddr)
 	if ok {
 		return cached, nil
 	}
@@ -28,7 +28,7 @@ func getCollectionByAddr(database *orm.Database, collectionAddr string) (*types.
 		return &collection, err
 	}
 
-	addr2Collections.Set(collectionAddr, &collection)
+	collectionCacheMap.Set(collectionAddr, &collection)
 
 	return &collection, nil
 }
@@ -40,7 +40,7 @@ type cachedCol struct {
 }
 
 var (
-	collectionCache []cachedCol // ordered by height ASC
+	cachedCols []cachedCol // ordered by height ASC
 	cacheMu         sync.RWMutex
 
 	initOnce          sync.Once
@@ -57,7 +57,7 @@ func getCollectionByName(db *orm.Database, name string, pagination *common.Pagin
 	name = strings.ToLower(sanitizer.ReplaceAllString(name, ""))
 	var results []types.CollectedNftCollection
 	cacheMu.RLock()
-	for _, c := range collectionCache {
+	for _, c := range cachedCols {
 		if strings.Contains(c.NormalizedName, name) || strings.Contains(c.NormalizedOriginName, name) {
 			results = append(results, c.CollectedNftCollection)
 		}
@@ -100,7 +100,7 @@ func refreshCache(db *orm.Database) {
 	}
 
 	cacheMu.Lock()
-	collectionCache = append(collectionCache, cols...)
+	cachedCols = append(cachedCols, cols...)
 	lastFetchedHeight = cols[len(cols)-1].Height
 	cacheMu.Unlock()
 
