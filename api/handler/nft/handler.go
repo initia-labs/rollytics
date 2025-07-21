@@ -22,6 +22,9 @@ func NewNftHandler(base *common.BaseHandler) *NftHandler {
 func (h *NftHandler) Register(router fiber.Router) {
 	nfts := router.Group("indexer/nft/v1")
 
+	// init the collection cache by name
+	initOnce.Do(func() { refreshing.Store(true); refreshCache(h.GetDatabase()) })
+
 	// Collections routes
 	collections := nfts.Group("/collections")
 	collections.Get("/", cache.New(cache.Config{Expiration: time.Second}), h.GetCollections)

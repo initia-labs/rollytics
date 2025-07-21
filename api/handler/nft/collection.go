@@ -120,23 +120,10 @@ func (h *NftHandler) GetCollectionsByName(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
-	query := h.buildBaseCollectionQuery().
-		Where("name ILIKE ? OR origin_name ILIKE ?", "%"+name+"%", "%"+name+"%")
-
-	var total int64
-	if err := query.Count(&total).Error; err != nil {
+	collections, total, err := getCollectionByName(h.GetDatabase(), name, pagination)
+	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
-
-	var collections []types.CollectedNftCollection
-	if err := query.
-		Order(pagination.OrderBy("height")).
-		Offset(pagination.Offset).
-		Limit(pagination.Limit).
-		Find(&collections).Error; err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
-	}
-
 	return c.JSON(CollectionsResponse{
 		Collections: ToCollectionsResponse(collections),
 		Pagination:  pagination.ToResponse(total),
