@@ -83,7 +83,7 @@ func getCollectionByName(db *orm.Database, name string, pagination *common.Pagin
 }
 
 func tryUpdateCollectionCache(db *orm.Database) {
-	if time.Since(time.Unix(0, lastUpdatedTime.Load())) < fetchInterval {
+	if time.Since(time.Unix(0, lastUpdatedTime.Load())) < updatingInterval {
 		return
 	}
 	// check if already updated
