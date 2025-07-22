@@ -3,6 +3,7 @@ package block
 import (
 	"encoding/json"
 	"fmt"
+	"sync"
 
 	"github.com/gofiber/fiber/v2"
 
@@ -27,7 +28,10 @@ type ConsensusPubkey struct {
 }
 
 // cache for validators
-var validatorCache = cache.New[string, *Validator](100)
+var (
+	validatorCacheOnce sync.Once
+	validatorCache     *cache.Cache[string, *Validator]
+)
 
 func getValidator(validatorAddr string, cfg *config.Config) (*Validator, error) {
 	cached, ok := validatorCache.Get(validatorAddr)

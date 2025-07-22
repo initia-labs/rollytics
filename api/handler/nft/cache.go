@@ -14,58 +14,58 @@ import (
 	"github.com/initia-labs/rollytics/types"
 )
 
+type cachedCol struct {
+	types.CollectedNftCollection `gorm:"embedded"`
+	NormalizedName               string `gorm:"-"`
+	NormalizedOriginName         string `gorm:"-"`
+} // ordered by height ASC
+
 // cache for collection data
-var collectionCacheMap = cache.NewTTL[string, *types.CollectedNftCollection](100, 10*time.Minute)
+var (
+	collectionCacheOnce sync.Once
+	// addr
+	collectionCacheByAddr *cache.TTLCache[string, *types.CollectedNftCollection]
+	// name
+	collectionCacheByName []cachedCol
+	cacheMtx              sync.RWMutex
+	lastUpdatedHeight     int64
+	lastUpdatedTime       atomic.Int64
+	updating              atomic.Bool
+
+	sanitizer = regexp.MustCompile(`[^\p{L}\p{M}\p{N}]+`)
+)
 
 func getCollectionByAddr(database *orm.Database, collectionAddr string) (*types.CollectedNftCollection, error) {
-	cached, ok := collectionCacheMap.Get(collectionAddr)
+	cached, ok := collectionCacheByAddr.Get(collectionAddr)
 	if ok {
 		return cached, nil
 	}
 
 	var collection types.CollectedNftCollection
-	if err := database.Where("addr = ?", collectionAddr).First(&collection).Error; err != nil {
+	if err := database.Model(&types.CollectedNftCollection{}).Where("addr = ?", collectionAddr).First(&collection).Error; err != nil {
 		return &collection, err
 	}
 
-	collectionCacheMap.Set(collectionAddr, &collection)
+	collectionCacheByAddr.Set(collectionAddr, &collection)
 
 	return &collection, nil
 }
 
-type cachedCol struct {
-	types.CollectedNftCollection `gorm:"embedded"`
-	NormalizedName               string `gorm:"-"`
-	NormalizedOriginName         string `gorm:"-"`
-}
-
-var (
-	cachedCols []cachedCol // ordered by height ASC
-	cacheMu         sync.RWMutex
-
-	initOnce          sync.Once
-	lastFetchedHeight int64
-	lastRefreshTime   atomic.Int64
-	refreshing        atomic.Bool
-
-	sanitizer = regexp.MustCompile(`[^\p{L}\p{M}\p{N}]+`)
-)
-
 func getCollectionByName(db *orm.Database, name string, pagination *common.Pagination) ([]types.CollectedNftCollection, int64, error) {
-	tryRefreshCache(db)
+	tryUpdateCollectionCache(db)
 
 	name = strings.ToLower(sanitizer.ReplaceAllString(name, ""))
 	var results []types.CollectedNftCollection
-	cacheMu.RLock()
-	for _, c := range cachedCols {
+	cacheMtx.RLock()
+	for _, c := range collectionCacheByName {
 		if strings.Contains(c.NormalizedName, name) || strings.Contains(c.NormalizedOriginName, name) {
 			results = append(results, c.CollectedNftCollection)
 		}
 	}
-	if pagination.Order == "DESC" {
+	if pagination.Order == common.DefaultPaginationOrderDesc {
 		slices.Reverse(results)
 	}
-	cacheMu.RUnlock()
+	cacheMtx.RUnlock()
 
 	// apply offset and limit
 	total := len(results)
@@ -80,14 +80,26 @@ func getCollectionByName(db *orm.Database, name string, pagination *common.Pagin
 	return results, int64(total), nil
 }
 
-const refreshInterval = 3 * time.Second
+const fetchInterval = 3 * time.Second
 
-func refreshCache(db *orm.Database) {
-	defer refreshing.Store(false)
+func tryUpdateCollectionCache(db *orm.Database) {
+	if time.Since(time.Unix(0, lastUpdatedTime.Load())) < fetchInterval {
+		return
+	}
+	// check if already updated
+	if !updating.CompareAndSwap(false, true) {
+		return
+	}
+
+	updateCollectionCache(db)
+}
+
+func updateCollectionCache(db *orm.Database) {
+	defer updating.Store(false)
 
 	var cols []cachedCol
 	err := db.Model(&types.CollectedNftCollection{}).
-		Where("height > ?", lastFetchedHeight).
+		Where("height > ?", lastUpdatedHeight).
 		Order("height ASC").
 		Find(&cols).Error
 	if err != nil || len(cols) == 0 {
@@ -99,22 +111,9 @@ func refreshCache(db *orm.Database) {
 		cols[i].NormalizedOriginName = strings.ToLower(sanitizer.ReplaceAllString(cols[i].OriginName, ""))
 	}
 
-	cacheMu.Lock()
-	cachedCols = append(cachedCols, cols...)
-	lastFetchedHeight = cols[len(cols)-1].Height
-	cacheMu.Unlock()
-
-	lastRefreshTime.Store(time.Now().UnixNano())
-}
-
-func tryRefreshCache(db *orm.Database) {
-	if time.Since(time.Unix(0, lastRefreshTime.Load())) < refreshInterval {
-		return
-	}
-	// check if already refreshing
-	if !refreshing.CompareAndSwap(false, true) {
-		return
-	}
-
-	go refreshCache(db)
+	cacheMtx.Lock()
+	defer cacheMtx.Unlock()
+	collectionCacheByName = append(collectionCacheByName, cols...)
+	lastUpdatedHeight = cols[len(cols)-1].Height
+	lastUpdatedTime.Store(time.Now().UnixNano())
 }

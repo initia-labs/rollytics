@@ -31,6 +31,8 @@ type Config struct {
 	logFormat       string
 	coolingDuration time.Duration // for indexer only
 	queryTimeout    time.Duration // for indexer only
+	cacheSize       int
+	cacheTTL        time.Duration // for api only
 }
 
 func setDefaults() {
@@ -90,6 +92,8 @@ func GetConfig() (*Config, error) {
 		logFormat:       viper.GetString("LOG_FORMAT"),
 		coolingDuration: viper.GetDuration("COOLING_DURATION"),
 		queryTimeout:    viper.GetDuration("QUERY_TIMEOUT"),
+		cacheSize:       viper.GetInt("CACHE_SIZE"),
+		cacheTTL:        viper.GetDuration("CACHE_TTL"),
 	}
 
 	if err := config.Validate(); err != nil {
@@ -116,6 +120,14 @@ func (c Config) GetChainConfig() *ChainConfig {
 
 func (c Config) GetDBBatchSize() int {
 	return c.dbConfig.BatchSize
+}
+
+func (c Config) GetCacheSize() int {
+	return c.cacheSize
+}
+
+func (c Config) GetCacheTTL() time.Duration {
+	return c.cacheTTL
 }
 
 func (c Config) GetChainId() string {

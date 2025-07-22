@@ -10,6 +10,13 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+const (
+	DefaultPaginationLimit     = 100
+	DefaultPaginationOffset    = 0
+	DefaultPaginationOrderDesc = "DESC"
+	DefaultPaginationOrderAsc  = "ASC"
+)
+
 type Pagination struct {
 	Limit  int
 	Offset int
@@ -23,13 +30,13 @@ type PaginationResponse struct {
 }
 
 func ParsePagination(c *fiber.Ctx) (*Pagination, error) {
-	limit := c.QueryInt("pagination.limit", 100)
-	if limit < 1 || limit > 100 {
+	limit := c.QueryInt("pagination.limit", DefaultPaginationLimit)
+	if limit < 1 || limit > DefaultPaginationLimit {
 		return nil, errors.New("pagination.limit must be between 1 and 100")
 	}
 
 	key := c.Query("pagination.key")
-	offset := c.QueryInt("pagination.offset", 0)
+	offset := c.QueryInt("pagination.offset", DefaultPaginationOffset)
 	if key != "" {
 		decoded, err := base64.StdEncoding.DecodeString(key)
 		if err != nil {
@@ -43,9 +50,9 @@ func ParsePagination(c *fiber.Ctx) (*Pagination, error) {
 	}
 
 	reverse := c.QueryBool("pagination.reverse", true)
-	order := "DESC"
+	order := DefaultPaginationOrderDesc
 	if !reverse {
-		order = "ASC"
+		order = DefaultPaginationOrderAsc
 	}
 
 	return &Pagination{
