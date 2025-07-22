@@ -44,6 +44,8 @@ func setDefaults() {
 	viper.SetDefault("QUERY_TIMEOUT", 10*time.Second)
 	viper.SetDefault("LOG_LEVEL", "warn")
 	viper.SetDefault("LOG_FORMAT", "plain")
+	viper.SetDefault("CACHE_SIZE", 1000)
+	viper.SetDefault("CACHE_TTL", 10*time.Minute)
 }
 
 func GetConfig() (*Config, error) {
@@ -177,6 +179,13 @@ func (c Config) Validate() error {
 		break
 	default:
 		return fmt.Errorf("%s is invalid log format", c.logFormat)
+	}
+
+	if c.cacheSize < 0 {
+		return fmt.Errorf("CACHE_SIZE must be non-negative")
+	}
+	if c.cacheTTL < 0 {
+		return fmt.Errorf("CACHE_TTL must be non-negative")
 	}
 
 	if err := c.dbConfig.Validate(); err != nil {
