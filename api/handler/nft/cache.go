@@ -20,6 +20,8 @@ type cachedCol struct {
 	NormalizedOriginName         string `gorm:"-"`
 } // ordered by height ASC
 
+const updatingInterval = 3 * time.Second
+
 // cache for collection data
 var (
 	collectionCacheOnce sync.Once
@@ -79,8 +81,6 @@ func getCollectionByName(db *orm.Database, name string, pagination *common.Pagin
 	}
 	return results, int64(total), nil
 }
-
-const fetchInterval = 3 * time.Second
 
 func tryUpdateCollectionCache(db *orm.Database) {
 	if time.Since(time.Unix(0, lastUpdatedTime.Load())) < fetchInterval {
