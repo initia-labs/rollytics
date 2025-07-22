@@ -33,6 +33,13 @@ var (
 	validatorCache     *cache.Cache[string, *Validator]
 )
 
+func initValidatorCache(cfg *config.Config) {
+	validatorCacheOnce.Do(func() {
+		cacheSize := cfg.GetCacheSize()
+		validatorCache = cache.New[string, *Validator](cacheSize)
+	})
+}
+
 func getValidator(validatorAddr string, cfg *config.Config) (*Validator, error) {
 	cached, ok := validatorCache.Get(validatorAddr)
 	if ok {

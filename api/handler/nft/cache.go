@@ -10,6 +10,8 @@ import (
 
 	"github.com/initia-labs/rollytics/api/handler/common"
 	"github.com/initia-labs/rollytics/cache"
+	commoncache "github.com/initia-labs/rollytics/cache"
+	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
 )
@@ -36,6 +38,15 @@ var (
 
 	sanitizer = regexp.MustCompile(`[^\p{L}\p{M}\p{N}]+`)
 )
+
+func initCollectionCache(database *orm.Database, cfg *config.Config) {
+	collectionCacheOnce.Do(func() {
+		cacheSize := cfg.GetCacheSize()
+		ttl := cfg.GetCacheTTL()
+		collectionCacheByAddr = commoncache.NewTTL[string, *types.CollectedNftCollection](cacheSize, ttl)
+		tryUpdateCollectionCache(database)
+	})
+}
 
 func getCollectionByAddr(database *orm.Database, collectionAddr string) (*types.CollectedNftCollection, error) {
 	cached, ok := collectionCacheByAddr.Get(collectionAddr)

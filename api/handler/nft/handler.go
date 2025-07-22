@@ -7,8 +7,6 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/cache"
 
 	"github.com/initia-labs/rollytics/api/handler/common"
-	commoncache "github.com/initia-labs/rollytics/cache"
-	"github.com/initia-labs/rollytics/types"
 )
 
 type NftHandler struct {
@@ -23,12 +21,7 @@ func NewNftHandler(base *common.BaseHandler) *NftHandler {
 
 func (h *NftHandler) Register(router fiber.Router) {
 	// initialize collection cache and fetch initial data
-	collectionCacheOnce.Do(func() {
-		cacheSize := h.GetConfig().GetCacheSize()
-		collectionCacheByAddr = commoncache.NewTTL[string, *types.CollectedNftCollection](cacheSize, h.GetConfig().GetCacheTTL())
-		db := h.GetDatabase()
-		tryUpdateCollectionCache(db)
-	})
+	initCollectionCache(h.GetDatabase(), h.GetConfig())
 	// register routes
 	nfts := router.Group("indexer/nft/v1")
 	// Collections routes
