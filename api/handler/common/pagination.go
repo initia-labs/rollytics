@@ -11,10 +11,10 @@ import (
 )
 
 const (
-	DefaultPaginationLimit     = 100
-	DefaultPaginationOffset    = 0
-	DefaultPaginationOrderDesc = "DESC"
-	DefaultPaginationOrderAsc  = "ASC"
+	DefaultLimit  = 100
+	DefaultOffset = 0
+	OrderDesc     = "DESC"
+	OrderAsc      = "ASC"
 )
 
 type Pagination struct {
@@ -30,13 +30,13 @@ type PaginationResponse struct {
 }
 
 func ParsePagination(c *fiber.Ctx) (*Pagination, error) {
-	limit := c.QueryInt("pagination.limit", DefaultPaginationLimit)
-	if limit < 1 || limit > DefaultPaginationLimit {
+	limit := c.QueryInt("pagination.limit", DefaultLimit)
+	if limit < 1 || limit > DefaultLimit {
 		return nil, errors.New("pagination.limit must be between 1 and 100")
 	}
 
 	key := c.Query("pagination.key")
-	offset := c.QueryInt("pagination.offset", DefaultPaginationOffset)
+	offset := c.QueryInt("pagination.offset", DefaultOffset)
 	if key != "" {
 		decoded, err := base64.StdEncoding.DecodeString(key)
 		if err != nil {
@@ -50,9 +50,9 @@ func ParsePagination(c *fiber.Ctx) (*Pagination, error) {
 	}
 
 	reverse := c.QueryBool("pagination.reverse", true)
-	order := DefaultPaginationOrderDesc
+	order := OrderDesc
 	if !reverse {
-		order = DefaultPaginationOrderAsc
+		order = OrderAsc
 	}
 
 	return &Pagination{

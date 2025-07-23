@@ -73,7 +73,7 @@ func getCollectionByName(db *orm.Database, cfg *config.Config, name string, pagi
 			results = append(results, c.CollectedNftCollection)
 		}
 	}
-	if pagination.Order == common.DefaultPaginationOrderDesc {
+	if pagination.Order == common.OrderDesc {
 		slices.Reverse(results)
 	}
 	cacheMtx.RUnlock()
