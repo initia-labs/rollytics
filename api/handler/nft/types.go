@@ -94,7 +94,7 @@ func ToNftsResponse(db *orm.Database, nfts []types.CollectedNft) ([]Nft, error) 
 	nftResponses := make([]Nft, 0, len(nfts))
 	for _, nft := range nfts {
 		// get collection names and origin names
-		collection, err := getCollection(db, nft.CollectionAddr)
+		collection, err := getCollectionByAddr(db, nft.CollectionAddr)
 		if err != nil {
 			return nil, err
 		}

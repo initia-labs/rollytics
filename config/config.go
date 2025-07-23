@@ -31,6 +31,9 @@ type Config struct {
 	logFormat       string
 	coolingDuration time.Duration // for indexer only
 	queryTimeout    time.Duration // for indexer only
+	cacheSize       int
+	cacheTTL        time.Duration // for api only
+	pollingInterval time.Duration // for api only
 }
 
 func setDefaults() {
@@ -42,6 +45,9 @@ func setDefaults() {
 	viper.SetDefault("QUERY_TIMEOUT", 10*time.Second)
 	viper.SetDefault("LOG_LEVEL", "warn")
 	viper.SetDefault("LOG_FORMAT", "plain")
+	viper.SetDefault("CACHE_SIZE", 1000)
+	viper.SetDefault("CACHE_TTL", 10*time.Minute)
+	viper.SetDefault("POLLING_INTERVAL", 3*time.Second)
 }
 
 func GetConfig() (*Config, error) {
@@ -90,6 +96,9 @@ func GetConfig() (*Config, error) {
 		logFormat:       viper.GetString("LOG_FORMAT"),
 		coolingDuration: viper.GetDuration("COOLING_DURATION"),
 		queryTimeout:    viper.GetDuration("QUERY_TIMEOUT"),
+		cacheSize:       viper.GetInt("CACHE_SIZE"),
+		cacheTTL:        viper.GetDuration("CACHE_TTL"),
+		pollingInterval: viper.GetDuration("POLLING_INTERVAL"),
 	}
 
 	if err := config.Validate(); err != nil {
@@ -116,6 +125,18 @@ func (c Config) GetChainConfig() *ChainConfig {
 
 func (c Config) GetDBBatchSize() int {
 	return c.dbConfig.BatchSize
+}
+
+func (c Config) GetCacheSize() int {
+	return c.cacheSize
+}
+
+func (c Config) GetCacheTTL() time.Duration {
+	return c.cacheTTL
+}
+
+func (c Config) GetPollingInterval() time.Duration {
+	return c.pollingInterval
 }
 
 func (c Config) GetChainId() string {
@@ -165,6 +186,13 @@ func (c Config) Validate() error {
 		break
 	default:
 		return fmt.Errorf("%s is invalid log format", c.logFormat)
+	}
+
+	if c.cacheSize < 0 {
+		return fmt.Errorf("CACHE_SIZE must be non-negative")
+	}
+	if c.cacheTTL < 0 {
+		return fmt.Errorf("CACHE_TTL must be non-negative")
 	}
 
 	if err := c.dbConfig.Validate(); err != nil {

@@ -5,7 +5,6 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cache"
-
 	"github.com/initia-labs/rollytics/api/handler/common"
 )
 
@@ -20,6 +19,7 @@ func NewBlockHandler(base *common.BaseHandler) *BlockHandler {
 }
 
 func (h *BlockHandler) Register(router fiber.Router) {
+	initValidatorCache(h.GetConfig())
 	blocks := router.Group("indexer/block/v1")
 
 	blocks.Get("/blocks", cache.New(cache.Config{Expiration: time.Second}), h.GetBlocks)

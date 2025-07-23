@@ -24,11 +24,12 @@ type WasmNftSubmodule struct {
 }
 
 func New(logger *slog.Logger, cfg *config.Config) *WasmNftSubmodule {
+	cacheSize := cfg.GetCacheSize()
 	return &WasmNftSubmodule{
 		logger:    logger.With("submodule", SubmoduleName),
 		cfg:       cfg,
 		cache:     make(map[int64]CacheData),
-		blacklist: cache.New[string, interface{}](1000),
+		blacklist: cache.New[string, interface{}](cacheSize),
 	}
 }
 
