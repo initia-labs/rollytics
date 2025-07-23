@@ -22,8 +22,6 @@ type cachedCol struct {
 	NormalizedOriginName         string `gorm:"-"`
 } // ordered by height ASC
 
-const updatingInterval = 3 * time.Second
-
 // cache for collection data
 var (
 	collectionCacheOnce sync.Once
@@ -44,7 +42,7 @@ func initCollectionCache(database *orm.Database, cfg *config.Config) {
 		cacheSize := cfg.GetCacheSize()
 		ttl := cfg.GetCacheTTL()
 		collectionCacheByAddr = commoncache.NewTTL[string, *types.CollectedNftCollection](cacheSize, ttl)
-		tryUpdateCollectionCache(database)
+		tryUpdateCollectionCache(database, cfg)
 	})
 }
 
@@ -64,8 +62,8 @@ func getCollectionByAddr(database *orm.Database, collectionAddr string) (*types.
 	return &collection, nil
 }
 
-func getCollectionByName(db *orm.Database, name string, pagination *common.Pagination) ([]types.CollectedNftCollection, int64, error) {
-	tryUpdateCollectionCache(db)
+func getCollectionByName(db *orm.Database, cfg *config.Config, name string, pagination *common.Pagination) ([]types.CollectedNftCollection, int64, error) {
+	tryUpdateCollectionCache(db, cfg)
 
 	name = strings.ToLower(sanitizer.ReplaceAllString(name, ""))
 	var results []types.CollectedNftCollection
@@ -93,8 +91,8 @@ func getCollectionByName(db *orm.Database, name string, pagination *common.Pagin
 	return results, int64(total), nil
 }
 
-func tryUpdateCollectionCache(db *orm.Database) {
-	if time.Since(time.Unix(0, lastUpdatedTime.Load())) < updatingInterval {
+func tryUpdateCollectionCache(db *orm.Database, cfg *config.Config) {
+	if time.Since(time.Unix(0, lastUpdatedTime.Load())) < cfg.GetPollingInterval() {
 		return
 	}
 	// check if already updated

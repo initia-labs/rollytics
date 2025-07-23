@@ -33,6 +33,7 @@ type Config struct {
 	queryTimeout    time.Duration // for indexer only
 	cacheSize       int
 	cacheTTL        time.Duration // for api only
+	pollingInterval time.Duration // for api only
 }
 
 func setDefaults() {
@@ -46,6 +47,7 @@ func setDefaults() {
 	viper.SetDefault("LOG_FORMAT", "plain")
 	viper.SetDefault("CACHE_SIZE", 1000)
 	viper.SetDefault("CACHE_TTL", 10*time.Minute)
+	viper.SetDefault("POLLING_INTERVAL", 3*time.Second)
 }
 
 func GetConfig() (*Config, error) {
@@ -96,6 +98,7 @@ func GetConfig() (*Config, error) {
 		queryTimeout:    viper.GetDuration("QUERY_TIMEOUT"),
 		cacheSize:       viper.GetInt("CACHE_SIZE"),
 		cacheTTL:        viper.GetDuration("CACHE_TTL"),
+		pollingInterval: viper.GetDuration("POLLING_INTERVAL"),
 	}
 
 	if err := config.Validate(); err != nil {
@@ -130,6 +133,10 @@ func (c Config) GetCacheSize() int {
 
 func (c Config) GetCacheTTL() time.Duration {
 	return c.cacheTTL
+}
+
+func (c Config) GetPollingInterval() time.Duration {
+	return c.pollingInterval
 }
 
 func (c Config) GetChainId() string {
