@@ -37,15 +37,16 @@ type Indexer struct {
 
 func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Indexer {
 	return &Indexer{
-		cfg:         cfg,
-		logger:      logger,
-		db:          db,
-		scraper:     scraper.New(cfg, logger),
-		collector:   collector.New(cfg, logger, db),
-		blockMap:    make(map[int64]indexertypes.ScrapedBlock),
-		blockChan:   make(chan indexertypes.ScrapedBlock),
-		controlChan: make(chan string),
-		commitChan:  make(chan int64),
+		cfg:             cfg,
+		logger:          logger,
+		db:              db,
+		scraper:         scraper.New(cfg, logger),
+		collector:       collector.New(cfg, logger, db),
+		internalIndexer: internaltx.New(cfg, logger, db),
+		blockMap:        make(map[int64]indexertypes.ScrapedBlock),
+		blockChan:       make(chan indexertypes.ScrapedBlock),
+		controlChan:     make(chan string),
+		commitChan:      make(chan int64),
 	}
 }
 

@@ -30,7 +30,7 @@ func (h *InternalTxHandler) GetEvmInternalTxs(c *fiber.Ctx) error {
 	}
 
 	var lastTx types.CollectedEvmInternalTx
-	if err := h.buildBaseEvmInteranlTxQuery().
+	if err := h.buildBaseEvmInternalTxQuery().
 		Order("sequence DESC").
 		Limit(1).
 		First(&lastTx).Error; err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -39,7 +39,7 @@ func (h *InternalTxHandler) GetEvmInternalTxs(c *fiber.Ctx) error {
 	total := lastTx.Sequence
 
 	var txs []types.CollectedEvmInternalTx
-	if err := h.buildBaseEvmInteranlTxQuery().
+	if err := h.buildBaseEvmInternalTxQuery().
 		Order(pagination.OrderBy("sequence")).
 		Offset(pagination.Offset).
 		Limit(pagination.Limit).
@@ -87,7 +87,7 @@ func (h *InternalTxHandler) GetEvmInternalTxsByAccount(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
-	query := h.buildBaseEvmInteranlTxQuery().Where("account_ids && ?", pq.Array(accountIds))
+	query := h.buildBaseEvmInternalTxQuery().Where("account_ids && ?", pq.Array(accountIds))
 
 	if isSigner {
 		query = query.Where("signer = ?", account)
@@ -141,7 +141,7 @@ func (h *InternalTxHandler) GetEvmInternalTxsByHeight(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
-	query := h.buildBaseEvmInteranlTxQuery().Where("height = ?", height)
+	query := h.buildBaseEvmInternalTxQuery().Where("height = ?", height)
 
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
@@ -185,7 +185,7 @@ func (h *InternalTxHandler) GetEvmInternalTxByHash(c *fiber.Ctx) error {
 	}
 
 	var tx types.CollectedEvmInternalTx
-	if err := h.buildBaseEvmInteranlTxQuery().
+	if err := h.buildBaseEvmInternalTxQuery().
 		Where("hash = ?", hash).
 		First(&tx).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -202,7 +202,7 @@ func (h *InternalTxHandler) GetEvmInternalTxByHash(c *fiber.Ctx) error {
 	return c.JSON(txRes)
 }
 
-func (h *InternalTxHandler) buildBaseEvmInteranlTxQuery() *gorm.DB {
+func (h *InternalTxHandler) buildBaseEvmInternalTxQuery() *gorm.DB {
 	return h.GetDatabase().Model(&types.CollectedEvmInternalTx{})
 }
 

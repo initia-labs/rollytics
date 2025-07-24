@@ -35,18 +35,6 @@ type Config struct {
 	cacheTTL        time.Duration // for api only
 	pollingInterval time.Duration // for api only
 	internalTx      bool
-
-	// RabbitMQ config
-	rabbitmq RabbitMQConfig
-}
-
-type RabbitMQConfig struct {
-	Host       string
-	Port       int
-	VHost      string
-	User       string
-	Password   string
-	Partitions int
 }
 
 func setDefaults() {
@@ -62,12 +50,7 @@ func setDefaults() {
 	viper.SetDefault("CACHE_TTL", 10*time.Minute)
 	viper.SetDefault("POLLING_INTERVAL", 3*time.Second)
 	viper.SetDefault("INTERNAL_TX", false)
-	viper.SetDefault("RABBITMQ_HOST", "localhost")
-	viper.SetDefault("RABBITMQ_PORT", 5552)
-	viper.SetDefault("RABBITMQ_VHOST", "rollytics")
-	viper.SetDefault("RABBITMQ_USER", "admin")
-	viper.SetDefault("RABBITMQ_PASSWORD", "admin")
-	viper.SetDefault("RABBITMQ_PARTITIONS", 1)
+
 }
 
 func GetConfig() (*Config, error) {
@@ -120,16 +103,6 @@ func GetConfig() (*Config, error) {
 		cacheTTL:        viper.GetDuration("CACHE_TTL"),
 		pollingInterval: viper.GetDuration("POLLING_INTERVAL"),
 		internalTx:      viper.GetBool("INTERNAL_TX"),
-
-		// RabbitMQ config
-		rabbitmq: RabbitMQConfig{
-			Host:       viper.GetString("RABBITMQ_HOST"),
-			Port:       viper.GetInt("RABBITMQ_PORT"),
-			VHost:      viper.GetString("RABBITMQ_VHOST"),
-			User:       viper.GetString("RABBITMQ_USER"),
-			Password:   viper.GetString("RABBITMQ_PASSWORD"),
-			Partitions: viper.GetInt("RABBITMQ_PARTITIONS"),
-		},
 	}
 
 	if err := config.Validate(); err != nil {
@@ -246,6 +219,3 @@ func (c Config) Validate() error {
 	}
 	return nil
 }
-
-// GetRabbitMQConfig RabbitMQ config getters
-func (c Config) GetRabbitMQConfig() RabbitMQConfig { return c.rabbitmq }
