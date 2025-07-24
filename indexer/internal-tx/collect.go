@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -19,20 +20,63 @@ import (
 	"gorm.io/gorm"
 )
 
+const (
+	numWorkers = 10
+)
+
+type InternalTxResult struct {
+	Height       int64
+	CallTraceRes *CallTracerResponse
+	PrestateRes  *PrestateTracerResponse
+	Err          error
+}
+
 func (i *Indexer) collect(heightChan <-chan int64) {
-	for height := range heightChan {
-		// 1. Scrap internal transactions from the EVM block
-		callTraceRes, prestateRes, err := i.scrapInternalTxs(height)
-		if err != nil {
-			i.logger.Error("failed to scrap internal transactions", slog.Int64("height", height), slog.Any("error", err))
-			panic(err)
+	var (
+		wg      sync.WaitGroup
+		results = make(chan *InternalTxResult, 100)
+		errChan = make(chan error, 1)
+	)
+
+	for range numWorkers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for height := range heightChan {
+				callTraceRes, prestateRes, err := i.scrapInternalTxs(height)
+				results <- &InternalTxResult{
+					Height:       height,
+					CallTraceRes: callTraceRes,
+					PrestateRes:  prestateRes,
+					Err:          err,
+				}
+				time.Sleep(i.cfg.GetCoolingDuration())
+			}
+		}()
+	}
+
+	go func() {
+		for res := range results {
+			if res.Err != nil {
+				i.logger.Error("failed to scrap internal txs", slog.Int64("height", res.Height), slog.Any("error", res.Err))
+				errChan <- res.Err
+				return
+			}
+			if err := i.CollectInternalTxs(i.db, res); err != nil {
+				i.logger.Error("failed to collect internal txs", slog.Int64("height", res.Height), slog.Any("error", err))
+				errChan <- err
+				return
+			}
 		}
-		// 2. Collect internal transactions
-		if err := i.CollectInternalTxs(i.db, height, callTraceRes, prestateRes); err != nil {
-			i.logger.Error("failed to collect internal transactions", slog.Int64("height", height), slog.Any("error", err))
-			panic(err)
-		}
-		time.Sleep(i.cfg.GetCoolingDuration())
+	}()
+
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	if err := <-errChan; err != nil {
+		panic(err)
 	}
 }
 
@@ -71,7 +115,7 @@ func (i *Indexer) scrapInternalTxs(height int64) (*CallTracerResponse, *Prestate
 }
 
 // Iterate over the internal calls of transaction
-func (i *Indexer) CollectInternalTxs(db *orm.Database, height int64, callTraceRes *CallTracerResponse, prestateTraceRes *PrestateTracerResponse) error {
+func (i *Indexer) CollectInternalTxs(db *orm.Database, internalTx *InternalTxResult) error {
 	err := db.Transaction(func(tx *gorm.DB) error {
 		seqInfo, err := indexerutil.GetSeqInfo("evm_internal_tx", tx)
 		if err != nil {
@@ -79,21 +123,21 @@ func (i *Indexer) CollectInternalTxs(db *orm.Database, height int64, callTraceRe
 		}
 		var evmTxs []types.CollectedEvmTx
 		if err := tx.Model(&types.CollectedEvmTx{}).
-			Where("height = ?", height).
+			Where("height = ?", internalTx.Height).
 			Order("sequence ASC").
 			Select("hash, height, account_ids").
 			Find(&evmTxs).Error; err != nil {
 			return err
 		}
 
-		if len(callTraceRes.Result) != len(evmTxs) || len(prestateTraceRes.Result) != len(evmTxs) {
+		if len(internalTx.CallTraceRes.Result) != len(evmTxs) || len(internalTx.PrestateRes.Result) != len(evmTxs) {
 			return fmt.Errorf("number of internal transactions (callTrace: %d, prestateTrace: %d, evmTxs: %d) at height %d does not match",
-				len(callTraceRes.Result), len(prestateTraceRes.Result), len(evmTxs), height)
+				len(internalTx.CallTraceRes.Result), len(internalTx.PrestateRes.Result), len(evmTxs), internalTx.Height)
 		}
 
 		var internalTxs []types.CollectedEvmInternalTx
-		for idx, traceTxRes := range callTraceRes.Result {
-			prestateTracing := prestateTraceRes.Result[idx]
+		for idx, traceTxRes := range internalTx.CallTraceRes.Result {
+			prestateTracing := internalTx.PrestateRes.Result[idx]
 			evmTx := evmTxs[idx]
 			evmTxAccountIds := evmTx.AccountIds
 			accountMap := make(map[int64]any)
@@ -170,7 +214,7 @@ func (i *Indexer) CollectInternalTxs(db *orm.Database, height int64, callTraceRe
 		// handle intended serialization error
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "40001" {
-			i.logger.Info("block already indexed", slog.Int64("height", height))
+			i.logger.Info("block already indexed", slog.Int64("height", internalTx.Height))
 			return nil
 		}
 

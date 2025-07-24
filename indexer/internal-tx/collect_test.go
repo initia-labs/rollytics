@@ -45,7 +45,7 @@ func setupTestConfig() *config.Config {
 	return cfg
 }
 
-func getTestResponse() (*internal_tx.CallTracerResponse, *internal_tx.PrestateTracerResponse) {
+func getTestResponse() *internal_tx.InternalTxResult {
 	callTraceRes := &internal_tx.CallTracerResponse{
 		Result: []internal_tx.TracingCall{
 			{
@@ -104,7 +104,11 @@ func getTestResponse() (*internal_tx.CallTracerResponse, *internal_tx.PrestateTr
 			},
 		},
 	}
-	return callTraceRes, prestateRes
+	return &internal_tx.InternalTxResult{
+		Height:       100,
+		CallTraceRes: callTraceRes,
+		PrestateRes:  prestateRes,
+	}
 }
 
 func TestIndexer_collectInternalTxs(t *testing.T) {
@@ -163,8 +167,8 @@ func TestIndexer_collectInternalTxs(t *testing.T) {
 	// Mock transaction commit
 	mock.ExpectCommit()
 
-	callTraceRes, prestateRes := getTestResponse()
-	err := indexer.CollectInternalTxs(db, height, callTraceRes, prestateRes)
+	testRes := getTestResponse()
+	err := indexer.CollectInternalTxs(db, testRes)
 	require.NoError(t, err)
 
 	// Check that all expectations were met
@@ -216,7 +220,11 @@ func TestIndexer_collectInternalTxs_MismatchedResults(t *testing.T) {
 		},
 	}
 
-	err := indexer.CollectInternalTxs(db, height, callTraceRes, prestateRes)
+	err := indexer.CollectInternalTxs(db, &internal_tx.InternalTxResult{
+		Height:       height,
+		CallTraceRes: callTraceRes,
+		PrestateRes:  prestateRes,
+	})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "does not match")
 
@@ -273,7 +281,11 @@ func TestIndexer_collectInternalTxs_EmptyInternalTxs(t *testing.T) {
 		},
 	}
 
-	err := indexer.CollectInternalTxs(db, height, callTraceRes, prestateRes)
+	err := indexer.CollectInternalTxs(db, &internal_tx.InternalTxResult{
+		Height:       height,
+		CallTraceRes: callTraceRes,
+		PrestateRes:  prestateRes,
+	})
 	assert.NoError(t, err)
 
 	// Check that all expectations were met
@@ -345,7 +357,11 @@ func TestIndexer_collectInternalTxs_InvalidHexValues(t *testing.T) {
 		},
 	}
 
-	err := indexer.CollectInternalTxs(db, height, callTraceRes, prestateRes)
+	err := indexer.CollectInternalTxs(db, &internal_tx.InternalTxResult{
+		Height:       height,
+		CallTraceRes: callTraceRes,
+		PrestateRes:  prestateRes,
+	})
 	assert.Error(t, err)
 
 	// Check that all expectations were met
