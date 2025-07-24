@@ -7,8 +7,23 @@ import (
 	"github.com/initia-labs/rollytics/util"
 )
 
-func grepAddressesFromEvmInternalTx(evmInternalTx types.EvmInternalTx) (grepped []string, err error) {
+const (
+	addressPrefix = "0x000000000000000000000000"
+)
+
+func GrepAddressesFromEvmInternalTx(evmInternalTx types.EvmInternalTx) (grepped []string, err error) {
 	var addrs = make(map[string]interface{})
+
+	convertToAccAddr := func(addrs map[string]interface{}, grepped []string) ([]string, error) {
+		for addr := range addrs {
+			accAddr, err := util.AccAddressFromString(addr)
+			if err != nil {
+				return grepped, err
+			}
+			grepped = append(grepped, accAddr.String())
+		}
+		return grepped, nil
+	}
 
 	if evmInternalTx.From != "" {
 		addrs[evmInternalTx.From] = nil
@@ -16,26 +31,23 @@ func grepAddressesFromEvmInternalTx(evmInternalTx types.EvmInternalTx) (grepped 
 	if evmInternalTx.To != "" {
 		addrs[evmInternalTx.To] = nil
 	}
-	input := evmInternalTx.Input[4:]
+	input := evmInternalTx.Input
+	if len(input) < 10 {
+		return convertToAccAddr(addrs, grepped)
+	}
+
+	input = input[10:] // Remove function selector
 	arguments := make([][]byte, 0, len(input)/32)
-	for i := 0; i < len(input); i += 32 {
+	for i := 0; i+32 <= len(input); i += 32 {
 		arguments = append(arguments, []byte(input[i:i+32]))
 	}
 
 	for _, arg := range arguments {
 		argStr := string(arg)
-		if strings.HasPrefix(argStr, "0x000000000000000000000000") {
+		if strings.HasPrefix(argStr, addressPrefix) {
 			addrs[argStr] = nil
 		}
 	}
 
-	for addr := range addrs {
-		accAddr, err := util.AccAddressFromString(addr)
-		if err != nil {
-			return grepped, err
-		}
-		grepped = append(grepped, accAddr.String())
-	}
-
-	return grepped, nil
+	return convertToAccAddr(addrs, grepped)
 }

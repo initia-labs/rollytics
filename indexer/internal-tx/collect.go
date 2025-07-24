@@ -25,12 +25,12 @@ func (i *Indexer) collect(heightChan <-chan int64) {
 		callTraceRes, prestateRes, err := i.scrapInternalTxs(height)
 		if err != nil {
 			i.logger.Error("failed to scrap internal transactions", slog.Int64("height", height), slog.Any("error", err))
-			continue
+			panic(err)
 		}
 		// 2. Collect internal transactions
-		if err := i.collectInternalTxs(i.db, height, callTraceRes, prestateRes); err != nil {
+		if err := i.CollectInternalTxs(i.db, height, callTraceRes, prestateRes); err != nil {
 			i.logger.Error("failed to collect internal transactions", slog.Int64("height", height), slog.Any("error", err))
-			continue
+			panic(err)
 		}
 		time.Sleep(i.cfg.GetCoolingDuration())
 	}
@@ -38,14 +38,16 @@ func (i *Indexer) collect(heightChan <-chan int64) {
 
 // Get EVM internal transactions for the debug_traceBlock
 func (i *Indexer) scrapInternalTxs(height int64) (*CallTracerResponse, *PrestateTracerResponse, error) {
-	client := fiber.AcquireClient()
-	defer fiber.ReleaseClient(client)
 	var (
 		g                errgroup.Group
 		err              error
 		callTraceRes     *CallTracerResponse
 		prestateTraceRes *PrestateTracerResponse
 	)
+
+	client := fiber.AcquireClient()
+	defer fiber.ReleaseClient(client)
+
 	g.Go(func() error {
 		callTraceRes, err = TraceCallByBlock(i.cfg, client, height)
 		if err != nil {
@@ -68,8 +70,8 @@ func (i *Indexer) scrapInternalTxs(height int64) (*CallTracerResponse, *Prestate
 	return callTraceRes, prestateTraceRes, nil
 }
 
-func (i *Indexer) collectInternalTxs(db *orm.Database, height int64, callTraceRes *CallTracerResponse, prestateTraceRes *PrestateTracerResponse) error {
-	// Iterate over the internal calls of transaction
+// Iterate over the internal calls of transaction
+func (i *Indexer) CollectInternalTxs(db *orm.Database, height int64, callTraceRes *CallTracerResponse, prestateTraceRes *PrestateTracerResponse) error {
 	err := db.Transaction(func(tx *gorm.DB) error {
 		seqInfo, err := indexerutil.GetSeqInfo("evm_internal_tx", tx)
 		if err != nil {
@@ -81,14 +83,12 @@ func (i *Indexer) collectInternalTxs(db *orm.Database, height int64, callTraceRe
 			Order("sequence ASC").
 			Select("hash, height, account_ids").
 			Find(&evmTxs).Error; err != nil {
-			// error handling
 			return err
 		}
 
 		if len(callTraceRes.Result) != len(evmTxs) || len(prestateTraceRes.Result) != len(evmTxs) {
-			// error handling: number of internal transactions does not match the number of EVM transactions
-			return fmt.Errorf("number of internal transactions (%d) does not match the number of EVM transactions (%d) at height %d",
-				len(callTraceRes.Result), len(evmTxs), height)
+			return fmt.Errorf("number of internal transactions (callTrace: %d, prestateTrace: %d, evmTxs: %d) at height %d does not match",
+				len(callTraceRes.Result), len(prestateTraceRes.Result), len(evmTxs), height)
 		}
 
 		var internalTxs []types.CollectedEvmInternalTx
@@ -103,20 +103,17 @@ func (i *Indexer) collectInternalTxs(db *orm.Database, height int64, callTraceRe
 			for subIdx, internalTx := range traceTxRes.Calls {
 				gas, err := strconv.ParseInt(internalTx.Gas, 0, 64)
 				if err != nil {
-					// error handling: failed to parse gas
 					return err
 				}
 				gasUsed, err := strconv.ParseInt(internalTx.GasUsed, 0, 64)
 				if err != nil {
-					// error handling: failed to parse gasUsed
 					return err
 				}
 				value, err := strconv.ParseInt(internalTx.Value, 0, 64)
 				if err != nil {
-					// error handling: failed to parse value
 					return err
 				}
-				accounts, err := grepAddressesFromEvmInternalTx(internalTx)
+				accounts, err := GrepAddressesFromEvmInternalTx(internalTx)
 				if err != nil {
 					return err
 				}
@@ -155,8 +152,7 @@ func (i *Indexer) collectInternalTxs(db *orm.Database, height int64, callTraceRe
 			}
 			if err := tx.Model(&types.CollectedEvmTx{}).
 				Where("hash = ? AND height = ?", evmTx.Hash, evmTx.Height).
-				Update("account_ids = ?", accountIds).Error; err != nil {
-				// error handling
+				Update("account_ids", accountIds).Error; err != nil {
 				return err
 			}
 

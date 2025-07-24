@@ -146,8 +146,16 @@ func (c Config) GetListenPort() string {
 	return c.listenPort
 }
 
+func (c *Config) SetDBConfig(dbCfg *dbconfig.Config) {
+	c.dbConfig = dbCfg
+}
+
 func (c Config) GetDBConfig() *dbconfig.Config {
 	return c.dbConfig
+}
+
+func (c *Config) SetChainConfig(chainCfg *ChainConfig) {
+	c.chainConfig = chainCfg
 }
 
 func (c Config) GetChainConfig() *ChainConfig {

@@ -157,3 +157,7 @@ func (CollectedMsgTypeDict) TableName() string {
 func (CollectedTypeTagDict) TableName() string {
 	return "type_tag_dict"
 }
+
+func (CollectedEvmInternalTx) TableName() string {
+	return "evm_internal_tx"
+}
