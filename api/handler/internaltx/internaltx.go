@@ -11,10 +11,10 @@ import (
 	"github.com/initia-labs/rollytics/types"
 )
 
-// GetEvmInternalTxs handles GET /tx/v1/evm-txs
+// GetEvmInternalTxs handles GET /tx/v1/evm-internal-txs
 // @Summary Get EVM internal transactions
 // @Description Get a list of EVM internal transactions with pagination
-// @Tags EVM Tx
+// @Tags EVM Internal Tx
 // @Accept json
 // @Produce json
 // @Param pagination.key query string false "Pagination key"
@@ -22,7 +22,7 @@ import (
 // @Param pagination.limit query int false "Pagination limit, default is 100" default is 100
 // @Param pagination.count_total query bool false "Count total, default is true" default is true
 // @Param pagination.reverse query bool false "Reverse order default is true if set to true, the results will be ordered in descending order"
-// @Router /indexer/tx/v1/evm-txs [get]
+// @Router /indexer/tx/v1/evm-internal-txs [get]
 func (h *InternalTxHandler) GetEvmInternalTxs(c *fiber.Ctx) error {
 	pagination, err := common.ParsePagination(c)
 	if err != nil {
@@ -58,10 +58,10 @@ func (h *InternalTxHandler) GetEvmInternalTxs(c *fiber.Ctx) error {
 	})
 }
 
-// GetEvmInternalTxsByAccount handles GET /tx/v1/evm-txs/by_account/{account}
+// GetEvmInternalTxsByAccount handles GET /tx/v1/evm-internal-txs/by_account/{account}
 // @Summary Get EVM internal transactions by account
 // @Description Get EVM internal transactions associated with a specific account
-// @Tags EVM Tx
+// @Tags EVM Internal Tx
 // @Accept json
 // @Produce json
 // @Param account path string true "Account address"
@@ -70,14 +70,12 @@ func (h *InternalTxHandler) GetEvmInternalTxs(c *fiber.Ctx) error {
 // @Param pagination.limit query int false "Pagination limit, default is 100" default is 100
 // @Param pagination.count_total query bool false "Count total, default is true" default is true
 // @Param pagination.reverse query bool false "Reverse order default is true if set to true, the results will be ordered in descending order"
-// @Param is_signer query bool false "Filter by signer accounts, default is false" default is false
-// @Router /indexer/tx/v1/evm-txs/by_account/{account} [get]
+// @Router /indexer/tx/v1/evm-internal-txs/by_account/{account} [get]
 func (h *InternalTxHandler) GetEvmInternalTxsByAccount(c *fiber.Ctx) error {
 	account, err := common.GetAccountParam(c)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
-	isSigner := c.Query("is_signer", "false") == "true"
 	pagination, err := common.ParsePagination(c)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
@@ -88,10 +86,6 @@ func (h *InternalTxHandler) GetEvmInternalTxsByAccount(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 	query := h.buildBaseEvmInternalTxQuery().Where("account_ids && ?", pq.Array(accountIds))
-
-	if isSigner {
-		query = query.Where("signer = ?", account)
-	}
 
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
@@ -118,10 +112,10 @@ func (h *InternalTxHandler) GetEvmInternalTxsByAccount(c *fiber.Ctx) error {
 	})
 }
 
-// GetEvmInternalTxsByHeight handles GET /tx/v1/evm-txs/by_height/{height}
+// GetEvmInternalTxsByHeight handles GET /tx/v1/evm-internal-txs/by_height/{height}
 // @Summary Get EVM internal transactions by height
 // @Description Get EVM internal transactions at a specific block height
-// @Tags EVM Tx
+// @Tags EVM Internal Tx
 // @Accept json
 // @Produce json
 // @Param height path int true "Block height"
@@ -130,7 +124,7 @@ func (h *InternalTxHandler) GetEvmInternalTxsByAccount(c *fiber.Ctx) error {
 // @Param pagination.limit query int false "Pagination limit, default is 100" default is 100
 // @Param pagination.count_total query bool false "Count total, default is true" default is true
 // @Param pagination.reverse query bool false "Reverse order default is true if set to true, the results will be ordered in descending order"
-// @Router /indexer/tx/v1/evm-txs/by_height/{height} [get]
+// @Router /indexer/tx/v1/evm-internal-txs/by_height/{height} [get]
 func (h *InternalTxHandler) GetEvmInternalTxsByHeight(c *fiber.Ctx) error {
 	height, err := common.GetHeightParam(c)
 	if err != nil {
@@ -168,14 +162,19 @@ func (h *InternalTxHandler) GetEvmInternalTxsByHeight(c *fiber.Ctx) error {
 	})
 }
 
-// GetEvmInternalTxByHash handles GET /tx/v1/evm-txs/{tx_hash}
+// GetEvmInternalTxByHash handles GET /tx/v1/evm-internal-txs/{tx_hash}
 // @Summary Get EVM internal transaction by hash
 // @Description Get a specific EVM internal transaction by its hash
-// @Tags EVM Tx
+// @Tags EVM Internal Tx
 // @Accept json
 // @Produce json
 // @Param tx_hash path string true "Transaction hash"
-// @Router /indexer/tx/v1/evm-txs/{tx_hash} [get]
+// @Param pagination.key query string false "Pagination key"
+// @Param pagination.offset query int false "Pagination offset"
+// @Param pagination.limit query int false "Pagination limit, default is 100" default is 100
+// @Param pagination.count_total query bool false "Count total, default is true" default is true
+// @Param pagination.reverse query bool false "Reverse order default is true if set to true, the results will be ordered in descending order"
+// @Router /indexer/tx/v1/evm-internal-txs/{tx_hash} [get]
 //
 //nolint:dupl
 func (h *InternalTxHandler) GetEvmInternalTxByHash(c *fiber.Ctx) error {
@@ -184,22 +183,35 @@ func (h *InternalTxHandler) GetEvmInternalTxByHash(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
-	var tx types.CollectedEvmInternalTx
-	if err := h.buildBaseEvmInternalTxQuery().
-		Where("hash = ?", hash).
-		First(&tx).Error; err != nil {
+	pagination, err := common.ParsePagination(c)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+
+	query := h.buildBaseEvmInternalTxQuery().Where("hash = ?", hash)
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	var txs []types.CollectedEvmInternalTx
+	if err := query.Order(pagination.OrderBy("sequence")).
+		Find(&txs).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return fiber.NewError(fiber.StatusNotFound, "tx not found")
 		}
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	txRes, err := ToEvmInternalTxResponse(&tx)
+	txsRes, err := ToEvmInternalTxsResponse(txs)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	return c.JSON(txRes)
+	return c.JSON(EvmInternalTxsResponse{
+		Txs:        txsRes,
+		Pagination: pagination.ToResponse(total),
+	})
 }
 
 func (h *InternalTxHandler) buildBaseEvmInternalTxQuery() *gorm.DB {

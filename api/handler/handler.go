@@ -7,6 +7,7 @@ import (
 
 	"github.com/initia-labs/rollytics/api/handler/block"
 	"github.com/initia-labs/rollytics/api/handler/common"
+	"github.com/initia-labs/rollytics/api/handler/internaltx"
 	"github.com/initia-labs/rollytics/api/handler/nft"
 	"github.com/initia-labs/rollytics/api/handler/status"
 	"github.com/initia-labs/rollytics/api/handler/tx"
@@ -20,6 +21,7 @@ func Register(router fiber.Router, db *orm.Database, cfg *config.Config, logger 
 		status.NewStatusHandler(base),
 		block.NewBlockHandler(base),
 		tx.NewTxHandler(base),
+		internaltx.NewInternalTxHandler(base),
 		nft.NewNftHandler(base),
 	}
 

@@ -210,7 +210,9 @@ func (c Config) Validate() error {
 	if c.cacheTTL < 0 {
 		return fmt.Errorf("CACHE_TTL must be non-negative")
 	}
-
+	if c.pollingInterval < 0 {
+		return fmt.Errorf("POLLING_INTERVAL must be non-negative")
+	}
 	if err := c.dbConfig.Validate(); err != nil {
 		return err
 	}
