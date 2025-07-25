@@ -13,8 +13,13 @@ func TraceCallByBlock(cfg *config.Config, client *fiber.Client, height int64) (*
 	payload := map[string]interface{}{
 		"jsonrpc": "2.0",
 		"method":  "debug_traceBlockByNumber",
-		"params":  []string{fmt.Sprintf("0x%x", height), `{"tracer": "callTracer"}`},
-		"id":      1,
+		"params": []interface{}{
+			fmt.Sprintf("0x%x", height),
+			map[string]interface{}{
+				"tracer": "callTracer",
+			},
+		},
+		"id": 1,
 	}
 	headers := map[string]string{"Content-Type": "application/json"}
 

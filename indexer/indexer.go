@@ -71,7 +71,10 @@ func (i *Indexer) Run() error {
 }
 
 func (i *Indexer) collectInternalTxs() {
-	i.internalIndexer.Run(i.commitChan)
+	if i.internalIndexer == nil {
+		return
+	}
+	i.internalIndexer.Run(i.height, i.commitChan)
 }
 
 func (i *Indexer) scrape() {
@@ -128,7 +131,12 @@ func (i *Indexer) collect() {
 		if err := i.collector.Collect(block); err != nil {
 			panic(err)
 		}
-		i.commitChan <- i.height
+
+		if i.internalIndexer != nil {
+			go func(h int64) {
+				i.commitChan <- h
+			}(i.height)
+		}
 		i.height++
 
 	}

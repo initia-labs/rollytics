@@ -7,7 +7,12 @@ import (
 )
 
 type CallTracerResponse struct {
-	Result []TracingCall `json:"result"`
+	Result []TracingCallInner `json:"result"`
+}
+
+type TracingCallInner struct {
+	TxHash string      `json:"txHash"`
+	Result TracingCall `json:"result"`
 }
 
 type TracingCall struct {

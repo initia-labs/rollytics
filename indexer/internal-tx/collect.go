@@ -11,6 +11,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/lib/pq"
 
 	indexerutil "github.com/initia-labs/rollytics/indexer/util"
 	"github.com/initia-labs/rollytics/orm"
@@ -28,44 +29,65 @@ type InternalTxResult struct {
 	Height       int64
 	CallTraceRes *CallTracerResponse
 	PrestateRes  *PrestateTracerResponse
-	Err          error
 }
 
-func (i *Indexer) collect(heightChan <-chan int64) {
+func (i *Indexer) collect(heightChan <-chan int64, startHeight int64) {
 	var (
-		wg      sync.WaitGroup
-		results = make(chan *InternalTxResult, 100)
-		errChan = make(chan error, 1)
+		wg             sync.WaitGroup
+		results        = make(chan *InternalTxResult, 100)
+		errChan        = make(chan error, 1)
+		pendingMap     = make(map[int64]*InternalTxResult)
+		expectedHeight = startHeight
+		mu             sync.Mutex
 	)
 
+	// Start workers to scrap internal transactions in parallel
 	for range numWorkers {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			for height := range heightChan {
-				callTraceRes, prestateRes, err := i.scrapInternalTxs(height)
-				results <- &InternalTxResult{
-					Height:       height,
-					CallTraceRes: callTraceRes,
-					PrestateRes:  prestateRes,
-					Err:          err,
+				internalTx, err := i.scrapInternalTxs(height)
+				if err != nil {
+					i.logger.Error("failed to scrap internal txs", slog.Int64("height", height), slog.Any("error", err))
+					errChan <- err
+					return
 				}
+				i.logger.Info("scraped internal txs", slog.Int64("height", height))
+				results <- internalTx
 				time.Sleep(i.cfg.GetCoolingDuration())
 			}
 		}()
 	}
 
+	// Write results to the database sequentially in heights order
 	go func() {
 		for res := range results {
-			if res.Err != nil {
-				i.logger.Error("failed to scrap internal txs", slog.Int64("height", res.Height), slog.Any("error", res.Err))
-				errChan <- res.Err
-				return
+			mu.Lock()
+			pendingMap[res.Height] = res
+
+			var pendingItxs []*InternalTxResult
+			for {
+				if pendingItx, exists := pendingMap[expectedHeight]; exists {
+					delete(pendingMap, expectedHeight)
+					pendingItxs = append(pendingItxs, pendingItx)
+					expectedHeight++
+				} else {
+					break
+				}
 			}
-			if err := i.CollectInternalTxs(i.db, res); err != nil {
-				i.logger.Error("failed to collect internal txs", slog.Int64("height", res.Height), slog.Any("error", err))
-				errChan <- err
-				return
+			if len(pendingMap) > 1000 {
+				i.logger.Warn("too many pending results", slog.Int("pending", len(pendingMap)), slog.Int64("expectedHeight", expectedHeight))
+			}
+			mu.Unlock()
+
+			for _, result := range pendingItxs {
+				if err := i.CollectInternalTxs(i.db, result); err != nil {
+					i.logger.Error("failed to collect internal txs", slog.Int64("height", result.Height), slog.Any("error", err))
+					errChan <- err
+					return
+				}
+				i.logger.Info("collected internal txs", slog.Int64("height", result.Height))
 			}
 		}
 	}()
@@ -81,7 +103,7 @@ func (i *Indexer) collect(heightChan <-chan int64) {
 }
 
 // Get EVM internal transactions for the debug_traceBlock
-func (i *Indexer) scrapInternalTxs(height int64) (*CallTracerResponse, *PrestateTracerResponse, error) {
+func (i *Indexer) scrapInternalTxs(height int64) (*InternalTxResult, error) {
 	var (
 		g                errgroup.Group
 		err              error
@@ -109,9 +131,13 @@ func (i *Indexer) scrapInternalTxs(height int64) (*CallTracerResponse, *Prestate
 	})
 
 	if err := g.Wait(); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	return callTraceRes, prestateTraceRes, nil
+	return &InternalTxResult{
+		Height:       int64(height),
+		CallTraceRes: callTraceRes,
+		PrestateRes:  prestateTraceRes,
+	}, nil
 }
 
 // Iterate over the internal calls of transaction
@@ -136,7 +162,8 @@ func (i *Indexer) CollectInternalTxs(db *orm.Database, internalTx *InternalTxRes
 		}
 
 		var internalTxs []types.CollectedEvmInternalTx
-		for idx, traceTxRes := range internalTx.CallTraceRes.Result {
+		for idx, traceTxWrapper := range internalTx.CallTraceRes.Result {
+			traceTxRes := traceTxWrapper.Result
 			prestateTracing := internalTx.PrestateRes.Result[idx]
 			evmTx := evmTxs[idx]
 			evmTxAccountIds := evmTx.AccountIds
@@ -145,17 +172,31 @@ func (i *Indexer) CollectInternalTxs(db *orm.Database, internalTx *InternalTxRes
 				accountMap[accTd] = nil
 			}
 			for subIdx, internalTx := range traceTxRes.Calls {
-				gas, err := strconv.ParseInt(internalTx.Gas, 0, 64)
-				if err != nil {
-					return err
+				gas := int64(0)
+				if internalTx.Gas != "" {
+					var err error
+					gas, err = strconv.ParseInt(internalTx.Gas, 0, 64)
+					if err != nil {
+						return err
+					}
 				}
-				gasUsed, err := strconv.ParseInt(internalTx.GasUsed, 0, 64)
-				if err != nil {
-					return err
+
+				gasUsed := int64(0)
+				if internalTx.GasUsed != "" {
+					var err error
+					gasUsed, err = strconv.ParseInt(internalTx.GasUsed, 0, 64)
+					if err != nil {
+						return err
+					}
 				}
-				value, err := strconv.ParseInt(internalTx.Value, 0, 64)
-				if err != nil {
-					return err
+
+				value := int64(0)
+				if internalTx.Value != "" {
+					var err error
+					value, err = strconv.ParseInt(internalTx.Value, 0, 64)
+					if err != nil {
+						return err
+					}
 				}
 				accounts, err := GrepAddressesFromEvmInternalTx(internalTx)
 				if err != nil {
@@ -196,15 +237,21 @@ func (i *Indexer) CollectInternalTxs(db *orm.Database, internalTx *InternalTxRes
 			}
 			if err := tx.Model(&types.CollectedEvmTx{}).
 				Where("hash = ? AND height = ?", evmTx.Hash, evmTx.Height).
-				Update("account_ids", accountIds).Error; err != nil {
+				Update("account_ids", pq.Array(accountIds)).Error; err != nil {
 				return err
 			}
 
 		}
 		batchSize := i.cfg.GetDBBatchSize()
 		if err := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(internalTxs, batchSize).Error; err != nil {
+			i.logger.Error("failed to create internal txs batch", slog.Int64("height", internalTx.Height), slog.Any("error", err))
 			return err
 		}
+
+		if err := tx.Clauses(orm.UpdateAllWhenConflict).Create(&seqInfo).Error; err != nil {
+			return err
+		}
+
 		return nil
 	}, &sql.TxOptions{
 		Isolation: sql.LevelSerializable,

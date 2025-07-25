@@ -47,46 +47,49 @@ func setupTestConfig() *config.Config {
 
 func getTestResponse() *internal_tx.InternalTxResult {
 	callTraceRes := &internal_tx.CallTracerResponse{
-		Result: []internal_tx.TracingCall{
+		Result: []internal_tx.TracingCallInner{
 			{
-				Type:    "CALL",
-				From:    "0x1234567890123456789012345678901234567890",
-				To:      "0x0987654321098765432109876543210987654321",
-				Value:   "0x100",
-				Gas:     "0x5208",
-				GasUsed: "0x5208",
-				Input:   "0x",
-				Output:  "0x",
-				Calls: []types.EvmInternalTx{
-					{
-						Type:    "STATICCALL",
-						From:    "0x1234567890123456789012345678901234567890",
-						To:      "0x0987654321098765432109876543210987654321",
-						Value:   "0x50",
-						Gas:     "0x2604",
-						GasUsed: "0x2604",
-						Input:   "0x12345678000000000000000000000000111111111111111111111111111111111111111100000000000000000000000022222222222222222222222222222222222222220000000000000000000000003333333333333333333333333333333333333333",
-						Output:  "0x87654321",
-					},
-					{
-						Type:    "CALL",
-						From:    "0x0987654321098765432109876543210987654321",
-						To:      "0x1111111111111111111111111111111111111111",
-						Value:   "0x25",
-						Gas:     "0x1302",
-						GasUsed: "0x1302",
-						Input:   "0xabcdef00000000000000000000000000444444444444444444444444444444444444444400000000000000000000000055555555555555555555555555555555555555550000000000000000000000006666666666666666666666666666666666666666",
-						Output:  "0x00fedcba",
-					},
-					{
-						Type:    "DELEGATECALL",
-						From:    "0x1234567890123456789012345678901234567890",
-						To:      "0x2222222222222222222222222222222222222222",
-						Value:   "0x0",
-						Gas:     "0x3000",
-						GasUsed: "0x2500",
-						Input:   "0xdeadbeef000000000000000000000000777777777777777777777777777777777777777700000000000000000000000088888888888888888888888888888888888888880000000000000000000000009999999999999999999999999999999999999999",
-						Output:  "0xbeefdead",
+				TxHash: "0xabcdef1234567890",
+				Result: internal_tx.TracingCall{
+					Type:    "CALL",
+					From:    "0x1234567890123456789012345678901234567890",
+					To:      "0x0987654321098765432109876543210987654321",
+					Value:   "0x100",
+					Gas:     "0x5208",
+					GasUsed: "0x5208",
+					Input:   "0x",
+					Output:  "0x",
+					Calls: []types.EvmInternalTx{
+						{
+							Type:    "STATICCALL",
+							From:    "0x1234567890123456789012345678901234567890",
+							To:      "0x0987654321098765432109876543210987654321",
+							Value:   "0x50",
+							Gas:     "0x2604",
+							GasUsed: "0x2604",
+							Input:   "0x12345678000000000000000000000000111111111111111111111111111111111111111100000000000000000000000022222222222222222222222222222222222222220000000000000000000000003333333333333333333333333333333333333333",
+							Output:  "0x87654321",
+						},
+						{
+							Type:    "CALL",
+							From:    "0x0987654321098765432109876543210987654321",
+							To:      "0x1111111111111111111111111111111111111111",
+							Value:   "0x25",
+							Gas:     "0x1302",
+							GasUsed: "0x1302",
+							Input:   "0xabcdef00000000000000000000000000444444444444444444444444444444444444444400000000000000000000000055555555555555555555555555555555555555550000000000000000000000006666666666666666666666666666666666666666",
+							Output:  "0x00fedcba",
+						},
+						{
+							Type:    "DELEGATECALL",
+							From:    "0x1234567890123456789012345678901234567890",
+							To:      "0x2222222222222222222222222222222222222222",
+							Value:   "0x0",
+							Gas:     "0x3000",
+							GasUsed: "0x2500",
+							Input:   "0xdeadbeef000000000000000000000000777777777777777777777777777777777777777700000000000000000000000088888888888888888888888888888888888888880000000000000000000000009999999999999999999999999999999999999999",
+							Output:  "0xbeefdead",
+						},
 					},
 				},
 			},
@@ -157,7 +160,8 @@ func TestIndexer_collectInternalTxs(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(int64(3)))
 
 	// Mock updating EVM transaction account_ids - flexible for any number of accounts
-	mock.ExpectExec(`UPDATE \"evm_tx\" SET \"account_ids\"=.* WHERE hash = .* AND height = .*`).
+	mock.ExpectExec(`UPDATE "evm_tx" SET "account_ids"=\$1 WHERE hash = \$2 AND height = \$3`).
+		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
 	// Mock inserting all internal transactions in batch - use actual table name
@@ -202,9 +206,9 @@ func TestIndexer_collectInternalTxs_MismatchedResults(t *testing.T) {
 	mock.ExpectRollback()
 
 	callTraceRes := &internal_tx.CallTracerResponse{
-		Result: []internal_tx.TracingCall{
-			{Type: "CALL", Calls: []types.EvmInternalTx{}},
-			{Type: "CALL", Calls: []types.EvmInternalTx{}},
+		Result: []internal_tx.TracingCallInner{
+			{TxHash: "0xabcdef1234567890", Result: internal_tx.TracingCall{Type: "CALL", Calls: []types.EvmInternalTx{}}},
+			{TxHash: "0xabcdef1234567891", Result: internal_tx.TracingCall{Type: "CALL", Calls: []types.EvmInternalTx{}}},
 		},
 	}
 
@@ -256,7 +260,7 @@ func TestIndexer_collectInternalTxs_EmptyInternalTxs(t *testing.T) {
 			AddRow("0xabcdef1234567890", height, "{1}"))
 
 	// Mock updating EVM transaction account_ids (even with empty internal txs, it still updates)
-	mock.ExpectExec(`UPDATE "evm_tx" SET "account_ids"=\(\$1\) WHERE hash = \$2 AND height = \$3`).
+	mock.ExpectExec(`UPDATE "evm_tx" SET "account_ids"=\$1 WHERE hash = \$2 AND height = \$3`).
 		WithArgs(sqlmock.AnyArg(), "0xabcdef1234567890", height).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
@@ -264,8 +268,8 @@ func TestIndexer_collectInternalTxs_EmptyInternalTxs(t *testing.T) {
 	mock.ExpectCommit()
 
 	callTraceRes := &internal_tx.CallTracerResponse{
-		Result: []internal_tx.TracingCall{
-			{Type: "CALL", Calls: []types.EvmInternalTx{}},
+		Result: []internal_tx.TracingCallInner{
+			{TxHash: "0xabcdef1234567890", Result: internal_tx.TracingCall{Type: "CALL", Calls: []types.EvmInternalTx{}}},
 		},
 	}
 
@@ -319,26 +323,29 @@ func TestIndexer_collectInternalTxs_InvalidHexValues(t *testing.T) {
 	mock.ExpectRollback()
 
 	callTraceRes := &internal_tx.CallTracerResponse{
-		Result: []internal_tx.TracingCall{
+		Result: []internal_tx.TracingCallInner{
 			{
-				Type:    "CALL",
-				From:    "0x1234567890123456789012345678901234567890",
-				To:      "0x0987654321098765432109876543210987654321",
-				Value:   "0x100",
-				Gas:     "0x5208",
-				GasUsed: "0x5208",
-				Input:   "0x",
-				Output:  "0x",
-				Calls: []types.EvmInternalTx{
-					{
-						Type:    "CALL",
-						From:    "0x1234567890123456789012345678901234567890",
-						To:      "0x0987654321098765432109876543210987654321",
-						Value:   "invalid_hex",
-						Gas:     "0x2604",
-						GasUsed: "0x2604",
-						Input:   "0x12345678",
-						Output:  "0x87654321",
+				TxHash: "0xabcdef1234567890",
+				Result: internal_tx.TracingCall{
+					Type:    "CALL",
+					From:    "0x1234567890123456789012345678901234567890",
+					To:      "0x0987654321098765432109876543210987654321",
+					Value:   "0x100",
+					Gas:     "0x5208",
+					GasUsed: "0x5208",
+					Input:   "0x",
+					Output:  "0x",
+					Calls: []types.EvmInternalTx{
+						{
+							Type:    "CALL",
+							From:    "0x1234567890123456789012345678901234567890",
+							To:      "0x0987654321098765432109876543210987654321",
+							Value:   "invalid_hex",
+							Gas:     "0x2604",
+							GasUsed: "0x2604",
+							Input:   "0x12345678",
+							Output:  "0x87654321",
+						},
 					},
 				},
 			},
