@@ -1,27 +1,23 @@
 package internaltx
 
 import (
-	"encoding/json"
-
 	"github.com/initia-labs/rollytics/api/handler/common"
 	"github.com/initia-labs/rollytics/types"
 )
 
 // Evm Internal Tx
 type EvmInternalTxResponse struct {
-	Height    int64           `json:"height"`
-	Hash      string          `json:"hash"`
-	Index     int64           `json:"index"`
-	Type      string          `json:"type"`
-	From      string          `json:"from"`
-	To        string          `json:"to"`
-	Input     string          `json:"input"`
-	Output    string          `json:"output"`
-	Value     int64           `json:"value"`
-	Gas       int64           `json:"gas"`
-	GasUsed   int64           `json:"gasUsed"`
-	PreState  json.RawMessage `json:"preState"`
-	PostState json.RawMessage `json:"postState"`
+	Height  int64  `json:"height"`
+	Hash    string `json:"hash"`
+	Index   int64  `json:"index"`
+	Type    string `json:"type"`
+	From    string `json:"from"`
+	To      string `json:"to"`
+	Input   string `json:"input"`
+	Output  string `json:"output"`
+	Value   int64  `json:"value"`
+	Gas     int64  `json:"gas"`
+	GasUsed int64  `json:"gasUsed"`
 }
 
 type EvmInternalTxsResponse struct {
@@ -43,18 +39,16 @@ func ToEvmInternalTxsResponse(citxs []types.CollectedEvmInternalTx) ([]EvmIntern
 
 func ToEvmInternalTxResponse(citx *types.CollectedEvmInternalTx) (*EvmInternalTxResponse, error) {
 	return &EvmInternalTxResponse{
-		Height:    citx.Height,
-		Hash:      citx.Hash,
-		Index:     citx.Index,
-		From:      citx.From,
-		To:        citx.To,
-		Value:     citx.Value,
-		Gas:       citx.Gas,
-		GasUsed:   citx.GasUsed,
-		Type:      citx.Type,
-		Input:     citx.Input,
-		Output:    citx.Output,
-		PreState:  citx.PreState,
-		PostState: citx.PostState,
+		Height:  citx.Height,
+		Hash:    citx.Hash,
+		Index:   citx.Index,
+		From:    citx.From,
+		To:      citx.To,
+		Value:   citx.Value,
+		Gas:     citx.Gas,
+		GasUsed: citx.GasUsed,
+		Type:    citx.Type,
+		Input:   citx.Input,
+		Output:  citx.Output,
 	}, nil
 }

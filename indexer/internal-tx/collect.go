@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"strconv"
 	"sync"
 	"time"
 
@@ -16,7 +15,6 @@ import (
 	indexerutil "github.com/initia-labs/rollytics/indexer/util"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
-	"github.com/initia-labs/rollytics/util"
 	"golang.org/x/sync/errgroup"
 	"gorm.io/gorm"
 )
@@ -26,9 +24,8 @@ const (
 )
 
 type InternalTxResult struct {
-	Height       int64
-	CallTraceRes *CallTracerResponse
-	PrestateRes  *PrestateTracerResponse
+	Height    int64
+	CallTrace *DebugCallTraceBlockResponse
 }
 
 func (i *Indexer) collect(heightChan <-chan int64, startHeight int64) {
@@ -41,7 +38,6 @@ func (i *Indexer) collect(heightChan <-chan int64, startHeight int64) {
 		mu             sync.Mutex
 	)
 
-	// Start workers to scrap internal transactions in parallel
 	for range numWorkers {
 		wg.Add(1)
 		go func() {
@@ -60,7 +56,6 @@ func (i *Indexer) collect(heightChan <-chan int64, startHeight int64) {
 		}()
 	}
 
-	// Write results to the database sequentially in heights order
 	go func() {
 		for res := range results {
 			mu.Lock()
@@ -81,13 +76,13 @@ func (i *Indexer) collect(heightChan <-chan int64, startHeight int64) {
 			}
 			mu.Unlock()
 
-			for _, result := range pendingItxs {
-				if err := i.CollectInternalTxs(i.db, result); err != nil {
-					i.logger.Error("failed to collect internal txs", slog.Int64("height", result.Height), slog.Any("error", err))
+			for _, internalTx := range pendingItxs {
+				if err := i.CollectInternalTxs(i.db, internalTx); err != nil {
+					i.logger.Error("failed to collect internal txs", slog.Int64("height", internalTx.Height), slog.Any("error", err))
 					errChan <- err
 					return
 				}
-				i.logger.Info("collected internal txs", slog.Int64("height", result.Height))
+				i.logger.Info("collected internal txs", slog.Int64("height", internalTx.Height))
 			}
 		}
 	}()
@@ -105,10 +100,9 @@ func (i *Indexer) collect(heightChan <-chan int64, startHeight int64) {
 // Get EVM internal transactions for the debug_traceBlock
 func (i *Indexer) scrapInternalTxs(height int64) (*InternalTxResult, error) {
 	var (
-		g                errgroup.Group
-		err              error
-		callTraceRes     *CallTracerResponse
-		prestateTraceRes *PrestateTracerResponse
+		g            errgroup.Group
+		err          error
+		callTraceRes *DebugCallTraceBlockResponse
 	)
 
 	client := fiber.AcquireClient()
@@ -122,25 +116,15 @@ func (i *Indexer) scrapInternalTxs(height int64) (*InternalTxResult, error) {
 		return nil
 	})
 
-	g.Go(func() error {
-		prestateTraceRes, err = TraceStateByBlock(i.cfg, client, height)
-		if err != nil {
-			return err
-		}
-		return nil
-	})
-
 	if err := g.Wait(); err != nil {
 		return nil, err
 	}
 	return &InternalTxResult{
-		Height:       int64(height),
-		CallTraceRes: callTraceRes,
-		PrestateRes:  prestateTraceRes,
+		Height:    int64(height),
+		CallTrace: callTraceRes,
 	}, nil
 }
 
-// Iterate over the internal calls of transaction
 func (i *Indexer) CollectInternalTxs(db *orm.Database, internalTx *InternalTxResult) error {
 	err := db.Transaction(func(tx *gorm.DB) error {
 		seqInfo, err := indexerutil.GetSeqInfo("evm_internal_tx", tx)
@@ -156,94 +140,77 @@ func (i *Indexer) CollectInternalTxs(db *orm.Database, internalTx *InternalTxRes
 			return err
 		}
 
-		if len(internalTx.CallTraceRes.Result) != len(evmTxs) || len(internalTx.PrestateRes.Result) != len(evmTxs) {
-			return fmt.Errorf("number of internal transactions (callTrace: %d, prestateTrace: %d, evmTxs: %d) at height %d does not match",
-				len(internalTx.CallTraceRes.Result), len(internalTx.PrestateRes.Result), len(evmTxs), internalTx.Height)
+		if len(internalTx.CallTrace.Result) != len(evmTxs) {
+			return fmt.Errorf("number of internal transactions (callTrace: %d, evmTxs: %d) at height %d does not match",
+				len(internalTx.CallTrace.Result), len(evmTxs), internalTx.Height)
 		}
 
-		var internalTxs []types.CollectedEvmInternalTx
-		for idx, traceTxWrapper := range internalTx.CallTraceRes.Result {
-			traceTxRes := traceTxWrapper.Result
-			prestateTracing := internalTx.PrestateRes.Result[idx]
+		var allInternalTxs []types.CollectedEvmInternalTx
+		for idx, trace := range internalTx.CallTrace.Result {
 			evmTx := evmTxs[idx]
-			evmTxAccountIds := evmTx.AccountIds
+			height, txHash, evmTxAccountIds := evmTx.Height, evmTx.Hash, evmTx.AccountIds
+			txInfo := &InternalTxInfo{
+				Height: height,
+				Hash:   txHash,
+				Index:  int64(0),
+			}
 			accountMap := make(map[int64]any)
-			for _, accTd := range evmTxAccountIds {
-				accountMap[accTd] = nil
+			for _, accId := range evmTxAccountIds {
+				accountMap[accId] = nil
 			}
-			for subIdx, internalTx := range traceTxRes.Calls {
-				gas := int64(0)
-				if internalTx.Gas != "" {
-					var err error
-					gas, err = strconv.ParseInt(internalTx.Gas, 0, 64)
-					if err != nil {
-						return err
-					}
-				}
 
-				gasUsed := int64(0)
-				if internalTx.GasUsed != "" {
-					var err error
-					gasUsed, err = strconv.ParseInt(internalTx.GasUsed, 0, 64)
-					if err != nil {
-						return err
-					}
-				}
+			topLevelCall := InternalTransaction{
+				Type:    trace.Result.Type,
+				From:    trace.Result.From,
+				To:      trace.Result.To,
+				Value:   trace.Result.Value,
+				Gas:     trace.Result.Gas,
+				GasUsed: trace.Result.GasUsed,
+				Input:   trace.Result.Input,
+				Output:  "", // Top-level calls don't have output
+			}
 
-				value := int64(0)
-				if internalTx.Value != "" {
-					var err error
-					value, err = strconv.ParseInt(internalTx.Value, 0, 64)
-					if err != nil {
-						return err
-					}
-				}
-				accounts, err := GrepAddressesFromEvmInternalTx(internalTx)
+			topLevelTx, err := processInternalCall(
+				tx,
+				txInfo,
+				&topLevelCall,
+				&seqInfo,
+				accountMap,
+			)
+			if err != nil {
+				return err
+			}
+			allInternalTxs = append(allInternalTxs, *topLevelTx)
+
+			for subIdx, call := range trace.Result.Calls {
+				txInfo.Index = int64(subIdx + 1)
+				subTx, err := processInternalCall(
+					tx,
+					txInfo,
+					&call,
+					&seqInfo,
+					accountMap,
+				)
 				if err != nil {
 					return err
 				}
-				// set account ids for each internal transaction
-				subAccIds, err := util.GetOrCreateAccountIds(tx, accounts, true)
-				if err != nil {
-					return err
-				}
-				for _, accId := range subAccIds {
-					accountMap[accId] = nil
-				}
-				seqInfo.Sequence++
-
-				internalTxs = append(internalTxs, types.CollectedEvmInternalTx{
-					Height:     evmTx.Height,
-					Hash:       evmTx.Hash,
-					Sequence:   int64(seqInfo.Sequence),
-					Index:      int64(subIdx),
-					Type:       internalTx.Type,
-					From:       internalTx.From,
-					To:         internalTx.To,
-					Input:      internalTx.Input,
-					Output:     internalTx.Output,
-					Value:      value,
-					Gas:        gas,
-					GasUsed:    gasUsed,
-					AccountIds: subAccIds,
-					PreState:   prestateTracing.Result.Pre,
-					PostState:  prestateTracing.Result.Post,
-				})
-
+				allInternalTxs = append(allInternalTxs, *subTx)
 			}
+
 			accountIds := make([]int64, 0, len(accountMap))
 			for accId := range accountMap {
 				accountIds = append(accountIds, accId)
 			}
+
+			// If the new account IDs are found from the internal transactions, update the evm_tx record
 			if err := tx.Model(&types.CollectedEvmTx{}).
-				Where("hash = ? AND height = ?", evmTx.Hash, evmTx.Height).
+				Where("hash = ? AND height = ?", txHash, height).
 				Update("account_ids", pq.Array(accountIds)).Error; err != nil {
 				return err
 			}
-
 		}
 		batchSize := i.cfg.GetDBBatchSize()
-		if err := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(internalTxs, batchSize).Error; err != nil {
+		if err := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(allInternalTxs, batchSize).Error; err != nil {
 			i.logger.Error("failed to create internal txs batch", slog.Int64("height", internalTx.Height), slog.Any("error", err))
 			return err
 		}

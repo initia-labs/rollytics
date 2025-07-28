@@ -1,7 +1,6 @@
 package internal_tx_test
 
 import (
-	"encoding/json"
 	"log/slog"
 	"os"
 	"testing"
@@ -46,71 +45,58 @@ func setupTestConfig() *config.Config {
 }
 
 func getTestResponse() *internal_tx.InternalTxResult {
-	callTraceRes := &internal_tx.CallTracerResponse{
-		Result: []internal_tx.TracingCallInner{
+	callTraceRes := &internal_tx.DebugCallTraceBlockResponse{
+		Result: []internal_tx.TransactionTrace{
 			{
 				TxHash: "0xabcdef1234567890",
-				Result: internal_tx.TracingCall{
-					Type:    "CALL",
-					From:    "0x1234567890123456789012345678901234567890",
-					To:      "0x0987654321098765432109876543210987654321",
-					Value:   "0x100",
-					Gas:     "0x5208",
-					GasUsed: "0x5208",
-					Input:   "0x",
-					Output:  "0x",
-					Calls: []types.EvmInternalTx{
-						{
-							Type:    "STATICCALL",
-							From:    "0x1234567890123456789012345678901234567890",
-							To:      "0x0987654321098765432109876543210987654321",
-							Value:   "0x50",
-							Gas:     "0x2604",
-							GasUsed: "0x2604",
-							Input:   "0x12345678000000000000000000000000111111111111111111111111111111111111111100000000000000000000000022222222222222222222222222222222222222220000000000000000000000003333333333333333333333333333333333333333",
-							Output:  "0x87654321",
-						},
-						{
-							Type:    "CALL",
-							From:    "0x0987654321098765432109876543210987654321",
-							To:      "0x1111111111111111111111111111111111111111",
-							Value:   "0x25",
-							Gas:     "0x1302",
-							GasUsed: "0x1302",
-							Input:   "0xabcdef00000000000000000000000000444444444444444444444444444444444444444400000000000000000000000055555555555555555555555555555555555555550000000000000000000000006666666666666666666666666666666666666666",
-							Output:  "0x00fedcba",
-						},
-						{
-							Type:    "DELEGATECALL",
-							From:    "0x1234567890123456789012345678901234567890",
-							To:      "0x2222222222222222222222222222222222222222",
-							Value:   "0x0",
-							Gas:     "0x3000",
-							GasUsed: "0x2500",
-							Input:   "0xdeadbeef000000000000000000000000777777777777777777777777777777777777777700000000000000000000000088888888888888888888888888888888888888880000000000000000000000009999999999999999999999999999999999999999",
-							Output:  "0xbeefdead",
-						},
-					},
-				},
 			},
 		},
 	}
 
-	prestateRes := &internal_tx.PrestateTracerResponse{
-		Result: []internal_tx.PrestateTraceResult{
-			{
-				TxHash: "0xabcdef1234567890",
-				Result: internal_tx.PrestateTracerTxState{
-					Pre:  json.RawMessage(`{"0x1234": {"balance": "0x100"}}`),
-					Post: json.RawMessage(`{"0x1234": {"balance": "0x50"}}`),
-				},
-			},
+	// Set the anonymous struct fields for the transaction trace
+	callTraceRes.Result[0].Result.Type = "CALL"
+	callTraceRes.Result[0].Result.From = "0x1234567890123456789012345678901234567890"
+	callTraceRes.Result[0].Result.To = "0x0987654321098765432109876543210987654321"
+	callTraceRes.Result[0].Result.Value = "0x100"
+	callTraceRes.Result[0].Result.Gas = "0x5208"
+	callTraceRes.Result[0].Result.GasUsed = "0x5208"
+	callTraceRes.Result[0].Result.Input = "0x"
+	callTraceRes.Result[0].Result.Calls = []internal_tx.InternalTransaction{
+		{
+			Type:    "STATICCALL",
+			From:    "0x1234567890123456789012345678901234567890",
+			To:      "0x0987654321098765432109876543210987654321",
+			Value:   "0x50",
+			Gas:     "0x2604",
+			GasUsed: "0x2604",
+			Input:   "0x12345678000000000000000000000000111111111111111111111111111111111111111100000000000000000000000022222222222222222222222222222222222222220000000000000000000000003333333333333333333333333333333333333333",
+			Output:  "0x87654321",
+		},
+		{
+			Type:    "CALL",
+			From:    "0x0987654321098765432109876543210987654321",
+			To:      "0x1111111111111111111111111111111111111111",
+			Value:   "0x25",
+			Gas:     "0x1302",
+			GasUsed: "0x1302",
+			Input:   "0xabcdef00000000000000000000000000444444444444444444444444444444444444444400000000000000000000000055555555555555555555555555555555555555550000000000000000000000006666666666666666666666666666666666666666",
+			Output:  "0x00fedcba",
+		},
+		{
+			Type:    "DELEGATECALL",
+			From:    "0x1234567890123456789012345678901234567890",
+			To:      "0x2222222222222222222222222222222222222222",
+			Value:   "0x0",
+			Gas:     "0x3000",
+			GasUsed: "0x2500",
+			Input:   "0xdeadbeef000000000000000000000000777777777777777777777777777777777777777700000000000000000000000088888888888888888888888888888888888888880000000000000000000000009999999999999999999999999999999999999999",
+			Output:  "0xbeefdead",
 		},
 	}
+
 	return &internal_tx.InternalTxResult{
-		Height:       100,
-		CallTraceRes: callTraceRes,
-		PrestateRes:  prestateRes,
+		Height:    100,
+		CallTrace: callTraceRes,
 	}
 }
 
@@ -165,8 +151,14 @@ func TestIndexer_collectInternalTxs(t *testing.T) {
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
 	// Mock inserting all internal transactions in batch - use actual table name
-	mock.ExpectExec(`INSERT INTO "evm_internal_tx"`).
-		WillReturnResult(sqlmock.NewResult(1, 3))
+	// This is a batch insert with 4 rows (1 top-level + 3 sub-calls)
+	mock.ExpectExec(`INSERT INTO "evm_internal_tx" \("height","hash","sequence","index","type","from","to","input","output","value","gas","gas_used","account_ids"\) VALUES`).
+		WillReturnResult(sqlmock.NewResult(1, 4))
+
+	// Mock updating sequence info
+	mock.ExpectExec(`INSERT INTO "seq_info" \("name","sequence"\) VALUES \(\$1,\$2\) ON CONFLICT \("name"\) DO UPDATE SET "sequence"="excluded"\."sequence"`).
+		WithArgs("evm_internal_tx", int64(4)).
+		WillReturnResult(sqlmock.NewResult(1, 1))
 
 	// Mock transaction commit
 	mock.ExpectCommit()
@@ -205,29 +197,18 @@ func TestIndexer_collectInternalTxs_MismatchedResults(t *testing.T) {
 	// Mock rollback due to mismatch error
 	mock.ExpectRollback()
 
-	callTraceRes := &internal_tx.CallTracerResponse{
-		Result: []internal_tx.TracingCallInner{
-			{TxHash: "0xabcdef1234567890", Result: internal_tx.TracingCall{Type: "CALL", Calls: []types.EvmInternalTx{}}},
-			{TxHash: "0xabcdef1234567891", Result: internal_tx.TracingCall{Type: "CALL", Calls: []types.EvmInternalTx{}}},
+	callTraceRes := &internal_tx.DebugCallTraceBlockResponse{
+		Result: []internal_tx.TransactionTrace{
+			{TxHash: "0xabcdef1234567890"},
+			{TxHash: "0xabcdef1234567891"},
 		},
 	}
-
-	prestateRes := &internal_tx.PrestateTracerResponse{
-		Result: []internal_tx.PrestateTraceResult{
-			{
-				TxHash: "0xabcdef1234567890",
-				Result: internal_tx.PrestateTracerTxState{
-					Pre:  json.RawMessage(`{}`),
-					Post: json.RawMessage(`{}`),
-				},
-			},
-		},
-	}
+	callTraceRes.Result[0].Result.Type = "CALL"
+	callTraceRes.Result[1].Result.Type = "CALL"
 
 	err := indexer.CollectInternalTxs(db, &internal_tx.InternalTxResult{
-		Height:       height,
-		CallTraceRes: callTraceRes,
-		PrestateRes:  prestateRes,
+		Height:    height,
+		CallTrace: callTraceRes,
 	})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "does not match")
@@ -264,31 +245,43 @@ func TestIndexer_collectInternalTxs_EmptyInternalTxs(t *testing.T) {
 		WithArgs(sqlmock.AnyArg(), "0xabcdef1234567890", height).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
+	// Mock inserting internal transactions (even with no sub-calls, top-level still exists)
+	mock.ExpectExec(`INSERT INTO "evm_internal_tx" \("height","hash","sequence","index","type","from","to","input","output","value","gas","gas_used","account_ids"\) VALUES \(\$1,\$2,\$3,\$4,\$5,\$6,\$7,\$8,\$9,\$10,\$11,\$12,\$13\)`).
+		WithArgs(
+			int64(100),           // height
+			"0xabcdef1234567890", // hash
+			int64(1),             // sequence
+			int64(0),             // index (top-level)
+			"CALL",               // type
+			"",                   // from
+			"",                   // to
+			"",                   // input
+			"",                   // output
+			int64(0),             // value
+			int64(0),             // gas
+			int64(0),             // gas_used
+			sqlmock.AnyArg(),     // account_ids (array)
+		).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+
+	// Mock updating sequence info
+	mock.ExpectExec(`INSERT INTO "seq_info" \("name","sequence"\) VALUES \(\$1,\$2\) ON CONFLICT \("name"\) DO UPDATE SET "sequence"="excluded"\."sequence"`).
+		WithArgs("evm_internal_tx", int64(1)).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+
 	// Mock commit for successful completion
 	mock.ExpectCommit()
 
-	callTraceRes := &internal_tx.CallTracerResponse{
-		Result: []internal_tx.TracingCallInner{
-			{TxHash: "0xabcdef1234567890", Result: internal_tx.TracingCall{Type: "CALL", Calls: []types.EvmInternalTx{}}},
+	callTraceRes := &internal_tx.DebugCallTraceBlockResponse{
+		Result: []internal_tx.TransactionTrace{
+			{TxHash: "0xabcdef1234567890"},
 		},
 	}
-
-	prestateRes := &internal_tx.PrestateTracerResponse{
-		Result: []internal_tx.PrestateTraceResult{
-			{
-				TxHash: "0xabcdef1234567890",
-				Result: internal_tx.PrestateTracerTxState{
-					Pre:  json.RawMessage(`{}`),
-					Post: json.RawMessage(`{}`),
-				},
-			},
-		},
-	}
+	callTraceRes.Result[0].Result.Type = "CALL"
 
 	err := indexer.CollectInternalTxs(db, &internal_tx.InternalTxResult{
-		Height:       height,
-		CallTraceRes: callTraceRes,
-		PrestateRes:  prestateRes,
+		Height:    height,
+		CallTrace: callTraceRes,
 	})
 	assert.NoError(t, err)
 
@@ -322,52 +315,38 @@ func TestIndexer_collectInternalTxs_InvalidHexValues(t *testing.T) {
 	// Mock rollback due to invalid hex error
 	mock.ExpectRollback()
 
-	callTraceRes := &internal_tx.CallTracerResponse{
-		Result: []internal_tx.TracingCallInner{
+	callTraceRes := &internal_tx.DebugCallTraceBlockResponse{
+		Result: []internal_tx.TransactionTrace{
 			{
 				TxHash: "0xabcdef1234567890",
-				Result: internal_tx.TracingCall{
-					Type:    "CALL",
-					From:    "0x1234567890123456789012345678901234567890",
-					To:      "0x0987654321098765432109876543210987654321",
-					Value:   "0x100",
-					Gas:     "0x5208",
-					GasUsed: "0x5208",
-					Input:   "0x",
-					Output:  "0x",
-					Calls: []types.EvmInternalTx{
-						{
-							Type:    "CALL",
-							From:    "0x1234567890123456789012345678901234567890",
-							To:      "0x0987654321098765432109876543210987654321",
-							Value:   "invalid_hex",
-							Gas:     "0x2604",
-							GasUsed: "0x2604",
-							Input:   "0x12345678",
-							Output:  "0x87654321",
-						},
-					},
-				},
 			},
 		},
 	}
 
-	prestateRes := &internal_tx.PrestateTracerResponse{
-		Result: []internal_tx.PrestateTraceResult{
-			{
-				TxHash: "0xabcdef1234567890",
-				Result: internal_tx.PrestateTracerTxState{
-					Pre:  json.RawMessage(`{}`),
-					Post: json.RawMessage(`{}`),
-				},
-			},
+	// Set the anonymous struct fields
+	callTraceRes.Result[0].Result.Type = "CALL"
+	callTraceRes.Result[0].Result.From = "0x1234567890123456789012345678901234567890"
+	callTraceRes.Result[0].Result.To = "0x0987654321098765432109876543210987654321"
+	callTraceRes.Result[0].Result.Value = "0x100"
+	callTraceRes.Result[0].Result.Gas = "0x5208"
+	callTraceRes.Result[0].Result.GasUsed = "0x5208"
+	callTraceRes.Result[0].Result.Input = "0x"
+	callTraceRes.Result[0].Result.Calls = []internal_tx.InternalTransaction{
+		{
+			Type:    "CALL",
+			From:    "0x1234567890123456789012345678901234567890",
+			To:      "0x0987654321098765432109876543210987654321",
+			Value:   "invalid_hex",
+			Gas:     "0x2604",
+			GasUsed: "0x2604",
+			Input:   "0x12345678",
+			Output:  "0x87654321",
 		},
 	}
 
 	err := indexer.CollectInternalTxs(db, &internal_tx.InternalTxResult{
-		Height:       height,
-		CallTraceRes: callTraceRes,
-		PrestateRes:  prestateRes,
+		Height:    height,
+		CallTrace: callTraceRes,
 	})
 	assert.Error(t, err)
 
