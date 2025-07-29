@@ -6,11 +6,9 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/lib/pq"
 
 	indexerutil "github.com/initia-labs/rollytics/indexer/util"
 	"github.com/initia-labs/rollytics/orm"
@@ -19,104 +17,54 @@ import (
 	"gorm.io/gorm"
 )
 
-const (
-	numWorkers = 10
-)
-
 type InternalTxResult struct {
 	Height    int64
 	CallTrace *DebugCallTraceBlockResponse
 }
 
-func (i *Indexer) collect(heightChan <-chan int64, startHeight int64) {
+func (i *Indexer) collect(heights []int64) {
 	var (
-		wg             sync.WaitGroup
-		results        = make(chan *InternalTxResult, 100)
-		errChan        = make(chan error, 1)
-		pendingMap     = make(map[int64]*InternalTxResult)
-		expectedHeight = startHeight
-		mu             sync.Mutex
+		g        errgroup.Group
+		scrapped = make(map[int64]*InternalTxResult)
+		mu       sync.Mutex
 	)
-
-	for range numWorkers {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for height := range heightChan {
-				internalTx, err := i.scrapInternalTxs(height)
-				if err != nil {
-					i.logger.Error("failed to scrap internal txs", slog.Int64("height", height), slog.Any("error", err))
-					errChan <- err
-					return
-				}
-				i.logger.Info("scraped internal txs", slog.Int64("height", height))
-				results <- internalTx
-				time.Sleep(i.cfg.GetCoolingDuration())
+	// 1. Scrape internal transactions
+	client := fiber.AcquireClient()
+	for _, h := range heights {
+		g.Go(func() error {
+			internalTx, err := i.scrapInternalTxs(client, h)
+			if err != nil {
+				i.logger.Error("failed to scrap internal txs", slog.Int64("height", h), slog.Any("error", err))
+				return err
 			}
-		}()
+
+			i.logger.Info("scraped internal txs", slog.Int64("height", h))
+			mu.Lock()
+			scrapped[internalTx.Height] = internalTx
+			mu.Unlock()
+			return nil
+		})
 	}
 
-	go func() {
-		for res := range results {
-			mu.Lock()
-			pendingMap[res.Height] = res
-
-			var pendingItxs []*InternalTxResult
-			for {
-				if pendingItx, exists := pendingMap[expectedHeight]; exists {
-					delete(pendingMap, expectedHeight)
-					pendingItxs = append(pendingItxs, pendingItx)
-					expectedHeight++
-				} else {
-					break
-				}
-			}
-			if len(pendingMap) > 1000 {
-				i.logger.Warn("too many pending results", slog.Int("pending", len(pendingMap)), slog.Int64("expectedHeight", expectedHeight))
-			}
-			mu.Unlock()
-
-			for _, internalTx := range pendingItxs {
-				if err := i.CollectInternalTxs(i.db, internalTx); err != nil {
-					i.logger.Error("failed to collect internal txs", slog.Int64("height", internalTx.Height), slog.Any("error", err))
-					errChan <- err
-					return
-				}
-				i.logger.Info("collected internal txs", slog.Int64("height", internalTx.Height))
-			}
-		}
-	}()
-
-	go func() {
-		wg.Wait()
-		close(results)
-	}()
-
-	if err := <-errChan; err != nil {
+	if err := g.Wait(); err != nil {
 		panic(err)
+	}
+	fiber.ReleaseClient(client)
+
+	// 2. Collect internal transactions
+	for _, h := range heights {
+		internalTx := scrapped[h]
+		if err := i.CollectInternalTxs(i.db, internalTx); err != nil {
+			i.logger.Error("failed to collect internal txs", slog.Int64("height", internalTx.Height), slog.Any("error", err))
+			panic(err)
+		}
 	}
 }
 
 // Get EVM internal transactions for the debug_traceBlock
-func (i *Indexer) scrapInternalTxs(height int64) (*InternalTxResult, error) {
-	var (
-		g            errgroup.Group
-		err          error
-		callTraceRes *DebugCallTraceBlockResponse
-	)
-
-	client := fiber.AcquireClient()
-	defer fiber.ReleaseClient(client)
-
-	g.Go(func() error {
-		callTraceRes, err = TraceCallByBlock(i.cfg, client, height)
-		if err != nil {
-			return err
-		}
-		return nil
-	})
-
-	if err := g.Wait(); err != nil {
+func (i *Indexer) scrapInternalTxs(client *fiber.Client, height int64) (*InternalTxResult, error) {
+	callTraceRes, err := TraceCallByBlock(i.cfg, client, height)
+	if err != nil {
 		return nil, err
 	}
 	return &InternalTxResult{
@@ -158,7 +106,8 @@ func (i *Indexer) CollectInternalTxs(db *orm.Database, internalTx *InternalTxRes
 			for _, accId := range evmTxAccountIds {
 				accountMap[accId] = nil
 			}
-
+			// Process the top-level call and sub-calls
+			// 1. Top-level call
 			topLevelCall := InternalTransaction{
 				Type:    trace.Result.Type,
 				From:    trace.Result.From,
@@ -182,6 +131,7 @@ func (i *Indexer) CollectInternalTxs(db *orm.Database, internalTx *InternalTxRes
 			}
 			allInternalTxs = append(allInternalTxs, *topLevelTx)
 
+			// 2. Sub-calls
 			for subIdx, call := range trace.Result.Calls {
 				txInfo.Index = int64(subIdx + 1)
 				subTx, err := processInternalCall(
@@ -201,13 +151,6 @@ func (i *Indexer) CollectInternalTxs(db *orm.Database, internalTx *InternalTxRes
 			for accId := range accountMap {
 				accountIds = append(accountIds, accId)
 			}
-
-			// If the new account IDs are found from the internal transactions, update the evm_tx record
-			if err := tx.Model(&types.CollectedEvmTx{}).
-				Where("hash = ? AND height = ?", txHash, height).
-				Update("account_ids", pq.Array(accountIds)).Error; err != nil {
-				return err
-			}
 		}
 		batchSize := i.cfg.GetDBBatchSize()
 		if err := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(allInternalTxs, batchSize).Error; err != nil {
@@ -215,6 +158,7 @@ func (i *Indexer) CollectInternalTxs(db *orm.Database, internalTx *InternalTxRes
 			return err
 		}
 
+		// Update the sequence info
 		if err := tx.Clauses(orm.UpdateAllWhenConflict).Create(&seqInfo).Error; err != nil {
 			return err
 		}

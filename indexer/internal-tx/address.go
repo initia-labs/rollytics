@@ -37,13 +37,8 @@ func GrepAddressesFromEvmInternalTx(evmInternalTx types.EvmInternalTx) (grepped 
 	}
 
 	input = input[10:] // Remove function selector
-	arguments := make([][]byte, 0, len(input)/32)
 	for i := 0; i+32 <= len(input); i += 32 {
-		arguments = append(arguments, []byte(input[i:i+32]))
-	}
-
-	for _, arg := range arguments {
-		argStr := string(arg)
+		argStr := string(input[i : i+32])
 		if strings.HasPrefix(argStr, addressPrefix) {
 			addrs[argStr] = nil
 		}

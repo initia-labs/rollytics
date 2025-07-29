@@ -28,7 +28,6 @@ type Indexer struct {
 	blockMap        map[int64]indexertypes.ScrapedBlock
 	blockChan       chan indexertypes.ScrapedBlock
 	controlChan     chan string
-	commitChan      chan int64
 	paused          bool
 	mtx             sync.Mutex
 	height          int64
@@ -46,7 +45,6 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Indexer {
 		blockMap:        make(map[int64]indexertypes.ScrapedBlock),
 		blockChan:       make(chan indexertypes.ScrapedBlock),
 		controlChan:     make(chan string),
-		commitChan:      make(chan int64),
 	}
 }
 
@@ -74,7 +72,7 @@ func (i *Indexer) collectInternalTxs() {
 	if i.internalIndexer == nil {
 		return
 	}
-	i.internalIndexer.Run(i.height, i.commitChan)
+	i.internalIndexer.Run()
 }
 
 func (i *Indexer) scrape() {
@@ -132,11 +130,6 @@ func (i *Indexer) collect() {
 			panic(err)
 		}
 
-		if i.internalIndexer != nil {
-			go func(h int64) {
-				i.commitChan <- h
-			}(i.height)
-		}
 		i.height++
 
 	}

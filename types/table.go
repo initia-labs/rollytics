@@ -26,7 +26,7 @@ type CollectedBlock struct {
 	Proposer  string          `gorm:"type:text"`
 	GasUsed   int64           `gorm:"type:bigint"`
 	GasWanted int64           `gorm:"type:bigint"`
-	TxCount   int             `gorm:"type:bigint"`
+	TxCount   int             `gorm:"type:bigint;index:block_tx_count"`
 	TotalFee  json.RawMessage `gorm:"type:jsonb"`
 }
 
@@ -109,7 +109,7 @@ type CollectedEvmInternalTx struct {
 	Value      int64         `gorm:"type:bigint"`
 	Gas        int64         `gorm:"type:bigint"`
 	GasUsed    int64         `gorm:"type:bigint"`
-	AccountIds pq.Int64Array `gorm:"type:bigint[]"` // apply GIN index at DB initialization
+	AccountIds pq.Int64Array `gorm:"type:bigint[];index:evm_internal_tx_account_ids,type:gin"`
 }
 
 func (CollectedSeqInfo) TableName() string {

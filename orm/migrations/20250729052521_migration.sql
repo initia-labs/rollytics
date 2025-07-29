@@ -1,3 +1,5 @@
+-- Create index "block_tx_count" to table: "block"
+CREATE INDEX "block_tx_count" ON "public"."block" ("tx_count");
 -- Create "evm_internal_tx" table
 CREATE TABLE "public"."evm_internal_tx" (
   "height" bigint NOT NULL,
@@ -13,10 +15,10 @@ CREATE TABLE "public"."evm_internal_tx" (
   "gas" bigint NULL,
   "gas_used" bigint NULL,
   "account_ids" bigint[] NULL,
-  "pre_state" jsonb NULL,
-  "post_state" jsonb NULL,
   PRIMARY KEY ("height", "hash", "index")
 );
+-- Create index "evm_internal_tx_account_ids" to table: "evm_internal_tx"
+CREATE INDEX "evm_internal_tx_account_ids" ON "public"."evm_internal_tx" USING gin ("account_ids");
 -- Create index "evm_internal_tx_from" to table: "evm_internal_tx"
 CREATE INDEX "evm_internal_tx_from" ON "public"."evm_internal_tx" ("from");
 -- Create index "evm_internal_tx_index" to table: "evm_internal_tx"
