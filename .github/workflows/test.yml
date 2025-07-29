@@ -24,10 +24,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test-coverage-upload:
-    name: Run test and upload codecov
-    env:
-      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+  test:
+    name: Run tests
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/setup-go@v4
@@ -48,14 +46,7 @@ jobs:
           make build
         if: env.GIT_DIFF
           
-      - name: test & coverage report creation
+      - name: test
         run: |
-          go test ./... -mod=readonly -timeout 12m -coverprofile=coverage.txt -covermode=atomic
-        if: env.GIT_DIFF
-        
-      - uses: codecov/codecov-action@v3
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage.txt
-          fail_ci_if_error: true
+          go test ./... -mod=readonly -timeout 12m
         if: env.GIT_DIFF
