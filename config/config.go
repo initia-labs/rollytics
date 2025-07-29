@@ -142,6 +142,11 @@ func (c Config) GetChainConfig() *ChainConfig {
 	return c.chainConfig
 }
 
+// SetInternalTxConfig assigns the internal tx config for testing purposes.
+func (c *Config) SetInternalTxConfig(internalTxCfg *InternalTxConfig) {
+	c.internalTxConfig = internalTxCfg
+}
+
 func (c Config) GetDBBatchSize() int {
 	return c.dbConfig.BatchSize
 }

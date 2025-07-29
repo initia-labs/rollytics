@@ -40,6 +40,10 @@ func setupTestConfig() *config.Config {
 		ChainId: "test-chain",
 		VmType:  types.EVM,
 	})
+	cfg.SetInternalTxConfig(&config.InternalTxConfig{
+		Enabled:   true,
+		BatchSize: 10,
+	})
 
 	return cfg
 }
