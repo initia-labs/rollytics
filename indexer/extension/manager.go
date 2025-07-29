@@ -56,5 +56,6 @@ func (m *ExtensionManager) Run() error {
 		}(ext)
 	}
 
+	m.wg.Wait()
 	return nil
 }

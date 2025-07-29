@@ -22,7 +22,7 @@ type InternalTxExtension struct {
 }
 
 func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *InternalTxExtension {
-	if cfg.GetVmType() != types.EVM && cfg.InternalTxEnabled() {
+	if cfg.GetVmType() != types.EVM || !cfg.InternalTxEnabled() {
 		return nil
 	}
 

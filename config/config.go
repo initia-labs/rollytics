@@ -124,6 +124,7 @@ func (c Config) GetListenPort() string {
 	return c.listenPort
 }
 
+// SetDBConfig assigns the DB config for testing purposes.
 func (c *Config) SetDBConfig(dbCfg *dbconfig.Config) {
 	c.dbConfig = dbCfg
 }
@@ -132,6 +133,7 @@ func (c Config) GetDBConfig() *dbconfig.Config {
 	return c.dbConfig
 }
 
+// SetChainConfig assigns the chain config for testing purposes.
 func (c *Config) SetChainConfig(chainCfg *ChainConfig) {
 	c.chainConfig = chainCfg
 }
