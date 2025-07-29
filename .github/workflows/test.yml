@@ -1,0 +1,58 @@
+name: Build & Test
+
+on:
+  pull_request:
+    paths:
+      - "**.go"
+      - "go.mod"
+      - "go.sum"
+      
+  push:
+    branches:
+      - main
+      - "release/*"
+    paths:
+      - "**.go"
+      - "go.mod"
+      - "go.sum"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-coverage-upload:
+    name: Run test and upload codecov
+    env:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/setup-go@v4
+        with:
+          go-version: 1.21
+          
+      - uses: actions/checkout@v4
+      
+      - uses: technote-space/get-diff-action@v6
+        with:
+          PATTERNS: |
+            **/**.go
+            go.mod
+            go.sum
+            
+      - name: build
+        run: |
+          make build
+        if: env.GIT_DIFF
+          
+      - name: test & coverage report creation
+        run: |
+          go test ./... -mod=readonly -timeout 12m -coverprofile=coverage.txt -covermode=atomic
+        if: env.GIT_DIFF
+        
+      - uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage.txt
+          fail_ci_if_error: true
+        if: env.GIT_DIFF

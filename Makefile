@@ -16,6 +16,10 @@ all: test
 test:
 	go test ./...
 
+test-coverage:
+	go test -race -coverprofile=coverage.out -covermode=atomic ./...
+	go tool cover -func=coverage.out
+
 install: go.sum
 	go install -mod=readonly $(LDFLAGS) ./cmd/rollytics
 
