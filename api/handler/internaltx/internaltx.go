@@ -196,6 +196,8 @@ func (h *InternalTxHandler) GetEvmInternalTxByHash(c *fiber.Ctx) error {
 
 	var txs []types.CollectedEvmInternalTx
 	if err := query.Order(pagination.OrderBy("sequence")).
+		Offset(pagination.Offset).
+		Limit(pagination.Limit).
 		Find(&txs).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return fiber.NewError(fiber.StatusNotFound, "tx not found")
