@@ -15,9 +15,9 @@ type EvmInternalTxResponse struct {
 	To      string `json:"to"`
 	Input   string `json:"input"`
 	Output  string `json:"output"`
-	Value   int64  `json:"value"`
-	Gas     int64  `json:"gas"`
-	GasUsed int64  `json:"gasUsed"`
+	Value   string `json:"value"`
+	Gas     string `json:"gas"`
+	GasUsed string `json:"gasUsed"`
 }
 
 type EvmInternalTxsResponse struct {

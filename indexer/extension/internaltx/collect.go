@@ -1,4 +1,4 @@
-package internal_tx
+package internaltx
 
 import (
 	"database/sql"
@@ -22,16 +22,17 @@ type InternalTxResult struct {
 	CallTrace *DebugCallTraceBlockResponse
 }
 
-func (i *Indexer) collect(heights []int64) {
+func (i *InternalTxExtension) collect(heights []int64) {
 	var (
 		g        errgroup.Group
 		scrapped = make(map[int64]*InternalTxResult)
 		mu       sync.Mutex
 	)
 	// 1. Scrape internal transactions
-	client := fiber.AcquireClient()
 	for _, h := range heights {
 		g.Go(func() error {
+			client := fiber.AcquireClient()
+			defer fiber.ReleaseClient(client)
 			internalTx, err := i.scrapInternalTxs(client, h)
 			if err != nil {
 				i.logger.Error("failed to scrap internal txs", slog.Int64("height", h), slog.Any("error", err))
@@ -49,7 +50,6 @@ func (i *Indexer) collect(heights []int64) {
 	if err := g.Wait(); err != nil {
 		panic(err)
 	}
-	fiber.ReleaseClient(client)
 
 	// 2. Collect internal transactions
 	for _, h := range heights {
@@ -62,7 +62,7 @@ func (i *Indexer) collect(heights []int64) {
 }
 
 // Get EVM internal transactions for the debug_traceBlock
-func (i *Indexer) scrapInternalTxs(client *fiber.Client, height int64) (*InternalTxResult, error) {
+func (i *InternalTxExtension) scrapInternalTxs(client *fiber.Client, height int64) (*InternalTxResult, error) {
 	callTraceRes, err := TraceCallByBlock(i.cfg, client, height)
 	if err != nil {
 		return nil, err
@@ -73,9 +73,9 @@ func (i *Indexer) scrapInternalTxs(client *fiber.Client, height int64) (*Interna
 	}, nil
 }
 
-func (i *Indexer) CollectInternalTxs(db *orm.Database, internalTx *InternalTxResult) error {
+func (i *InternalTxExtension) CollectInternalTxs(db *orm.Database, internalTx *InternalTxResult) error {
 	err := db.Transaction(func(tx *gorm.DB) error {
-		seqInfo, err := indexerutil.GetSeqInfo("evm_internal_tx", tx)
+		seqInfo, err := indexerutil.GetSeqInfo(types.SeqInfoEvmInternalTx, tx)
 		if err != nil {
 			return err
 		}
@@ -96,15 +96,11 @@ func (i *Indexer) CollectInternalTxs(db *orm.Database, internalTx *InternalTxRes
 		var allInternalTxs []types.CollectedEvmInternalTx
 		for idx, trace := range internalTx.CallTrace.Result {
 			evmTx := evmTxs[idx]
-			height, txHash, evmTxAccountIds := evmTx.Height, evmTx.Hash, evmTx.AccountIds
+			height, txHash := evmTx.Height, evmTx.Hash
 			txInfo := &InternalTxInfo{
 				Height: height,
 				Hash:   txHash,
 				Index:  int64(0),
-			}
-			accountMap := make(map[int64]any)
-			for _, accId := range evmTxAccountIds {
-				accountMap[accId] = nil
 			}
 			// Process the top-level call and sub-calls
 			// 1. Top-level call
@@ -124,7 +120,6 @@ func (i *Indexer) CollectInternalTxs(db *orm.Database, internalTx *InternalTxRes
 				txInfo,
 				&topLevelCall,
 				&seqInfo,
-				accountMap,
 			)
 			if err != nil {
 				return err
@@ -139,17 +134,11 @@ func (i *Indexer) CollectInternalTxs(db *orm.Database, internalTx *InternalTxRes
 					txInfo,
 					&call,
 					&seqInfo,
-					accountMap,
 				)
 				if err != nil {
 					return err
 				}
 				allInternalTxs = append(allInternalTxs, *subTx)
-			}
-
-			accountIds := make([]int64, 0, len(accountMap))
-			for accId := range accountMap {
-				accountIds = append(accountIds, accId)
 			}
 		}
 		batchSize := i.cfg.GetDBBatchSize()
@@ -165,7 +154,7 @@ func (i *Indexer) CollectInternalTxs(db *orm.Database, internalTx *InternalTxRes
 
 		return nil
 	}, &sql.TxOptions{
-		Isolation: sql.LevelSerializable,
+		Isolation: sql.LevelRepeatableRead,
 	})
 
 	if err != nil {

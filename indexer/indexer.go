@@ -11,7 +11,7 @@ import (
 
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/indexer/collector"
-	internaltx "github.com/initia-labs/rollytics/indexer/internal-tx"
+	"github.com/initia-labs/rollytics/indexer/extension"
 	"github.com/initia-labs/rollytics/indexer/scraper"
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
 	"github.com/initia-labs/rollytics/orm"
@@ -19,32 +19,32 @@ import (
 )
 
 type Indexer struct {
-	cfg             *config.Config
-	logger          *slog.Logger
-	db              *orm.Database
-	scraper         *scraper.Scraper
-	collector       *collector.Collector
-	internalIndexer *internaltx.Indexer
-	blockMap        map[int64]indexertypes.ScrapedBlock
-	blockChan       chan indexertypes.ScrapedBlock
-	controlChan     chan string
-	paused          bool
-	mtx             sync.Mutex
-	height          int64
-	prepareCount    int
+	cfg              *config.Config
+	logger           *slog.Logger
+	db               *orm.Database
+	scraper          *scraper.Scraper
+	collector        *collector.Collector
+	extensionManager *extension.ExtensionManager
+	blockMap         map[int64]indexertypes.ScrapedBlock
+	blockChan        chan indexertypes.ScrapedBlock
+	controlChan      chan string
+	paused           bool
+	mtx              sync.Mutex
+	height           int64
+	prepareCount     int
 }
 
 func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Indexer {
 	return &Indexer{
-		cfg:             cfg,
-		logger:          logger,
-		db:              db,
-		scraper:         scraper.New(cfg, logger),
-		collector:       collector.New(cfg, logger, db),
-		internalIndexer: internaltx.New(cfg, logger, db),
-		blockMap:        make(map[int64]indexertypes.ScrapedBlock),
-		blockChan:       make(chan indexertypes.ScrapedBlock),
-		controlChan:     make(chan string),
+		cfg:              cfg,
+		logger:           logger,
+		db:               db,
+		scraper:          scraper.New(cfg, logger),
+		collector:        collector.New(cfg, logger, db),
+		extensionManager: extension.NewManager(cfg, logger, db),
+		blockMap:         make(map[int64]indexertypes.ScrapedBlock),
+		blockChan:        make(chan indexertypes.ScrapedBlock),
+		controlChan:      make(chan string),
 	}
 }
 
@@ -60,19 +60,15 @@ func (i *Indexer) Run() error {
 	}
 	i.height = lastBlock.Height + 1
 
-	go i.collectInternalTxs()
+	if err := i.extensionManager.Run(); err != nil {
+		i.logger.Error("failed to start extensions", slog.Any("error", err))
+	}
+
 	go i.scrape()
 	go i.prepare()
 	i.collect()
 
 	return nil
-}
-
-func (i *Indexer) collectInternalTxs() {
-	if i.internalIndexer == nil {
-		return
-	}
-	i.internalIndexer.Run()
 }
 
 func (i *Indexer) scrape() {

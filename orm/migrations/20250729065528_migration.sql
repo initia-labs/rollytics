@@ -11,9 +11,9 @@ CREATE TABLE "public"."evm_internal_tx" (
   "to" text NULL,
   "input" text NULL,
   "output" text NULL,
-  "value" bigint NULL,
-  "gas" bigint NULL,
-  "gas_used" bigint NULL,
+  "value" text NULL,
+  "gas" text NULL,
+  "gas_used" text NULL,
   "account_ids" bigint[] NULL,
   PRIMARY KEY ("height", "hash", "index")
 );

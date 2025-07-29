@@ -1,4 +1,4 @@
-package internal_tx
+package internaltx
 
 import (
 	"strings"

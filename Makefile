@@ -14,7 +14,7 @@ LDFLAGS := -ldflags "-s -w -X main.Version=$(VERSION) -X main.CommitHash=$(COMMI
 all: test
 
 test:
-	go test ./... 
+	go test ./...
 
 install: go.sum
 	go install -mod=readonly $(LDFLAGS) ./cmd/rollytics

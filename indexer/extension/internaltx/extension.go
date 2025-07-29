@@ -1,34 +1,32 @@
-package internal_tx
+package internaltx
 
 import (
 	"errors"
 	"log/slog"
-	"time"
 
 	"github.com/initia-labs/rollytics/config"
+	exttypes "github.com/initia-labs/rollytics/indexer/extension/types"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
 	"gorm.io/gorm"
 )
 
-const (
-	batchSize = 5
-)
+var _ exttypes.Extension = (*InternalTxExtension)(nil)
 
-// Indexer is responsible for collecting and indexing internal transactions.
-type Indexer struct {
+// InternalTxExtension is responsible for collecting and indexing internal transactions.
+type InternalTxExtension struct {
 	cfg         *config.Config
 	logger      *slog.Logger
 	db          *orm.Database
 	lastIndexed int64
 }
 
-func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Indexer {
+func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *InternalTxExtension {
 	if cfg.GetVmType() != types.EVM && cfg.InternalTxEnabled() {
 		return nil
 	}
 
-	return &Indexer{
+	return &InternalTxExtension{
 		cfg:         cfg,
 		logger:      logger,
 		db:          db,
@@ -36,7 +34,7 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Indexer {
 	}
 }
 
-func (i *Indexer) Run() error {
+func (i *InternalTxExtension) Run() error {
 	var lastItxs types.CollectedEvmInternalTx
 	if err := i.db.Model(types.CollectedEvmInternalTx{}).Order("height desc").
 		First(&lastItxs).Error; err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -53,13 +51,12 @@ func (i *Indexer) Run() error {
 			Where("height > ?", i.lastIndexed).
 			Where("tx_count > 0").
 			Order("height ASC").
-			Limit(batchSize).Pluck("height", &heights).Error; err != nil {
+			Limit(i.cfg.GetInternalTxConfig().GetBatchSize()).Pluck("height", &heights).Error; err != nil {
 			i.logger.Error("failed to get blocks to process", slog.Any("error", err))
 			continue
 		}
 
 		if len(heights) == 0 {
-			time.Sleep(5 * time.Second)
 			continue
 		}
 
@@ -68,7 +65,10 @@ func (i *Indexer) Run() error {
 		if len(heights) > 0 {
 			i.lastIndexed = heights[len(heights)-1]
 		}
-
-		time.Sleep(5 * time.Second)
 	}
+}
+
+// Name returns the name of the extension
+func (i *InternalTxExtension) Name() string {
+	return "internal-tx"
 }

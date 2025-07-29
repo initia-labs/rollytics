@@ -42,7 +42,7 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) er
 	}
 
 	// get seq info
-	seqInfo, err := indexerutil.GetSeqInfo("tx", tx)
+	seqInfo, err := indexerutil.GetSeqInfo(types.SeqInfoTx, tx)
 	if err != nil {
 		return err
 	}
@@ -214,7 +214,7 @@ func (sub *TxSubmodule) collectEvm(block indexertypes.ScrapedBlock, evmTxs []typ
 	height := block.Height
 
 	// get seq info
-	seqInfo, err := indexerutil.GetSeqInfo("evm_tx", tx)
+	seqInfo, err := indexerutil.GetSeqInfo(types.SeqInfoEvmTx, tx)
 	if err != nil {
 		return err
 	}

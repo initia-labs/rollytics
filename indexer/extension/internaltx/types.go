@@ -1,4 +1,4 @@
-package internal_tx
+package internaltx
 
 // DebugCallTraceBlockResponse represents the response from debug_traceBlockByNumber RPC call
 type DebugCallTraceBlockResponse struct {

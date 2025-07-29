@@ -24,17 +24,17 @@ func SetBuildInfo(v, commit string) {
 }
 
 type Config struct {
-	listenPort      string
-	dbConfig        *dbconfig.Config
-	chainConfig     *ChainConfig
-	logLevel        string
-	logFormat       string
-	coolingDuration time.Duration // for indexer only
-	queryTimeout    time.Duration // for indexer only
-	cacheSize       int
-	cacheTTL        time.Duration // for api only
-	pollingInterval time.Duration // for api only
-	internalTx      bool
+	listenPort       string
+	dbConfig         *dbconfig.Config
+	chainConfig      *ChainConfig
+	logLevel         string
+	logFormat        string
+	coolingDuration  time.Duration // for indexer only
+	queryTimeout     time.Duration // for indexer only
+	cacheSize        int
+	cacheTTL         time.Duration // for api only
+	pollingInterval  time.Duration // for api only
+	internalTxConfig *InternalTxConfig
 }
 
 func setDefaults() {
@@ -50,7 +50,8 @@ func setDefaults() {
 	viper.SetDefault("CACHE_TTL", 10*time.Minute)
 	viper.SetDefault("POLLING_INTERVAL", 3*time.Second)
 	viper.SetDefault("INTERNAL_TX", false)
-
+	viper.SetDefault("INTERNAL_TX_POLL_INTERVAL", 5*time.Second)
+	viper.SetDefault("INTERNAL_TX_BATCH_SIZE", 10)
 }
 
 func GetConfig() (*Config, error) {
@@ -102,7 +103,11 @@ func GetConfig() (*Config, error) {
 		cacheSize:       viper.GetInt("CACHE_SIZE"),
 		cacheTTL:        viper.GetDuration("CACHE_TTL"),
 		pollingInterval: viper.GetDuration("POLLING_INTERVAL"),
-		internalTx:      viper.GetBool("INTERNAL_TX"),
+		internalTxConfig: &InternalTxConfig{
+			Enabled:       viper.GetBool("INTERNAL_TX"),
+			PollInterval:  viper.GetDuration("INTERNAL_TX_POLL_INTERVAL"),
+			BatchSize:     viper.GetInt("INTERNAL_TX_BATCH_SIZE"),
+		},
 	}
 
 	if err := config.Validate(); err != nil {
@@ -160,7 +165,11 @@ func (c Config) GetVmType() types.VMType {
 }
 
 func (c Config) InternalTxEnabled() bool {
-	return c.internalTx
+	return c.internalTxConfig.Enabled
+}
+
+func (c Config) GetInternalTxConfig() *InternalTxConfig {
+	return c.internalTxConfig
 }
 
 func (c Config) GetLogLevel() slog.Level {

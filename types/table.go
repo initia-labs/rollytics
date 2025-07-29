@@ -106,9 +106,9 @@ type CollectedEvmInternalTx struct {
 	To         string        `gorm:"type:text;index:evm_internal_tx_to"`
 	Input      string        `gorm:"type:text"`
 	Output     string        `gorm:"type:text"`
-	Value      int64         `gorm:"type:bigint"`
-	Gas        int64         `gorm:"type:bigint"`
-	GasUsed    int64         `gorm:"type:bigint"`
+	Value      string        `gorm:"type:text"`
+	Gas        string        `gorm:"type:text"`
+	GasUsed    string        `gorm:"type:text"`
 	AccountIds pq.Int64Array `gorm:"type:bigint[];index:evm_internal_tx_account_ids,type:gin"`
 }
 

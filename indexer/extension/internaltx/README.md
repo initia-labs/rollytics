@@ -1,8 +1,8 @@
-# Internal Transaction Indexer
+# Internal Transaction Extension
 
 ## Overview
 
-The Internal Transaction Indexer is responsible for collecting and indexing EVM internal transactions by utilizing the `debug_traceBlockByNumber` RPC method. This package processes transaction traces to capture all internal calls (such as contract-to-contract interactions) that occur during transaction execution.
+The Internal Transaction Extension is responsible for collecting and indexing EVM internal transactions by utilizing the `debug_traceBlockByNumber` RPC method. This package processes transaction traces to capture all internal calls (such as contract-to-contract interactions) that occur during transaction execution.
 
 ### Key Features
 

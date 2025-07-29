@@ -1,9 +1,9 @@
-package internal_tx_test
+package internaltx_test
 
 import (
 	"testing"
 
-	internal_tx "github.com/initia-labs/rollytics/indexer/internal-tx"
+	internal_tx "github.com/initia-labs/rollytics/indexer/extension/internaltx"
 	"github.com/initia-labs/rollytics/types"
 	"github.com/stretchr/testify/require"
 )

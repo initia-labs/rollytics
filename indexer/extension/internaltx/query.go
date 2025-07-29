@@ -1,4 +1,4 @@
-package internal_tx
+package internaltx
 
 import (
 	"encoding/json"
@@ -23,7 +23,7 @@ func TraceCallByBlock(cfg *config.Config, client *fiber.Client, height int64) (*
 	}
 	headers := map[string]string{"Content-Type": "application/json"}
 
-	body, err := util.Post(client, cfg.GetCoolingDuration(), cfg.GetQueryTimeout(), cfg.GetChainConfig().JsonRpcUrl, "", payload, headers)
+	body, err := util.Post(client, cfg.GetCoolingDuration(), cfg.GetQueryTimeout()*10, cfg.GetChainConfig().JsonRpcUrl, "", payload, headers)
 	if err != nil {
 		return nil, err
 	}
