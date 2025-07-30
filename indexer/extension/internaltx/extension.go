@@ -59,6 +59,7 @@ func (i *InternalTxExtension) Run() error {
 		}
 
 		if len(heights) == 0 {
+			time.Sleep(i.cfg.GetInternalTxConfig().GetPollInterval())
 			continue
 		}
 
