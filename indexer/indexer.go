@@ -60,10 +60,10 @@ func (i *Indexer) Run() error {
 	}
 	i.height = lastBlock.Height + 1
 
+	go i.extend()
 	go i.scrape()
 	go i.prepare()
-	go i.collect()
-	i.extend()
+	i.collect()
 
 	return nil
 }
