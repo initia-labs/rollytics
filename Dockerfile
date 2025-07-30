@@ -38,11 +38,15 @@ WORKDIR /app
 # Copy binary from builder stage
 COPY --from=builder /app/rollytics .
 
+# Copy migration files
+COPY --from=builder /app/orm/migrations ./orm/migrations
+
 # Change ownership to non-root user
 RUN chown -R rollytics:rollytics /app
 
 # Install atlas
-RUN curl -sSf https://atlasgo.sh | sh -s -- --yes --community
+RUN wget https://release.ariga.io/atlas/atlas-linux-amd64-latest -O /usr/local/bin/atlas && \
+    chmod +x /usr/local/bin/atlas
 
 # Switch to non-root user
 USER rollytics
@@ -54,4 +58,4 @@ EXPOSE 8080
 ENTRYPOINT ["./rollytics"]
 
 # Default command
-CMD ["help"] 
+CMD ["help"]
