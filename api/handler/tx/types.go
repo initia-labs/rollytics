@@ -89,19 +89,17 @@ type EvmInternalTxsResponse struct {
 	Pagination common.PaginationResponse `json:"pagination" extensions:"x-order:1"`
 }
 
-func ToEvmInternalTxsResponse(citxs []types.CollectedEvmInternalTx) ([]EvmInternalTxResponse, error) {
+func ToEvmInternalTxsResponse(citxs []types.CollectedEvmInternalTx) []EvmInternalTxResponse {
 	txs := make([]EvmInternalTxResponse, 0, len(citxs))
 	for _, ctx := range citxs {
-		tx, err := ToEvmInternalTxResponse(&ctx)
-		if err != nil {
-			return nil, err
-		}
+		tx := ToEvmInternalTxResponse(&ctx)
+
 		txs = append(txs, *tx)
 	}
-	return txs, nil
+	return txs
 }
 
-func ToEvmInternalTxResponse(citx *types.CollectedEvmInternalTx) (*EvmInternalTxResponse, error) {
+func ToEvmInternalTxResponse(citx *types.CollectedEvmInternalTx) *EvmInternalTxResponse {
 	return &EvmInternalTxResponse{
 		Height:  citx.Height,
 		Hash:    citx.Hash,
@@ -114,5 +112,5 @@ func ToEvmInternalTxResponse(citx *types.CollectedEvmInternalTx) (*EvmInternalTx
 		Type:    citx.Type,
 		Input:   citx.Input,
 		Output:  citx.Output,
-	}, nil
+	}
 }

@@ -18,25 +18,21 @@ type ExtensionManager struct {
 	wg         sync.WaitGroup
 }
 
-func NewManager(cfg *config.Config, logger *slog.Logger, db *orm.Database) *ExtensionManager {
-	return &ExtensionManager{
-		cfg:    cfg,
-		logger: logger,
-		db:     db,
-	}
-}
-
-func (m *ExtensionManager) RegisterExtensions() {
+func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *ExtensionManager {
+	var extensions []types.Extension
 	// Internal Transaction
-	if itxIndexer := internaltx.New(m.cfg, m.logger, m.db); itxIndexer != nil {
-		m.extensions = append(m.extensions, itxIndexer)
+	if itxIndexer := internaltx.New(cfg, logger, db); itxIndexer != nil {
+		extensions = append(extensions, itxIndexer)
 	}
-
+	return &ExtensionManager{
+		cfg:        cfg,
+		logger:     logger,
+		db:         db,
+		extensions: extensions,
+	}
 }
 
 func (m *ExtensionManager) Run() error {
-	m.RegisterExtensions()
-
 	if len(m.extensions) == 0 {
 		m.logger.Info("No extensions registered")
 		return nil

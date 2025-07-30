@@ -47,10 +47,7 @@ func (h *TxHandler) GetEvmInternalTxs(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	txsRes, err := ToEvmInternalTxsResponse(txs)
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
-	}
+	txsRes := ToEvmInternalTxsResponse(txs)
 
 	return c.JSON(EvmInternalTxsResponse{
 		Txs:        txsRes,
@@ -101,10 +98,7 @@ func (h *TxHandler) GetEvmInternalTxsByAccount(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	txsRes, err := ToEvmInternalTxsResponse(txs)
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
-	}
+	txsRes := ToEvmInternalTxsResponse(txs)
 
 	return c.JSON(EvmInternalTxsResponse{
 		Txs:        txsRes,
@@ -151,10 +145,7 @@ func (h *TxHandler) GetEvmInternalTxsByHeight(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	txsRes, err := ToEvmInternalTxsResponse(txs)
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
-	}
+	txsRes := ToEvmInternalTxsResponse(txs)
 
 	return c.JSON(EvmInternalTxsResponse{
 		Txs:        txsRes,
@@ -205,10 +196,7 @@ func (h *TxHandler) GetEvmInternalTxByHash(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	txsRes, err := ToEvmInternalTxsResponse(txs)
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
-	}
+	txsRes := ToEvmInternalTxsResponse(txs)
 
 	return c.JSON(EvmInternalTxsResponse{
 		Txs:        txsRes,
