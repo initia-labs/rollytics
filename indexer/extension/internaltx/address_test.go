@@ -3,11 +3,10 @@ package internaltx_test
 import (
 	"testing"
 
-	internal_tx "github.com/initia-labs/rollytics/indexer/extension/internaltx"
+	"github.com/initia-labs/rollytics/indexer/extension/internaltx"
 	"github.com/initia-labs/rollytics/types"
 	"github.com/stretchr/testify/require"
 )
-
 
 func TestGrepAddressesFromEvmInternalTx(t *testing.T) {
 	tests := []struct {
@@ -75,7 +74,7 @@ func TestGrepAddressesFromEvmInternalTx(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := internal_tx.GrepAddressesFromEvmInternalTx(tt.tx)
+			result, err := internaltx.GrepAddressesFromEvmInternalTx(tt.tx)
 			require.NoError(t, err)
 			require.ElementsMatch(t, tt.expected, result)
 		})

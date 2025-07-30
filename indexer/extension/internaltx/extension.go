@@ -3,6 +3,7 @@ package internaltx
 import (
 	"errors"
 	"log/slog"
+	"time"
 
 	"github.com/initia-labs/rollytics/config"
 	exttypes "github.com/initia-labs/rollytics/indexer/extension/types"
@@ -51,20 +52,23 @@ func (i *InternalTxExtension) Run() error {
 			Where("height > ?", i.lastIndexed).
 			Where("tx_count > 0").
 			Order("height ASC").
-			Limit(i.cfg.GetInternalTxConfig().GetBatchSize()).Pluck("height", &heights).Error; err != nil {
+			Limit(i.cfg.GetInternalTxConfig().GetBatchSize()).Pluck("height", &heights).Error; err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 			i.logger.Error("failed to get blocks to process", slog.Any("error", err))
-			continue
+			panic(err)
 		}
 
 		if len(heights) == 0 {
 			continue
 		}
 
-		i.collect(heights)
-
-		if len(heights) > 0 {
-			i.lastIndexed = heights[len(heights)-1]
+		if err := i.collect(heights); err != nil {
+			panic(err)
 		}
+
+		i.lastIndexed = heights[len(heights)-1]
+
+		time.Sleep(i.cfg.GetInternalTxConfig().GetPollInterval())
+
 	}
 }
 

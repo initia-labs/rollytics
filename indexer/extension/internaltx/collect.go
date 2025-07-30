@@ -22,7 +22,7 @@ type InternalTxResult struct {
 	CallTrace *DebugCallTraceBlockResponse
 }
 
-func (i *InternalTxExtension) collect(heights []int64) {
+func (i *InternalTxExtension) collect(heights []int64) error {
 	var (
 		g        errgroup.Group
 		scrapped = make(map[int64]*InternalTxResult)
@@ -48,7 +48,7 @@ func (i *InternalTxExtension) collect(heights []int64) {
 	}
 
 	if err := g.Wait(); err != nil {
-		panic(err)
+		return err
 	}
 
 	// 2. Collect internal transactions
@@ -56,9 +56,10 @@ func (i *InternalTxExtension) collect(heights []int64) {
 		internalTx := scrapped[h]
 		if err := i.CollectInternalTxs(i.db, internalTx); err != nil {
 			i.logger.Error("failed to collect internal txs", slog.Int64("height", internalTx.Height), slog.Any("error", err))
-			panic(err)
+			return err
 		}
 	}
+	return nil
 }
 
 // Get EVM internal transactions for the debug_traceBlock

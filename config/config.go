@@ -104,9 +104,9 @@ func GetConfig() (*Config, error) {
 		cacheTTL:        viper.GetDuration("CACHE_TTL"),
 		pollingInterval: viper.GetDuration("POLLING_INTERVAL"),
 		internalTxConfig: &InternalTxConfig{
-			Enabled:       viper.GetBool("INTERNAL_TX"),
-			PollInterval:  viper.GetDuration("INTERNAL_TX_POLL_INTERVAL"),
-			BatchSize:     viper.GetInt("INTERNAL_TX_BATCH_SIZE"),
+			Enabled:      viper.GetBool("INTERNAL_TX"),
+			PollInterval: viper.GetDuration("INTERNAL_TX_POLL_INTERVAL"),
+			BatchSize:    viper.GetInt("INTERNAL_TX_BATCH_SIZE"),
 		},
 	}
 
