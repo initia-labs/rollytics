@@ -32,10 +32,10 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *ExtensionMa
 	}
 }
 
-func (m *ExtensionManager) Run() error {
+func (m *ExtensionManager) Run() {
 	if len(m.extensions) == 0 {
 		m.logger.Info("No extensions registered")
-		return nil
+		return
 	}
 
 	for _, ext := range m.extensions {
@@ -51,7 +51,5 @@ func (m *ExtensionManager) Run() error {
 			}
 		}(ext)
 	}
-
 	m.wg.Wait()
-	return nil
 }
