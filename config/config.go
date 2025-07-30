@@ -6,11 +6,11 @@ import (
 	"os"
 	"time"
 
-	dbconfig "github.com/initia-labs/rollytics/orm/config"
-	"github.com/initia-labs/rollytics/types"
-
 	"github.com/joho/godotenv"
 	"github.com/spf13/viper"
+
+	dbconfig "github.com/initia-labs/rollytics/orm/config"
+	"github.com/initia-labs/rollytics/types"
 )
 
 var (

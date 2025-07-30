@@ -3,9 +3,10 @@ package internaltx_test
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/initia-labs/rollytics/indexer/extension/internaltx"
 	"github.com/initia-labs/rollytics/types"
-	"github.com/stretchr/testify/require"
 )
 
 func TestGrepAddressesFromEvmInternalTx(t *testing.T) {

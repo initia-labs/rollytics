@@ -17,11 +17,6 @@ import (
 	"github.com/initia-labs/rollytics/types"
 )
 
-const (
-	mockAddress1 = "cosmos1zg69v7yszg69v7yszg69v7yszg69v7ys4mp2q5"
-	mockAddress2 = "cosmos1pxrk2seppxrk2seppxrk2seppxrk2sep0yx7a5"
-)
-
 func setupTestDB(t *testing.T) (*orm.Database, sqlmock.Sqlmock) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelWarn}))
 	db, mock, err := testutil.NewMockDB(logger)
@@ -125,14 +120,14 @@ func TestIndexer_collectInternalTxs(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).
 			AddRow(int64(3)).
 			AddRow(int64(4)))
-			
+
 	// Second transaction has a new To address
 	mock.ExpectQuery(`SELECT \* FROM "account_dict" WHERE account IN`).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "account"}))
 	mock.ExpectQuery(`INSERT INTO "account_dict".*RETURNING`).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).
 			AddRow(int64(5)))
-			
+
 	// Third transaction has a new To address
 	mock.ExpectQuery(`SELECT \* FROM "account_dict" WHERE account IN`).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "account"}))

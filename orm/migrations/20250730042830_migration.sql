@@ -1,5 +1,13 @@
+-- Drop index "block_height" from table: "block"
+DROP INDEX "public"."block_height";
+-- Drop index "block_timestamp" from table: "block"
+DROP INDEX "public"."block_timestamp";
 -- Create index "block_tx_count" to table: "block"
 CREATE INDEX "block_tx_count" ON "public"."block" ("tx_count");
+-- Drop index "evm_tx_sequence" from table: "evm_tx"
+DROP INDEX "public"."evm_tx_sequence";
+-- Drop index "tx_sequence" from table: "tx"
+DROP INDEX "public"."tx_sequence";
 -- Create "evm_internal_tx" table
 CREATE TABLE "public"."evm_internal_tx" (
   "height" bigint NOT NULL,
@@ -23,8 +31,6 @@ CREATE INDEX "evm_internal_tx_account_ids" ON "public"."evm_internal_tx" USING g
 CREATE INDEX "evm_internal_tx_from" ON "public"."evm_internal_tx" ("from");
 -- Create index "evm_internal_tx_index" to table: "evm_internal_tx"
 CREATE INDEX "evm_internal_tx_index" ON "public"."evm_internal_tx" ("index");
--- Create index "evm_internal_tx_sequence" to table: "evm_internal_tx"
-CREATE INDEX "evm_internal_tx_sequence" ON "public"."evm_internal_tx" ("sequence");
 -- Create index "evm_internal_tx_sequence_desc" to table: "evm_internal_tx"
 CREATE INDEX "evm_internal_tx_sequence_desc" ON "public"."evm_internal_tx" ("sequence" DESC);
 -- Create index "evm_internal_tx_to" to table: "evm_internal_tx"

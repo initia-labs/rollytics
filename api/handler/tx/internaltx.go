@@ -1,4 +1,4 @@
-package internaltx
+package tx
 
 import (
 	"errors"
@@ -23,7 +23,7 @@ import (
 // @Param pagination.count_total query bool false "Count total, default is true" default is true
 // @Param pagination.reverse query bool false "Reverse order default is true if set to true, the results will be ordered in descending order"
 // @Router /indexer/tx/v1/evm-internal-txs [get]
-func (h *InternalTxHandler) GetEvmInternalTxs(c *fiber.Ctx) error {
+func (h *TxHandler) GetEvmInternalTxs(c *fiber.Ctx) error {
 	pagination, err := common.ParsePagination(c)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
@@ -71,7 +71,7 @@ func (h *InternalTxHandler) GetEvmInternalTxs(c *fiber.Ctx) error {
 // @Param pagination.count_total query bool false "Count total, default is true" default is true
 // @Param pagination.reverse query bool false "Reverse order default is true if set to true, the results will be ordered in descending order"
 // @Router /indexer/tx/v1/evm-internal-txs/by_account/{account} [get]
-func (h *InternalTxHandler) GetEvmInternalTxsByAccount(c *fiber.Ctx) error {
+func (h *TxHandler) GetEvmInternalTxsByAccount(c *fiber.Ctx) error {
 	account, err := common.GetAccountParam(c)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
@@ -125,7 +125,7 @@ func (h *InternalTxHandler) GetEvmInternalTxsByAccount(c *fiber.Ctx) error {
 // @Param pagination.count_total query bool false "Count total, default is true" default is true
 // @Param pagination.reverse query bool false "Reverse order default is true if set to true, the results will be ordered in descending order"
 // @Router /indexer/tx/v1/evm-internal-txs/by_height/{height} [get]
-func (h *InternalTxHandler) GetEvmInternalTxsByHeight(c *fiber.Ctx) error {
+func (h *TxHandler) GetEvmInternalTxsByHeight(c *fiber.Ctx) error {
 	height, err := common.GetHeightParam(c)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
@@ -177,7 +177,7 @@ func (h *InternalTxHandler) GetEvmInternalTxsByHeight(c *fiber.Ctx) error {
 // @Router /indexer/tx/v1/evm-internal-txs/{tx_hash} [get]
 //
 //nolint:dupl
-func (h *InternalTxHandler) GetEvmInternalTxByHash(c *fiber.Ctx) error {
+func (h *TxHandler) GetEvmInternalTxByHash(c *fiber.Ctx) error {
 	hash, err := common.GetParams(c, "tx_hash")
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
@@ -216,10 +216,6 @@ func (h *InternalTxHandler) GetEvmInternalTxByHash(c *fiber.Ctx) error {
 	})
 }
 
-func (h *InternalTxHandler) buildBaseEvmInternalTxQuery() *gorm.DB {
+func (h *TxHandler) buildBaseEvmInternalTxQuery() *gorm.DB {
 	return h.GetDatabase().Model(&types.CollectedEvmInternalTx{})
-}
-
-func (h *InternalTxHandler) NotFound(c *fiber.Ctx) error {
-	return c.Status(fiber.StatusNotFound).SendString("evm routes are not available on this chain")
 }

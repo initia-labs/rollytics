@@ -7,14 +7,15 @@ import (
 	"log/slog"
 	"sync"
 
-	"github.com/gofiber/fiber/v2"
-	"github.com/jackc/pgx/v5/pgconn"
+	"golang.org/x/sync/errgroup"
+	"gorm.io/gorm"
 
 	indexerutil "github.com/initia-labs/rollytics/indexer/util"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
-	"golang.org/x/sync/errgroup"
-	"gorm.io/gorm"
+
+	"github.com/gofiber/fiber/v2"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type InternalTxResult struct {
@@ -82,9 +83,9 @@ func (i *InternalTxExtension) CollectInternalTxs(db *orm.Database, internalTx *I
 		}
 		var evmTxs []types.CollectedEvmTx
 		if err := tx.Model(&types.CollectedEvmTx{}).
+			Select("hash, height, account_ids").
 			Where("height = ?", internalTx.Height).
 			Order("sequence ASC").
-			Select("hash, height, account_ids").
 			Find(&evmTxs).Error; err != nil {
 			return err
 		}
@@ -157,12 +158,11 @@ func (i *InternalTxExtension) CollectInternalTxs(db *orm.Database, internalTx *I
 	}, &sql.TxOptions{
 		Isolation: sql.LevelRepeatableRead,
 	})
-
 	if err != nil {
 		// handle intended serialization error
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "40001" {
-			i.logger.Info("block already indexed", slog.Int64("height", internalTx.Height))
+			i.logger.Info("evm internal tx already indexed", slog.Int64("height", internalTx.Height))
 			return nil
 		}
 

@@ -19,9 +19,9 @@ type CollectedSeqInfo struct {
 
 type CollectedBlock struct {
 	ChainId   string          `gorm:"type:text;primaryKey"`
-	Height    int64           `gorm:"type:bigint;primaryKey;autoIncrement:false;index:block_height;index:block_height_desc,sort:desc"`
+	Height    int64           `gorm:"type:bigint;primaryKey;autoIncrement:false;index:block_height_desc,sort:desc"`
 	Hash      string          `gorm:"type:text"`
-	Timestamp time.Time       `gorm:"type:timestamptz;index:block_timestamp;index:block_timestamp_desc,sort:desc"`
+	Timestamp time.Time       `gorm:"type:timestamptz;index:block_timestamp_desc,sort:desc"`
 	BlockTime int64           `gorm:"type:bigint"`
 	Proposer  string          `gorm:"type:text"`
 	GasUsed   int64           `gorm:"type:bigint"`
@@ -33,7 +33,7 @@ type CollectedBlock struct {
 type CollectedTx struct {
 	Hash       string          `gorm:"type:text;primaryKey"`
 	Height     int64           `gorm:"type:bigint;primaryKey;autoIncrement:false;index:tx_height"`
-	Sequence   int64           `gorm:"type:bigint;index:tx_sequence;index:tx_sequence_desc,sort:desc"`
+	Sequence   int64           `gorm:"type:bigint;index:tx_sequence_desc,sort:desc"`
 	Signer     string          `gorm:"type:text;index:tx_signer"`
 	Data       json.RawMessage `gorm:"type:jsonb"`
 	AccountIds pq.Int64Array   `gorm:"type:bigint[];index:tx_account_ids,type:gin"`
@@ -45,7 +45,7 @@ type CollectedTx struct {
 type CollectedEvmTx struct {
 	Hash       string          `gorm:"type:text;primaryKey"`
 	Height     int64           `gorm:"type:bigint;primaryKey;autoIncrement:false;index:evm_tx_height"`
-	Sequence   int64           `gorm:"type:bigint;index:evm_tx_sequence;index:evm_tx_sequence_desc,sort:desc"`
+	Sequence   int64           `gorm:"type:bigint;index:evm_tx_sequence_desc,sort:desc"`
 	Signer     string          `gorm:"type:text;index:evm_tx_signer"`
 	Data       json.RawMessage `gorm:"type:jsonb"`
 	AccountIds pq.Int64Array   `gorm:"type:bigint[];index:evm_tx_account_ids,type:gin"`
@@ -99,7 +99,7 @@ type CollectedTypeTagDict struct {
 type CollectedEvmInternalTx struct {
 	Height     int64         `gorm:"type:bigint;primaryKey"`
 	Hash       string        `gorm:"type:text;primaryKey"`
-	Sequence   int64         `gorm:"type:bigint;index:evm_internal_tx_sequence;index:evm_internal_tx_sequence_desc,sort:desc"`
+	Sequence   int64         `gorm:"type:bigint;index:evm_internal_tx_sequence_desc,sort:desc"`
 	Index      int64         `gorm:"type:bigint;primaryKey;index:evm_internal_tx_index"`
 	Type       string        `gorm:"type:text;index:evm_internal_tx_type"`
 	From       string        `gorm:"type:text;index:evm_internal_tx_from"`

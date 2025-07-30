@@ -48,11 +48,12 @@ func (i *InternalTxExtension) Run() error {
 		var heights []int64
 		// Check the diff between the last indexed height and the current height
 		if err := i.db.Model(&types.CollectedBlock{}).
+			Pluck("height", &heights).
 			Where("chain_id = ?", i.cfg.GetChainId()).
 			Where("height > ?", i.lastIndexed).
 			Where("tx_count > 0").
 			Order("height ASC").
-			Limit(i.cfg.GetInternalTxConfig().GetBatchSize()).Pluck("height", &heights).Error; err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			Limit(i.cfg.GetInternalTxConfig().GetBatchSize()).Error; err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 			i.logger.Error("failed to get blocks to process", slog.Any("error", err))
 			panic(err)
 		}
