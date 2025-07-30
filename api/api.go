@@ -50,7 +50,7 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Api {
 		URL:         "/swagger/doc.json",
 		DeepLinking: true,
 		TagsSorter: template.JS(`function(a, b) {
-			const order = ["Block", "Tx", "EVM Tx", "NFT"];
+			const order = ["Block", "Tx", "EVM Tx", "EVM Internal Tx", "NFT"];
 			return order.indexOf(a) - order.indexOf(b);
 		}`),
 	}
@@ -78,6 +78,9 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Api {
 
 // @tag.name EVM Tx
 // @tag.description EVM transaction related operations
+
+// @tag.name EVM Internal Tx
+// @tag.description EVM internal transaction related operations
 
 // @tag.name NFT
 // @tag.description NFT related operations

@@ -120,10 +120,7 @@ func (h *NftHandler) GetCollectionsByName(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
-	collections, total, err := getCollectionByName(h.GetDatabase(), h.GetConfig(), name, pagination)
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
-	}
+	collections, total := getCollectionByName(h.GetDatabase(), h.GetConfig(), name, pagination)
 	return c.JSON(CollectionsResponse{
 		Collections: ToCollectionsResponse(collections),
 		Pagination:  pagination.ToResponse(total),

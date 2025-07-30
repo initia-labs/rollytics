@@ -24,16 +24,17 @@ func SetBuildInfo(v, commit string) {
 }
 
 type Config struct {
-	listenPort      string
-	dbConfig        *dbconfig.Config
-	chainConfig     *ChainConfig
-	logLevel        string
-	logFormat       string
-	coolingDuration time.Duration // for indexer only
-	queryTimeout    time.Duration // for indexer only
-	cacheSize       int
-	cacheTTL        time.Duration // for api only
-	pollingInterval time.Duration // for api only
+	listenPort       string
+	dbConfig         *dbconfig.Config
+	chainConfig      *ChainConfig
+	logLevel         string
+	logFormat        string
+	coolingDuration  time.Duration // for indexer only
+	queryTimeout     time.Duration // for indexer only
+	cacheSize        int
+	cacheTTL         time.Duration // for api only
+	pollingInterval  time.Duration // for api only
+	internalTxConfig *InternalTxConfig
 }
 
 func setDefaults() {
@@ -48,6 +49,9 @@ func setDefaults() {
 	viper.SetDefault("CACHE_SIZE", 1000)
 	viper.SetDefault("CACHE_TTL", 10*time.Minute)
 	viper.SetDefault("POLLING_INTERVAL", 3*time.Second)
+	viper.SetDefault("INTERNAL_TX", false)
+	viper.SetDefault("INTERNAL_TX_POLL_INTERVAL", 5*time.Second)
+	viper.SetDefault("INTERNAL_TX_BATCH_SIZE", 10)
 }
 
 func GetConfig() (*Config, error) {
@@ -99,6 +103,11 @@ func GetConfig() (*Config, error) {
 		cacheSize:       viper.GetInt("CACHE_SIZE"),
 		cacheTTL:        viper.GetDuration("CACHE_TTL"),
 		pollingInterval: viper.GetDuration("POLLING_INTERVAL"),
+		internalTxConfig: &InternalTxConfig{
+			Enabled:      viper.GetBool("INTERNAL_TX"),
+			PollInterval: viper.GetDuration("INTERNAL_TX_POLL_INTERVAL"),
+			BatchSize:    viper.GetInt("INTERNAL_TX_BATCH_SIZE"),
+		},
 	}
 
 	if err := config.Validate(); err != nil {
@@ -115,12 +124,27 @@ func (c Config) GetListenPort() string {
 	return c.listenPort
 }
 
+// SetDBConfig assigns the DB config for testing purposes.
+func (c *Config) SetDBConfig(dbCfg *dbconfig.Config) {
+	c.dbConfig = dbCfg
+}
+
 func (c Config) GetDBConfig() *dbconfig.Config {
 	return c.dbConfig
 }
 
+// SetChainConfig assigns the chain config for testing purposes.
+func (c *Config) SetChainConfig(chainCfg *ChainConfig) {
+	c.chainConfig = chainCfg
+}
+
 func (c Config) GetChainConfig() *ChainConfig {
 	return c.chainConfig
+}
+
+// SetInternalTxConfig assigns the internal tx config for testing purposes.
+func (c *Config) SetInternalTxConfig(internalTxCfg *InternalTxConfig) {
+	c.internalTxConfig = internalTxCfg
 }
 
 func (c Config) GetDBBatchSize() int {
@@ -145,6 +169,14 @@ func (c Config) GetChainId() string {
 
 func (c Config) GetVmType() types.VMType {
 	return c.chainConfig.VmType
+}
+
+func (c Config) InternalTxEnabled() bool {
+	return c.internalTxConfig.Enabled
+}
+
+func (c Config) GetInternalTxConfig() *InternalTxConfig {
+	return c.internalTxConfig
 }
 
 func (c Config) GetLogLevel() slog.Level {
@@ -194,7 +226,9 @@ func (c Config) Validate() error {
 	if c.cacheTTL < 0 {
 		return fmt.Errorf("CACHE_TTL must be non-negative")
 	}
-
+	if c.pollingInterval < 0 {
+		return fmt.Errorf("POLLING_INTERVAL must be non-negative")
+	}
 	if err := c.dbConfig.Validate(); err != nil {
 		return err
 	}

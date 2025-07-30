@@ -10,7 +10,6 @@ import (
 
 	"github.com/initia-labs/rollytics/api/handler/common"
 	"github.com/initia-labs/rollytics/cache"
-	commoncache "github.com/initia-labs/rollytics/cache"
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
@@ -41,7 +40,7 @@ func initCollectionCache(database *orm.Database, cfg *config.Config) {
 	collectionCacheOnce.Do(func() {
 		cacheSize := cfg.GetCacheSize()
 		ttl := cfg.GetCacheTTL()
-		collectionCacheByAddr = commoncache.NewTTL[string, *types.CollectedNftCollection](cacheSize, ttl)
+		collectionCacheByAddr = cache.NewTTL[string, *types.CollectedNftCollection](cacheSize, ttl)
 		tryUpdateCollectionCache(database, cfg)
 	})
 }
@@ -62,7 +61,7 @@ func getCollectionByAddr(database *orm.Database, collectionAddr string) (*types.
 	return &collection, nil
 }
 
-func getCollectionByName(db *orm.Database, cfg *config.Config, name string, pagination *common.Pagination) ([]types.CollectedNftCollection, int64, error) {
+func getCollectionByName(db *orm.Database, cfg *config.Config, name string, pagination *common.Pagination) ([]types.CollectedNftCollection, int64) {
 	tryUpdateCollectionCache(db, cfg)
 
 	name = strings.ToLower(sanitizer.ReplaceAllString(name, ""))
@@ -81,14 +80,16 @@ func getCollectionByName(db *orm.Database, cfg *config.Config, name string, pagi
 	// apply offset and limit
 	total := len(results)
 	if pagination.Offset >= total {
-		return nil, int64(total), nil
+		return nil, int64(total)
 	} else {
 		results = results[pagination.Offset:]
 	}
+
 	if pagination.Limit > 0 && len(results) > pagination.Limit {
 		results = results[:pagination.Limit]
 	}
-	return results, int64(total), nil
+
+	return results, int64(total)
 }
 
 func tryUpdateCollectionCache(db *orm.Database, cfg *config.Config) {

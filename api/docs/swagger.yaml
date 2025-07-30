@@ -118,6 +118,9 @@ definitions:
       height:
         type: integer
         x-order:3: true
+      internal_tx_height:
+        type: integer
+        x-order:4: true
       version:
         type: string
         x-order:0: true
@@ -439,6 +442,157 @@ paths:
       summary: Get NFT transactions by collection and token ID
       tags:
       - NFT
+  /indexer/tx/v1/evm-internal-txs:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of EVM internal transactions with pagination
+      parameters:
+      - description: Pagination key
+        in: query
+        name: pagination.key
+        type: string
+      - description: Pagination offset
+        in: query
+        name: pagination.offset
+        type: integer
+      - description: Pagination limit, default is 100
+        in: query
+        name: pagination.limit
+        type: integer
+      - description: Count total, default is true
+        in: query
+        name: pagination.count_total
+        type: boolean
+      - description: Reverse order default is true if set to true, the results will
+          be ordered in descending order
+        in: query
+        name: pagination.reverse
+        type: boolean
+      produces:
+      - application/json
+      responses: {}
+      summary: Get EVM internal transactions
+      tags:
+      - EVM Internal Tx
+  /indexer/tx/v1/evm-internal-txs/{tx_hash}:
+    get:
+      consumes:
+      - application/json
+      description: Get a specific EVM internal transaction by its hash
+      parameters:
+      - description: Transaction hash
+        in: path
+        name: tx_hash
+        required: true
+        type: string
+      - description: Pagination key
+        in: query
+        name: pagination.key
+        type: string
+      - description: Pagination offset
+        in: query
+        name: pagination.offset
+        type: integer
+      - description: Pagination limit, default is 100
+        in: query
+        name: pagination.limit
+        type: integer
+      - description: Count total, default is true
+        in: query
+        name: pagination.count_total
+        type: boolean
+      - description: Reverse order default is true if set to true, the results will
+          be ordered in descending order
+        in: query
+        name: pagination.reverse
+        type: boolean
+      produces:
+      - application/json
+      responses: {}
+      summary: Get EVM internal transaction by hash
+      tags:
+      - EVM Internal Tx
+  /indexer/tx/v1/evm-internal-txs/by_account/{account}:
+    get:
+      consumes:
+      - application/json
+      description: Get EVM internal transactions associated with a specific account
+      parameters:
+      - description: Account address
+        in: path
+        name: account
+        required: true
+        type: string
+      - description: Pagination key
+        in: query
+        name: pagination.key
+        type: string
+      - description: Pagination offset
+        in: query
+        name: pagination.offset
+        type: integer
+      - description: Pagination limit, default is 100
+        in: query
+        name: pagination.limit
+        type: integer
+      - description: Count total, default is true
+        in: query
+        name: pagination.count_total
+        type: boolean
+      - description: Reverse order default is true if set to true, the results will
+          be ordered in descending order
+        in: query
+        name: pagination.reverse
+        type: boolean
+      - description: Filter by signer accounts, default is false
+        in: query
+        name: is_signer
+        type: boolean
+      produces:
+      - application/json
+      responses: {}
+      summary: Get EVM internal transactions by account
+      tags:
+      - EVM Internal Tx
+  /indexer/tx/v1/evm-internal-txs/by_height/{height}:
+    get:
+      consumes:
+      - application/json
+      description: Get EVM internal transactions at a specific block height
+      parameters:
+      - description: Block height
+        in: path
+        name: height
+        required: true
+        type: integer
+      - description: Pagination key
+        in: query
+        name: pagination.key
+        type: string
+      - description: Pagination offset
+        in: query
+        name: pagination.offset
+        type: integer
+      - description: Pagination limit, default is 100
+        in: query
+        name: pagination.limit
+        type: integer
+      - description: Count total, default is true
+        in: query
+        name: pagination.count_total
+        type: boolean
+      - description: Reverse order default is true if set to true, the results will
+          be ordered in descending order
+        in: query
+        name: pagination.reverse
+        type: boolean
+      produces:
+      - application/json
+      responses: {}
+      summary: Get EVM internal transactions by height
+      tags:
+      - EVM Internal Tx
   /indexer/tx/v1/evm-txs:
     get:
       consumes:

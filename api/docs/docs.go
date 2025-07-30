@@ -477,6 +477,225 @@ const docTemplate = `{
                 "responses": {}
             }
         },
+        "/indexer/tx/v1/evm-internal-txs": {
+            "get": {
+                "description": "Get a list of EVM internal transactions with pagination",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "EVM Internal Tx"
+                ],
+                "summary": "Get EVM internal transactions",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Pagination key",
+                        "name": "pagination.key",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination offset",
+                        "name": "pagination.offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination limit, default is 100",
+                        "name": "pagination.limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Count total, default is true",
+                        "name": "pagination.count_total",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Reverse order default is true if set to true, the results will be ordered in descending order",
+                        "name": "pagination.reverse",
+                        "in": "query"
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/indexer/tx/v1/evm-internal-txs/by_account/{account}": {
+            "get": {
+                "description": "Get EVM internal transactions associated with a specific account",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "EVM Internal Tx"
+                ],
+                "summary": "Get EVM internal transactions by account",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Account address",
+                        "name": "account",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Pagination key",
+                        "name": "pagination.key",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination offset",
+                        "name": "pagination.offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination limit, default is 100",
+                        "name": "pagination.limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Count total, default is true",
+                        "name": "pagination.count_total",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Reverse order default is true if set to true, the results will be ordered in descending order",
+                        "name": "pagination.reverse",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Filter by signer accounts, default is false",
+                        "name": "is_signer",
+                        "in": "query"
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/indexer/tx/v1/evm-internal-txs/by_height/{height}": {
+            "get": {
+                "description": "Get EVM internal transactions at a specific block height",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "EVM Internal Tx"
+                ],
+                "summary": "Get EVM internal transactions by height",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Block height",
+                        "name": "height",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Pagination key",
+                        "name": "pagination.key",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination offset",
+                        "name": "pagination.offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination limit, default is 100",
+                        "name": "pagination.limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Count total, default is true",
+                        "name": "pagination.count_total",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Reverse order default is true if set to true, the results will be ordered in descending order",
+                        "name": "pagination.reverse",
+                        "in": "query"
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/indexer/tx/v1/evm-internal-txs/{tx_hash}": {
+            "get": {
+                "description": "Get a specific EVM internal transaction by its hash",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "EVM Internal Tx"
+                ],
+                "summary": "Get EVM internal transaction by hash",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Transaction hash",
+                        "name": "tx_hash",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Pagination key",
+                        "name": "pagination.key",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination offset",
+                        "name": "pagination.offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination limit, default is 100",
+                        "name": "pagination.limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Count total, default is true",
+                        "name": "pagination.count_total",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Reverse order default is true if set to true, the results will be ordered in descending order",
+                        "name": "pagination.reverse",
+                        "in": "query"
+                    }
+                ],
+                "responses": {}
+            }
+        },
         "/indexer/tx/v1/evm-txs": {
             "get": {
                 "description": "Get a list of EVM transactions with pagination",
@@ -1058,6 +1277,10 @@ const docTemplate = `{
                 "height": {
                     "type": "integer",
                     "x-order:3": true
+                },
+                "internal_tx_height": {
+                    "type": "integer",
+                    "x-order:4": true
                 },
                 "version": {
                     "type": "string",

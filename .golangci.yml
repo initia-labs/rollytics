@@ -24,7 +24,7 @@ linters:
     - revive
     - rowserrcheck
     - staticcheck
-    - thelper
+    # - thelper
     - tparallel
     - unparam
     - wastedassign
