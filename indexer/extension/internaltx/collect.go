@@ -7,15 +7,14 @@ import (
 	"log/slog"
 	"sync"
 
+	"github.com/gofiber/fiber/v2"
+	"github.com/jackc/pgx/v5/pgconn"
 	"golang.org/x/sync/errgroup"
 	"gorm.io/gorm"
 
 	indexerutil "github.com/initia-labs/rollytics/indexer/util"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
-
-	"github.com/gofiber/fiber/v2"
-	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type InternalTxResult struct {
