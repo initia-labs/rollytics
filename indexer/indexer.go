@@ -60,9 +60,11 @@ func (i *Indexer) Run() error {
 	}
 	i.height = lastBlock.Height + 1
 
-	if err := i.extensionManager.Run(); err != nil {
-		i.logger.Error("failed to start extensions", slog.Any("error", err))
-	}
+	go func() {
+		if err := i.extensionManager.Run(); err != nil {
+			i.logger.Error("failed to start extensions", slog.Any("error", err))
+		}
+	}()
 
 	go i.scrape()
 	go i.prepare()
