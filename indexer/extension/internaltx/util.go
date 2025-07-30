@@ -1,9 +1,10 @@
 package internaltx
 
 import (
+	"gorm.io/gorm"
+
 	"github.com/initia-labs/rollytics/types"
 	"github.com/initia-labs/rollytics/util"
-	"gorm.io/gorm"
 )
 
 type InternalTxInfo struct {

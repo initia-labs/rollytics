@@ -40,4 +40,3 @@ type PrimaryStoreCreatedEvent struct {
 type FAEvent struct {
 	StoreAddr string `json:"store_addr"`
 }
-

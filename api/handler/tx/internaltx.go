@@ -167,7 +167,7 @@ func (h *TxHandler) GetEvmInternalTxsByHeight(c *fiber.Ctx) error {
 // @Param pagination.reverse query bool false "Reverse order default is true if set to true, the results will be ordered in descending order"
 // @Router /indexer/tx/v1/evm-internal-txs/{tx_hash} [get]
 //
-//nolint:dupl
+
 func (h *TxHandler) GetEvmInternalTxByHash(c *fiber.Ctx) error {
 	hash, err := common.GetParams(c, "tx_hash")
 	if err != nil {

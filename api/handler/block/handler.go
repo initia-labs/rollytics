@@ -5,6 +5,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cache"
+
 	"github.com/initia-labs/rollytics/api/handler/common"
 )
 

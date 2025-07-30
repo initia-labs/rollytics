@@ -128,6 +128,5 @@ func (i *Indexer) collect() {
 		}
 
 		i.height++
-
 	}
 }

@@ -25,24 +25,26 @@ type InternalTxResult struct {
 
 func (i *InternalTxExtension) collect(heights []int64) error {
 	var (
-		g        errgroup.Group
-		scrapped = make(map[int64]*InternalTxResult)
-		mu       sync.Mutex
+		g       errgroup.Group
+		scraped = make(map[int64]*InternalTxResult)
+		mu      sync.Mutex
 	)
+
 	// 1. Scrape internal transactions
-	for _, h := range heights {
+	for _, height := range heights {
+		h := height
 		g.Go(func() error {
 			client := fiber.AcquireClient()
 			defer fiber.ReleaseClient(client)
-			internalTx, err := i.scrapInternalTxs(client, h)
+			internalTx, err := i.scrapeInternalTx(client, h)
 			if err != nil {
-				i.logger.Error("failed to scrap internal txs", slog.Int64("height", h), slog.Any("error", err))
+				i.logger.Error("failed to scrape internal tx", slog.Int64("height", h), slog.Any("error", err))
 				return err
 			}
 
 			i.logger.Info("scraped internal txs", slog.Int64("height", h))
 			mu.Lock()
-			scrapped[internalTx.Height] = internalTx
+			scraped[internalTx.Height] = internalTx
 			mu.Unlock()
 			return nil
 		})
@@ -53,24 +55,25 @@ func (i *InternalTxExtension) collect(heights []int64) error {
 	}
 
 	// 2. Collect internal transactions
-	for _, h := range heights {
-		internalTx := scrapped[h]
-		if err := i.CollectInternalTxs(i.db, internalTx); err != nil {
-			i.logger.Error("failed to collect internal txs", slog.Int64("height", internalTx.Height), slog.Any("error", err))
+	for _, height := range heights {
+		if err := i.CollectInternalTxs(i.db, scraped[height]); err != nil {
+			i.logger.Error("failed to collect internal txs", slog.Int64("height", height), slog.Any("error", err))
 			return err
 		}
 	}
+
 	return nil
 }
 
 // Get EVM internal transactions for the debug_traceBlock
-func (i *InternalTxExtension) scrapInternalTxs(client *fiber.Client, height int64) (*InternalTxResult, error) {
+func (i *InternalTxExtension) scrapeInternalTx(client *fiber.Client, height int64) (*InternalTxResult, error) {
 	callTraceRes, err := TraceCallByBlock(i.cfg, client, height)
 	if err != nil {
 		return nil, err
 	}
+
 	return &InternalTxResult{
-		Height:    int64(height),
+		Height:    height,
 		CallTrace: callTraceRes,
 	}, nil
 }
@@ -102,7 +105,7 @@ func (i *InternalTxExtension) CollectInternalTxs(db *orm.Database, internalTx *I
 			txInfo := &InternalTxInfo{
 				Height: height,
 				Hash:   txHash,
-				Index:  int64(0),
+				Index:  0,
 			}
 			// Process the top-level call and sub-calls
 			// 1. Top-level call
@@ -158,6 +161,7 @@ func (i *InternalTxExtension) CollectInternalTxs(db *orm.Database, internalTx *I
 	}, &sql.TxOptions{
 		Isolation: sql.LevelRepeatableRead,
 	})
+
 	if err != nil {
 		// handle intended serialization error
 		var pgErr *pgconn.PgError
@@ -168,5 +172,6 @@ func (i *InternalTxExtension) CollectInternalTxs(db *orm.Database, internalTx *I
 
 		return err
 	}
+
 	return nil
 }

@@ -31,8 +31,7 @@ func NewMockDB(logger *slog.Logger) (*orm.Database, sqlmock.Sqlmock, error) {
 		return nil, nil, err
 	}
 
-
 	return &orm.Database{
-		DB:     instance,
+		DB: instance,
 	}, mock, nil
 }

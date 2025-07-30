@@ -2,7 +2,8 @@ package extension
 
 import (
 	"log/slog"
-	"sync"
+
+	"golang.org/x/sync/errgroup"
 
 	"github.com/initia-labs/rollytics/config"
 	internaltx "github.com/initia-labs/rollytics/indexer/extension/internaltx"
@@ -15,7 +16,7 @@ type ExtensionManager struct {
 	logger     *slog.Logger
 	db         *orm.Database
 	extensions []types.Extension
-	wg         sync.WaitGroup
+	g          errgroup.Group
 }
 
 func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *ExtensionManager {
@@ -33,23 +34,23 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *ExtensionMa
 }
 
 func (m *ExtensionManager) Run() {
-	if len(m.extensions) == 0 {
-		m.logger.Info("No extensions registered")
-		return
-	}
-
-	for _, ext := range m.extensions {
-		m.wg.Add(1)
-		go func(extension types.Extension) {
-			defer m.wg.Done()
-
-			m.logger.Info("Starting extension", slog.String("name", extension.Name()))
-			if err := extension.Run(); err != nil {
+	for _, extension := range m.extensions {
+		ext := extension
+		m.g.Go(func() error {
+			m.logger.Info("Starting extension", slog.String("name", ext.Name()))
+			if err := ext.Run(); err != nil {
 				m.logger.Error("Extension error",
-					slog.String("name", extension.Name()),
+					slog.String("name", ext.Name()),
 					slog.Any("error", err))
+
+				return err
 			}
-		}(ext)
+
+			return nil
+		})
 	}
-	m.wg.Wait()
+
+	if err := m.g.Wait(); err != nil {
+		panic(err)
+	}
 }
