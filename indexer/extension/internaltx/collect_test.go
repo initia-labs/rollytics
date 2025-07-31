@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -100,7 +101,7 @@ func getTestResponse() *internal_tx.InternalTxResult {
 	}
 }
 
-func TestIndexer_collectInternalTxs(t *testing.T) {
+func TestIndexer_CollectInternalTxs(t *testing.T) {
 	db, mock := setupTestDB(t)
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelWarn}))
 	cfg := setupTestConfig()
@@ -144,7 +145,77 @@ func TestIndexer_collectInternalTxs(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).
 			AddRow(int64(8)))
 
+	// Expected internal transactions:
+	// 1. Top-level CALL: index=0, parent_index=-1
+	// 2. First nested CALL: index=1, parent_index=0
+	// 3. STATICCALL inside first nested: index=2, parent_index=1
+	// 4. Second nested DELEGATECALL: index=3, parent_index=0
+
+	// Verify the INSERT arguments contain correct index and parent_index values
+	// GORM will insert batch data, so we check for the presence of expected values
 	mock.ExpectExec(`INSERT INTO "evm_internal_tx"`).
+		WithArgs(
+			// First transaction (top-level CALL)
+			int64(100),           // height
+			"0xabcdef1234567890", // hash
+			int64(1),             // sequence
+			int64(-1),            // parent_index for top-level
+			int64(0),             // index for top-level
+			"CALL",               // type
+			"0x1234567890123456789012345678901234567890", // from
+			"0x0987654321098765432109876543210987654321", // to
+			"0x",                    // input
+			sqlmock.AnyArg(),        // output
+			"0x100",                 // value
+			"0x5208",                // gas
+			"0x5208",                // gas_used
+			pq.Array([]int64{3, 4}), // account_ids
+			// Second transaction (first nested CALL)
+			int64(100),           // height
+			"0xabcdef1234567890", // hash
+			int64(2),             // sequence
+			int64(0),             // parent_index for first nested
+			int64(1),             // index for first nested
+			"CALL",               // type
+			"0x0987654321098765432109876543210987654321", // from
+			"0x1111111111111111111111111111111111111111", // to
+			"0x",                    // input
+			"0x00fedcba",            // output
+			"0x25",                  // value
+			"0x1302",                // gas
+			"0x1302",                // gas_used
+			pq.Array([]int64{4, 5}), // account_ids
+			// Third transaction (STATICCALL inside first nested)
+			int64(100),           // height
+			"0xabcdef1234567890", // hash
+			int64(3),             // sequence
+			int64(1),             // parent_index for static call
+			int64(2),             // index for static call
+			"STATICCALL",         // type
+			"0x1111111111111111111111111111111111111111", // from
+			"0x3333333333333333333333333333333333333333", // to
+			"0xaabbccdd",            // input
+			"0x11223344",            // output
+			"0x0",                   // value
+			"0x800",                 // gas
+			"0x600",                 // gas_used
+			pq.Array([]int64{5, 7}), // account_ids
+			// Fourth transaction (DELEGATECALL)
+			int64(100),           // height
+			"0xabcdef1234567890", // hash
+			int64(4),             // sequence
+			int64(0),             // parent_index for delegate call
+			int64(3),             // index for delegate call
+			"DELEGATECALL",       // type
+			"0x1234567890123456789012345678901234567890", // from
+			"0x2222222222222222222222222222222222222222", // to
+			"0x",                    // input
+			"0xbeefdead",            // output
+			"0x0",                   // value
+			"0x3000",                // gas
+			"0x2500",                // gas_used
+			pq.Array([]int64{3, 8}), // account_ids
+		).
 		WillReturnResult(sqlmock.NewResult(1, 4))
 
 	mock.ExpectExec(`INSERT INTO "seq_info" \("name","sequence"\) VALUES \(\$1,\$2\) ON CONFLICT \("name"\) DO UPDATE SET "sequence"="excluded"\."sequence"`).
@@ -160,7 +231,7 @@ func TestIndexer_collectInternalTxs(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
-func TestIndexer_collectInternalTxs_MismatchedResults(t *testing.T) {
+func TestIndexer_CollectInternalTxs_MismatchedResults(t *testing.T) {
 	db, mock := setupTestDB(t)
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelWarn}))
 	cfg := setupTestConfig()
@@ -201,7 +272,7 @@ func TestIndexer_collectInternalTxs_MismatchedResults(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
-func TestIndexer_collectInternalTxs_EmptyInternalTxs(t *testing.T) {
+func TestIndexer_CollectInternalTxs_EmptyInternalTxs(t *testing.T) {
 	db, mock := setupTestDB(t)
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelWarn}))
 	cfg := setupTestConfig()
