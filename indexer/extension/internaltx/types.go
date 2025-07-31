@@ -20,12 +20,24 @@ type TransactionTrace struct {
 }
 
 type InternalTransaction struct {
+	Type    string                `json:"type"`
+	From    string                `json:"from"`
+	To      string                `json:"to"`
+	Value   string                `json:"value"`
+	Gas     string                `json:"gas"`
+	GasUsed string                `json:"gasUsed"`
+	Input   string                `json:"input"`
+	Output  string                `json:"output"`
+	Calls   []InternalTransaction `json:"calls,omitempty"`
+}
+
+type EvmInternalTx struct {
 	Type    string `json:"type"`
 	From    string `json:"from"`
 	To      string `json:"to"`
-	Value   string `json:"value"`
 	Gas     string `json:"gas"`
 	GasUsed string `json:"gasUsed"`
+	Value   string `json:"value"`
 	Input   string `json:"input"`
 	Output  string `json:"output"`
 }

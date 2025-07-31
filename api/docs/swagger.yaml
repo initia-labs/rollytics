@@ -545,10 +545,6 @@ paths:
         in: query
         name: pagination.reverse
         type: boolean
-      - description: Filter by signer accounts, default is false
-        in: query
-        name: is_signer
-        type: boolean
       produces:
       - application/json
       responses: {}

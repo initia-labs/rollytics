@@ -38,11 +38,11 @@ func (h *TxHandler) Register(router fiber.Router) {
 		evmTxs.All("/*", h.NotFound)
 	}
 
-	itxs := router.Group("/evm-internal-txs")
+	itxs := txs.Group("/evm-internal-txs")
 	if h.GetChainConfig().VmType == types.EVM && h.GetConfig().GetInternalTxConfig().Enabled {
 		itxs.Get("", cache.New(cache.Config{Expiration: time.Second}), h.GetEvmInternalTxs)
 		itxs.Get("/by_height/:height", cache.New(cache.Config{Expiration: time.Second}), h.GetEvmInternalTxsByHeight)
-		itxs.Get("/:tx_hash", cache.New(cache.Config{Expiration: 10 * time.Second}), h.GetEvmInternalTxByHash)
+		itxs.Get("/:tx_hash", cache.New(cache.Config{Expiration: 10 * time.Second}), h.GetEvmInternalTxsByHash)
 		itxs.Get("/by_account/:account", cache.New(cache.Config{Expiration: time.Second}), h.GetEvmInternalTxsByAccount)
 	} else {
 		itxs.All("/*", h.NotFound)

@@ -8,9 +8,10 @@ import (
 )
 
 type InternalTxInfo struct {
-	Height int64
-	Hash   string
-	Index  int64
+	Height      int64
+	Hash        string
+	Index       int64
+	ParentIndex int64
 }
 
 func processInternalCall(
@@ -18,8 +19,8 @@ func processInternalCall(
 	tx *InternalTxInfo,
 	call *InternalTransaction,
 	seqInfo *types.CollectedSeqInfo,
-) (*types.CollectedEvmInternalTx, error) {
-	evmInternalTx := types.EvmInternalTx{
+) ([]types.CollectedEvmInternalTx, error) {
+	evmInternalTx := EvmInternalTx{
 		Type:    call.Type,
 		From:    call.From,
 		To:      call.To,
@@ -34,7 +35,6 @@ func processInternalCall(
 		return nil, err
 	}
 
-	// Get account IDs
 	accIds, err := util.GetOrCreateAccountIds(db, accounts, true)
 	if err != nil {
 		return nil, err
@@ -42,22 +42,41 @@ func processInternalCall(
 
 	seqInfo.Sequence++
 
-	// Create internal tx record
 	internalTx := types.CollectedEvmInternalTx{
-		Height:     tx.Height,
-		Hash:       tx.Hash,
-		Sequence:   int64(seqInfo.Sequence),
-		Index:      tx.Index,
-		Type:       call.Type,
-		From:       call.From,
-		To:         call.To,
-		Input:      call.Input,
-		Output:     call.Output,
-		Value:      call.Value,
-		Gas:        call.Gas,
-		GasUsed:    call.GasUsed,
-		AccountIds: accIds,
+		Height:      tx.Height,
+		Hash:        tx.Hash,
+		Sequence:    int64(seqInfo.Sequence),
+		Index:       tx.Index,
+		ParentIndex: tx.ParentIndex,
+		Type:        call.Type,
+		From:        call.From,
+		To:          call.To,
+		Input:       call.Input,
+		Output:      call.Output,
+		Value:       call.Value,
+		Gas:         call.Gas,
+		GasUsed:     call.GasUsed,
+		AccountIds:  accIds,
 	}
 
-	return &internalTx, nil
+	results := []types.CollectedEvmInternalTx{internalTx}
+
+	// Process nested calls recursively
+	nextIndex := tx.Index + 1
+	for _, nestedCall := range call.Calls {
+		nestedTxInfo := &InternalTxInfo{
+			Height:      tx.Height,
+			Hash:        tx.Hash,
+			Index:       nextIndex,
+			ParentIndex: tx.Index,
+		}
+		nestedResults, err := processInternalCall(db, nestedTxInfo, &nestedCall, seqInfo)
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, nestedResults...)
+		nextIndex += int64(len(nestedResults))
+	}
+
+	return results, nil
 }

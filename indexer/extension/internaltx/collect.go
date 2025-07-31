@@ -101,13 +101,7 @@ func (i *InternalTxExtension) CollectInternalTxs(db *orm.Database, internalTx *I
 		for idx, trace := range internalTx.CallTrace.Result {
 			evmTx := evmTxs[idx]
 			height, txHash := evmTx.Height, evmTx.Hash
-			txInfo := &InternalTxInfo{
-				Height: height,
-				Hash:   txHash,
-				Index:  0,
-			}
-			// Process the top-level call and sub-calls
-			// 1. Top-level call
+
 			topLevelCall := InternalTransaction{
 				Type:    trace.Result.Type,
 				From:    trace.Result.From,
@@ -117,33 +111,21 @@ func (i *InternalTxExtension) CollectInternalTxs(db *orm.Database, internalTx *I
 				GasUsed: trace.Result.GasUsed,
 				Input:   trace.Result.Input,
 				Output:  "", // Top-level calls don't have output
+				Calls:   trace.Result.Calls,
 			}
 
-			topLevelTx, err := processInternalCall(
-				tx,
-				txInfo,
-				&topLevelCall,
-				&seqInfo,
-			)
+			txInfo := &InternalTxInfo{
+				Height:      height,
+				Hash:        txHash,
+				Index:       0,  // Top-level starts at index 0
+				ParentIndex: -1, // Top-level has no parent
+			}
+
+			txResults, err := processInternalCall(tx, txInfo, &topLevelCall, &seqInfo)
 			if err != nil {
 				return err
 			}
-			allInternalTxs = append(allInternalTxs, *topLevelTx)
-
-			// 2. Sub-calls
-			for subIdx, call := range trace.Result.Calls {
-				txInfo.Index = int64(subIdx + 1)
-				subTx, err := processInternalCall(
-					tx,
-					txInfo,
-					&call,
-					&seqInfo,
-				)
-				if err != nil {
-					return err
-				}
-				allInternalTxs = append(allInternalTxs, *subTx)
-			}
+			allInternalTxs = append(allInternalTxs, txResults...)
 		}
 		batchSize := i.cfg.GetDBBatchSize()
 		if err := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(allInternalTxs, batchSize).Error; err != nil {
