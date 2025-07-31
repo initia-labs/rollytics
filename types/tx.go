@@ -51,14 +51,3 @@ type EvmLog struct {
 	LogIndex    string   `json:"logIndex"`
 	Removed     bool     `json:"removed"`
 }
-
-type EvmInternalTx struct {
-	Type    string `json:"type"`
-	From    string `json:"from"`
-	To      string `json:"to"`
-	Gas     string `json:"gas"`
-	GasUsed string `json:"gasUsed"`
-	Value   string `json:"value"`
-	Input   string `json:"input"`
-	Output  string `json:"output"`
-}

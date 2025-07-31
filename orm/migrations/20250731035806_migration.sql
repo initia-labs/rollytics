@@ -13,6 +13,7 @@ CREATE TABLE "public"."evm_internal_tx" (
   "height" bigint NOT NULL,
   "hash" text NOT NULL,
   "sequence" bigint NULL,
+  "parent_index" bigint NULL,
   "index" bigint NOT NULL,
   "type" text NULL,
   "from" text NULL,
@@ -31,6 +32,8 @@ CREATE INDEX "evm_internal_tx_account_ids" ON "public"."evm_internal_tx" USING g
 CREATE INDEX "evm_internal_tx_from" ON "public"."evm_internal_tx" ("from");
 -- Create index "evm_internal_tx_index" to table: "evm_internal_tx"
 CREATE INDEX "evm_internal_tx_index" ON "public"."evm_internal_tx" ("index");
+-- Create index "evm_internal_tx_parent_index" to table: "evm_internal_tx"
+CREATE INDEX "evm_internal_tx_parent_index" ON "public"."evm_internal_tx" ("parent_index");
 -- Create index "evm_internal_tx_sequence_desc" to table: "evm_internal_tx"
 CREATE INDEX "evm_internal_tx_sequence_desc" ON "public"."evm_internal_tx" ("sequence" DESC);
 -- Create index "evm_internal_tx_to" to table: "evm_internal_tx"

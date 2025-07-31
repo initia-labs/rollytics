@@ -71,17 +71,18 @@ func ToEvmTxResponse(ctx types.CollectedEvmTx) (evmTx types.EvmTx, err error) {
 
 // Evm Internal Tx
 type EvmInternalTxResponse struct {
-	Height  int64  `json:"height"`
-	Hash    string `json:"hash"`
-	Index   int64  `json:"index"`
-	Type    string `json:"type"`
-	From    string `json:"from"`
-	To      string `json:"to"`
-	Input   string `json:"input"`
-	Output  string `json:"output"`
-	Value   string `json:"value"`
-	Gas     string `json:"gas"`
-	GasUsed string `json:"gasUsed"`
+	Height      int64  `json:"height"`
+	Hash        string `json:"hash"`
+	ParentIndex int64  `json:"parent_index"`
+	Index       int64  `json:"index"`
+	Type        string `json:"type"`
+	From        string `json:"from"`
+	To          string `json:"to"`
+	Input       string `json:"input"`
+	Output      string `json:"output"`
+	Value       string `json:"value"`
+	Gas         string `json:"gas"`
+	GasUsed     string `json:"gasUsed"`
 }
 
 type EvmInternalTxsResponse struct {
@@ -101,16 +102,17 @@ func ToEvmInternalTxsResponse(citxs []types.CollectedEvmInternalTx) []EvmInterna
 
 func ToEvmInternalTxResponse(citx *types.CollectedEvmInternalTx) *EvmInternalTxResponse {
 	return &EvmInternalTxResponse{
-		Height:  citx.Height,
-		Hash:    citx.Hash,
-		Index:   citx.Index,
-		From:    citx.From,
-		To:      citx.To,
-		Value:   citx.Value,
-		Gas:     citx.Gas,
-		GasUsed: citx.GasUsed,
-		Type:    citx.Type,
-		Input:   citx.Input,
-		Output:  citx.Output,
+		Height:      citx.Height,
+		Hash:        citx.Hash,
+		ParentIndex: citx.ParentIndex,
+		Index:       citx.Index,
+		From:        citx.From,
+		To:          citx.To,
+		Value:       citx.Value,
+		Gas:         citx.Gas,
+		GasUsed:     citx.GasUsed,
+		Type:        citx.Type,
+		Input:       citx.Input,
+		Output:      citx.Output,
 	}
 }

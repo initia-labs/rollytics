@@ -97,19 +97,20 @@ type CollectedTypeTagDict struct {
 }
 
 type CollectedEvmInternalTx struct {
-	Height     int64         `gorm:"type:bigint;primaryKey"`
-	Hash       string        `gorm:"type:text;primaryKey"`
-	Sequence   int64         `gorm:"type:bigint;index:evm_internal_tx_sequence_desc,sort:desc"`
-	Index      int64         `gorm:"type:bigint;primaryKey;index:evm_internal_tx_index"`
-	Type       string        `gorm:"type:text;index:evm_internal_tx_type"`
-	From       string        `gorm:"type:text;index:evm_internal_tx_from"`
-	To         string        `gorm:"type:text;index:evm_internal_tx_to"`
-	Input      string        `gorm:"type:text"`
-	Output     string        `gorm:"type:text"`
-	Value      string        `gorm:"type:text"`
-	Gas        string        `gorm:"type:text"`
-	GasUsed    string        `gorm:"type:text"`
-	AccountIds pq.Int64Array `gorm:"type:bigint[];index:evm_internal_tx_account_ids,type:gin"`
+	Height      int64         `gorm:"type:bigint;primaryKey"`
+	Hash        string        `gorm:"type:text;primaryKey"`
+	Sequence    int64         `gorm:"type:bigint;index:evm_internal_tx_sequence_desc,sort:desc"`
+	ParentIndex int64         `gorm:"type:bigint;index:evm_internal_tx_parent_index"`
+	Index       int64         `gorm:"type:bigint;primaryKey;index:evm_internal_tx_index"`
+	Type        string        `gorm:"type:text;index:evm_internal_tx_type"`
+	From        string        `gorm:"type:text;index:evm_internal_tx_from"`
+	To          string        `gorm:"type:text;index:evm_internal_tx_to"`
+	Input       string        `gorm:"type:text"`
+	Output      string        `gorm:"type:text"`
+	Value       string        `gorm:"type:text"`
+	Gas         string        `gorm:"type:text"`
+	GasUsed     string        `gorm:"type:text"`
+	AccountIds  pq.Int64Array `gorm:"type:bigint[];index:evm_internal_tx_account_ids,type:gin"`
 }
 
 func (CollectedSeqInfo) TableName() string {

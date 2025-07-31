@@ -575,12 +575,6 @@ const docTemplate = `{
                         "description": "Reverse order default is true if set to true, the results will be ordered in descending order",
                         "name": "pagination.reverse",
                         "in": "query"
-                    },
-                    {
-                        "type": "boolean",
-                        "description": "Filter by signer accounts, default is false",
-                        "name": "is_signer",
-                        "in": "query"
                     }
                 ],
                 "responses": {}
