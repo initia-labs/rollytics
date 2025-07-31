@@ -142,7 +142,6 @@ func (i *InternalTxExtension) CollectInternalTxs(db *orm.Database, internalTx *I
 	}, &sql.TxOptions{
 		Isolation: sql.LevelRepeatableRead,
 	})
-
 	if err != nil {
 		// handle intended serialization error
 		var pgErr *pgconn.PgError
