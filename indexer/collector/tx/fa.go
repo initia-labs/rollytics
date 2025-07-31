@@ -7,9 +7,10 @@ import (
 
 	"github.com/initia-labs/rollytics/config"
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
-	"github.com/initia-labs/rollytics/indexer/util"
+	indexerutil "github.com/initia-labs/rollytics/indexer/util"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
+	"github.com/initia-labs/rollytics/util"
 )
 
 func collectFA(block indexertypes.ScrapedBlock, cfg *config.Config, tx *gorm.DB) error {
@@ -19,7 +20,7 @@ func collectFA(block indexertypes.ScrapedBlock, cfg *config.Config, tx *gorm.DB)
 
 	batchSize := cfg.GetDBBatchSize()
 	var stores []types.CollectedFAStore
-	events, err := util.ExtractEvents(block, "move")
+	events, err := indexerutil.ExtractEvents(block, "move")
 	if err != nil {
 		return err
 	}
@@ -39,9 +40,17 @@ func collectFA(block indexertypes.ScrapedBlock, cfg *config.Config, tx *gorm.DB)
 			return err
 		}
 
+		storeAddrBytes, err := util.HexToBytes(event.StoreAddr)
+		if err != nil {
+			return err
+		}
+		ownerAddrBytes, err := util.HexToBytes(event.OwnerAddr)
+		if err != nil {
+			return err
+		}
 		stores = append(stores, types.CollectedFAStore{
-			StoreAddr: event.StoreAddr,
-			Owner:     event.OwnerAddr,
+			StoreAddr: storeAddrBytes,
+			Owner:     ownerAddrBytes,
 		})
 	}
 

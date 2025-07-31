@@ -9,6 +9,7 @@ import (
 
 	"github.com/initia-labs/rollytics/api/handler/common"
 	"github.com/initia-labs/rollytics/types"
+	"github.com/initia-labs/rollytics/util"
 )
 
 // GetTxs handles GET /tx/v1/txs
@@ -217,9 +218,14 @@ func (h *TxHandler) GetTxByHash(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
+	hashBytes, err := util.HexToBytes(hash)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid hash format")
+	}
+
 	var tx types.CollectedTx
 	if err := h.buildBaseTxQuery().
-		Where("hash = ?", hash).
+		Where("hash = ?", hashBytes).
 		First(&tx).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return fiber.NewError(fiber.StatusNotFound, "tx not found")

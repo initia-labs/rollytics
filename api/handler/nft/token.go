@@ -38,7 +38,13 @@ func (h *NftHandler) GetTokensByAccount(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
-	query := h.buildBaseNftQuery().Where("owner = ?", account)
+	// Get account ID from account_dict
+	accountIds, err := h.GetAccountIds([]string{account})
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	query := h.buildBaseNftQuery().Where("owner_id = ?", accountIds[0])
 
 	if collectionAddr != "" {
 		query = query.Where("collection_addr = ?", collectionAddr)
@@ -61,7 +67,12 @@ func (h *NftHandler) GetTokensByAccount(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	nftsRes, err := ToNftsResponse(h.GetDatabase(), nfts)
+	ownerAccounts, err := h.getNftOwnerIdMap(nfts)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	nftsRes, err := ToNftsResponse(h.GetDatabase(), nfts, ownerAccounts)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
@@ -117,7 +128,12 @@ func (h *NftHandler) GetTokensByCollectionAddr(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	nftsRes, err := ToNftsResponse(h.GetDatabase(), nfts)
+	ownerAccounts, err := h.getNftOwnerIdMap(nfts)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	nftsRes, err := ToNftsResponse(h.GetDatabase(), nfts, ownerAccounts)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}

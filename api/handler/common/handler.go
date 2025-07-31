@@ -35,18 +35,56 @@ func (h *BaseHandler) GetLogger() *slog.Logger    { return h.logger }
 func (h *BaseHandler) GetChainConfig() *config.ChainConfig {
 	return h.cfg.GetChainConfig()
 }
+
 func (h *BaseHandler) GetChainId() string {
 	return h.cfg.GetChainId()
 }
+
 func (h *BaseHandler) GetVmType() types.VMType {
 	return h.cfg.GetChainConfig().VmType
 }
+
 func (h *BaseHandler) GetAccountIds(accounts []string) ([]int64, error) {
-	return util.GetOrCreateAccountIds(h.db.DB, accounts, false)
+	idMap, err := util.GetOrCreateAccountIds(h.db.DB, accounts, false)
+	if err != nil {
+		return nil, err
+	}
+
+	var ids []int64
+	for _, acc := range accounts {
+		if id, ok := idMap[acc]; ok {
+			ids = append(ids, id)
+		}
+	}
+	return ids, nil
 }
+
 func (h *BaseHandler) GetMsgTypeIds(msgs []string) ([]int64, error) {
-	return util.GetOrCreateMsgTypeIds(h.db.DB, msgs, false)
+	idMap, err := util.GetOrCreateMsgTypeIds(h.db.DB, msgs, false)
+	if err != nil {
+		return nil, err
+	}
+
+	var ids []int64
+	for _, msg := range msgs {
+		if id, ok := idMap[msg]; ok {
+			ids = append(ids, id)
+		}
+	}
+	return ids, nil
 }
+
 func (h *BaseHandler) GetNftIds(keys []util.NftKey) ([]int64, error) {
-	return util.GetOrCreateNftIds(h.db.DB, keys, false)
+	idMap, err := util.GetOrCreateNftIds(h.db.DB, keys, false)
+	if err != nil {
+		return nil, err
+	}
+
+	var ids []int64
+	for _, key := range keys {
+		if id, ok := idMap[key]; ok {
+			ids = append(ids, id)
+		}
+	}
+	return ids, nil
 }

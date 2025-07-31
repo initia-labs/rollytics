@@ -20,21 +20,21 @@ type CollectedSeqInfo struct {
 type CollectedBlock struct {
 	ChainId   string          `gorm:"type:text;primaryKey"`
 	Height    int64           `gorm:"type:bigint;primaryKey;autoIncrement:false;index:block_height_desc,sort:desc"`
-	Hash      string          `gorm:"type:text"`
+	Hash      []byte          `gorm:"type:bytea"`
 	Timestamp time.Time       `gorm:"type:timestamptz;index:block_timestamp_desc,sort:desc"`
 	BlockTime int64           `gorm:"type:bigint"`
 	Proposer  string          `gorm:"type:text"`
 	GasUsed   int64           `gorm:"type:bigint"`
 	GasWanted int64           `gorm:"type:bigint"`
-	TxCount   int             `gorm:"type:bigint;index:block_tx_count"`
+	TxCount   int             `gorm:"type:smallint;index:block_tx_count"`
 	TotalFee  json.RawMessage `gorm:"type:jsonb"`
 }
 
 type CollectedTx struct {
-	Hash       string          `gorm:"type:text;primaryKey"`
+	Hash       []byte          `gorm:"type:bytea;primaryKey"`
 	Height     int64           `gorm:"type:bigint;primaryKey;autoIncrement:false;index:tx_height"`
 	Sequence   int64           `gorm:"type:bigint;index:tx_sequence_desc,sort:desc"`
-	Signer     string          `gorm:"type:text;index:tx_signer"`
+	SignerId   int64           `gorm:"type:bigint;index:tx_signer_id"`
 	Data       json.RawMessage `gorm:"type:jsonb"`
 	AccountIds pq.Int64Array   `gorm:"type:bigint[];index:tx_account_ids,type:gin"`
 	NftIds     pq.Int64Array   `gorm:"type:bigint[];index:tx_nft_ids,type:gin"`
@@ -43,46 +43,46 @@ type CollectedTx struct {
 }
 
 type CollectedEvmTx struct {
-	Hash       string          `gorm:"type:text;primaryKey"`
+	Hash       []byte          `gorm:"type:bytea;primaryKey"`
 	Height     int64           `gorm:"type:bigint;primaryKey;autoIncrement:false;index:evm_tx_height"`
 	Sequence   int64           `gorm:"type:bigint;index:evm_tx_sequence_desc,sort:desc"`
-	Signer     string          `gorm:"type:text;index:evm_tx_signer"`
+	SignerId   int64           `gorm:"type:bigint;index:evm_tx_signer_id"`
 	Data       json.RawMessage `gorm:"type:jsonb"`
 	AccountIds pq.Int64Array   `gorm:"type:bigint[];index:evm_tx_account_ids,type:gin"`
 }
 
 type CollectedNftCollection struct {
-	Addr       string `gorm:"type:text;primaryKey"`
+	Addr       []byte `gorm:"type:bytea;primaryKey"` // hex address
 	Height     int64  `gorm:"type:bigint;index:nft_collection_height"`
 	Name       string `gorm:"type:text;index:nft_collection_name"`
 	OriginName string `gorm:"type:text;index:nft_collection_origin_name"`
-	Creator    string `gorm:"type:text"`
+	CreatorId  int64  `gorm:"type:bigint;index:nft_collection_creator_id"`
 	NftCount   int64  `gorm:"type:bigint"`
 }
 
 type CollectedNft struct {
-	CollectionAddr string `gorm:"type:text;primaryKey"`
+	CollectionAddr []byte `gorm:"type:bytea;primaryKey"` // hex address
 	TokenId        string `gorm:"type:text;primaryKey;index:nft_token_id"`
-	Addr           string `gorm:"type:text;index:nft_addr"` // only used in move
+	Addr           []byte `gorm:"type:bytea;index:nft_addr,type:hash"` // only used in move // hex address
 	Height         int64  `gorm:"type:bigint;index:nft_height"`
-	Owner          string `gorm:"type:text;index:nft_owner"`
+	OwnerId        int64  `gorm:"type:bigint;index:nft_owner_id"`
 	Uri            string `gorm:"type:text"`
 }
 
 // only for move
 type CollectedFAStore struct {
-	StoreAddr string `gorm:"type:text;primaryKey"`
-	Owner     string `gorm:"type:text;index:fa_store_owner"`
+	StoreAddr []byte `gorm:"type:bytea;primaryKey"` // hex address
+	Owner     []byte `gorm:"type:bytea;index:fa_store_owner,type:hash"` // hex address
 }
 
 type CollectedAccountDict struct {
 	Id      int64  `gorm:"type:bigint;primaryKey"`
-	Account string `gorm:"type:text;uniqueIndex:account_dict_account"`
+	Account []byte `gorm:"type:bytea;uniqueIndex:account_dict_account"` // acc address
 }
 
 type CollectedNftDict struct {
 	Id             int64  `gorm:"type:bigint;primaryKey"`
-	CollectionAddr string `gorm:"type:text;uniqueIndex:nft_dict_collection_addr_token_id"`
+	CollectionAddr []byte `gorm:"type:bytea;uniqueIndex:nft_dict_collection_addr_token_id"`
 	TokenId        string `gorm:"type:text;uniqueIndex:nft_dict_collection_addr_token_id"`
 }
 
@@ -96,21 +96,27 @@ type CollectedTypeTagDict struct {
 	TypeTag string `gorm:"type:text;uniqueIndex:type_tag_dict_type_tag"`
 }
 
+// Extension: Table related to internal transaction
 type CollectedEvmInternalTx struct {
 	Height      int64         `gorm:"type:bigint;primaryKey"`
-	Hash        string        `gorm:"type:text;primaryKey"`
-	Sequence    int64         `gorm:"type:bigint;index:evm_internal_tx_sequence_desc,sort:desc"`
-	ParentIndex int64         `gorm:"type:bigint;index:evm_internal_tx_parent_index"`
+	HashId      int64         `gorm:"type:bigint;primaryKey"` // use hash id from evm_tx_hash_dict
 	Index       int64         `gorm:"type:bigint;primaryKey;index:evm_internal_tx_index"`
+	ParentIndex int64         `gorm:"type:bigint;index:evm_internal_tx_parent_index"`
+	Sequence    int64         `gorm:"type:bigint;index:evm_internal_tx_sequence_desc,sort:desc"`
 	Type        string        `gorm:"type:text;index:evm_internal_tx_type"`
-	From        string        `gorm:"type:text;index:evm_internal_tx_from"`
-	To          string        `gorm:"type:text;index:evm_internal_tx_to"`
-	Input       string        `gorm:"type:text"`
-	Output      string        `gorm:"type:text"`
-	Value       string        `gorm:"type:text"`
-	Gas         string        `gorm:"type:text"`
-	GasUsed     string        `gorm:"type:text"`
+	FromId      int64         `gorm:"type:bigint;index:evm_internal_tx_from_id"`
+	ToId        int64         `gorm:"type:bigint;index:evm_internal_tx_to_id"`
+	Input       []byte        `gorm:"type:bytea"`
+	Output      []byte        `gorm:"type:bytea"`
+	Value       []byte        `gorm:"type:bytea"`
+	Gas         []byte        `gorm:"type:bytea"`
+	GasUsed     []byte        `gorm:"type:bytea"`
 	AccountIds  pq.Int64Array `gorm:"type:bigint[];index:evm_internal_tx_account_ids,type:gin"`
+}
+
+type CollectedEvmTxHashDict struct {
+	Id   int64  `gorm:"type:bigint;primaryKey"`
+	Hash []byte `gorm:"type:bytea;uniqueIndex:evm_tx_hash_dict_hash"`
 }
 
 func (CollectedSeqInfo) TableName() string {
@@ -127,6 +133,10 @@ func (CollectedTx) TableName() string {
 
 func (CollectedEvmTx) TableName() string {
 	return "evm_tx"
+}
+
+func (CollectedEvmInternalTx) TableName() string {
+	return "evm_internal_tx"
 }
 
 func (CollectedNftCollection) TableName() string {
@@ -157,6 +167,6 @@ func (CollectedTypeTagDict) TableName() string {
 	return "type_tag_dict"
 }
 
-func (CollectedEvmInternalTx) TableName() string {
-	return "evm_internal_tx"
+func (CollectedEvmTxHashDict) TableName() string {
+	return "evm_tx_hash_dict"
 }

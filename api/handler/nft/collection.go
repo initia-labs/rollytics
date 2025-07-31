@@ -44,8 +44,13 @@ func (h *NftHandler) GetCollections(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
+	creatorAccounts, err := h.getCollectionCreatorIdMap(collections)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
 	return c.JSON(CollectionsResponse{
-		Collections: ToCollectionsResponse(collections),
+		Collections: ToCollectionsResponse(collections, creatorAccounts),
 		Pagination:  pagination.ToResponse(total),
 	})
 }
@@ -73,9 +78,14 @@ func (h *NftHandler) GetCollectionsByAccount(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
+	accountIds, err := h.GetAccountIds([]string{account})
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
 	query := h.buildBaseCollectionQuery().
 		Joins("INNER JOIN nft ON nft_collection.addr = nft.collection_addr").
-		Where("nft.owner = ?", account)
+		Where("nft.owner_id = ?", accountIds[0])
 
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
@@ -91,8 +101,13 @@ func (h *NftHandler) GetCollectionsByAccount(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
+	creatorAccounts, err := h.getCollectionCreatorIdMap(collections)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
 	return c.JSON(CollectionsResponse{
-		Collections: ToCollectionsResponse(collections),
+		Collections: ToCollectionsResponse(collections, creatorAccounts),
 		Pagination:  pagination.ToResponse(total),
 	})
 }
@@ -121,8 +136,13 @@ func (h *NftHandler) GetCollectionsByName(c *fiber.Ctx) error {
 	}
 
 	collections, total := getCollectionByName(h.GetDatabase(), h.GetConfig(), name, pagination)
+	creatorAccounts, err := h.getCollectionCreatorIdMap(collections)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
 	return c.JSON(CollectionsResponse{
-		Collections: ToCollectionsResponse(collections),
+		Collections: ToCollectionsResponse(collections, creatorAccounts),
 		Pagination:  pagination.ToResponse(total),
 	})
 }
@@ -152,8 +172,15 @@ func (h *NftHandler) GetCollectionByCollectionAddr(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
+	var creatorAccount types.CollectedAccountDict
+	if err := h.GetDatabase().
+		Where("id = ?", collection.CreatorId).
+		First(&creatorAccount).Error; err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
 	return c.JSON(CollectionResponse{
-		Collection: ToCollectionResponse(collection),
+		Collection: ToCollectionResponse(collection, creatorAccount.Account),
 	})
 }
 

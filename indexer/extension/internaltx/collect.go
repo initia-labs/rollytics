@@ -15,6 +15,7 @@ import (
 	indexerutil "github.com/initia-labs/rollytics/indexer/util"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
+	"github.com/initia-labs/rollytics/util"
 )
 
 type InternalTxResult struct {
@@ -97,10 +98,25 @@ func (i *InternalTxExtension) CollectInternalTxs(db *orm.Database, internalTx *I
 				len(internalTx.CallTrace.Result), len(evmTxs), internalTx.Height)
 		}
 
+		hashes := make([][]byte, 0, len(evmTxs))
+		for _, evmTx := range evmTxs {
+			hashes = append(hashes, evmTx.Hash)
+		}
+		
+		hashIdMap, err := util.GetOrCreateEvmTxHashIds(tx, hashes, true)
+		if err != nil {
+			return fmt.Errorf("failed to create hash dictionary entries: %w", err)
+		}
+
 		var allInternalTxs []types.CollectedEvmInternalTx
 		for idx, trace := range internalTx.CallTrace.Result {
 			evmTx := evmTxs[idx]
-			height, txHash := evmTx.Height, evmTx.Hash
+			height := evmTx.Height
+			hashHex := util.BytesToHex(evmTx.Hash)
+			hashId, ok := hashIdMap[hashHex]
+			if !ok {
+				return fmt.Errorf("hash ID not found for hash %s", hashHex)
+			}
 
 			topLevelCall := InternalTransaction{
 				Type:    trace.Result.Type,
@@ -116,7 +132,7 @@ func (i *InternalTxExtension) CollectInternalTxs(db *orm.Database, internalTx *I
 
 			txInfo := &InternalTxInfo{
 				Height:      height,
-				Hash:        txHash,
+				HashId:      hashId,
 				Index:       0,  // Top-level starts at index 0
 				ParentIndex: -1, // Top-level has no parent
 			}

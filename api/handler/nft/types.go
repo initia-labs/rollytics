@@ -1,9 +1,11 @@
 package nft
 
 import (
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/initia-labs/rollytics/api/handler/common"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
+	"github.com/initia-labs/rollytics/util"
 )
 
 // Collection
@@ -33,11 +35,11 @@ type CollectionResponse struct {
 	Collection Collection `json:"collection"`
 }
 
-func ToCollectionResponse(col types.CollectedNftCollection) Collection {
+func ToCollectionResponse(col types.CollectedNftCollection, creatorAccount []byte) Collection {
 	return Collection{
-		Address: col.Addr,
+		Address: util.BytesToHexWithPrefix(col.Addr),
 		CollectionDetail: CollectionDetail{
-			Creator:    col.Creator,
+			Creator:    sdk.AccAddress(creatorAccount).String(),
 			Name:       col.Name,
 			OriginName: col.OriginName,
 			Nfts: NftHandle{
@@ -48,10 +50,11 @@ func ToCollectionResponse(col types.CollectedNftCollection) Collection {
 	}
 }
 
-func ToCollectionsResponse(cols []types.CollectedNftCollection) []Collection {
+func ToCollectionsResponse(cols []types.CollectedNftCollection, creatorAccounts map[int64][]byte) []Collection {
 	collections := make([]Collection, 0, len(cols))
 	for _, col := range cols {
-		collections = append(collections, ToCollectionResponse(col))
+		creatorAccount := creatorAccounts[col.CreatorId]
+		collections = append(collections, ToCollectionResponse(col, creatorAccount))
 	}
 	return collections
 }
@@ -76,13 +79,13 @@ type NftsResponse struct {
 	Pagination common.PaginationResponse `json:"pagination" extensions:"x-order:1"`
 }
 
-func ToNftResponse(name, originName string, nft types.CollectedNft) Nft {
+func ToNftResponse(name, originName string, nft types.CollectedNft, ownerAccount []byte) Nft {
 	return Nft{
-		CollectionAddr:       nft.CollectionAddr,
+		CollectionAddr:       util.BytesToHexWithPrefix(nft.CollectionAddr),
 		CollectionName:       name,
 		CollectionOriginName: originName,
-		ObjectAddr:           nft.Addr, // only used in Move
-		Owner:                nft.Owner,
+		ObjectAddr:           util.BytesToHexWithPrefix(nft.Addr), // only used in Move
+		Owner:                sdk.AccAddress(ownerAccount).String(),
 		Nft: NftDetails{
 			TokenId: nft.TokenId,
 			Uri:     nft.Uri,
@@ -90,15 +93,16 @@ func ToNftResponse(name, originName string, nft types.CollectedNft) Nft {
 	}
 }
 
-func ToNftsResponse(db *orm.Database, nfts []types.CollectedNft) ([]Nft, error) {
+func ToNftsResponse(db *orm.Database, nfts []types.CollectedNft, ownerAccounts map[int64][]byte) ([]Nft, error) {
 	nftResponses := make([]Nft, 0, len(nfts))
 	for _, nft := range nfts {
 		// get collection names and origin names
-		collection, err := getCollectionByAddr(db, nft.CollectionAddr)
+		collection, err := getCollectionByAddr(db, util.BytesToHexWithPrefix(nft.CollectionAddr))
 		if err != nil {
 			return nil, err
 		}
-		nftResponses = append(nftResponses, ToNftResponse(collection.Name, collection.OriginName, nft))
+		ownerAccount := ownerAccounts[nft.OwnerId]
+		nftResponses = append(nftResponses, ToNftResponse(collection.Name, collection.OriginName, nft, ownerAccount))
 	}
 	return nftResponses, nil
 }

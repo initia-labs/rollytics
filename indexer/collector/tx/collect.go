@@ -91,9 +91,16 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) er
 		}
 
 		// convert to msg type ids
-		msgTypeIds, err := util.GetOrCreateMsgTypeIds(tx, msgTypes, true)
+		msgTypeIdMap, err := util.GetOrCreateMsgTypeIds(tx, msgTypes, true)
 		if err != nil {
 			return err
+		}
+
+		var msgTypeIds []int64
+		for _, msgType := range msgTypes {
+			if id, ok := msgTypeIdMap[msgType]; ok {
+				msgTypeIds = append(msgTypeIds, id)
+			}
 		}
 
 		res := block.TxResults[txIndex]
@@ -101,9 +108,16 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) er
 		typeTags := grepTypeTagsFromEvents(sub.cfg, res.Events)
 
 		// convert to type tag ids
-		typeTagIds, err := util.GetOrCreateTypeTagIds(tx, typeTags, true)
+		typeTagIdMap, err := util.GetOrCreateTypeTagIds(tx, typeTags, true)
 		if err != nil {
 			return err
+		}
+
+		var typeTagIds []int64
+		for _, tag := range typeTags {
+			if id, ok := typeTagIdMap[tag]; ok {
+				typeTagIds = append(typeTagIds, id)
+			}
 		}
 
 		// grep addresses from events
@@ -122,12 +136,7 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) er
 			uniqueAccounts = append(uniqueAccounts, account)
 		}
 
-		// convert to account ids
-		accountIds, err := util.GetOrCreateAccountIds(tx, uniqueAccounts, true)
-		if err != nil {
-			return err
-		}
-
+		// get signer address from auth info
 		var authInfo sdktx.AuthInfo
 		if err = unknownproto.RejectUnknownFieldsStrict(raw.AuthInfoBytes, &authInfo, sub.cdc.InterfaceRegistry()); err != nil {
 			return err
@@ -145,7 +154,25 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) er
 		if err = sub.cdc.UnpackAny(pubkey, &pk); err != nil {
 			return err
 		}
+
+		// append signer address to unique accounts
 		signer := sdk.AccAddress(pk.Address()).String()
+		uniqueAccounts = append(uniqueAccounts, signer)
+
+		// convert to account ids
+		accountIdMap, err := util.GetOrCreateAccountIds(tx, uniqueAccounts, true)
+		if err != nil {
+			return err
+		}
+
+		var accountIds []int64
+		for _, acc := range uniqueAccounts {
+			if id, ok := accountIdMap[acc]; ok {
+				accountIds = append(accountIds, id)
+			}
+		}
+
+		signerId := accountIdMap[signer]
 
 		txJSON, err := cbjson.Marshal(restTx)
 		if err != nil {
@@ -179,12 +206,17 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) er
 			return err
 		}
 
+		hashBytes, err := util.HexToBytes(txHash)
+		if err != nil {
+			return err
+		}
+
 		seqInfo.Sequence++
 		ctxs = append(ctxs, types.CollectedTx{
-			Hash:       txHash,
+			Hash:       hashBytes,
 			Height:     height,
 			Sequence:   seqInfo.Sequence,
-			Signer:     signer,
+			SignerId:   signerId,
 			Data:       json.RawMessage(txResJSON),
 			MsgTypeIds: msgTypeIds,
 			TypeTagIds: typeTagIds,
@@ -226,11 +258,6 @@ func (sub *TxSubmodule) collectEvm(block indexertypes.ScrapedBlock, evmTxs []typ
 			return err
 		}
 
-		signer, err := util.AccAddressFromString(evmTx.From)
-		if err != nil {
-			return err
-		}
-
 		// grep addresses from events
 		addrs, err := grepAddressesFromEvmTx(evmTx)
 		if err != nil {
@@ -247,18 +274,38 @@ func (sub *TxSubmodule) collectEvm(block indexertypes.ScrapedBlock, evmTxs []typ
 			uniqueAccounts = append(uniqueAccounts, account)
 		}
 
+		signer, err := util.AccAddressFromString(evmTx.From)
+		if err != nil {
+			return err
+		}
+		signerStr := signer.String()
+		uniqueAccounts = append(uniqueAccounts, signerStr)
+
 		// convert to account ids
-		accountIds, err := util.GetOrCreateAccountIds(tx, uniqueAccounts, true)
+		accountIdMap, err := util.GetOrCreateAccountIds(tx, uniqueAccounts, true)
+		if err != nil {
+			return err
+		}
+		var accountIds []int64
+		for _, acc := range uniqueAccounts {
+			if id, ok := accountIdMap[acc]; ok {
+				accountIds = append(accountIds, id)
+			}
+		}
+
+		signerId := accountIdMap[signerStr]
+
+		hashBytes, err := util.HexToBytes(evmTx.TxHash)
 		if err != nil {
 			return err
 		}
 
 		seqInfo.Sequence++
 		cetxs = append(cetxs, types.CollectedEvmTx{
-			Hash:       evmTx.TxHash,
+			Hash:       hashBytes,
 			Height:     height,
 			Sequence:   seqInfo.Sequence,
-			Signer:     signer.String(),
+			SignerId:   signerId,
 			Data:       json.RawMessage(txJSON),
 			AccountIds: accountIds,
 		})

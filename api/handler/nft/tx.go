@@ -56,7 +56,7 @@ func (h *NftHandler) GetNftTxs(c *fiber.Ctx) error {
 	query := h.GetDatabase().Model(&types.CollectedTx{}).Order(pagination.OrderBy("sequence"))
 
 	if h.GetVmType() == types.MoveVM {
-		accAddr, err := util.AccAddressFromString(nft.Addr)
+		accAddr, err := util.AccAddressFromString(util.BytesToHex(nft.Addr))
 		if err != nil {
 			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 		}
@@ -68,7 +68,7 @@ func (h *NftHandler) GetNftTxs(c *fiber.Ctx) error {
 		query = query.Where("account_ids && ?", pq.Array(accountIds))
 	} else {
 		nftKey := util.NftKey{
-			CollectionAddr: nft.CollectionAddr,
+			CollectionAddr: util.BytesToHex(nft.CollectionAddr),
 			TokenId:        nft.TokenId,
 		}
 		nftIds, err := h.GetNftIds([]util.NftKey{nftKey})

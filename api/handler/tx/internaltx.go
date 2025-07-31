@@ -9,6 +9,7 @@ import (
 
 	"github.com/initia-labs/rollytics/api/handler/common"
 	"github.com/initia-labs/rollytics/types"
+	"github.com/initia-labs/rollytics/util"
 )
 
 // GetEvmInternalTxs handles GET /tx/v1/evm-internal-txs
@@ -47,7 +48,18 @@ func (h *TxHandler) GetEvmInternalTxs(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	txsRes := ToEvmInternalTxsResponse(txs)
+	// Get accounts for internal txs
+	accounts, err := h.getAccounts(txs)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	hashs, err := h.getHashs(txs)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	txsRes := ToEvmInternalTxsResponse(txs, accounts, hashs)
 
 	return c.JSON(EvmInternalTxsResponse{
 		Txs:        txsRes,
@@ -98,7 +110,18 @@ func (h *TxHandler) GetEvmInternalTxsByAccount(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	txsRes := ToEvmInternalTxsResponse(txs)
+	// Get accounts for internal txs
+	accounts, err := h.getAccounts(txs)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	hashs, err := h.getHashs(txs)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	txsRes := ToEvmInternalTxsResponse(txs, accounts, hashs)
 
 	return c.JSON(EvmInternalTxsResponse{
 		Txs:        txsRes,
@@ -145,7 +168,18 @@ func (h *TxHandler) GetEvmInternalTxsByHeight(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	txsRes := ToEvmInternalTxsResponse(txs)
+	// Get accounts for internal txs
+	accounts, err := h.getAccounts(txs)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	hashs, err := h.getHashs(txs)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	txsRes := ToEvmInternalTxsResponse(txs, accounts, hashs)
 
 	return c.JSON(EvmInternalTxsResponse{
 		Txs:        txsRes,
@@ -177,7 +211,20 @@ func (h *TxHandler) GetEvmInternalTxsByHash(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
-	query := h.buildBaseEvmInternalTxQuery().Where("hash = ?", hash)
+	hashBytes, err := util.HexToBytes(hash)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid hash format")
+	}
+
+	var hashDict types.CollectedEvmTxHashDict
+	if err := h.GetDatabase().Where("hash = ?", hashBytes).First(&hashDict).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return fiber.NewError(fiber.StatusNotFound, "transaction not found")
+		}
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	query := h.buildBaseEvmInternalTxQuery().Where("hash = ?", hashDict.Id)
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
@@ -194,7 +241,18 @@ func (h *TxHandler) GetEvmInternalTxsByHash(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	txsRes := ToEvmInternalTxsResponse(txs)
+	// Get accounts and hashs for internal txs
+	accounts, err := h.getAccounts(txs)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	hashs, err := h.getHashs(txs)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	txsRes := ToEvmInternalTxsResponse(txs, accounts, hashs)
 
 	return c.JSON(EvmInternalTxsResponse{
 		Txs:        txsRes,

@@ -8,6 +8,7 @@ import (
 	"github.com/initia-labs/rollytics/api/handler/common"
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/types"
+	"github.com/initia-labs/rollytics/util"
 )
 
 type BlocksResponse struct {
@@ -73,7 +74,7 @@ func ToBlockResponse(cb types.CollectedBlock, cfg *config.Config) (block Block, 
 	return Block{
 		ChainID:   cb.ChainId,
 		Height:    fmt.Sprintf("%d", cb.Height),
-		Hash:      cb.Hash,
+		Hash:      util.BytesToHexWithPrefix(cb.Hash),
 		BlockTime: fmt.Sprintf("%d", cb.BlockTime),
 		Timestamp: cb.Timestamp.Format(time.RFC3339),
 		GasUsed:   fmt.Sprintf("%d", cb.GasUsed),

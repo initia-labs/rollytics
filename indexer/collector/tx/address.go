@@ -112,8 +112,10 @@ func grepAddressesFromTx(events []abci.Event, tx *gorm.DB) (grepped []string, er
 			return grepped, err
 		}
 		for _, faStore := range faStores {
-			owners = append(owners, faStore.Owner)
-			faStoreCache.Set(faStore.StoreAddr, faStore.Owner)
+			ownerStr := util.BytesToHex(faStore.Owner)
+			owners = append(owners, ownerStr)
+			storeAddrStr := util.BytesToHex(faStore.StoreAddr)
+			faStoreCache.Set(storeAddrStr, ownerStr)
 		}
 	}
 
