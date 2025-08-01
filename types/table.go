@@ -71,7 +71,7 @@ type CollectedNft struct {
 
 // only for move
 type CollectedFAStore struct {
-	StoreAddr []byte `gorm:"type:bytea;primaryKey"` // hex address
+	StoreAddr []byte `gorm:"type:bytea;primaryKey"`                     // hex address
 	Owner     []byte `gorm:"type:bytea;index:fa_store_owner,type:hash"` // hex address
 }
 

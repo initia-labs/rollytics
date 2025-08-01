@@ -15,14 +15,13 @@ type NftKey struct {
 }
 
 var (
-	accountCache    = cache.New[string, int64](10000)
-	nftCache        = cache.New[NftKey, int64](10000)
-	msgTypeCache    = cache.New[string, int64](10000)
-	typeTagCache    = cache.New[string, int64](10000)
-	evmTxHashCache  = cache.New[string, int64](10000)
+	accountCache   = cache.New[string, int64](10000)
+	nftCache       = cache.New[NftKey, int64](10000)
+	msgTypeCache   = cache.New[string, int64](10000)
+	typeTagCache   = cache.New[string, int64](10000)
+	evmTxHashCache = cache.New[string, int64](10000)
 )
 
-//nolint:dupl
 func GetOrCreateAccountIds(db *gorm.DB, accounts []string, createNew bool) (idMap map[string]int64, err error) {
 	idMap = make(map[string]int64, len(accounts))
 
@@ -62,7 +61,7 @@ func GetOrCreateAccountIds(db *gorm.DB, accounts []string, createNew bool) (idMa
 		accountIdMap[accAddr.String()] = entry.Id
 	}
 
-	if createNew {
+	if createNew { //nolint:nestif
 		// create new entries if not in DB
 		var newEntries []types.CollectedAccountDict
 		for _, account := range uncached {
@@ -145,7 +144,7 @@ func GetOrCreateNftIds(db *gorm.DB, keys []NftKey, createNew bool) (idMap map[Nf
 		nftIdMap[key] = entry.Id
 	}
 
-	if createNew {
+	if createNew { //nolint:nestif
 		// create new entries if not in DB
 		var newEntries []types.CollectedNftDict
 		for _, key := range uncached {
@@ -308,7 +307,6 @@ func GetOrCreateTypeTagIds(db *gorm.DB, typeTags []string, createNew bool) (idMa
 	return idMap, nil
 }
 
-//nolint:dupl
 func GetOrCreateEvmTxHashIds(db *gorm.DB, hashes [][]byte, createNew bool) (idMap map[string]int64, err error) {
 	idMap = make(map[string]int64, len(hashes))
 

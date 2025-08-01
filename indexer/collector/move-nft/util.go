@@ -12,7 +12,7 @@ func getCollectionCreatorId(addr string, tx *gorm.DB) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	
+
 	var collection types.CollectedNftCollection
 	if err := tx.
 		Where("addr = ?", addrBytes).

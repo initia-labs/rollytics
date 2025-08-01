@@ -302,7 +302,7 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB
 		if err != nil {
 			return err
 		}
-		
+
 		var nftIds []int64
 		for _, key := range keys {
 			if id, ok := nftIdMap[key]; ok {

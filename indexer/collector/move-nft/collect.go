@@ -104,7 +104,7 @@ func (sub *MoveNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 
 	// Collect all addresses (creators and transfer recipients)
 	var allAddresses []string
-	// mint 
+	// mint
 	for _, event := range collectionEvents {
 		creator, err := util.AccAddressFromString(event.Creator)
 		if err != nil {
@@ -112,7 +112,7 @@ func (sub *MoveNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 		}
 		allAddresses = append(allAddresses, creator.String())
 	}
-	
+
 	// transfer
 	for _, owner := range transferMap {
 		allAddresses = append(allAddresses, owner)
@@ -130,7 +130,7 @@ func (sub *MoveNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 			return err
 		}
 		creatorId := accountIdMap[creator.String()]
-		
+
 		collectionAddr, err := util.HexToBytes(event.Collection)
 		if err != nil {
 			return err
@@ -188,11 +188,11 @@ func (sub *MoveNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 	if err := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(mintedNfts, batchSize).Error; err != nil {
 		return err
 	}
-	
+
 	// update transferred nfts
 	for nftAddr, owner := range transferMap {
 		ownerId := accountIdMap[owner]
-		
+
 		if err := tx.Model(&types.CollectedNft{}).
 			Where("addr = ?", nftAddr).
 			Updates(map[string]interface{}{"height": block.Height, "owner_id": ownerId}).Error; err != nil {

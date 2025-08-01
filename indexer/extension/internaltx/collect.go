@@ -102,7 +102,7 @@ func (i *InternalTxExtension) CollectInternalTxs(db *orm.Database, internalTx *I
 		for _, evmTx := range evmTxs {
 			hashes = append(hashes, evmTx.Hash)
 		}
-		
+
 		hashIdMap, err := util.GetOrCreateEvmTxHashIds(tx, hashes, true)
 		if err != nil {
 			return fmt.Errorf("failed to create hash dictionary entries: %w", err)

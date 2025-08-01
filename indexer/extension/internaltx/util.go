@@ -51,7 +51,7 @@ func processInternalCall(
 
 	// Get From and To account IDs
 	var fromId, toId int64
-	
+
 	if call.From != "" {
 		fromAddr, err := util.AccAddressFromString(call.From)
 		if err != nil {
@@ -59,7 +59,7 @@ func processInternalCall(
 		}
 		fromId = accIdMap[fromAddr.String()]
 	}
-	
+
 	if call.To != "" {
 		toAddr, err := util.AccAddressFromString(call.To)
 		if err != nil {

@@ -56,7 +56,7 @@ func getCollectionByAddr(database *orm.Database, collectionAddr string) (*types.
 	if err != nil {
 		return nil, err
 	}
-	
+
 	var collection types.CollectedNftCollection
 	if err := database.Model(&types.CollectedNftCollection{}).Where("addr = ?", collectionAddrBytes).First(&collection).Error; err != nil {
 		return &collection, err
