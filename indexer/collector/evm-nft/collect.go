@@ -132,7 +132,6 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB
 		creatorAddresses[collectionAddr] = creatorAddr
 		allAddresses = append(allAddresses, creatorAddr)
 
-		// Collect all owner addresses
 		for _, owner := range nftMap {
 			ownerAccAddr, err := util.AccAddressFromString(owner)
 			if err != nil {
@@ -184,13 +183,12 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB
 		})
 
 		for tokenId, owner := range nftMap {
-			ownerBytes, err := util.AccAddressFromString(owner)
+			ownerAccAddr, err := util.AccAddressFromString(owner)
 			if err != nil {
 				return err
 			}
 
-			ownerAddr := sdk.AccAddress(ownerBytes).String()
-			ownerId := accountIdMap[ownerAddr]
+			ownerId := accountIdMap[ownerAccAddr.String()]
 
 			mintedNfts = append(mintedNfts, types.CollectedNft{
 				CollectionAddr: addrBytes,
@@ -208,7 +206,6 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB
 		return err
 	}
 
-	// batch update transferred nfts
 	var transferredNfts []types.CollectedNft
 
 	for collectionAddr, nftMap := range transferMap {
@@ -240,7 +237,6 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB
 		return err
 	}
 
-	// batch delete burned nfts
 	for collectionAddr, nftMap := range burnMap {
 		addrBytes, err := util.HexToBytes(collectionAddr)
 		if err != nil {
@@ -257,7 +253,6 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB
 		}
 	}
 
-	// update nft count
 	var updateAddrs [][]byte
 	for collectionAddr := range updateCountMap {
 		addrBytes, err := util.HexToBytes(collectionAddr)

@@ -52,7 +52,6 @@ func getCollectionCreator(addr string, tx *gorm.DB) ([]byte, error) {
 		return nil, err
 	}
 
-	// Get signer account from account_dict
 	var signerAccount types.CollectedAccountDict
 	if err := tx.Where("id = ?", ctx.SignerId).First(&signerAccount).Error; err != nil {
 		return nil, err

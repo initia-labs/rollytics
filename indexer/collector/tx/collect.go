@@ -155,11 +155,9 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) er
 			return err
 		}
 
-		// append signer address to unique accounts
 		signer := sdk.AccAddress(pk.Address()).String()
 		uniqueAccounts = append(uniqueAccounts, signer)
 
-		// convert to account ids
 		accountIdMap, err := util.GetOrCreateAccountIds(tx, uniqueAccounts, true)
 		if err != nil {
 			return err
@@ -281,7 +279,6 @@ func (sub *TxSubmodule) collectEvm(block indexertypes.ScrapedBlock, evmTxs []typ
 		signerStr := signer.String()
 		uniqueAccounts = append(uniqueAccounts, signerStr)
 
-		// convert to account ids
 		accountIdMap, err := util.GetOrCreateAccountIds(tx, uniqueAccounts, true)
 		if err != nil {
 			return err

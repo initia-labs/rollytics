@@ -19,7 +19,7 @@ func (h *NftHandler) getAccountIdMap(accountIds []int64) (map[int64][]byte, erro
 }
 
 func (h *NftHandler) getCollectionCreatorIdMap(collections []types.CollectedNftCollection) (map[int64][]byte, error) {
-	creatorIds := make([]int64, 0)
+	creatorIds := make([]int64, 0, len(collections))
 	for _, col := range collections {
 		creatorIds = append(creatorIds, col.CreatorId)
 	}
@@ -27,7 +27,7 @@ func (h *NftHandler) getCollectionCreatorIdMap(collections []types.CollectedNftC
 }
 
 func (h *NftHandler) getNftOwnerIdMap(nfts []types.CollectedNft) (map[int64][]byte, error) {
-	ownerIds := make([]int64, 0)
+	ownerIds := make([]int64, 0, len(nfts))
 	for _, nft := range nfts {
 		ownerIds = append(ownerIds, nft.OwnerId)
 	}

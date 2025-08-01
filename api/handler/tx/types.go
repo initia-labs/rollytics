@@ -101,16 +101,23 @@ func ToEvmInternalTxsResponse(citxs []types.CollectedEvmInternalTx, accounts map
 }
 
 func ToEvmInternalTxResponse(eitx *types.CollectedEvmInternalTx, accounts map[int64][]byte, txHashs map[int64][]byte) *EvmInternalTxResponse {
-	fromAccount := accounts[eitx.FromId]
-	toAccount := accounts[eitx.ToId]
-	hash := txHashs[eitx.HashId]
+	var fromAccount, toAccount string
+
+	if eitx.FromId != 0 {
+		fromAccount = util.BytesToHexWithPrefix(accounts[eitx.FromId])
+	}
+
+	if eitx.ToId != 0 {
+		toAccount = util.BytesToHexWithPrefix(accounts[eitx.ToId])
+	}
+
 	return &EvmInternalTxResponse{
 		Height:      eitx.Height,
-		Hash:        util.BytesToHexWithPrefix(hash),
+		Hash:        util.BytesToHexWithPrefix(txHashs[eitx.HashId]),
 		ParentIndex: eitx.ParentIndex,
 		Index:       eitx.Index,
-		From:        util.BytesToHexWithPrefix(fromAccount),
-		To:          util.BytesToHexWithPrefix(toAccount),
+		From:        fromAccount,
+		To:          toAccount,
 		Value:       util.BytesToHexWithPrefix(eitx.Value),
 		Gas:         util.BytesToHexWithPrefix(eitx.Gas),
 		GasUsed:     util.BytesToHexWithPrefix(eitx.GasUsed),

@@ -141,6 +141,10 @@ func grepAddressesFromEvmTx(evmTx types.EvmTx) (grepped []string, err error) {
 		addrs = append(addrs, evmTx.To)
 	}
 
+	if evmTx.ContractAddress != nil && *evmTx.ContractAddress != "" {
+		addrs = append(addrs, *evmTx.ContractAddress)
+	}
+
 	for _, log := range evmTx.Logs {
 		addrs = append(addrs, log.Address)
 		for idx, topic := range log.Topics {
@@ -158,5 +162,5 @@ func grepAddressesFromEvmTx(evmTx types.EvmTx) (grepped []string, err error) {
 		grepped = append(grepped, accAddr.String())
 	}
 
-	return
+	return grepped, err
 }

@@ -78,7 +78,6 @@ func GetOrCreateAccountIds(db *gorm.DB, accounts []string, createNew bool) (idMa
 			if err := db.Clauses(orm.DoNothingWhenConflict).Create(&newEntries).Error; err != nil {
 				return idMap, err
 			}
-			// Add newly created entries to the map
 			for i, entry := range newEntries {
 				accAddr := sdk.AccAddress(entry.Account)
 				accountIdMap[accAddr.String()] = newEntries[i].Id
@@ -86,7 +85,6 @@ func GetOrCreateAccountIds(db *gorm.DB, accounts []string, createNew bool) (idMa
 		}
 	}
 
-	// set cache and add to result map
 	for _, account := range uncached {
 		if id, ok := accountIdMap[account]; ok {
 			accountCache.Set(account, id)
