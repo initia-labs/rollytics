@@ -50,17 +50,23 @@ func processInternalCall(
 	seqInfo.Sequence++
 
 	// Get From and To account IDs
-	fromAddr, err := util.AccAddressFromString(call.From)
-	if err != nil {
-		return nil, err
-	}
-	toAddr, err := util.AccAddressFromString(call.To)
-	if err != nil {
-		return nil, err
+	var fromId, toId int64
+	
+	if call.From != "" {
+		fromAddr, err := util.AccAddressFromString(call.From)
+		if err != nil {
+			return nil, err
+		}
+		fromId = accIdMap[fromAddr.String()]
 	}
 	
-	fromId := accIdMap[fromAddr.String()]
-	toId := accIdMap[toAddr.String()]
+	if call.To != "" {
+		toAddr, err := util.AccAddressFromString(call.To)
+		if err != nil {
+			return nil, err
+		}
+		toId = accIdMap[toAddr.String()]
+	}
 	inputBytes, err := util.HexToBytes(call.Input)
 	if err != nil {
 		return nil, err
