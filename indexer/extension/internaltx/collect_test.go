@@ -107,8 +107,6 @@ func TestIndexer_CollectInternalTxs(t *testing.T) {
 	cfg := setupTestConfig()
 	indexer := internal_tx.New(cfg, logger, db)
 
-	height := int64(100)
-
 	mock.ExpectBegin()
 	mock.ExpectQuery(`SELECT \* FROM "seq_info" WHERE name = \$1 ORDER BY "seq_info"\."name" LIMIT \$2`).
 		WithArgs("evm_internal_tx", 1).
@@ -120,10 +118,7 @@ func TestIndexer_CollectInternalTxs(t *testing.T) {
 	txHashHex := util.BytesToHex(txHash)
 	require.Equal(t, "0x"+txHashHex, "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890")
 
-	mock.ExpectQuery(`SELECT hash, height, account_ids FROM "evm_tx" WHERE height = \$1 ORDER BY sequence ASC`).
-		WithArgs(height).
-		WillReturnRows(sqlmock.NewRows([]string{"hash", "height", "account_ids"}).
-			AddRow(txHash, height, "{1,2}"))
+	// No longer need to query evm_tx table since we use trace.TxHash directly
 
 	// Mock for hash dictionary lookup (happens first)
 	mock.ExpectQuery(`SELECT \* FROM "evm_tx_hash_dict" WHERE hash IN`).
@@ -295,49 +290,13 @@ func TestIndexer_CollectInternalTxs(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+// This test is no longer relevant since we don't compare trace count with evmTx count
+// and we get transaction hashes directly from traces
+/*
 func TestIndexer_CollectInternalTxs_MismatchedResults(t *testing.T) {
-	db, mock := setupTestDB(t)
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelWarn}))
-	cfg := setupTestConfig()
-	indexer := internal_tx.New(cfg, logger, db)
-
-	height := int64(100)
-
-	mock.ExpectBegin()
-
-	mock.ExpectQuery(`SELECT \* FROM "seq_info" WHERE name = \$1 ORDER BY "seq_info"\."name" LIMIT \$2`).
-		WithArgs("evm_internal_tx", 1).
-		WillReturnRows(sqlmock.NewRows([]string{"name", "sequence"}).
-			AddRow("evm_internal_tx", int64(0)))
-
-	// Test transaction hash
-	txHash, _ := util.HexToBytes("0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890")
-
-	mock.ExpectQuery(`SELECT hash, height, account_ids FROM "evm_tx" WHERE height = \$1 ORDER BY sequence ASC`).
-		WithArgs(height).
-		WillReturnRows(sqlmock.NewRows([]string{"hash", "height", "account_ids"}).
-			AddRow(txHash, height, "{1}"))
-
-	mock.ExpectRollback()
-
-	callTraceRes := &internal_tx.DebugCallTraceBlockResponse{
-		Result: []internal_tx.TransactionTrace{
-			{TxHash: "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"},
-			{TxHash: "0xabcdef1234567891abcdef1234567891abcdef1234567891abcdef1234567891"},
-		},
-	}
-	callTraceRes.Result[0].Result.Type = "CALL"
-	callTraceRes.Result[1].Result.Type = "CALL"
-
-	err := indexer.CollectInternalTxs(db, &internal_tx.InternalTxResult{
-		Height:    height,
-		CallTrace: callTraceRes,
-	})
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "does not match")
-
-	require.NoError(t, mock.ExpectationsWereMet())
+	// Test removed: No longer checking for mismatch between evmTx and trace counts
 }
+*/
 
 func TestIndexer_CollectInternalTxs_EmptyInternalTxs(t *testing.T) {
 	db, mock := setupTestDB(t)
@@ -345,8 +304,6 @@ func TestIndexer_CollectInternalTxs_EmptyInternalTxs(t *testing.T) {
 	cfg := setupTestConfig()
 	indexer := internal_tx.New(cfg, logger, db)
 
-	height := int64(100)
-
 	mock.ExpectBegin()
 
 	mock.ExpectQuery(`SELECT \* FROM "seq_info" WHERE name = \$1 ORDER BY "seq_info"\."name" LIMIT \$2`).
@@ -354,16 +311,12 @@ func TestIndexer_CollectInternalTxs_EmptyInternalTxs(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"name", "sequence"}).
 			AddRow("evm_internal_tx", int64(0)))
 
-	// Test transaction hash
+	// Test transaction hash from trace
 	txHash, _ := util.HexToBytes("0x112233445566778899aabbccddeeff00112233445566778899aabbccddeeff00")
-
-	mock.ExpectQuery(`SELECT hash, height, account_ids FROM "evm_tx" WHERE height = \$1 ORDER BY sequence ASC`).
-		WithArgs(height).
-		WillReturnRows(sqlmock.NewRows([]string{"hash", "height", "account_ids"}).
-			AddRow(txHash, height, "{1}"))
 
 	// Mock for hash dictionary lookup (happens first)
 	mock.ExpectQuery(`SELECT \* FROM "evm_tx_hash_dict" WHERE hash IN`).
+		WithArgs(txHash).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "hash"}))
 
 	// Mock for creating new hash dictionary entry
@@ -413,7 +366,7 @@ func TestIndexer_CollectInternalTxs_EmptyInternalTxs(t *testing.T) {
 	callTraceRes.Result[0].Result.Input = "0x"
 
 	err := indexer.CollectInternalTxs(db, &internal_tx.InternalTxResult{
-		Height:    height,
+		Height:    100,
 		CallTrace: callTraceRes,
 	})
 	assert.NoError(t, err)
