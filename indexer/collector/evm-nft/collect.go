@@ -126,6 +126,7 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB
 	}
 
 	creatorAddresses := make(map[string]string) // collectionAddr -> creator address
+	collectionHeights := make(map[string]int64) // collectionAddr -> creation height
 	for collectionAddr := range mintedCollections {
 		_, ok := cacheData.ColNames[collectionAddr]
 		if !ok {
@@ -135,13 +136,14 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB
 			return fmt.Errorf("collection name info not found for collection address %s", collectionAddr)
 		}
 
-		creator, err := getCollectionCreator(collectionAddr, tx)
+		creator, height, err := getCollectionCreationInfo(collectionAddr, tx)
 		if err != nil {
 			return err
 		}
 
 		creatorAddr := sdk.AccAddress(creator).String()
 		creatorAddresses[collectionAddr] = creatorAddr
+		collectionHeights[collectionAddr] = height
 		allAddresses = append(allAddresses, creatorAddr)
 	}
 
@@ -166,10 +168,11 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB
 
 		creatorAddr := creatorAddresses[collectionAddr]
 		creatorId := accountIdMap[creatorAddr]
+		creationHeight := collectionHeights[collectionAddr]
 
 		mintedCols = append(mintedCols, types.CollectedNftCollection{
 			Addr:      addrBytes,
-			Height:    block.Height,
+			Height:    creationHeight,
 			Name:      name,
 			CreatorId: creatorId,
 		})

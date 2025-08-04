@@ -32,15 +32,15 @@ func convertHexStringToDecString(hex string) (string, error) {
 	return bi.String(), nil
 }
 
-func getCollectionCreator(addr string, tx *gorm.DB) ([]byte, error) {
+func getCollectionCreationInfo(addr string, tx *gorm.DB) ([]byte, int64, error) {
 	bechAddr, err := util.AccAddressFromString(addr)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	var accountDict types.CollectedAccountDict
 	if err := tx.Where("account = ?", bechAddr).First(&accountDict).Error; err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	var ctx types.CollectedTx
@@ -49,15 +49,15 @@ func getCollectionCreator(addr string, tx *gorm.DB) ([]byte, error) {
 		Order("sequence ASC").
 		Limit(1).
 		First(&ctx).Error; err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	var signerAccount types.CollectedAccountDict
 	if err := tx.Where("id = ?", ctx.SignerId).First(&signerAccount).Error; err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	return signerAccount.Account, nil
+	return signerAccount.Account, ctx.Height, nil
 }
 
 func isEvmRevertError(err error) bool {
