@@ -39,11 +39,13 @@ func (h *StatusHandler) GetStatus(c *fiber.Ctx) error {
 		}
 		itxHeight := lastEvmInternalTx.Height
 		var count int64
-		h.GetDatabase().Model(&types.CollectedBlock{}).
+		if err := h.GetDatabase().Model(&types.CollectedBlock{}).
 			Where("block.chain_id = ?", h.GetChainId()).
 			Where("height > ?", itxHeight).
 			Where("tx_count > 0").
-			Count(&count)
+			Count(&count).Error; err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
 
 		if count > 0 {
 			internalTxHeight = itxHeight
