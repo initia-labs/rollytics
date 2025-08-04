@@ -31,7 +31,7 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 	mintColMap := make(map[string]interface{})
 	mintMap := make(map[util.NftKey]map[string]string) // NftKey -> {"owner": owner, "uri": uri}
 	transferMap := make(map[util.NftKey]string)        // NftKey -> recipient
-	burnMap := make(map[string]map[string]interface{})
+	burnMap := make(map[util.NftKey]interface{})
 	updateCountMap := make(map[string]interface{})
 	nftTxMap := make(map[string]map[string]map[string]interface{})
 
@@ -72,7 +72,7 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 				"owner": owner,
 				"uri":   event.AttrMap["token_uri"],
 			}
-			delete(burnMap[collectionAddr], tokenId)
+			delete(burnMap, nftKey)
 			updateCountMap[collectionAddr] = nil
 
 			if _, ok := nftTxMap[event.TxHash]; !ok {
@@ -111,15 +111,12 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 				continue
 			}
 
-			if _, ok := burnMap[collectionAddr]; !ok {
-				burnMap[collectionAddr] = make(map[string]interface{})
-			}
-			burnMap[collectionAddr][tokenId] = nil
-
 			nftKey := util.NftKey{
 				CollectionAddr: collectionAddr,
 				TokenId:        tokenId,
 			}
+			burnMap[nftKey] = nil
+
 			delete(mintMap, nftKey)
 			delete(transferMap, nftKey)
 			updateCountMap[collectionAddr] = nil
@@ -238,14 +235,19 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 		return err
 	}
 
+	deletedCollections := make(map[string][]string)
 	// batch delete burned nfts
-	for collectionAddr, nftMap := range burnMap {
-		var tokenIds []string
-		for tokenId := range nftMap {
-			tokenIds = append(tokenIds, tokenId)
+	for nftKey := range burnMap {
+		deletedCollections[nftKey.CollectionAddr] = append(deletedCollections[nftKey.CollectionAddr], nftKey.TokenId)
+	}
+
+	for collectionAddr, tokenIds := range deletedCollections {
+		collectionAddrBytes, err := util.AccAddressFromString(collectionAddr)
+		if err != nil {
+			return err
 		}
 		if err := tx.
-			Where("collection_addr = ? AND token_id IN ?", collectionAddr, tokenIds).
+			Where("collection_addr = ? AND token_id IN ?", collectionAddrBytes, tokenIds).
 			Delete(&types.CollectedNft{}).Error; err != nil {
 			return err
 		}
