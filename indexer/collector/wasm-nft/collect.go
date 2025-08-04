@@ -168,7 +168,7 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 			if sub.IsBlacklisted(collectionAddr) {
 				continue
 			}
-			continue // Already checked above
+			continue
 		}
 		addrBytes, err := util.AccAddressFromString(collectionAddr)
 		if err != nil {
@@ -188,7 +188,6 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 		return err
 	}
 
-	// batch insert nfts
 	var mintedNfts []types.CollectedNft
 	for nftKey, data := range mintMap {
 		collectionAddr, err := util.AccAddressFromString(nftKey.CollectionAddr)
@@ -211,7 +210,6 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 		return err
 	}
 
-	// batch update transferred nfts
 	var transferredNfts []types.CollectedNft
 	for nftKey, recipient := range transferMap {
 		collectionAddr, err := util.AccAddressFromString(nftKey.CollectionAddr)
@@ -235,13 +233,12 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 		return err
 	}
 
-	deletedCollections := make(map[string][]string)
-	// batch delete burned nfts
+	burnedCollections := make(map[string][]string) // collectionAddr -> tokenIds
 	for nftKey := range burnMap {
-		deletedCollections[nftKey.CollectionAddr] = append(deletedCollections[nftKey.CollectionAddr], nftKey.TokenId)
+		burnedCollections[nftKey.CollectionAddr] = append(burnedCollections[nftKey.CollectionAddr], nftKey.TokenId)
 	}
 
-	for collectionAddr, tokenIds := range deletedCollections {
+	for collectionAddr, tokenIds := range burnedCollections {
 		collectionAddrBytes, err := util.AccAddressFromString(collectionAddr)
 		if err != nil {
 			return err
@@ -253,7 +250,6 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 		}
 	}
 
-	// update nft count
 	var updateAddrs []string
 	for collectionAddr := range updateCountMap {
 		updateAddrs = append(updateAddrs, collectionAddr)
@@ -276,7 +272,6 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 		}
 	}
 
-	// update nft ids to tx table
 	for txHash, collectionMap := range nftTxMap {
 		if txHash == "" {
 			continue
