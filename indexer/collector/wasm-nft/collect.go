@@ -2,7 +2,6 @@ package wasm_nft
 
 import (
 	"errors"
-	"fmt"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -28,12 +27,12 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 	}
 
 	batchSize := sub.cfg.GetDBBatchSize()
-	mintColMap := make(map[string]interface{})
-	mintNftMap := make(map[string]map[string]types.CollectedNft)
-	transferMap := make(map[string]map[string]types.CollectedNft)
-	burnMap := make(map[string]map[string]interface{})
+	mintMap := make(map[util.NftKey]map[string]string)
+	transferMap := make(map[util.NftKey]string)
+	burnMap := make(map[util.NftKey]interface{})
 	updateCountMap := make(map[string]interface{})
 	nftTxMap := make(map[string]map[string]map[string]interface{})
+
 	events, err := indexerutil.ExtractEvents(block, "wasm")
 	if err != nil {
 		return err
@@ -60,18 +59,16 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 				continue
 			}
 
-			mintColMap[collectionAddr] = nil
-			if _, ok := mintNftMap[collectionAddr]; !ok {
-				mintNftMap[collectionAddr] = make(map[string]types.CollectedNft)
-			}
-			mintNftMap[collectionAddr][tokenId] = types.CollectedNft{
+			nftKey := util.NftKey{
 				CollectionAddr: collectionAddr,
 				TokenId:        tokenId,
-				Height:         block.Height,
-				Owner:          owner,
-				Uri:            event.AttrMap["token_uri"], // might be empty string
 			}
-			delete(burnMap[collectionAddr], tokenId)
+
+			mintMap[nftKey] = map[string]string{
+				"owner": owner,
+				"uri":   event.AttrMap["token_uri"],
+			}
+			delete(burnMap, nftKey)
 			updateCountMap[collectionAddr] = nil
 
 			if _, ok := nftTxMap[event.TxHash]; !ok {
@@ -91,15 +88,11 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 				continue
 			}
 
-			if _, ok := transferMap[collectionAddr]; !ok {
-				transferMap[collectionAddr] = make(map[string]types.CollectedNft)
-			}
-			transferMap[collectionAddr][tokenId] = types.CollectedNft{
+			nftKey := util.NftKey{
 				CollectionAddr: collectionAddr,
 				TokenId:        tokenId,
-				Height:         block.Height,
-				Owner:          recipient,
 			}
+			transferMap[nftKey] = recipient
 
 			if _, ok := nftTxMap[event.TxHash]; !ok {
 				nftTxMap[event.TxHash] = make(map[string]map[string]interface{})
@@ -114,12 +107,14 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 				continue
 			}
 
-			if _, ok := burnMap[collectionAddr]; !ok {
-				burnMap[collectionAddr] = make(map[string]interface{})
+			nftKey := util.NftKey{
+				CollectionAddr: collectionAddr,
+				TokenId:        tokenId,
 			}
-			burnMap[collectionAddr][tokenId] = nil
-			delete(mintNftMap[collectionAddr], tokenId)
-			delete(transferMap[collectionAddr], tokenId)
+			burnMap[nftKey] = nil
+
+			delete(mintMap, nftKey)
+			delete(transferMap, nftKey)
 			updateCountMap[collectionAddr] = nil
 
 			if _, ok := nftTxMap[event.TxHash]; !ok {
@@ -132,68 +127,108 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 		}
 	}
 
-	// batch insert collections
-	var mintedCols []types.CollectedNftCollection
-	for collectionAddr := range mintColMap {
-		colInfo, ok := cacheData.ColInfos[collectionAddr]
-		if !ok {
-			// skip if blacklisted
-			if sub.IsBlacklisted(collectionAddr) {
-				continue
-			}
-
-			return fmt.Errorf("collection info not found for collection address %s", collectionAddr)
-		}
-		mintedCols = append(mintedCols, types.CollectedNftCollection{
-			Addr:    collectionAddr,
-			Height:  block.Height,
-			Name:    colInfo.Name,
-			Creator: colInfo.Creator,
-		})
+	var allAddresses []string
+	for _, colInfo := range cacheData.ColInfos {
+		allAddresses = append(allAddresses, colInfo.Creator)
 	}
-	if err := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(mintedCols, batchSize).Error; err != nil {
+
+	for _, data := range mintMap {
+		if owner, ok := data["owner"]; ok {
+			allAddresses = append(allAddresses, owner)
+		}
+	}
+
+	for _, recipient := range transferMap {
+		allAddresses = append(allAddresses, recipient)
+	}
+
+	accountIdMap, err := util.GetOrCreateAccountIds(tx, allAddresses, true)
+	if err != nil {
 		return err
 	}
 
-	// batch insert nfts
-	var mintedNfts []types.CollectedNft
-	for _, nftMap := range mintNftMap {
-		for _, nft := range nftMap {
-			mintedNfts = append(mintedNfts, nft)
+	var createdCols []types.CollectedNftCollection
+	for collectionAddr, colInfo := range cacheData.ColInfos {
+		addrBytes, err := util.AccAddressFromString(collectionAddr)
+		if err != nil {
+			return err
 		}
+
+		creatorId := accountIdMap[colInfo.Creator]
+
+		createdCols = append(createdCols, types.CollectedNftCollection{
+			Addr:      addrBytes,
+			Height:    block.Height,
+			Name:      colInfo.Name,
+			CreatorId: creatorId,
+		})
+	}
+	if err := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(createdCols, batchSize).Error; err != nil {
+		return err
+	}
+
+	var mintedNfts []types.CollectedNft
+	for nftKey, data := range mintMap {
+		collectionAddr, err := util.AccAddressFromString(nftKey.CollectionAddr)
+		if err != nil {
+			return err
+		}
+
+		owner := data["owner"]
+		ownerId := accountIdMap[owner]
+
+		mintedNfts = append(mintedNfts, types.CollectedNft{
+			CollectionAddr: collectionAddr,
+			TokenId:        nftKey.TokenId,
+			Height:         block.Height,
+			OwnerId:        ownerId,
+			Uri:            data["uri"],
+		})
 	}
 	if err := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(mintedNfts, batchSize).Error; err != nil {
 		return err
 	}
 
-	// batch update transferred nfts
 	var transferredNfts []types.CollectedNft
-	for _, nftMap := range transferMap {
-		for _, nft := range nftMap {
-			transferredNfts = append(transferredNfts, nft)
+	for nftKey, recipient := range transferMap {
+		collectionAddr, err := util.AccAddressFromString(nftKey.CollectionAddr)
+		if err != nil {
+			return err
 		}
+
+		ownerId := accountIdMap[recipient]
+
+		transferredNfts = append(transferredNfts, types.CollectedNft{
+			CollectionAddr: collectionAddr,
+			TokenId:        nftKey.TokenId,
+			Height:         block.Height,
+			OwnerId:        ownerId,
+		})
 	}
 	if err := tx.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "collection_addr"}, {Name: "token_id"}},
-		DoUpdates: clause.AssignmentColumns([]string{"height", "owner"}),
+		DoUpdates: clause.AssignmentColumns([]string{"height", "owner_id"}),
 	}).CreateInBatches(transferredNfts, batchSize).Error; err != nil {
 		return err
 	}
 
-	// batch delete burned nfts
-	for collectionAddr, nftMap := range burnMap {
-		var tokenIds []string
-		for tokenId := range nftMap {
-			tokenIds = append(tokenIds, tokenId)
+	burnedCollections := make(map[string][]string) // collectionAddr -> tokenIds
+	for nftKey := range burnMap {
+		burnedCollections[nftKey.CollectionAddr] = append(burnedCollections[nftKey.CollectionAddr], nftKey.TokenId)
+	}
+
+	for collectionAddr, tokenIds := range burnedCollections {
+		collectionAddrBytes, err := util.AccAddressFromString(collectionAddr)
+		if err != nil {
+			return err
 		}
 		if err := tx.
-			Where("collection_addr = ? AND token_id IN ?", collectionAddr, tokenIds).
+			Where("collection_addr = ? AND token_id IN ?", collectionAddrBytes, tokenIds).
 			Delete(&types.CollectedNft{}).Error; err != nil {
 			return err
 		}
 	}
 
-	// update nft count
 	var updateAddrs []string
 	for collectionAddr := range updateCountMap {
 		updateAddrs = append(updateAddrs, collectionAddr)
@@ -216,7 +251,6 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 		}
 	}
 
-	// update nft ids to tx table
 	for txHash, collectionMap := range nftTxMap {
 		if txHash == "" {
 			continue
@@ -230,9 +264,16 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 			}
 		}
 
-		nftIds, err := util.GetOrCreateNftIds(tx, keys, true)
+		nftIdMap, err := util.GetOrCreateNftIds(tx, keys, true)
 		if err != nil {
 			return err
+		}
+
+		var nftIds []int64
+		for _, key := range keys {
+			if id, ok := nftIdMap[key]; ok {
+				nftIds = append(nftIds, id)
+			}
 		}
 
 		if err := tx.Model(&types.CollectedTx{}).

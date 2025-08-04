@@ -13,6 +13,7 @@ import (
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
+	"github.com/initia-labs/rollytics/util"
 )
 
 type cachedCol struct {
@@ -51,8 +52,13 @@ func getCollectionByAddr(database *orm.Database, collectionAddr string) (*types.
 		return cached, nil
 	}
 
+	collectionAddrBytes, err := util.HexToBytes(collectionAddr)
+	if err != nil {
+		return nil, err
+	}
+
 	var collection types.CollectedNftCollection
-	if err := database.Model(&types.CollectedNftCollection{}).Where("addr = ?", collectionAddr).First(&collection).Error; err != nil {
+	if err := database.Model(&types.CollectedNftCollection{}).Where("addr = ?", collectionAddrBytes).First(&collection).Error; err != nil {
 		return &collection, err
 	}
 

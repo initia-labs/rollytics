@@ -25,3 +25,23 @@ func AccAddressFromString(addrStr string) (sdk.AccAddress, error) {
 
 	return hex.DecodeString(hexStr)
 }
+
+func HexToBytes(hexStr string) ([]byte, error) {
+	hexStr = strings.TrimPrefix(hexStr, "0x")
+	if hexStr == "" {
+		return []byte{}, nil
+	}
+	// Pad with leading zero if hex string has odd length
+	if len(hexStr)%2 == 1 {
+		hexStr = "0" + hexStr
+	}
+	return hex.DecodeString(hexStr)
+}
+
+func BytesToHex(b []byte) string {
+	return hex.EncodeToString(b)
+}
+
+func BytesToHexWithPrefix(b []byte) string {
+	return "0x" + hex.EncodeToString(b)
+}

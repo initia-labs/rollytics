@@ -32,15 +32,15 @@ func convertHexStringToDecString(hex string) (string, error) {
 	return bi.String(), nil
 }
 
-func getCollectionCreator(addr string, tx *gorm.DB) (string, error) {
+func getCollectionCreationInfo(addr string, tx *gorm.DB) ([]byte, int64, error) {
 	bechAddr, err := util.AccAddressFromString(addr)
 	if err != nil {
-		return "", err
+		return nil, 0, err
 	}
 
 	var accountDict types.CollectedAccountDict
-	if err := tx.Where("account = ?", bechAddr.String()).First(&accountDict).Error; err != nil {
-		return "", err
+	if err := tx.Where("account = ?", bechAddr).First(&accountDict).Error; err != nil {
+		return nil, 0, err
 	}
 
 	var ctx types.CollectedTx
@@ -49,13 +49,18 @@ func getCollectionCreator(addr string, tx *gorm.DB) (string, error) {
 		Order("sequence ASC").
 		Limit(1).
 		First(&ctx).Error; err != nil {
-		return "", err
+		return nil, 0, err
 	}
 
-	return ctx.Signer, nil
+	var signerAccount types.CollectedAccountDict
+	if err := tx.Where("id = ?", ctx.SignerId).First(&signerAccount).Error; err != nil {
+		return nil, 0, err
+	}
+
+	return signerAccount.Account, ctx.Height, nil
 }
 
 func isEvmRevertError(err error) bool {
 	errString := fmt.Sprintf("%+v", err)
-	return strings.Contains(errString, "revert: 0x: Reverted: EVMCall failed")
+	return strings.Contains(errString, "Reverted")
 }

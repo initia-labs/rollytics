@@ -33,6 +33,6 @@ type ParsedEvent struct {
 }
 
 type NftCount struct {
-	CollectionAddr string
+	CollectionAddr []byte
 	Count          int64
 }

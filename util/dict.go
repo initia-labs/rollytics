@@ -1,6 +1,7 @@
 package util
 
 import (
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"gorm.io/gorm"
 
 	"github.com/initia-labs/rollytics/cache"
@@ -14,119 +15,145 @@ type NftKey struct {
 }
 
 var (
-	accountCache = cache.New[string, int64](10000)
-	nftCache     = cache.New[NftKey, int64](10000)
-	msgTypeCache = cache.New[string, int64](10000)
-	typeTagCache = cache.New[string, int64](10000)
+	accountCache   = cache.New[string, int64](10000)
+	nftCache       = cache.New[NftKey, int64](10000)
+	msgTypeCache   = cache.New[string, int64](10000)
+	typeTagCache   = cache.New[string, int64](10000)
+	evmTxHashCache = cache.New[string, int64](10000)
 )
 
-//nolint:dupl
-func GetOrCreateAccountIds(db *gorm.DB, accounts []string, createNew bool) (ids []int64, err error) {
-	ids = make([]int64, 0, len(accounts))
+func GetOrCreateAccountIds(db *gorm.DB, accounts []string, createNew bool) (idMap map[string]int64, err error) {
+	idMap = make(map[string]int64, len(accounts))
 
 	// check cache and collect uncached
 	var uncached []string
 	for _, account := range accounts {
 		id, ok := accountCache.Get(account)
 		if ok {
-			ids = append(ids, id)
+			idMap[account] = id
 		} else {
 			uncached = append(uncached, account)
 		}
 	}
 
 	if len(uncached) == 0 {
-		return ids, nil
+		return idMap, nil
 	}
 
 	// fetch from db to create accountIdMap
 	var entries []types.CollectedAccountDict
-	if err := db.Where("account IN ?", uncached).Find(&entries).Error; err != nil {
-		return ids, err
+	// Convert strings to bytes for the query
+	var uncachedBytes [][]byte
+	for _, account := range uncached {
+		accBytes, err := AccAddressFromString(account)
+		if err != nil {
+			return idMap, err
+		}
+		uncachedBytes = append(uncachedBytes, accBytes)
+	}
+	if err := db.Where("account IN ?", uncachedBytes).Find(&entries).Error; err != nil {
+		return idMap, err
 	}
 	accountIdMap := make(map[string]int64) // account -> id
 	for _, entry := range entries {
-		accountIdMap[entry.Account] = entry.Id
+		// Use the bech32 string representation as the map key
+		accAddr := sdk.AccAddress(entry.Account)
+		accountIdMap[accAddr.String()] = entry.Id
 	}
 
-	if createNew {
+	if createNew { //nolint:nestif
 		// create new entries if not in DB
 		var newEntries []types.CollectedAccountDict
 		for _, account := range uncached {
 			if _, ok := accountIdMap[account]; !ok {
-				newEntries = append(newEntries, types.CollectedAccountDict{Account: account})
+				accBytes, err := AccAddressFromString(account)
+				if err != nil {
+					return idMap, err
+				}
+				newEntries = append(newEntries, types.CollectedAccountDict{Account: accBytes})
 			}
 		}
 
 		if len(newEntries) > 0 {
 			if err := db.Clauses(orm.DoNothingWhenConflict).Create(&newEntries).Error; err != nil {
-				return ids, err
+				return idMap, err
 			}
-			for _, entry := range newEntries {
-				accountIdMap[entry.Account] = entry.Id
+			for i, entry := range newEntries {
+				accAddr := sdk.AccAddress(entry.Account)
+				accountIdMap[accAddr.String()] = newEntries[i].Id
 			}
 		}
 	}
 
-	// set cache and append to ids
 	for _, account := range uncached {
 		if id, ok := accountIdMap[account]; ok {
 			accountCache.Set(account, id)
-			ids = append(ids, id)
+			idMap[account] = id
 		}
 	}
 
-	return ids, nil
+	return idMap, nil
 }
 
-func GetOrCreateNftIds(db *gorm.DB, keys []NftKey, createNew bool) (ids []int64, err error) {
-	ids = make([]int64, 0, len(keys))
+func GetOrCreateNftIds(db *gorm.DB, keys []NftKey, createNew bool) (idMap map[NftKey]int64, err error) {
+	idMap = make(map[NftKey]int64, len(keys))
 
 	// check cache and collect uncached
 	var uncached []NftKey
 	for _, key := range keys {
 		id, ok := nftCache.Get(key)
 		if ok {
-			ids = append(ids, id)
+			idMap[key] = id
 		} else {
 			uncached = append(uncached, key)
 		}
 	}
 
 	if len(uncached) == 0 {
-		return ids, nil
+		return idMap, nil
 	}
 
 	// fetch from db to create nftIdMap
 	tx := db.Model(&types.CollectedNftDict{})
 	for i, key := range uncached {
+		// Convert collection address to bytes
+		colAddrBytes, err := AccAddressFromString(key.CollectionAddr)
+		if err != nil {
+			return idMap, err
+		}
 		if i == 0 {
-			tx = tx.Where("collection_addr = ? AND token_id = ?", key.CollectionAddr, key.TokenId)
+			tx = tx.Where("collection_addr = ? AND token_id = ?", colAddrBytes, key.TokenId)
 		} else {
-			tx = tx.Or("collection_addr = ? AND token_id = ?", key.CollectionAddr, key.TokenId)
+			tx = tx.Or("collection_addr = ? AND token_id = ?", colAddrBytes, key.TokenId)
 		}
 	}
 
 	var entries []types.CollectedNftDict
 	if err := tx.Find(&entries).Error; err != nil {
-		return ids, err
+		return idMap, err
 	}
-	nftIdMap := make(map[NftKey]int64) // account -> id
+	nftIdMap := make(map[NftKey]int64) // nft key -> id
 	for _, entry := range entries {
+		// Convert bytes back to string for map key
 		key := NftKey{
-			CollectionAddr: entry.CollectionAddr,
+			CollectionAddr: BytesToHex(entry.CollectionAddr),
 			TokenId:        entry.TokenId,
 		}
 		nftIdMap[key] = entry.Id
 	}
 
-	if createNew {
+	if createNew { //nolint:nestif
 		// create new entries if not in DB
 		var newEntries []types.CollectedNftDict
 		for _, key := range uncached {
 			if _, ok := nftIdMap[key]; !ok {
+				// Convert collection address to bytes
+				colAddrBytes, err := AccAddressFromString(key.CollectionAddr)
+				if err != nil {
+					return idMap, err
+				}
 				newEntries = append(newEntries, types.CollectedNftDict{
-					CollectionAddr: key.CollectionAddr,
+					CollectionAddr: colAddrBytes,
 					TokenId:        key.TokenId,
 				})
 			}
@@ -134,11 +161,11 @@ func GetOrCreateNftIds(db *gorm.DB, keys []NftKey, createNew bool) (ids []int64,
 
 		if len(newEntries) > 0 {
 			if err := db.Clauses(orm.DoNothingWhenConflict).Create(&newEntries).Error; err != nil {
-				return ids, err
+				return idMap, err
 			}
 			for _, entry := range newEntries {
 				key := NftKey{
-					CollectionAddr: entry.CollectionAddr,
+					CollectionAddr: BytesToHex(entry.CollectionAddr),
 					TokenId:        entry.TokenId,
 				}
 				nftIdMap[key] = entry.Id
@@ -146,40 +173,40 @@ func GetOrCreateNftIds(db *gorm.DB, keys []NftKey, createNew bool) (ids []int64,
 		}
 	}
 
-	// set cache and append to ids
+	// set cache and add to result map
 	for _, key := range uncached {
 		if id, ok := nftIdMap[key]; ok {
 			nftCache.Set(key, id)
-			ids = append(ids, id)
+			idMap[key] = id
 		}
 	}
 
-	return ids, nil
+	return idMap, nil
 }
 
 //nolint:dupl
-func GetOrCreateMsgTypeIds(db *gorm.DB, msgTypes []string, createNew bool) (ids []int64, err error) {
-	ids = make([]int64, 0, len(msgTypes))
+func GetOrCreateMsgTypeIds(db *gorm.DB, msgTypes []string, createNew bool) (idMap map[string]int64, err error) {
+	idMap = make(map[string]int64, len(msgTypes))
 
 	// check cache and collect uncached
 	var uncached []string
 	for _, msgType := range msgTypes {
 		id, ok := msgTypeCache.Get(msgType)
 		if ok {
-			ids = append(ids, id)
+			idMap[msgType] = id
 		} else {
 			uncached = append(uncached, msgType)
 		}
 	}
 
 	if len(uncached) == 0 {
-		return ids, nil
+		return idMap, nil
 	}
 
 	// fetch from db to create msgTypeIdMap
 	var entries []types.CollectedMsgTypeDict
 	if err := db.Where("msg_type IN ?", uncached).Find(&entries).Error; err != nil {
-		return ids, err
+		return idMap, err
 	}
 	msgTypeIdMap := make(map[string]int64) // msg type -> id
 	for _, entry := range entries {
@@ -197,48 +224,49 @@ func GetOrCreateMsgTypeIds(db *gorm.DB, msgTypes []string, createNew bool) (ids 
 
 		if len(newEntries) > 0 {
 			if err := db.Clauses(orm.DoNothingWhenConflict).Create(&newEntries).Error; err != nil {
-				return ids, err
+				return idMap, err
 			}
-			for _, entry := range newEntries {
-				msgTypeIdMap[entry.MsgType] = entry.Id
+			// Add newly created entries to the map
+			for i, entry := range newEntries {
+				msgTypeIdMap[entry.MsgType] = newEntries[i].Id
 			}
 		}
 	}
 
-	// set cache and append to ids
+	// set cache and add to result map
 	for _, msgType := range uncached {
 		if id, ok := msgTypeIdMap[msgType]; ok {
 			msgTypeCache.Set(msgType, id)
-			ids = append(ids, id)
+			idMap[msgType] = id
 		}
 	}
 
-	return ids, nil
+	return idMap, nil
 }
 
 //nolint:dupl
-func GetOrCreateTypeTagIds(db *gorm.DB, typeTags []string, createNew bool) (ids []int64, err error) {
-	ids = make([]int64, 0, len(typeTags))
+func GetOrCreateTypeTagIds(db *gorm.DB, typeTags []string, createNew bool) (idMap map[string]int64, err error) {
+	idMap = make(map[string]int64, len(typeTags))
 
 	// check cache and collect uncached
 	var uncached []string
 	for _, typeTag := range typeTags {
 		id, ok := typeTagCache.Get(typeTag)
 		if ok {
-			ids = append(ids, id)
+			idMap[typeTag] = id
 		} else {
 			uncached = append(uncached, typeTag)
 		}
 	}
 
 	if len(uncached) == 0 {
-		return ids, nil
+		return idMap, nil
 	}
 
 	// fetch from db to create typeTagIdMap
 	var entries []types.CollectedTypeTagDict
 	if err := db.Where("type_tag IN ?", uncached).Find(&entries).Error; err != nil {
-		return ids, err
+		return idMap, err
 	}
 	typeTagIdMap := make(map[string]int64) // type tag -> id
 	for _, entry := range entries {
@@ -256,21 +284,85 @@ func GetOrCreateTypeTagIds(db *gorm.DB, typeTags []string, createNew bool) (ids 
 
 		if len(newEntries) > 0 {
 			if err := db.Clauses(orm.DoNothingWhenConflict).Create(&newEntries).Error; err != nil {
-				return ids, err
+				return idMap, err
 			}
-			for _, entry := range newEntries {
-				typeTagIdMap[entry.TypeTag] = entry.Id
+			// Add newly created entries to the map
+			for i, entry := range newEntries {
+				typeTagIdMap[entry.TypeTag] = newEntries[i].Id
 			}
 		}
 	}
 
-	// set cache and append to ids
+	// set cache and add to result map
 	for _, typeTag := range uncached {
 		if id, ok := typeTagIdMap[typeTag]; ok {
 			typeTagCache.Set(typeTag, id)
-			ids = append(ids, id)
+			idMap[typeTag] = id
 		}
 	}
 
-	return ids, nil
+	return idMap, nil
+}
+
+func GetOrCreateEvmTxHashIds(db *gorm.DB, hashes [][]byte, createNew bool) (idMap map[string]int64, err error) {
+	idMap = make(map[string]int64, len(hashes))
+
+	// check cache and collect uncached
+	var uncached [][]byte
+	for _, hash := range hashes {
+		hashHex := BytesToHex(hash)
+		if id, ok := evmTxHashCache.Get(hashHex); ok {
+			idMap[hashHex] = id
+		} else {
+			uncached = append(uncached, hash)
+		}
+	}
+
+	if len(uncached) == 0 {
+		return idMap, nil
+	}
+
+	// fetch from db to create hashIdMap
+	var entries []types.CollectedEvmTxHashDict
+	if err := db.Where("hash IN ?", uncached).Find(&entries).Error; err != nil {
+		return idMap, err
+	}
+	hashIdMap := make(map[string]int64) // hash hex -> id
+	for _, entry := range entries {
+		hashHex := BytesToHex(entry.Hash)
+		hashIdMap[hashHex] = entry.Id
+	}
+
+	if createNew {
+		// create new entries if not in DB
+		var newEntries []types.CollectedEvmTxHashDict
+		for _, hash := range uncached {
+			hashHex := BytesToHex(hash)
+			if _, ok := hashIdMap[hashHex]; !ok {
+				newEntries = append(newEntries, types.CollectedEvmTxHashDict{Hash: hash})
+			}
+		}
+
+		if len(newEntries) > 0 {
+			if err := db.Clauses(orm.DoNothingWhenConflict).Create(&newEntries).Error; err != nil {
+				return idMap, err
+			}
+			// Add newly created entries to the map
+			for i, entry := range newEntries {
+				hashHex := BytesToHex(entry.Hash)
+				hashIdMap[hashHex] = newEntries[i].Id
+			}
+		}
+	}
+
+	// set cache and add to result map
+	for _, hash := range uncached {
+		hashHex := BytesToHex(hash)
+		if id, ok := hashIdMap[hashHex]; ok {
+			evmTxHashCache.Set(hashHex, id)
+			idMap[hashHex] = id
+		}
+	}
+
+	return idMap, nil
 }

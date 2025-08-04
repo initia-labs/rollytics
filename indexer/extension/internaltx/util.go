@@ -9,7 +9,7 @@ import (
 
 type InternalTxInfo struct {
 	Height      int64
-	Hash        string
+	HashId      int64
 	Index       int64
 	ParentIndex int64
 }
@@ -35,27 +35,73 @@ func processInternalCall(
 		return nil, err
 	}
 
-	accIds, err := util.GetOrCreateAccountIds(db, accounts, true)
+	accIdMap, err := util.GetOrCreateAccountIds(db, accounts, true)
 	if err != nil {
 		return nil, err
 	}
 
+	var accIds []int64
+	for _, acc := range accounts {
+		if id, ok := accIdMap[acc]; ok {
+			accIds = append(accIds, id)
+		}
+	}
+
 	seqInfo.Sequence++
+
+	// Get From and To account IDs
+	var fromId, toId int64
+
+	if call.From != "" {
+		fromAddr, err := util.AccAddressFromString(call.From)
+		if err != nil {
+			return nil, err
+		}
+		fromId = accIdMap[fromAddr.String()]
+	}
+
+	if call.To != "" {
+		toAddr, err := util.AccAddressFromString(call.To)
+		if err != nil {
+			return nil, err
+		}
+		toId = accIdMap[toAddr.String()]
+	}
+	inputBytes, err := util.HexToBytes(call.Input)
+	if err != nil {
+		return nil, err
+	}
+	outputBytes, err := util.HexToBytes(call.Output)
+	if err != nil {
+		return nil, err
+	}
+	valueBytes, err := util.HexToBytes(call.Value)
+	if err != nil {
+		return nil, err
+	}
+	gasBytes, err := util.HexToBytes(call.Gas)
+	if err != nil {
+		return nil, err
+	}
+	gasUsedBytes, err := util.HexToBytes(call.GasUsed)
+	if err != nil {
+		return nil, err
+	}
 
 	internalTx := types.CollectedEvmInternalTx{
 		Height:      tx.Height,
-		Hash:        tx.Hash,
+		HashId:      tx.HashId,
 		Sequence:    int64(seqInfo.Sequence),
 		Index:       tx.Index,
 		ParentIndex: tx.ParentIndex,
 		Type:        call.Type,
-		From:        call.From,
-		To:          call.To,
-		Input:       call.Input,
-		Output:      call.Output,
-		Value:       call.Value,
-		Gas:         call.Gas,
-		GasUsed:     call.GasUsed,
+		FromId:      fromId,
+		ToId:        toId,
+		Input:       inputBytes,
+		Output:      outputBytes,
+		Value:       valueBytes,
+		Gas:         gasBytes,
+		GasUsed:     gasUsedBytes,
 		AccountIds:  accIds,
 	}
 
@@ -66,7 +112,7 @@ func processInternalCall(
 	for _, nestedCall := range call.Calls {
 		nestedTxInfo := &InternalTxInfo{
 			Height:      tx.Height,
-			Hash:        tx.Hash,
+			HashId:      tx.HashId,
 			Index:       nextIndex,
 			ParentIndex: tx.Index,
 		}

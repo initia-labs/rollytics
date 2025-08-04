@@ -9,6 +9,7 @@ import (
 
 	"github.com/initia-labs/rollytics/api/handler/common"
 	"github.com/initia-labs/rollytics/types"
+	"github.com/initia-labs/rollytics/util"
 )
 
 // GetEvmTxs handles GET /tx/v1/evm-txs
@@ -84,6 +85,10 @@ func (h *TxHandler) GetEvmTxsByAccount(c *fiber.Ctx) error {
 	accountIds, err := h.GetAccountIds([]string{account})
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	if len(accountIds) == 0 {
+		return c.JSON(EvmTxsResponse{})
 	}
 	query := h.buildBaseEvmTxQuery().Where("account_ids && ?", pq.Array(accountIds))
 
@@ -181,9 +186,14 @@ func (h *TxHandler) GetEvmTxByHash(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
+	hashBytes, err := util.HexToBytes(hash)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid hash format")
+	}
+
 	var tx types.CollectedEvmTx
 	if err := h.buildBaseEvmTxQuery().
-		Where("hash = ?", hash).
+		Where("hash = ?", hashBytes).
 		First(&tx).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return fiber.NewError(fiber.StatusNotFound, "tx not found")

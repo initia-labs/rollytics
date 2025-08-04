@@ -4,16 +4,22 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/initia-labs/rollytics/types"
+	"github.com/initia-labs/rollytics/util"
 )
 
-func getCollectionCreator(addr string, tx *gorm.DB) (string, error) {
-	var collection types.CollectedNftCollection
-	if err := tx.
-		Where("addr = ?", addr).
-		Limit(1).
-		First(&collection).Error; err != nil {
-		return "", err
+func getCollectionCreatorId(addr string, tx *gorm.DB) (int64, error) {
+	addrBytes, err := util.HexToBytes(addr)
+	if err != nil {
+		return 0, err
 	}
 
-	return collection.Creator, nil
+	var collection types.CollectedNftCollection
+	if err := tx.
+		Where("addr = ?", addrBytes).
+		Limit(1).
+		First(&collection).Error; err != nil {
+		return 0, err
+	}
+
+	return collection.CreatorId, nil
 }

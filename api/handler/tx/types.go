@@ -8,6 +8,7 @@ import (
 
 	"github.com/initia-labs/rollytics/api/handler/common"
 	"github.com/initia-labs/rollytics/types"
+	"github.com/initia-labs/rollytics/util"
 )
 
 // Tx
@@ -90,29 +91,38 @@ type EvmInternalTxsResponse struct {
 	Pagination common.PaginationResponse `json:"pagination" extensions:"x-order:1"`
 }
 
-func ToEvmInternalTxsResponse(citxs []types.CollectedEvmInternalTx) []EvmInternalTxResponse {
+func ToEvmInternalTxsResponse(citxs []types.CollectedEvmInternalTx, accounts map[int64][]byte, txhashes map[int64][]byte) []EvmInternalTxResponse {
 	txs := make([]EvmInternalTxResponse, 0, len(citxs))
 	for _, ctx := range citxs {
-		tx := ToEvmInternalTxResponse(&ctx)
-
+		tx := ToEvmInternalTxResponse(&ctx, accounts, txhashes)
 		txs = append(txs, *tx)
 	}
 	return txs
 }
 
-func ToEvmInternalTxResponse(citx *types.CollectedEvmInternalTx) *EvmInternalTxResponse {
+func ToEvmInternalTxResponse(eitx *types.CollectedEvmInternalTx, accounts map[int64][]byte, txhashes map[int64][]byte) *EvmInternalTxResponse {
+	var fromAccount, toAccount string
+
+	if eitx.FromId != 0 {
+		fromAccount = util.BytesToHexWithPrefix(accounts[eitx.FromId])
+	}
+
+	if eitx.ToId != 0 {
+		toAccount = util.BytesToHexWithPrefix(accounts[eitx.ToId])
+	}
+
 	return &EvmInternalTxResponse{
-		Height:      citx.Height,
-		Hash:        citx.Hash,
-		ParentIndex: citx.ParentIndex,
-		Index:       citx.Index,
-		From:        citx.From,
-		To:          citx.To,
-		Value:       citx.Value,
-		Gas:         citx.Gas,
-		GasUsed:     citx.GasUsed,
-		Type:        citx.Type,
-		Input:       citx.Input,
-		Output:      citx.Output,
+		Height:      eitx.Height,
+		Hash:        util.BytesToHexWithPrefix(txhashes[eitx.HashId]),
+		ParentIndex: eitx.ParentIndex,
+		Index:       eitx.Index,
+		From:        fromAccount,
+		To:          toAccount,
+		Value:       util.BytesToHexWithPrefix(eitx.Value),
+		Gas:         util.BytesToHexWithPrefix(eitx.Gas),
+		GasUsed:     util.BytesToHexWithPrefix(eitx.GasUsed),
+		Type:        eitx.Type,
+		Input:       util.BytesToHexWithPrefix(eitx.Input),
+		Output:      util.BytesToHexWithPrefix(eitx.Output),
 	}
 }

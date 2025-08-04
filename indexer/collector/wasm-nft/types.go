@@ -14,9 +14,3 @@ type QueryContractInfoResponse struct {
 		Name string `json:"name"`
 	} `json:"data"`
 }
-
-type QueryMinterResponse struct {
-	Data struct {
-		Minter string `json:"minter"`
-	} `json:"data"`
-}

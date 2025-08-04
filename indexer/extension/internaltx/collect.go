@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 
 	"github.com/gofiber/fiber/v2"
@@ -15,6 +16,7 @@ import (
 	indexerutil "github.com/initia-labs/rollytics/indexer/util"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
+	"github.com/initia-labs/rollytics/util"
 )
 
 type InternalTxResult struct {
@@ -83,24 +85,33 @@ func (i *InternalTxExtension) CollectInternalTxs(db *orm.Database, internalTx *I
 		if err != nil {
 			return err
 		}
-		var evmTxs []types.CollectedEvmTx
-		if err := tx.Model(&types.CollectedEvmTx{}).
-			Select("hash, height, account_ids").
-			Where("height = ?", internalTx.Height).
-			Order("sequence ASC").
-			Find(&evmTxs).Error; err != nil {
-			return err
+
+		hashes := make([][]byte, 0, len(internalTx.CallTrace.Result))
+		for _, trace := range internalTx.CallTrace.Result {
+			hashBytes, err := util.HexToBytes(trace.TxHash)
+			if err != nil {
+				return fmt.Errorf("failed to convert tx hash %s: %w", trace.TxHash, err)
+			}
+			hashes = append(hashes, hashBytes)
 		}
 
-		if len(internalTx.CallTrace.Result) != len(evmTxs) {
-			return fmt.Errorf("number of internal transactions (callTrace: %d, evmTxs: %d) at height %d does not match",
-				len(internalTx.CallTrace.Result), len(evmTxs), internalTx.Height)
+		hashIdMap, err := util.GetOrCreateEvmTxHashIds(tx, hashes, true)
+		if err != nil {
+			return fmt.Errorf("failed to create hash dictionary entries: %w", err)
 		}
 
 		var allInternalTxs []types.CollectedEvmInternalTx
-		for idx, trace := range internalTx.CallTrace.Result {
-			evmTx := evmTxs[idx]
-			height, txHash := evmTx.Height, evmTx.Hash
+		for _, trace := range internalTx.CallTrace.Result {
+			if trace.Error != "" {
+				return fmt.Errorf("trace error at height %d, txHash %s: %s",
+					internalTx.Height, trace.TxHash, trace.Error)
+			}
+			height := internalTx.Height
+			hashHex := strings.ToLower(strings.TrimPrefix(trace.TxHash, "0x"))
+			hashId, ok := hashIdMap[hashHex]
+			if !ok {
+				return fmt.Errorf("hash ID not found for hash %s", hashHex)
+			}
 
 			topLevelCall := InternalTransaction{
 				Type:    trace.Result.Type,
@@ -116,7 +127,7 @@ func (i *InternalTxExtension) CollectInternalTxs(db *orm.Database, internalTx *I
 
 			txInfo := &InternalTxInfo{
 				Height:      height,
-				Hash:        txHash,
+				HashId:      hashId,
 				Index:       0,  // Top-level starts at index 0
 				ParentIndex: -1, // Top-level has no parent
 			}

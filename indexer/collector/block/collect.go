@@ -6,13 +6,19 @@ import (
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
+	"github.com/initia-labs/rollytics/util"
 )
 
 func (sub *BlockSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) (err error) {
+	hashBytes, err := util.HexToBytes(block.Hash)
+	if err != nil {
+		return err
+	}
+
 	var cb types.CollectedBlock
 	cb.ChainId = block.ChainId
 	cb.Height = block.Height
-	cb.Hash = block.Hash
+	cb.Hash = hashBytes
 	cb.Timestamp = block.Timestamp
 	if block.Height > 1 {
 		prevBlock, err := GetBlock(block.ChainId, block.Height-1, tx)
