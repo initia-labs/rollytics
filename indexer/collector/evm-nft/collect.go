@@ -31,9 +31,9 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB
 	}
 
 	batchSize := sub.cfg.GetDBBatchSize()
-	mintMap := make(map[string]map[string]string)
-	transferMap := make(map[string]map[string]string)
-	burnMap := make(map[string]map[string]interface{})
+	mintMap := make(map[util.NftKey]string)        // NftKey -> owner
+	transferMap := make(map[util.NftKey]string)     // NftKey -> new owner
+	burnMap := make(map[util.NftKey]interface{})
 	updateCountMap := make(map[string]interface{})
 	nftTxMap := make(map[string]map[string]map[string]interface{})
 	events, err := indexerutil.ExtractEvents(block, "evm")
@@ -68,29 +68,25 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB
 				return err
 			}
 
+			nftKey := util.NftKey{
+				CollectionAddr: collectionAddr,
+				TokenId:        tokenId,
+			}
+
 			switch {
 			case from == emptyAddr && to != emptyAddr:
 				// handle mint
-				if _, ok := mintMap[collectionAddr]; !ok {
-					mintMap[collectionAddr] = make(map[string]string)
-				}
-				mintMap[collectionAddr][tokenId] = toAddr.String()
-				delete(burnMap[collectionAddr], tokenId)
+				mintMap[nftKey] = toAddr.String()
+				delete(burnMap, nftKey)
 				updateCountMap[collectionAddr] = nil
 			case from != emptyAddr && to != emptyAddr:
 				// handle transfer
-				if _, ok := transferMap[collectionAddr]; !ok {
-					transferMap[collectionAddr] = make(map[string]string)
-				}
-				transferMap[collectionAddr][tokenId] = toAddr.String()
+				transferMap[nftKey] = toAddr.String()
 			case from != emptyAddr && to == emptyAddr:
 				// handle burn
-				if _, ok := burnMap[collectionAddr]; !ok {
-					burnMap[collectionAddr] = make(map[string]interface{})
-				}
-				burnMap[collectionAddr][tokenId] = nil
-				delete(mintMap[collectionAddr], tokenId)
-				delete(transferMap[collectionAddr], tokenId)
+				burnMap[nftKey] = nil
+				delete(mintMap, nftKey)
+				delete(transferMap, nftKey)
 				updateCountMap[collectionAddr] = nil
 			default:
 				continue
@@ -112,8 +108,20 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB
 
 	var allAddresses []string
 	creatorAddresses := make(map[string]string) // collectionAddr -> creator address
+	mintedCollections := make(map[string]interface{}) // set of collection addresses that have mints
 
-	for collectionAddr, nftMap := range mintMap {
+	// Collect unique collections from mintMap
+	for nftKey, owner := range mintMap {
+		mintedCollections[nftKey.CollectionAddr] = nil
+		ownerAccAddr, err := util.AccAddressFromString(owner)
+		if err != nil {
+			return err
+		}
+		allAddresses = append(allAddresses, ownerAccAddr.String())
+	}
+
+	// Get creators for minted collections
+	for collectionAddr := range mintedCollections {
 		_, ok := cacheData.ColNames[collectionAddr]
 		if !ok {
 			// skip if blacklisted
@@ -131,25 +139,15 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB
 		creatorAddr := sdk.AccAddress(creator).String()
 		creatorAddresses[collectionAddr] = creatorAddr
 		allAddresses = append(allAddresses, creatorAddr)
-
-		for _, owner := range nftMap {
-			ownerAccAddr, err := util.AccAddressFromString(owner)
-			if err != nil {
-				return err
-			}
-			allAddresses = append(allAddresses, ownerAccAddr.String())
-		}
 	}
 
 	// Collect all transfer owner addresses
-	for _, nftMap := range transferMap {
-		for _, owner := range nftMap {
-			ownerAccAddr, err := util.AccAddressFromString(owner)
-			if err != nil {
-				return err
-			}
-			allAddresses = append(allAddresses, ownerAccAddr.String())
+	for _, owner := range transferMap {
+		ownerAccAddr, err := util.AccAddressFromString(owner)
+		if err != nil {
+			return err
 		}
+		allAddresses = append(allAddresses, ownerAccAddr.String())
 	}
 
 	// Get all account IDs in one batch
@@ -158,7 +156,16 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB
 		return err
 	}
 
-	for collectionAddr, nftMap := range mintMap {
+	// Group mints by collection
+	collectionMints := make(map[string]map[string]string) // collectionAddr -> tokenId -> owner
+	for nftKey, owner := range mintMap {
+		if _, ok := collectionMints[nftKey.CollectionAddr]; !ok {
+			collectionMints[nftKey.CollectionAddr] = make(map[string]string)
+		}
+		collectionMints[nftKey.CollectionAddr][nftKey.TokenId] = owner
+	}
+
+	for collectionAddr, tokenMap := range collectionMints {
 		name, ok := cacheData.ColNames[collectionAddr]
 		if !ok {
 			if sub.IsBlacklisted(collectionAddr) {
@@ -182,7 +189,7 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB
 			CreatorId: creatorId,
 		})
 
-		for tokenId, owner := range nftMap {
+		for tokenId, owner := range tokenMap {
 			ownerAccAddr, err := util.AccAddressFromString(owner)
 			if err != nil {
 				return err
@@ -208,27 +215,25 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB
 
 	var transferredNfts []types.CollectedNft
 
-	for collectionAddr, nftMap := range transferMap {
-		addrBytes, err := util.HexToBytes(collectionAddr)
+	for nftKey, owner := range transferMap {
+		addrBytes, err := util.HexToBytes(nftKey.CollectionAddr)
 		if err != nil {
 			return err
 		}
-		for tokenId, owner := range nftMap {
-			ownerBytes, err := util.AccAddressFromString(owner)
-			if err != nil {
-				return err
-			}
-
-			ownerAddr := sdk.AccAddress(ownerBytes).String()
-			ownerId := accountIdMap[ownerAddr]
-
-			transferredNfts = append(transferredNfts, types.CollectedNft{
-				CollectionAddr: addrBytes,
-				TokenId:        tokenId,
-				OwnerId:        ownerId,
-				Height:         block.Height,
-			})
+		ownerBytes, err := util.AccAddressFromString(owner)
+		if err != nil {
+			return err
 		}
+
+		ownerAddr := sdk.AccAddress(ownerBytes).String()
+		ownerId := accountIdMap[ownerAddr]
+
+		transferredNfts = append(transferredNfts, types.CollectedNft{
+			CollectionAddr: addrBytes,
+			TokenId:        nftKey.TokenId,
+			OwnerId:        ownerId,
+			Height:         block.Height,
+		})
 	}
 	if err := tx.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "collection_addr"}, {Name: "token_id"}},
@@ -237,14 +242,16 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB
 		return err
 	}
 
-	for collectionAddr, nftMap := range burnMap {
+	// Group burns by collection
+	collectionBurns := make(map[string][]string) // collectionAddr -> tokenIds
+	for nftKey := range burnMap {
+		collectionBurns[nftKey.CollectionAddr] = append(collectionBurns[nftKey.CollectionAddr], nftKey.TokenId)
+	}
+
+	for collectionAddr, tokenIds := range collectionBurns {
 		addrBytes, err := util.HexToBytes(collectionAddr)
 		if err != nil {
 			return err
-		}
-		var tokenIds []string
-		for tokenId := range nftMap {
-			tokenIds = append(tokenIds, tokenId)
 		}
 		if err := tx.
 			Where("collection_addr = ? AND token_id IN ?", addrBytes, tokenIds).
