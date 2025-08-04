@@ -62,5 +62,5 @@ func getCollectionCreator(addr string, tx *gorm.DB) ([]byte, error) {
 
 func isEvmRevertError(err error) bool {
 	errString := fmt.Sprintf("%+v", err)
-	return strings.Contains(errString, "revert: 0x: Reverted: EVMCall failed")
+	return strings.Contains(errString, "Reverted")
 }
