@@ -18,36 +18,39 @@ func (sub *WasmNftSubmodule) prepare(block indexertypes.ScrapedBlock) error {
 	client := fiber.AcquireClient()
 	defer fiber.ReleaseClient(client)
 
-	colAddrs, err := filterWasmData(block)
+	creators, err := filterWasmData(block)
 	if err != nil {
 		return err
 	}
 
-	colInfos := make(map[string]CollectionInfo) // collection addr -> collection info
-
+	colInfos := make(map[string]CollectionInfo)
 	var g errgroup.Group
 	var mtx sync.Mutex
-	for _, collectionAddr := range colAddrs {
+
+	for collectionAddr, creator := range creators {
 		addr := collectionAddr
-		// skip if blacklisted
+		creatorAddr := creator
+
 		if sub.IsBlacklisted(addr) {
 			continue
 		}
 
 		g.Go(func() error {
-			info, err := getCollectionInfo(addr, client, sub.cfg, block.Height)
+			name, err := getCollectionName(addr, client, sub.cfg, block.Height)
 			if err != nil {
 				errString := fmt.Sprintf("%+v", err)
 				if parseErrRegex.MatchString(errString) {
 					sub.AddToBlacklist(addr)
 					return nil
 				}
-
 				return err
 			}
 
 			mtx.Lock()
-			colInfos[addr] = info
+			colInfos[addr] = CollectionInfo{
+				Name:    name,
+				Creator: creatorAddr,
+			}
 			mtx.Unlock()
 
 			return nil
@@ -67,11 +70,11 @@ func (sub *WasmNftSubmodule) prepare(block indexertypes.ScrapedBlock) error {
 	return nil
 }
 
-func filterWasmData(block indexertypes.ScrapedBlock) (colAddrs []string, err error) {
-	collectionAddrMap := make(map[string]interface{})
+func filterWasmData(block indexertypes.ScrapedBlock) (creators map[string]string, err error) {
+	creators = make(map[string]string) // collectionAddr -> creator
 	events, err := util.ExtractEvents(block, "wasm")
 	if err != nil {
-		return colAddrs, err
+		return creators, err
 	}
 
 	for _, event := range events {
@@ -79,25 +82,13 @@ func filterWasmData(block indexertypes.ScrapedBlock) (colAddrs []string, err err
 		if !found {
 			continue
 		}
-		action, found := event.AttrMap["action"]
-		if !found || action != "mint" {
-			continue
-		}
-		_, found = event.AttrMap["owner"]
-		if !found {
-			continue
-		}
-		_, found = event.AttrMap["token_id"]
-		if !found {
-			continue
-		}
 
-		collectionAddrMap[collectionAddr] = nil
+		creator, hasCreator := event.AttrMap["creator"]
+		_, hasMinter := event.AttrMap["minter"]
+		if hasCreator && hasMinter {
+			creators[collectionAddr] = creator
+		}
 	}
 
-	for addr := range collectionAddrMap {
-		colAddrs = append(colAddrs, addr)
-	}
-
-	return colAddrs, err
+	return creators, err
 }

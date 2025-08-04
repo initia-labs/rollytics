@@ -2,7 +2,6 @@ package wasm_nft
 
 import (
 	"errors"
-	"fmt"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -28,9 +27,8 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 	}
 
 	batchSize := sub.cfg.GetDBBatchSize()
-	mintColMap := make(map[string]interface{})
-	mintMap := make(map[util.NftKey]map[string]string) // NftKey -> {"owner": owner, "uri": uri}
-	transferMap := make(map[util.NftKey]string)        // NftKey -> recipient
+	mintMap := make(map[util.NftKey]map[string]string)
+	transferMap := make(map[util.NftKey]string)
 	burnMap := make(map[util.NftKey]interface{})
 	updateCountMap := make(map[string]interface{})
 	nftTxMap := make(map[string]map[string]map[string]interface{})
@@ -60,8 +58,6 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 			if !found {
 				continue
 			}
-
-			mintColMap[collectionAddr] = nil
 
 			nftKey := util.NftKey{
 				CollectionAddr: collectionAddr,
@@ -132,17 +128,7 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 	}
 
 	var allAddresses []string
-	creatorAddrs := make(map[string]string) // collectionAddr -> creator
-
-	for collectionAddr := range mintColMap {
-		colInfo, ok := cacheData.ColInfos[collectionAddr]
-		if !ok {
-			if sub.IsBlacklisted(collectionAddr) {
-				continue
-			}
-			return fmt.Errorf("collection info not found for collection address %s", collectionAddr)
-		}
-		creatorAddrs[collectionAddr] = colInfo.Creator
+	for _, colInfo := range cacheData.ColInfos {
 		allAddresses = append(allAddresses, colInfo.Creator)
 	}
 
@@ -161,15 +147,8 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 		return err
 	}
 
-	var mintedCols []types.CollectedNftCollection
-	for collectionAddr := range mintColMap {
-		colInfo, ok := cacheData.ColInfos[collectionAddr]
-		if !ok {
-			if sub.IsBlacklisted(collectionAddr) {
-				continue
-			}
-			continue
-		}
+	var createdCols []types.CollectedNftCollection
+	for collectionAddr, colInfo := range cacheData.ColInfos {
 		addrBytes, err := util.AccAddressFromString(collectionAddr)
 		if err != nil {
 			return err
@@ -177,14 +156,14 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 
 		creatorId := accountIdMap[colInfo.Creator]
 
-		mintedCols = append(mintedCols, types.CollectedNftCollection{
+		createdCols = append(createdCols, types.CollectedNftCollection{
 			Addr:      addrBytes,
 			Height:    block.Height,
 			Name:      colInfo.Name,
 			CreatorId: creatorId,
 		})
 	}
-	if err := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(mintedCols, batchSize).Error; err != nil {
+	if err := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(createdCols, batchSize).Error; err != nil {
 		return err
 	}
 
