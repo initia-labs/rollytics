@@ -288,7 +288,6 @@ func TestIndexer_CollectInternalTxs(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
-
 func TestIndexer_CollectInternalTxs_EmptyInternalTxs(t *testing.T) {
 	db, mock := setupTestDB(t)
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelWarn}))
