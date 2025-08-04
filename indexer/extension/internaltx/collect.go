@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 
 	"github.com/gofiber/fiber/v2"
@@ -84,23 +85,13 @@ func (i *InternalTxExtension) CollectInternalTxs(db *orm.Database, internalTx *I
 		if err != nil {
 			return err
 		}
-		var evmTxs []types.CollectedEvmTx
-		if err := tx.Model(&types.CollectedEvmTx{}).
-			Select("hash, height, account_ids").
-			Where("height = ?", internalTx.Height).
-			Order("sequence ASC").
-			Find(&evmTxs).Error; err != nil {
-			return err
-		}
-
-		if len(internalTx.CallTrace.Result) != len(evmTxs) {
-			return fmt.Errorf("number of internal transactions (callTrace: %d, evmTxs: %d) at height %d does not match",
-				len(internalTx.CallTrace.Result), len(evmTxs), internalTx.Height)
-		}
-
-		hashes := make([][]byte, 0, len(evmTxs))
-		for _, evmTx := range evmTxs {
-			hashes = append(hashes, evmTx.Hash)
+		hashes := make([][]byte, 0, len(internalTx.CallTrace.Result))
+		for _, trace := range internalTx.CallTrace.Result {
+			hashBytes, err := util.HexToBytes(trace.TxHash)
+			if err != nil {
+				return fmt.Errorf("failed to convert tx hash %s: %w", trace.TxHash, err)
+			}
+			hashes = append(hashes, hashBytes)
 		}
 
 		hashIdMap, err := util.GetOrCreateEvmTxHashIds(tx, hashes, true)
@@ -109,10 +100,9 @@ func (i *InternalTxExtension) CollectInternalTxs(db *orm.Database, internalTx *I
 		}
 
 		var allInternalTxs []types.CollectedEvmInternalTx
-		for idx, trace := range internalTx.CallTrace.Result {
-			evmTx := evmTxs[idx]
-			height := evmTx.Height
-			hashHex := util.BytesToHex(evmTx.Hash)
+		for _, trace := range internalTx.CallTrace.Result {
+			height := internalTx.Height
+			hashHex := strings.ToLower(strings.TrimPrefix(trace.TxHash, "0x"))
 			hashId, ok := hashIdMap[hashHex]
 			if !ok {
 				return fmt.Errorf("hash ID not found for hash %s", hashHex)
