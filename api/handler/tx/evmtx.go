@@ -86,6 +86,10 @@ func (h *TxHandler) GetEvmTxsByAccount(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
+
+	if len(accountIds) == 0 {
+		return c.JSON(EvmTxsResponse{})
+	}
 	query := h.buildBaseEvmTxQuery().Where("account_ids && ?", pq.Array(accountIds))
 
 	if isSigner {

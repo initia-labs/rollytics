@@ -65,6 +65,10 @@ func (h *NftHandler) GetNftTxs(c *fiber.Ctx) error {
 			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 		}
 
+		if len(accountIds) == 0 {
+			return c.JSON(tx.TxsResponse{})
+		}
+
 		query = query.Where("account_ids && ?", pq.Array(accountIds))
 	} else {
 		nftKey := util.NftKey{
