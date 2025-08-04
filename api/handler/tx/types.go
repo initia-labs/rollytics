@@ -91,16 +91,16 @@ type EvmInternalTxsResponse struct {
 	Pagination common.PaginationResponse `json:"pagination" extensions:"x-order:1"`
 }
 
-func ToEvmInternalTxsResponse(citxs []types.CollectedEvmInternalTx, accounts map[int64][]byte, txHashs map[int64][]byte) []EvmInternalTxResponse {
+func ToEvmInternalTxsResponse(citxs []types.CollectedEvmInternalTx, accounts map[int64][]byte, txhashes map[int64][]byte) []EvmInternalTxResponse {
 	txs := make([]EvmInternalTxResponse, 0, len(citxs))
 	for _, ctx := range citxs {
-		tx := ToEvmInternalTxResponse(&ctx, accounts, txHashs)
+		tx := ToEvmInternalTxResponse(&ctx, accounts, txhashes)
 		txs = append(txs, *tx)
 	}
 	return txs
 }
 
-func ToEvmInternalTxResponse(eitx *types.CollectedEvmInternalTx, accounts map[int64][]byte, txHashs map[int64][]byte) *EvmInternalTxResponse {
+func ToEvmInternalTxResponse(eitx *types.CollectedEvmInternalTx, accounts map[int64][]byte, txhashes map[int64][]byte) *EvmInternalTxResponse {
 	var fromAccount, toAccount string
 
 	if eitx.FromId != 0 {
@@ -113,7 +113,7 @@ func ToEvmInternalTxResponse(eitx *types.CollectedEvmInternalTx, accounts map[in
 
 	return &EvmInternalTxResponse{
 		Height:      eitx.Height,
-		Hash:        util.BytesToHexWithPrefix(txHashs[eitx.HashId]),
+		Hash:        util.BytesToHexWithPrefix(txhashes[eitx.HashId]),
 		ParentIndex: eitx.ParentIndex,
 		Index:       eitx.Index,
 		From:        fromAccount,

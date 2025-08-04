@@ -54,12 +54,12 @@ func (h *TxHandler) GetEvmInternalTxs(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	hashs, err := h.getHashs(txs)
+	hashes, err := h.getHashes(txs)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	txsRes := ToEvmInternalTxsResponse(txs, accounts, hashs)
+	txsRes := ToEvmInternalTxsResponse(txs, accounts, hashes)
 
 	return c.JSON(EvmInternalTxsResponse{
 		Txs:        txsRes,
@@ -116,12 +116,12 @@ func (h *TxHandler) GetEvmInternalTxsByAccount(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	hashs, err := h.getHashs(txs)
+	hashes, err := h.getHashes(txs)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	txsRes := ToEvmInternalTxsResponse(txs, accounts, hashs)
+	txsRes := ToEvmInternalTxsResponse(txs, accounts, hashes)
 
 	return c.JSON(EvmInternalTxsResponse{
 		Txs:        txsRes,
@@ -174,12 +174,12 @@ func (h *TxHandler) GetEvmInternalTxsByHeight(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	hashs, err := h.getHashs(txs)
+	hashes, err := h.getHashes(txs)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	txsRes := ToEvmInternalTxsResponse(txs, accounts, hashs)
+	txsRes := ToEvmInternalTxsResponse(txs, accounts, hashes)
 
 	return c.JSON(EvmInternalTxsResponse{
 		Txs:        txsRes,
@@ -241,18 +241,18 @@ func (h *TxHandler) GetEvmInternalTxsByHash(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	// Get accounts and hashs for internal txs
+	// Get accounts and hashes for internal txs
 	accounts, err := h.getAccounts(txs)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	hashs, err := h.getHashs(txs)
+	hashes, err := h.getHashes(txs)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	txsRes := ToEvmInternalTxsResponse(txs, accounts, hashs)
+	txsRes := ToEvmInternalTxsResponse(txs, accounts, hashes)
 
 	return c.JSON(EvmInternalTxsResponse{
 		Txs:        txsRes,

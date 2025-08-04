@@ -22,21 +22,21 @@ func (h *TxHandler) getAccounts(txs []types.CollectedEvmInternalTx) (map[int64][
 	return result, nil
 }
 
-func (h *TxHandler) getHashs(txs []types.CollectedEvmInternalTx) (map[int64][]byte, error) {
+func (h *TxHandler) getHashes(txs []types.CollectedEvmInternalTx) (map[int64][]byte, error) {
 	hashIds := make([]int64, 0)
 	for _, tx := range txs {
 		hashIds = append(hashIds, tx.HashId)
 	}
 
-	var hashs []types.CollectedEvmTxHashDict
+	var hashes []types.CollectedEvmTxHashDict
 	if err := h.GetDatabase().
 		Where("id IN ?", hashIds).
-		Find(&hashs).Error; err != nil {
+		Find(&hashes).Error; err != nil {
 		return nil, err
 	}
 
 	result := make(map[int64][]byte)
-	for _, hash := range hashs {
+	for _, hash := range hashes {
 		result[hash.Id] = hash.Hash
 	}
 	return result, nil
