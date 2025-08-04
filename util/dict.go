@@ -163,13 +163,12 @@ func GetOrCreateNftIds(db *gorm.DB, keys []NftKey, createNew bool) (idMap map[Nf
 			if err := db.Clauses(orm.DoNothingWhenConflict).Create(&newEntries).Error; err != nil {
 				return idMap, err
 			}
-			// Add newly created entries to the map
-			j := 0
-			for _, key := range uncached {
-				if _, ok := nftIdMap[key]; !ok {
-					nftIdMap[key] = newEntries[j].Id
-					j++
+			for _, entry := range newEntries {
+				key := NftKey{
+					CollectionAddr: BytesToHex(entry.CollectionAddr),
+					TokenId:        entry.TokenId,
 				}
+				nftIdMap[key] = entry.Id
 			}
 		}
 	}
