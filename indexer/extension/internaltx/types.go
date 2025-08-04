@@ -7,6 +7,7 @@ type DebugCallTraceBlockResponse struct {
 
 type TransactionTrace struct {
 	TxHash string `json:"txHash"`
+	Error  string `json:"error,omitempty"` // Error field for failed traces
 	Result struct {
 		Type    string                `json:"type"`
 		From    string                `json:"from"`

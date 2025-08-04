@@ -85,6 +85,7 @@ func (i *InternalTxExtension) CollectInternalTxs(db *orm.Database, internalTx *I
 		if err != nil {
 			return err
 		}
+
 		hashes := make([][]byte, 0, len(internalTx.CallTrace.Result))
 		for _, trace := range internalTx.CallTrace.Result {
 			hashBytes, err := util.HexToBytes(trace.TxHash)
@@ -101,6 +102,10 @@ func (i *InternalTxExtension) CollectInternalTxs(db *orm.Database, internalTx *I
 
 		var allInternalTxs []types.CollectedEvmInternalTx
 		for _, trace := range internalTx.CallTrace.Result {
+			if trace.Error != "" {
+				return fmt.Errorf("trace error at height %d, txHash %s: %s",
+					internalTx.Height, trace.TxHash, trace.Error)
+			}
 			height := internalTx.Height
 			hashHex := strings.ToLower(strings.TrimPrefix(trace.TxHash, "0x"))
 			hashId, ok := hashIdMap[hashHex]
