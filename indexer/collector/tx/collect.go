@@ -131,10 +131,6 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) er
 		for _, addr := range addrs {
 			accountMap[addr] = nil
 		}
-		var uniqueAccounts []string
-		for account := range accountMap {
-			uniqueAccounts = append(uniqueAccounts, account)
-		}
 
 		// get signer address from auth info
 		var authInfo sdktx.AuthInfo
@@ -156,7 +152,12 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) er
 		}
 
 		signer := sdk.AccAddress(pk.Address()).String()
-		uniqueAccounts = append(uniqueAccounts, signer)
+		accountMap[signer] = nil
+
+		var uniqueAccounts []string
+		for account := range accountMap {
+			uniqueAccounts = append(uniqueAccounts, account)
+		}
 
 		accountIdMap, err := util.GetOrCreateAccountIds(tx, uniqueAccounts, true)
 		if err != nil {
@@ -267,17 +268,18 @@ func (sub *TxSubmodule) collectEvm(block indexertypes.ScrapedBlock, evmTxs []typ
 		for _, addr := range addrs {
 			accountMap[addr] = nil
 		}
-		var uniqueAccounts []string
-		for account := range accountMap {
-			uniqueAccounts = append(uniqueAccounts, account)
-		}
 
 		signer, err := util.AccAddressFromString(evmTx.From)
 		if err != nil {
 			return err
 		}
 		signerStr := signer.String()
-		uniqueAccounts = append(uniqueAccounts, signerStr)
+		accountMap[signerStr] = nil
+
+		var uniqueAccounts []string
+		for account := range accountMap {
+			uniqueAccounts = append(uniqueAccounts, account)
+		}
 
 		accountIdMap, err := util.GetOrCreateAccountIds(tx, uniqueAccounts, true)
 		if err != nil {
