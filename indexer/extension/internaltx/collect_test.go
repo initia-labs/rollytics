@@ -118,8 +118,6 @@ func TestIndexer_CollectInternalTxs(t *testing.T) {
 	txHashHex := util.BytesToHex(txHash)
 	require.Equal(t, "0x"+txHashHex, "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890")
 
-	// No longer need to query evm_tx table since we use trace.TxHash directly
-
 	// Mock for hash dictionary lookup (happens first)
 	mock.ExpectQuery(`SELECT \* FROM "evm_tx_hash_dict" WHERE hash IN`).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "hash"}))
@@ -290,13 +288,6 @@ func TestIndexer_CollectInternalTxs(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
-// This test is no longer relevant since we don't compare trace count with evmTx count
-// and we get transaction hashes directly from traces
-/*
-func TestIndexer_CollectInternalTxs_MismatchedResults(t *testing.T) {
-	// Test removed: No longer checking for mismatch between evmTx and trace counts
-}
-*/
 
 func TestIndexer_CollectInternalTxs_EmptyInternalTxs(t *testing.T) {
 	db, mock := setupTestDB(t)
