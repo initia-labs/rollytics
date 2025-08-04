@@ -29,12 +29,26 @@ func (h *StatusHandler) GetStatus(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
+	internalTxHeight := int64(0)
 	if h.GetChainConfig().VmType == types.EVM && h.GetConfig().InternalTxEnabled() {
 		if err := h.GetDatabase().
 			Model(&types.CollectedEvmInternalTx{}).
 			Order("height DESC").
 			First(&lastEvmInternalTx).Error; err != nil {
 			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
+		itxHeight := lastEvmInternalTx.Height
+		var count int64
+		h.GetDatabase().Model(&types.CollectedBlock{}).
+			Where("block.chain_id = ?", h.GetChainId()).
+			Where("height > ?", itxHeight).
+			Where("tx_count > 0").
+			Count(&count)
+
+		if count > 0 {
+			internalTxHeight = itxHeight
+		} else {
+			internalTxHeight = lastBlock.Height
 		}
 	}
 
@@ -43,6 +57,6 @@ func (h *StatusHandler) GetStatus(c *fiber.Ctx) error {
 		CommitHash:       config.CommitHash,
 		ChainId:          h.GetChainId(),
 		Height:           lastBlock.Height,
-		InternalTxHeight: lastEvmInternalTx.Height,
+		InternalTxHeight: internalTxHeight,
 	})
 }
