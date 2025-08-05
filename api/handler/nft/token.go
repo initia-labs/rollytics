@@ -49,7 +49,7 @@ func (h *NftHandler) GetTokensByAccount(c *fiber.Ctx) error {
 	}
 	query := h.buildBaseNftQuery().Where("owner_id = ?", accountIds[0])
 
-	if collectionAddr != "" {
+	if collectionAddr != nil {
 		query = query.Where("collection_addr = ?", collectionAddr)
 	}
 	if tokenId != "" {

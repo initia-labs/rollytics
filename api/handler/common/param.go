@@ -51,17 +51,17 @@ func GetAccountParam(c *fiber.Ctx) (string, error) {
 	return accAddr.String(), nil
 }
 
-func GetCollectionAddrParam(c *fiber.Ctx, config *config.ChainConfig) (string, error) {
+func GetCollectionAddrParam(c *fiber.Ctx, config *config.ChainConfig) ([]byte, error) {
 	collectionAddr, err := GetParams(c, "collection_addr")
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	if err := validateCollectionAddr(collectionAddr, config); err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return strings.ToLower(collectionAddr), nil
+	return util.HexToBytes(strings.ToLower(collectionAddr))
 }
 
 func GetMsgsQuery(c *fiber.Ctx) (msgs []string) {
@@ -72,15 +72,15 @@ func GetMsgsQuery(c *fiber.Ctx) (msgs []string) {
 	return msgs
 }
 
-func GetCollectionAddrQuery(c *fiber.Ctx, config *config.ChainConfig) (string, error) {
+func GetCollectionAddrQuery(c *fiber.Ctx, config *config.ChainConfig) ([]byte, error) {
 	collectionAddr := c.Query("collection_addr")
 	if collectionAddr == "" {
-		return "", nil
+		return nil, nil
 	}
 
 	if err := validateCollectionAddr(collectionAddr, config); err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return strings.ToLower(collectionAddr), nil
+	return util.HexToBytes(strings.ToLower(collectionAddr))
 }

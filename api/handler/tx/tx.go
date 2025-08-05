@@ -104,6 +104,9 @@ func (h *TxHandler) GetTxsByAccount(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
+	if len(accountIds) == 0 {
+		return c.JSON(TxsResponse{})
+	}
 	query := h.buildBaseTxQuery().Where("account_ids && ?", pq.Array(accountIds))
 
 	if len(msgs) > 0 {
@@ -115,7 +118,7 @@ func (h *TxHandler) GetTxsByAccount(c *fiber.Ctx) error {
 	}
 
 	if isSigner {
-		query = query.Where("signer = ?", account)
+		query = query.Where("signer_id = ?", accountIds[0])
 	}
 
 	var total int64
