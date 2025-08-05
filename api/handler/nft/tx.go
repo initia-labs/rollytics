@@ -3,6 +3,7 @@ package nft
 import (
 	"errors"
 
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/gofiber/fiber/v2"
 	"github.com/lib/pq"
 	"gorm.io/gorm"
@@ -55,12 +56,9 @@ func (h *NftHandler) GetNftTxs(c *fiber.Ctx) error {
 
 	query := h.GetDatabase().Model(&types.CollectedTx{}).Order(pagination.OrderBy("sequence"))
 
-	// Handle Move VM case
-	if h.GetVmType() == types.MoveVM { //nolint:nestif
-		accAddr, err := util.AccAddressFromString(util.BytesToHex(nft.Addr))
-		if err != nil {
-			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
-		}
+	switch h.GetVmType() {
+	case types.MoveVM:
+		accAddr := sdk.AccAddress(nft.Addr)
 		accountIds, err := h.GetAccountIds([]string{accAddr.String()})
 		if err != nil {
 			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
@@ -69,15 +67,18 @@ func (h *NftHandler) GetNftTxs(c *fiber.Ctx) error {
 			return c.JSON(tx.TxsResponse{})
 		}
 		query = query.Where("account_ids && ?", pq.Array(accountIds))
-	} else {
-		// Handle non-Move VM case
+
+	case types.WasmVM, types.EVM:
 		nftKey := util.NftKey{
-			CollectionAddr: util.BytesToHex(nft.CollectionAddr),
+			CollectionAddr: util.BytesToHexWithPrefix(nft.CollectionAddr),
 			TokenId:        nft.TokenId,
 		}
 		nftIds, err := h.GetNftIds([]util.NftKey{nftKey})
 		if err != nil {
 			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
+		if len(nftIds) == 0 {
+			return c.JSON(tx.TxsResponse{})
 		}
 		query = query.Where("nft_ids && ?", pq.Array(nftIds))
 	}

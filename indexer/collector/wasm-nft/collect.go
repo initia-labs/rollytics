@@ -276,8 +276,14 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 			}
 		}
 
+		txHashBytes, err := util.HexToBytes(txHash)
+		if err != nil {
+			sub.logger.Error("Failed to decode tx hash", "txHash", txHash, "error", err)
+			continue
+		}
+
 		if err := tx.Model(&types.CollectedTx{}).
-			Where("hash = ?", txHash).
+			Where("hash = ?", txHashBytes).
 			Update("nft_ids", pq.Array(nftIds)).Error; err != nil {
 			return err
 		}

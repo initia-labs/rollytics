@@ -10,7 +10,10 @@ import (
 
 func AccAddressFromString(addrStr string) (sdk.AccAddress, error) {
 	if !strings.HasPrefix(addrStr, "0x") {
-		return sdk.AccAddressFromBech32(addrStr)
+		addr, err := sdk.AccAddressFromBech32(addrStr)
+		if err == nil {
+			return addr, nil
+		}
 	}
 
 	hexStr := strings.ToLower(strings.TrimLeft(strings.TrimPrefix(addrStr, "0x"), "0"))

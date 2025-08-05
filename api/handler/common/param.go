@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/gofiber/fiber/v2"
 
@@ -57,11 +56,7 @@ func GetCollectionAddrParam(c *fiber.Ctx, config *config.ChainConfig) ([]byte, e
 		return nil, err
 	}
 
-	if err := validateCollectionAddr(collectionAddr, config); err != nil {
-		return nil, err
-	}
-
-	return util.HexToBytes(strings.ToLower(collectionAddr))
+	return normalizeCollectionAddr(collectionAddr, config)
 }
 
 func GetMsgsQuery(c *fiber.Ctx) (msgs []string) {
@@ -78,9 +73,5 @@ func GetCollectionAddrQuery(c *fiber.Ctx, config *config.ChainConfig) ([]byte, e
 		return nil, nil
 	}
 
-	if err := validateCollectionAddr(collectionAddr, config); err != nil {
-		return nil, err
-	}
-
-	return util.HexToBytes(strings.ToLower(collectionAddr))
+	return normalizeCollectionAddr(collectionAddr, config)
 }

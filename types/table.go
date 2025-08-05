@@ -61,7 +61,7 @@ type CollectedNftCollection struct {
 }
 
 type CollectedNft struct {
-	CollectionAddr []byte `gorm:"type:bytea;primaryKey"` // evm,move: hex address bytes, wasm: acc address bytes
+	CollectionAddr []byte `gorm:"type:bytea;primaryKey"`
 	TokenId        string `gorm:"type:text;primaryKey;index:nft_token_id"`
 	Addr           []byte `gorm:"type:bytea;index:nft_addr,type:hash"` // only used in move // hex address
 	Height         int64  `gorm:"type:bigint;index:nft_height"`
@@ -71,18 +71,18 @@ type CollectedNft struct {
 
 // only for move
 type CollectedFAStore struct {
-	StoreAddr []byte `gorm:"type:bytea;primaryKey"`                     // hex address bytes
-	Owner     []byte `gorm:"type:bytea;index:fa_store_owner,type:hash"` // hex address bytes
+	StoreAddr []byte `gorm:"type:bytea;primaryKey"`
+	Owner     []byte `gorm:"type:bytea;index:fa_store_owner,type:hash"`
 }
 
 type CollectedAccountDict struct {
 	Id      int64  `gorm:"type:bigint;primaryKey"`
-	Account []byte `gorm:"type:bytea;uniqueIndex:account_dict_account"` // acc address bytes
+	Account []byte `gorm:"type:bytea;uniqueIndex:account_dict_account"`
 }
 
 type CollectedNftDict struct {
 	Id             int64  `gorm:"type:bigint;primaryKey"`
-	CollectionAddr []byte `gorm:"type:bytea;uniqueIndex:nft_dict_collection_addr_token_id"`
+	CollectionAddr []byte `gorm:"type:bytea;uniqueIndex:nft_dict_collection_addr_token_id"` // hex address bytes
 	TokenId        string `gorm:"type:text;uniqueIndex:nft_dict_collection_addr_token_id"`
 }
 

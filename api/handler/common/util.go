@@ -9,21 +9,30 @@ import (
 	"github.com/initia-labs/rollytics/util"
 )
 
-func validateCollectionAddr(collectionAddr string, config *config.ChainConfig) error {
+// normalizeCollectionAddr parses collection address based on VM type
+func normalizeCollectionAddr(collectionAddr string, config *config.ChainConfig) ([]byte, error) {
 	switch config.VmType {
-	case types.MoveVM, types.EVM:
-		if !strings.HasPrefix(collectionAddr, "0x") {
-			return errors.New("collection address should be hex address")
+	case types.MoveVM:
+		accAddr, err := util.AccAddressFromString(collectionAddr)
+		if err != nil {
+			return nil, err
 		}
+		return accAddr.Bytes(), nil
+	case types.EVM:
+		if !strings.HasPrefix(collectionAddr, "0x") {
+			return nil, errors.New("collection address should be hex address")
+		}
+		return util.HexToBytes(strings.ToLower(collectionAddr))
 	case types.WasmVM:
 		if !strings.HasPrefix(collectionAddr, config.AccountAddressPrefix) {
-			return errors.New("collection address should be bech32 address")
+			return nil, errors.New("collection address should be bech32 address")
 		}
+		accAddr, err := util.AccAddressFromString(collectionAddr)
+		if err != nil {
+			return nil, err
+		}
+		return accAddr.Bytes(), nil
+	default:
+		return nil, errors.New("unsupported vm type")
 	}
-
-	if _, err := util.AccAddressFromString(collectionAddr); err != nil {
-		return err
-	}
-
-	return nil
 }
