@@ -9,6 +9,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 
 	"github.com/initia-labs/rollytics/config"
+	"github.com/initia-labs/rollytics/types"
 	"github.com/initia-labs/rollytics/util"
 )
 
@@ -57,11 +58,24 @@ func GetCollectionAddrParam(c *fiber.Ctx, config *config.ChainConfig) ([]byte, e
 		return nil, err
 	}
 
-	if err := validateCollectionAddr(collectionAddr, config); err != nil {
-		return nil, err
+	switch config.VmType {
+	case types.MoveVM, types.EVM:
+		if !strings.HasPrefix(collectionAddr, "0x") {
+			return nil, errors.New("collection address should be hex address")
+		}
+		return util.HexToBytes(strings.ToLower(collectionAddr))
+	case types.WasmVM:
+		if !strings.HasPrefix(collectionAddr, config.AccountAddressPrefix) {
+			return nil, errors.New("collection address should be bech32 address")
+		}
+		accAddr, err := util.AccAddressFromString(collectionAddr)
+		if err != nil {
+			return nil, err
+		}
+		return accAddr.Bytes(), nil
+	default:
+		return nil, errors.New("unsupported vm type")
 	}
-
-	return util.HexToBytes(strings.ToLower(collectionAddr))
 }
 
 func GetMsgsQuery(c *fiber.Ctx) (msgs []string) {
@@ -78,9 +92,22 @@ func GetCollectionAddrQuery(c *fiber.Ctx, config *config.ChainConfig) ([]byte, e
 		return nil, nil
 	}
 
-	if err := validateCollectionAddr(collectionAddr, config); err != nil {
-		return nil, err
+	switch config.VmType {
+	case types.MoveVM, types.EVM:
+		if !strings.HasPrefix(collectionAddr, "0x") {
+			return nil, errors.New("collection address should be hex address")
+		}
+		return util.HexToBytes(strings.ToLower(collectionAddr))
+	case types.WasmVM:
+		if !strings.HasPrefix(collectionAddr, config.AccountAddressPrefix) {
+			return nil, errors.New("collection address should be bech32 address")
+		}
+		accAddr, err := util.AccAddressFromString(collectionAddr)
+		if err != nil {
+			return nil, err
+		}
+		return accAddr.Bytes(), nil
+	default:
+		return nil, errors.New("unsupported vm type")
 	}
-
-	return util.HexToBytes(strings.ToLower(collectionAddr))
 }
