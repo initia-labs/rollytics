@@ -93,7 +93,7 @@ func (h *TxHandler) GetEvmTxsByAccount(c *fiber.Ctx) error {
 	query := h.buildBaseEvmTxQuery().Where("account_ids && ?", pq.Array(accountIds))
 
 	if isSigner {
-		query = query.Where("signer = ?", account)
+		query = query.Where("signer_id = ?", accountIds[0])
 	}
 
 	var total int64
