@@ -136,7 +136,7 @@ func GetOrCreateNftIds(db *gorm.DB, keys []NftKey, createNew bool) (idMap map[Nf
 	for _, entry := range entries {
 		// Convert bytes back to string for map key
 		key := NftKey{
-			CollectionAddr: BytesToHex(entry.CollectionAddr),
+			CollectionAddr: BytesToHexWithPrefix(entry.CollectionAddr),
 			TokenId:        entry.TokenId,
 		}
 		nftIdMap[key] = entry.Id
@@ -165,7 +165,7 @@ func GetOrCreateNftIds(db *gorm.DB, keys []NftKey, createNew bool) (idMap map[Nf
 			}
 			for _, entry := range newEntries {
 				key := NftKey{
-					CollectionAddr: BytesToHex(entry.CollectionAddr),
+					CollectionAddr: BytesToHexWithPrefix(entry.CollectionAddr),
 					TokenId:        entry.TokenId,
 				}
 				nftIdMap[key] = entry.Id

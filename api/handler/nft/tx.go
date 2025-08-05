@@ -67,30 +67,18 @@ func (h *NftHandler) GetNftTxs(c *fiber.Ctx) error {
 			return c.JSON(tx.TxsResponse{})
 		}
 		query = query.Where("account_ids && ?", pq.Array(accountIds))
-		
-	case types.EVM:
-		// For EVM, convert bytes to AccAddress string (bech32)
-		accAddr := sdk.AccAddress(nft.CollectionAddr)
+
+	case types.WasmVM, types.EVM:
 		nftKey := util.NftKey{
-			CollectionAddr: accAddr.String(),
+			CollectionAddr: util.BytesToHexWithPrefix(nft.CollectionAddr),
 			TokenId:        nft.TokenId,
 		}
 		nftIds, err := h.GetNftIds([]util.NftKey{nftKey})
 		if err != nil {
 			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 		}
-		query = query.Where("nft_ids && ?", pq.Array(nftIds))
-		
-	case types.WasmVM:
-		// For WasmVM, bytes are already AccAddress, convert to bech32
-		accAddr := sdk.AccAddress(nft.CollectionAddr)
-		nftKey := util.NftKey{
-			CollectionAddr: accAddr.String(),
-			TokenId:        nft.TokenId,
-		}
-		nftIds, err := h.GetNftIds([]util.NftKey{nftKey})
-		if err != nil {
-			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		if len(nftIds) == 0 {
+			return c.JSON(tx.TxsResponse{})
 		}
 		query = query.Where("nft_ids && ?", pq.Array(nftIds))
 	}
