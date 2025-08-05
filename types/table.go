@@ -82,7 +82,7 @@ type CollectedAccountDict struct {
 
 type CollectedNftDict struct {
 	Id             int64  `gorm:"type:bigint;primaryKey"`
-	CollectionAddr []byte `gorm:"type:bytea;uniqueIndex:nft_dict_collection_addr_token_id"`
+	CollectionAddr []byte `gorm:"type:bytea;uniqueIndex:nft_dict_collection_addr_token_id"` // acc address bytes
 	TokenId        string `gorm:"type:text;uniqueIndex:nft_dict_collection_addr_token_id"`
 }
 
