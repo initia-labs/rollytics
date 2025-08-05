@@ -81,13 +81,14 @@ func (h *NftHandler) GetCollectionsByAccount(c *fiber.Ctx) error {
 	accountIds, err := h.GetAccountIds([]string{account})
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
-	}
+}
 
 	if len(accountIds) == 0 {
 		return c.JSON(CollectionsResponse{})
 	}
 
 	query := h.buildBaseCollectionQuery().
+		Distinct("nft_collection.*").
 		Joins("INNER JOIN nft ON nft_collection.addr = nft.collection_addr").
 		Where("nft.owner_id = ?", accountIds[0])
 
