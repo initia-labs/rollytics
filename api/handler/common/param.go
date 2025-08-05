@@ -59,7 +59,13 @@ func GetCollectionAddrParam(c *fiber.Ctx, config *config.ChainConfig) ([]byte, e
 	}
 
 	switch config.VmType {
-	case types.MoveVM, types.EVM:
+	case types.MoveVM:
+		accAddr, err := util.AccAddressFromString(collectionAddr)
+		if err != nil {
+			return nil, err
+		}
+		return accAddr.Bytes(), nil
+	case types.EVM:
 		if !strings.HasPrefix(collectionAddr, "0x") {
 			return nil, errors.New("collection address should be hex address")
 		}
@@ -93,7 +99,13 @@ func GetCollectionAddrQuery(c *fiber.Ctx, config *config.ChainConfig) ([]byte, e
 	}
 
 	switch config.VmType {
-	case types.MoveVM, types.EVM:
+	case types.MoveVM:
+		accAddr, err := util.AccAddressFromString(collectionAddr)
+		if err != nil {
+			return nil, err
+		}
+		return accAddr.Bytes(), nil
+	case types.EVM:
 		if !strings.HasPrefix(collectionAddr, "0x") {
 			return nil, errors.New("collection address should be hex address")
 		}
