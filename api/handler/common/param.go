@@ -52,12 +52,8 @@ func GetAccountParam(c *fiber.Ctx) (string, error) {
 	return accAddr.String(), nil
 }
 
-func GetCollectionAddrParam(c *fiber.Ctx, config *config.ChainConfig) ([]byte, error) {
-	collectionAddr, err := GetParams(c, "collection_addr")
-	if err != nil {
-		return nil, err
-	}
-
+// normalizeCollectionAddr parses collection address based on VM type
+func normalizeCollectionAddr(collectionAddr string, config *config.ChainConfig) ([]byte, error) {
 	switch config.VmType {
 	case types.MoveVM:
 		accAddr, err := util.AccAddressFromString(collectionAddr)
@@ -82,6 +78,15 @@ func GetCollectionAddrParam(c *fiber.Ctx, config *config.ChainConfig) ([]byte, e
 	default:
 		return nil, errors.New("unsupported vm type")
 	}
+}
+
+func GetCollectionAddrParam(c *fiber.Ctx, config *config.ChainConfig) ([]byte, error) {
+	collectionAddr, err := GetParams(c, "collection_addr")
+	if err != nil {
+		return nil, err
+	}
+
+	return normalizeCollectionAddr(collectionAddr, config)
 }
 
 func GetMsgsQuery(c *fiber.Ctx) (msgs []string) {
@@ -98,28 +103,5 @@ func GetCollectionAddrQuery(c *fiber.Ctx, config *config.ChainConfig) ([]byte, e
 		return nil, nil
 	}
 
-	switch config.VmType {
-	case types.MoveVM:
-		accAddr, err := util.AccAddressFromString(collectionAddr)
-		if err != nil {
-			return nil, err
-		}
-		return accAddr.Bytes(), nil
-	case types.EVM:
-		if !strings.HasPrefix(collectionAddr, "0x") {
-			return nil, errors.New("collection address should be hex address")
-		}
-		return util.HexToBytes(strings.ToLower(collectionAddr))
-	case types.WasmVM:
-		if !strings.HasPrefix(collectionAddr, config.AccountAddressPrefix) {
-			return nil, errors.New("collection address should be bech32 address")
-		}
-		accAddr, err := util.AccAddressFromString(collectionAddr)
-		if err != nil {
-			return nil, err
-		}
-		return accAddr.Bytes(), nil
-	default:
-		return nil, errors.New("unsupported vm type")
-	}
+	return normalizeCollectionAddr(collectionAddr, config)
 }
