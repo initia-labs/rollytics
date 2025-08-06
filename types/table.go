@@ -52,21 +52,23 @@ type CollectedEvmTx struct {
 }
 
 type CollectedNftCollection struct {
-	Addr       []byte `gorm:"type:bytea;primaryKey"` // hex address
-	Height     int64  `gorm:"type:bigint;index:nft_collection_height"`
-	Name       string `gorm:"type:text;index:nft_collection_name"`
-	OriginName string `gorm:"type:text;index:nft_collection_origin_name"`
-	CreatorId  int64  `gorm:"type:bigint;index:nft_collection_creator_id"`
-	NftCount   int64  `gorm:"type:bigint"`
+	Addr       []byte    `gorm:"type:bytea;primaryKey"` // hex address
+	Height     int64     `gorm:"type:bigint;index:nft_collection_height"`
+	Timestamp  time.Time `gorm:"type:timestamptz"`
+	Name       string    `gorm:"type:text;index:nft_collection_name"`
+	OriginName string    `gorm:"type:text;index:nft_collection_origin_name"`
+	CreatorId  int64     `gorm:"type:bigint;index:nft_collection_creator_id"`
+	NftCount   int64     `gorm:"type:bigint"`
 }
 
 type CollectedNft struct {
-	CollectionAddr []byte `gorm:"type:bytea;primaryKey"`
-	TokenId        string `gorm:"type:text;primaryKey;index:nft_token_id"`
-	Addr           []byte `gorm:"type:bytea;index:nft_addr,type:hash"` // only used in move // hex address
-	Height         int64  `gorm:"type:bigint;index:nft_height"`
-	OwnerId        int64  `gorm:"type:bigint;index:nft_owner_id"`
-	Uri            string `gorm:"type:text"`
+	CollectionAddr []byte    `gorm:"type:bytea;primaryKey"`
+	TokenId        string    `gorm:"type:text;primaryKey;index:nft_token_id"`
+	Addr           []byte    `gorm:"type:bytea;index:nft_addr,type:hash"` // only used in move // hex address
+	Height         int64     `gorm:"type:bigint;index:nft_height"`
+	Timestamp      time.Time `gorm:"type:timestamptz"`
+	OwnerId        int64     `gorm:"type:bigint;index:nft_owner_id"`
+	Uri            string    `gorm:"type:text"`
 }
 
 // only for move

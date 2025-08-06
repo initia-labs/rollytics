@@ -159,6 +159,7 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 		createdCols = append(createdCols, types.CollectedNftCollection{
 			Addr:      addrBytes,
 			Height:    block.Height,
+			Timestamp: block.Timestamp,
 			Name:      colInfo.Name,
 			CreatorId: creatorId,
 		})
@@ -181,6 +182,7 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 			CollectionAddr: collectionAddr,
 			TokenId:        nftKey.TokenId,
 			Height:         block.Height,
+			Timestamp:      block.Timestamp,
 			OwnerId:        ownerId,
 			Uri:            data["uri"],
 		})
@@ -202,12 +204,13 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 			CollectionAddr: collectionAddr,
 			TokenId:        nftKey.TokenId,
 			Height:         block.Height,
+			Timestamp:      block.Timestamp,
 			OwnerId:        ownerId,
 		})
 	}
 	if err := tx.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "collection_addr"}, {Name: "token_id"}},
-		DoUpdates: clause.AssignmentColumns([]string{"height", "owner_id"}),
+		DoUpdates: clause.AssignmentColumns([]string{"height", "timestamp", "owner_id"}),
 	}).CreateInBatches(transferredNfts, batchSize).Error; err != nil {
 		return err
 	}

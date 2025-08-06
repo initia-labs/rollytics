@@ -1,6 +1,8 @@
 package nft
 
 import (
+	"time"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/initia-labs/rollytics/api/handler/common"
@@ -73,6 +75,8 @@ type Nft struct {
 	ObjectAddr           string     `json:"object_addr" extensions:"x-order:3"` // only used in Move
 	Owner                string     `json:"owner" extensions:"x-order:4"`
 	Nft                  NftDetails `json:"nft" extensions:"x-order:5"`
+	Height               int64      `json:"height" extensions:"x-order:6"`
+	Timestamp            time.Time  `json:"timestamp" extensions:"x-order:7"`
 }
 
 type NftsResponse struct {
@@ -91,6 +95,8 @@ func ToNftResponse(name, originName string, nft types.CollectedNft, ownerAccount
 			TokenId: nft.TokenId,
 			Uri:     nft.Uri,
 		},
+		Height:    nft.Height,
+		Timestamp: nft.Timestamp,
 	}
 }
 

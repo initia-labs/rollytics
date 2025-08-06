@@ -106,6 +106,7 @@ CREATE TABLE "public"."nft" (
   "token_id" text NOT NULL,
   "addr" bytea NULL,
   "height" bigint NULL,
+  "timestamp" timestamptz NULL,
   "owner_id" bigint NULL,
   "uri" text NULL,
   PRIMARY KEY ("collection_addr", "token_id")
@@ -122,6 +123,7 @@ CREATE INDEX "nft_token_id" ON "public"."nft" ("token_id");
 CREATE TABLE "public"."nft_collection" (
   "addr" bytea NOT NULL,
   "height" bigint NULL,
+  "timestamp" timestamptz NULL,
   "name" text NULL,
   "origin_name" text NULL,
   "creator_id" bigint NULL,
