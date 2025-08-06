@@ -130,7 +130,7 @@ func (i *Indexer) collect() {
 		inflightCount := len(i.blockMap) + i.prepareCount
 		switch {
 		case inflightCount > 100 && !i.paused:
-			i.controlChan <- "stop"
+			i.controlChan <- "pause"
 			i.paused = true
 		case inflightCount < 50 && i.paused:
 			i.controlChan <- "start"
