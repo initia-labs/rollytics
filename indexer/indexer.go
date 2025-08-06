@@ -10,6 +10,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/gofiber/fiber/v2"
+
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/indexer/collector"
 	"github.com/initia-labs/rollytics/indexer/extension"
@@ -78,7 +79,6 @@ func (i *Indexer) wait() {
 	defer fiber.ReleaseClient(client)
 	for {
 		chainHeight, err := util.GetLatestHeight(client, i.cfg)
-		fmt.Println(chainHeight)
 		if err != nil {
 			i.logger.Error("failed to get chain height", slog.Any("error", err))
 			time.Sleep(5 * time.Second)

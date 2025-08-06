@@ -5,11 +5,10 @@ import (
 	"fmt"
 
 	"github.com/gofiber/fiber/v2"
+
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/util"
 )
-
-const maxRetries = 5
 
 // BlockResponse represents the response from /cosmos/base/tendermint/v1beta1/blocks/latest
 type BlockResponse struct {
@@ -35,7 +34,7 @@ func GetLatestHeight(client *fiber.Client, cfg *config.Config) (int64, error) {
 
 	height := int64(0)
 	if _, err := fmt.Sscanf(response.Block.Header.Height, "%d", &height); err != nil {
-		return 0, fmt.Errorf("failed to parse height: %v", err)
+		return 0, fmt.Errorf("failed to parse height: %w", err)
 	}
 
 	return height, nil
