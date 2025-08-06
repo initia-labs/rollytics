@@ -125,8 +125,7 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB
 		allAddresses = append(allAddresses, ownerAccAddr.String())
 	}
 
-	creatorAddresses := make(map[string]string) // collectionAddr -> creator address
-	collectionHeights := make(map[string]int64) // collectionAddr -> creation height
+	collectionCreationInfos := make(map[string]CollectionCreationInfo)
 	for collectionAddr := range mintedCollections {
 		_, ok := cacheData.ColNames[collectionAddr]
 		if !ok {
@@ -136,15 +135,13 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB
 			return fmt.Errorf("collection name info not found for collection address %s", collectionAddr)
 		}
 
-		creator, height, err := getCollectionCreationInfo(collectionAddr, tx)
+		creationInfo, err := getCollectionCreationInfo(block.ChainId, collectionAddr, tx)
 		if err != nil {
 			return err
 		}
 
-		creatorAddr := sdk.AccAddress(creator).String()
-		creatorAddresses[collectionAddr] = creatorAddr
-		collectionHeights[collectionAddr] = height
-		allAddresses = append(allAddresses, creatorAddr)
+		collectionCreationInfos[collectionAddr] = *creationInfo
+		allAddresses = append(allAddresses, creationInfo.Creator)
 	}
 
 	accountIdMap, err := util.GetOrCreateAccountIds(tx, allAddresses, true)
@@ -166,13 +163,13 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB
 			return err
 		}
 
-		creatorAddr := creatorAddresses[collectionAddr]
-		creatorId := accountIdMap[creatorAddr]
-		creationHeight := collectionHeights[collectionAddr]
+		info := collectionCreationInfos[collectionAddr]
+		creatorId := accountIdMap[info.Creator]
 
 		mintedCols = append(mintedCols, types.CollectedNftCollection{
 			Addr:      addrBytes,
-			Height:    creationHeight,
+			Height:    info.Height,
+			Timestamp: info.Timestamp,
 			Name:      name,
 			CreatorId: creatorId,
 		})
@@ -190,6 +187,7 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB
 				CollectionAddr: addrBytes,
 				TokenId:        nftKey.TokenId,
 				Height:         block.Height,
+				Timestamp:      block.Timestamp,
 				OwnerId:        ownerId,
 				Uri:            cacheData.TokenUris[collectionAddr][nftKey.TokenId],
 			})
@@ -222,11 +220,12 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB
 			TokenId:        nftKey.TokenId,
 			OwnerId:        ownerId,
 			Height:         block.Height,
+			Timestamp:      block.Timestamp,
 		})
 	}
 	if err := tx.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "collection_addr"}, {Name: "token_id"}},
-		DoUpdates: clause.AssignmentColumns([]string{"height", "owner_id"}),
+		DoUpdates: clause.AssignmentColumns([]string{"height", "timestamp", "owner_id"}),
 	}).CreateInBatches(transferredNfts, batchSize).Error; err != nil {
 		return err
 	}

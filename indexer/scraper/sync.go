@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"sort"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -15,42 +16,62 @@ import (
 	"github.com/initia-labs/rollytics/indexer/types"
 )
 
+const (
+	running int32 = iota
+	paused
+	stopped
+)
+
 func (s *Scraper) fastSync(client *fiber.Client, height int64, blockChan chan<- types.ScrapedBlock, controlChan <-chan string) int64 {
 	var (
-		syncedHeight = height
-		paused       atomic.Bool
+		syncedHeight = height - 1
+		status       atomic.Int32
+		wg           sync.WaitGroup
 	)
 
 	go func() {
 		for signal := range controlChan {
 			switch signal {
-			case "stop":
-				paused.Store(true)
+			case "pause":
+				if status.Load() == running {
+					status.Store(paused)
+				}
 			case "start":
-				paused.Store(false)
+				if status.Load() == paused {
+					status.Store(running)
+				}
 			}
 		}
 	}()
 
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	defer func() {
+		cancel()
+		// wait for all goroutines to finish
+		wg.Wait()
+	}()
 
 	for {
-		select {
-		case <-ctx.Done():
+		currentState := status.Load()
+
+		// exit if stopped (reached latest height)
+		if currentState == stopped {
+			wg.Wait()
 			return syncedHeight
-		default:
 		}
 
 		// continue if paused
-		if paused.Load() {
+		if currentState == paused {
 			time.Sleep(1 * time.Second)
 			continue
 		}
 
 		// spin up new goroutine for scraping block with incrementing height
 		h := height
+		wg.Add(1)
 		go func(errCount int) {
+			defer wg.Done()
+
 			for {
 				select {
 				case <-ctx.Done():
@@ -76,7 +97,7 @@ func (s *Scraper) fastSync(client *fiber.Client, height int64, blockChan chan<- 
 
 				// stop fast syncing after reaching latest height
 				if reachedLatestHeight(fmt.Sprintf("%+v", err)) {
-					cancel()
+					status.Store(stopped)
 					return
 				}
 

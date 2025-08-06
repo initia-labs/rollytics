@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"strings"
 
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	evmtypes "github.com/initia-labs/minievm/x/evm/types"
 	"github.com/lib/pq"
 	"gorm.io/gorm"
@@ -32,15 +33,15 @@ func convertHexStringToDecString(hex string) (string, error) {
 	return bi.String(), nil
 }
 
-func getCollectionCreationInfo(addr string, tx *gorm.DB) ([]byte, int64, error) {
+func getCollectionCreationInfo(chainId, addr string, tx *gorm.DB) (*CollectionCreationInfo, error) {
 	bechAddr, err := util.AccAddressFromString(addr)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 
 	var accountDict types.CollectedAccountDict
 	if err := tx.Where("account = ?", bechAddr).First(&accountDict).Error; err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 
 	var ctx types.CollectedTx
@@ -49,15 +50,26 @@ func getCollectionCreationInfo(addr string, tx *gorm.DB) ([]byte, int64, error) 
 		Order("sequence ASC").
 		Limit(1).
 		First(&ctx).Error; err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 
 	var signerAccount types.CollectedAccountDict
 	if err := tx.Where("id = ?", ctx.SignerId).First(&signerAccount).Error; err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 
-	return signerAccount.Account, ctx.Height, nil
+	height := ctx.Height
+	var block types.CollectedBlock
+	if err := tx.Where("chain_id = ? AND height = ?", chainId, height).
+		First(&block).Error; err != nil {
+		return nil, err
+	}
+
+	return &CollectionCreationInfo{
+		Creator:   sdk.AccAddress(signerAccount.Account).String(),
+		Height:    ctx.Height,
+		Timestamp: block.Timestamp,
+	}, nil
 }
 
 func isEvmRevertError(err error) bool {

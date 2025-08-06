@@ -65,6 +65,9 @@ definitions:
       collection_origin_name:
         type: string
         x-order:2: true
+      height:
+        type: integer
+        x-order:6: true
       nft:
         allOf:
         - $ref: '#/definitions/nft.NftDetails'
@@ -76,6 +79,9 @@ definitions:
       owner:
         type: string
         x-order:4: true
+      timestamp:
+        type: string
+        x-order:7: true
     type: object
   nft.NftDetails:
     properties:

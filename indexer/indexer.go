@@ -9,11 +9,14 @@ import (
 
 	"gorm.io/gorm"
 
+	"github.com/gofiber/fiber/v2"
+
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/indexer/collector"
 	"github.com/initia-labs/rollytics/indexer/extension"
 	"github.com/initia-labs/rollytics/indexer/scraper"
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
+	"github.com/initia-labs/rollytics/indexer/util"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
 )
@@ -49,6 +52,9 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Indexer {
 }
 
 func (i *Indexer) Run() error {
+	// wait for the chain to be ready
+	i.wait()
+
 	var lastBlock types.CollectedBlock
 	if err := i.db.
 		Where("chain_id = ?", i.cfg.GetChainId()).
@@ -66,6 +72,23 @@ func (i *Indexer) Run() error {
 	i.collect()
 
 	return nil
+}
+
+func (i *Indexer) wait() {
+	client := fiber.AcquireClient()
+	defer fiber.ReleaseClient(client)
+	for {
+		chainHeight, err := util.GetLatestHeight(client, i.cfg)
+		if err != nil {
+			i.logger.Error("failed to get chain height", slog.Any("error", err))
+			time.Sleep(5 * time.Second)
+			continue
+		}
+		if chainHeight > 10 {
+			break
+		}
+		time.Sleep(5 * time.Second)
+	}
 }
 
 func (i *Indexer) extend() {
@@ -107,7 +130,7 @@ func (i *Indexer) collect() {
 		inflightCount := len(i.blockMap) + i.prepareCount
 		switch {
 		case inflightCount > 100 && !i.paused:
-			i.controlChan <- "stop"
+			i.controlChan <- "pause"
 			i.paused = true
 		case inflightCount < 50 && i.paused:
 			i.controlChan <- "start"

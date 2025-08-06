@@ -1192,6 +1192,10 @@ const docTemplate = `{
                     "type": "string",
                     "x-order:2": true
                 },
+                "height": {
+                    "type": "integer",
+                    "x-order:6": true
+                },
                 "nft": {
                     "allOf": [
                         {
@@ -1208,6 +1212,10 @@ const docTemplate = `{
                 "owner": {
                     "type": "string",
                     "x-order:4": true
+                },
+                "timestamp": {
+                    "type": "string",
+                    "x-order:7": true
                 }
             }
         },

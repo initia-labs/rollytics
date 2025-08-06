@@ -138,6 +138,7 @@ func (sub *MoveNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 		mintedCols = append(mintedCols, types.CollectedNftCollection{
 			Addr:      collectionAddr,
 			Height:    block.Height,
+			Timestamp: block.Timestamp,
 			Name:      event.Name,
 			CreatorId: creatorId,
 		})
@@ -180,6 +181,7 @@ func (sub *MoveNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 				TokenId:        nftResource.Data.TokenId,
 				Addr:           nftAddrBytes,
 				Height:         block.Height,
+				Timestamp:      block.Timestamp,
 				OwnerId:        creatorId,
 				Uri:            nftResource.Data.Uri,
 			})
@@ -195,7 +197,7 @@ func (sub *MoveNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 
 		if err := tx.Model(&types.CollectedNft{}).
 			Where("addr = ?", nftAddr).
-			Updates(map[string]interface{}{"height": block.Height, "owner_id": ownerId}).Error; err != nil {
+			Updates(map[string]interface{}{"height": block.Height, "timestamp": block.Timestamp, "owner_id": ownerId}).Error; err != nil {
 			return err
 		}
 	}
@@ -204,7 +206,7 @@ func (sub *MoveNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 	for nftAddr, uri := range mutMap {
 		if err := tx.Model(&types.CollectedNft{}).
 			Where("addr = ?", nftAddr).
-			Updates(map[string]interface{}{"height": block.Height, "uri": uri}).Error; err != nil {
+			Updates(map[string]interface{}{"height": block.Height, "timestamp": block.Timestamp, "uri": uri}).Error; err != nil {
 			return err
 		}
 	}
