@@ -17,7 +17,7 @@ import (
 
 func (s *Scraper) fastSync(client *fiber.Client, height int64, blockChan chan<- types.ScrapedBlock, controlChan <-chan string) int64 {
 	var (
-		syncedHeight = height
+		syncedHeight = height - 1
 		paused       atomic.Bool
 	)
 
