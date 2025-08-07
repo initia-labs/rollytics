@@ -215,7 +215,6 @@ func (h *TxHandler) GetEvmInternalTxsByHash(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid hash format")
 	}
-
 	var hashDict types.CollectedEvmTxHashDict
 	if err := h.GetDatabase().Where("hash = ?", hashBytes).First(&hashDict).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -224,7 +223,7 @@ func (h *TxHandler) GetEvmInternalTxsByHash(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	query := h.buildBaseEvmInternalTxQuery().Where("hash = ?", hashDict.Id)
+	query := h.buildBaseEvmInternalTxQuery().Where("hash_id = ?", hashDict.Id)
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
