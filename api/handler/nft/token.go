@@ -63,7 +63,7 @@ func (h *NftHandler) GetTokensByAccount(c *fiber.Ctx) error {
 
 	var nfts []types.CollectedNft
 	if err := query.
-		Order(pagination.OrderBy("collection_addr", "token_id")).
+		Order(pagination.OrderBy("height", "token_id")).
 		Offset(pagination.Offset).
 		Limit(pagination.Limit).
 		Find(&nfts).Error; err != nil {
@@ -124,7 +124,7 @@ func (h *NftHandler) GetTokensByCollectionAddr(c *fiber.Ctx) error {
 
 	var nfts []types.CollectedNft
 	if err := query.
-		Order(pagination.OrderBy("token_id")).
+		Order(pagination.OrderBy("height", "token_id")).
 		Offset(pagination.Offset).
 		Limit(pagination.Limit).
 		Find(&nfts).Error; err != nil {

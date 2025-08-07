@@ -27,6 +27,8 @@ type CollectionDetail struct {
 type Collection struct {
 	Address          string           `json:"object_addr" extensions:"x-order:0"`
 	CollectionDetail CollectionDetail `json:"collection" extensions:"x-order:1"`
+	Height           int64            `json:"height" extensions:"x-order:2"`
+	Timestamp        time.Time        `json:"timestamp" extensions:"x-order:3"`
 }
 
 type CollectionsResponse struct {
@@ -50,6 +52,8 @@ func ToCollectionResponse(col types.CollectedNftCollection, creatorAccount []byt
 				Length: col.NftCount,
 			},
 		},
+		Height:    col.Height,
+		Timestamp: col.Timestamp,
 	}
 }
 
