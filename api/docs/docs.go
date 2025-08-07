@@ -1118,9 +1118,17 @@ const docTemplate = `{
                     ],
                     "x-order:1": true
                 },
+                "height": {
+                    "type": "integer",
+                    "x-order:2": true
+                },
                 "object_addr": {
                     "type": "string",
                     "x-order:0": true
+                },
+                "timestamp": {
+                    "type": "string",
+                    "x-order:3": true
                 }
             }
         },
