@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	DefaultLimit  = 100
+	DefaultLimit  = 1000
 	MaxLimit      = 1000
 	DefaultOffset = 0
 	OrderDesc     = "DESC"

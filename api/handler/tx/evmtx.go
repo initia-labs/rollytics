@@ -20,7 +20,7 @@ import (
 // @Produce json
 // @Param pagination.key query string false "Pagination key"
 // @Param pagination.offset query int false "Pagination offset"
-// @Param pagination.limit query int false "Pagination limit, default is 100" default is 100
+// @Param pagination.limit query int false "Pagination limit, default is 1000" default is 1000
 // @Param pagination.reverse query bool false "Reverse order default is true if set to true, the results will be ordered in descending order"
 // @Router /indexer/tx/v1/evm-txs [get]
 func (h *TxHandler) GetEvmTxs(c *fiber.Ctx) error {
@@ -67,7 +67,7 @@ func (h *TxHandler) GetEvmTxs(c *fiber.Ctx) error {
 // @Param account path string true "Account address"
 // @Param pagination.key query string false "Pagination key"
 // @Param pagination.offset query int false "Pagination offset"
-// @Param pagination.limit query int false "Pagination limit, default is 100" default is 100
+// @Param pagination.limit query int false "Pagination limit, default is 1000" default is 1000
 // @Param pagination.reverse query bool false "Reverse order default is true if set to true, the results will be ordered in descending order"
 // @Param is_signer query bool false "Filter by signer accounts, default is false" default is false
 // @Router /indexer/tx/v1/evm-txs/by_account/{account} [get]
@@ -130,7 +130,7 @@ func (h *TxHandler) GetEvmTxsByAccount(c *fiber.Ctx) error {
 // @Param height path int true "Block height"
 // @Param pagination.key query string false "Pagination key"
 // @Param pagination.offset query int false "Pagination offset"
-// @Param pagination.limit query int false "Pagination limit, default is 100" default is 100
+// @Param pagination.limit query int false "Pagination limit, default is 1000" default is 1000
 // @Param pagination.reverse query bool false "Reverse order default is true if set to true, the results will be ordered in descending order"
 // @Router /indexer/tx/v1/evm-txs/by_height/{height} [get]
 func (h *TxHandler) GetEvmTxsByHeight(c *fiber.Ctx) error {

@@ -18,7 +18,7 @@ import (
 // @Produce json
 // @Param pagination.key query string false "Pagination key"
 // @Param pagination.offset query int false "Pagination offset"
-// @Param pagination.limit query int false "Pagination limit, default is 100" default is 100
+// @Param pagination.limit query int false "Pagination limit, default is 1000" default is 1000
 // @Param pagination.reverse query bool false "Reverse order default is true if set to true, the results will be ordered in descending order"
 // @Success 200 {object} CollectionsResponse
 // @Router /indexer/nft/v1/collections [get]
@@ -64,7 +64,7 @@ func (h *NftHandler) GetCollections(c *fiber.Ctx) error {
 // @Param account path string true "Account address"
 // @Param pagination.key query string false "Pagination key"
 // @Param pagination.offset query int false "Pagination offset"
-// @Param pagination.limit query int false "Pagination limit, default is 100" default is 100
+// @Param pagination.limit query int false "Pagination limit, default is 1000" default is 1000
 // @Param pagination.reverse query bool false "Reverse order default is true if set to true, the results will be ordered in descending order"
 // @Success 200 {object} CollectionsResponse
 // @Router /indexer/nft/v1/collections/by_account/{account} [get]
@@ -130,7 +130,7 @@ func (h *NftHandler) GetCollectionsByAccount(c *fiber.Ctx) error {
 // @Param name path string true "Collection name"
 // @Param pagination.key query string false "Pagination key"
 // @Param pagination.offset query int false "Pagination offset"
-// @Param pagination.limit query int false "Pagination limit, default is 100" default is 100
+// @Param pagination.limit query int false "Pagination limit, default is 1000" default is 1000
 // @Param pagination.reverse query bool false "Reverse order default is true if set to true, the results will be ordered in descending order"
 // @Success 200 {object} CollectionsResponse
 // @Router /indexer/nft/v1/collections/by_name/{name} [get]

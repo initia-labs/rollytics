@@ -19,7 +19,7 @@ import (
 // @Param token_id query string false "Token ID to filter by (optional)"
 // @Param pagination.key query string false "Pagination key"
 // @Param pagination.offset query int false "Pagination offset"
-// @Param pagination.limit query int false "Pagination limit, default is 100" default is 100
+// @Param pagination.limit query int false "Pagination limit, default is 1000" default is 1000
 // @Param pagination.reverse query bool false "Reverse order default is true if set to true, the results will be ordered in descending order"
 // @Success 200 {object} NftsResponse
 // @Router /indexer/nft/v1/tokens/by_account/{account} [get]
@@ -96,7 +96,7 @@ func (h *NftHandler) GetTokensByAccount(c *fiber.Ctx) error {
 // @Param token_id query string false "Token ID to filter by (optional)"
 // @Param pagination.key query string false "Pagination key"
 // @Param pagination.offset query int false "Pagination offset"
-// @Param pagination.limit query int false "Pagination limit, default is 100" default is 100
+// @Param pagination.limit query int false "Pagination limit, default is 1000" default is 1000
 // @Param pagination.reverse query bool false "Reverse order default is true if set to true, the results will be ordered in descending order"
 // @Success 200 {object} NftsResponse
 // @Router /indexer/nft/v1/tokens/by_collection/{collection_addr} [get]

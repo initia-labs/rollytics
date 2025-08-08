@@ -20,7 +20,7 @@ import (
 // @Produce json
 // @Param pagination.key query string false "Pagination key"
 // @Param pagination.offset query int false "Pagination offset"
-// @Param pagination.limit query int false "Pagination limit, default is 100" default is 100
+// @Param pagination.limit query int false "Pagination limit, default is 1000" default is 1000
 // @Param pagination.count_total query bool false "Count total, default is true" default is true
 // @Param pagination.reverse query bool false "Reverse order default is true if set to true, the results will be ordered in descending order"
 // @Router /indexer/tx/v1/evm-internal-txs [get]
@@ -76,7 +76,7 @@ func (h *TxHandler) GetEvmInternalTxs(c *fiber.Ctx) error {
 // @Param account path string true "Account address"
 // @Param pagination.key query string false "Pagination key"
 // @Param pagination.offset query int false "Pagination offset"
-// @Param pagination.limit query int false "Pagination limit, default is 100" default is 100
+// @Param pagination.limit query int false "Pagination limit, default is 1000" default is 1000
 // @Param pagination.count_total query bool false "Count total, default is true" default is true
 // @Param pagination.reverse query bool false "Reverse order default is true if set to true, the results will be ordered in descending order"
 // @Router /indexer/tx/v1/evm-internal-txs/by_account/{account} [get]
@@ -138,7 +138,7 @@ func (h *TxHandler) GetEvmInternalTxsByAccount(c *fiber.Ctx) error {
 // @Param height path int true "Block height"
 // @Param pagination.key query string false "Pagination key"
 // @Param pagination.offset query int false "Pagination offset"
-// @Param pagination.limit query int false "Pagination limit, default is 100" default is 100
+// @Param pagination.limit query int false "Pagination limit, default is 1000" default is 1000
 // @Param pagination.count_total query bool false "Count total, default is true" default is true
 // @Param pagination.reverse query bool false "Reverse order default is true if set to true, the results will be ordered in descending order"
 // @Router /indexer/tx/v1/evm-internal-txs/by_height/{height} [get]
@@ -196,7 +196,7 @@ func (h *TxHandler) GetEvmInternalTxsByHeight(c *fiber.Ctx) error {
 // @Param tx_hash path string true "Transaction hash"
 // @Param pagination.key query string false "Pagination key"
 // @Param pagination.offset query int false "Pagination offset"
-// @Param pagination.limit query int false "Pagination limit, default is 100" default is 100
+// @Param pagination.limit query int false "Pagination limit, default is 1000" default is 1000
 // @Param pagination.count_total query bool false "Count total, default is true" default is true
 // @Param pagination.reverse query bool false "Reverse order default is true if set to true, the results will be ordered in descending order"
 // @Router /indexer/tx/v1/evm-internal-txs/{tx_hash} [get]

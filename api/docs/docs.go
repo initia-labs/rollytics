@@ -59,7 +59,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "description": "Pagination limit, default is 100",
+                        "description": "Pagination limit, default is 1000",
                         "name": "pagination.limit",
                         "in": "query"
                     },
@@ -126,7 +126,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "description": "Pagination limit, default is 100",
+                        "description": "Pagination limit, default is 1000",
                         "name": "pagination.limit",
                         "in": "query"
                     },
@@ -182,7 +182,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "description": "Pagination limit, default is 100",
+                        "description": "Pagination limit, default is 1000",
                         "name": "pagination.limit",
                         "in": "query"
                     },
@@ -238,7 +238,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "description": "Pagination limit, default is 100",
+                        "description": "Pagination limit, default is 1000",
                         "name": "pagination.limit",
                         "in": "query"
                     },
@@ -338,7 +338,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "description": "Pagination limit, default is 100",
+                        "description": "Pagination limit, default is 1000",
                         "name": "pagination.limit",
                         "in": "query"
                     },
@@ -400,7 +400,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "description": "Pagination limit, default is 100",
+                        "description": "Pagination limit, default is 1000",
                         "name": "pagination.limit",
                         "in": "query"
                     },
@@ -463,7 +463,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "description": "Pagination limit, default is 100",
+                        "description": "Pagination limit, default is 1000",
                         "name": "pagination.limit",
                         "in": "query"
                     },
@@ -505,7 +505,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "description": "Pagination limit, default is 100",
+                        "description": "Pagination limit, default is 1000",
                         "name": "pagination.limit",
                         "in": "query"
                     },
@@ -560,7 +560,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "description": "Pagination limit, default is 100",
+                        "description": "Pagination limit, default is 1000",
                         "name": "pagination.limit",
                         "in": "query"
                     },
@@ -615,7 +615,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "description": "Pagination limit, default is 100",
+                        "description": "Pagination limit, default is 1000",
                         "name": "pagination.limit",
                         "in": "query"
                     },
@@ -670,7 +670,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "description": "Pagination limit, default is 100",
+                        "description": "Pagination limit, default is 1000",
                         "name": "pagination.limit",
                         "in": "query"
                     },
@@ -718,7 +718,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "description": "Pagination limit, default is 100",
+                        "description": "Pagination limit, default is 1000",
                         "name": "pagination.limit",
                         "in": "query"
                     },
@@ -767,7 +767,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "description": "Pagination limit, default is 100",
+                        "description": "Pagination limit, default is 1000",
                         "name": "pagination.limit",
                         "in": "query"
                     },
@@ -822,7 +822,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "description": "Pagination limit, default is 100",
+                        "description": "Pagination limit, default is 1000",
                         "name": "pagination.limit",
                         "in": "query"
                     },
@@ -889,7 +889,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "description": "Pagination limit, default is 100",
+                        "description": "Pagination limit, default is 1000",
                         "name": "pagination.limit",
                         "in": "query"
                     },
@@ -949,7 +949,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "description": "Pagination limit, default is 100",
+                        "description": "Pagination limit, default is 1000",
                         "name": "pagination.limit",
                         "in": "query"
                     },
@@ -1015,7 +1015,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "description": "Pagination limit, default is 100",
+                        "description": "Pagination limit, default is 1000",
                         "name": "pagination.limit",
                         "in": "query"
                     },

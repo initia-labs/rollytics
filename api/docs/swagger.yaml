@@ -165,7 +165,7 @@ paths:
         in: query
         name: pagination.offset
         type: integer
-      - description: Pagination limit, default is 100
+      - description: Pagination limit, default is 1000
         in: query
         name: pagination.limit
         type: integer
@@ -211,7 +211,7 @@ paths:
         in: query
         name: pagination.offset
         type: integer
-      - description: Pagination limit, default is 100
+      - description: Pagination limit, default is 1000
         in: query
         name: pagination.limit
         type: integer
@@ -270,7 +270,7 @@ paths:
         in: query
         name: pagination.offset
         type: integer
-      - description: Pagination limit, default is 100
+      - description: Pagination limit, default is 1000
         in: query
         name: pagination.limit
         type: integer
@@ -308,7 +308,7 @@ paths:
         in: query
         name: pagination.offset
         type: integer
-      - description: Pagination limit, default is 100
+      - description: Pagination limit, default is 1000
         in: query
         name: pagination.limit
         type: integer
@@ -354,7 +354,7 @@ paths:
         in: query
         name: pagination.offset
         type: integer
-      - description: Pagination limit, default is 100
+      - description: Pagination limit, default is 1000
         in: query
         name: pagination.limit
         type: integer
@@ -396,7 +396,7 @@ paths:
         in: query
         name: pagination.offset
         type: integer
-      - description: Pagination limit, default is 100
+      - description: Pagination limit, default is 1000
         in: query
         name: pagination.limit
         type: integer
@@ -439,7 +439,7 @@ paths:
         in: query
         name: pagination.offset
         type: integer
-      - description: Pagination limit, default is 100
+      - description: Pagination limit, default is 1000
         in: query
         name: pagination.limit
         type: integer
@@ -468,7 +468,7 @@ paths:
         in: query
         name: pagination.offset
         type: integer
-      - description: Pagination limit, default is 100
+      - description: Pagination limit, default is 1000
         in: query
         name: pagination.limit
         type: integer
@@ -506,7 +506,7 @@ paths:
         in: query
         name: pagination.offset
         type: integer
-      - description: Pagination limit, default is 100
+      - description: Pagination limit, default is 1000
         in: query
         name: pagination.limit
         type: integer
@@ -544,7 +544,7 @@ paths:
         in: query
         name: pagination.offset
         type: integer
-      - description: Pagination limit, default is 100
+      - description: Pagination limit, default is 1000
         in: query
         name: pagination.limit
         type: integer
@@ -582,7 +582,7 @@ paths:
         in: query
         name: pagination.offset
         type: integer
-      - description: Pagination limit, default is 100
+      - description: Pagination limit, default is 1000
         in: query
         name: pagination.limit
         type: integer
@@ -615,7 +615,7 @@ paths:
         in: query
         name: pagination.offset
         type: integer
-      - description: Pagination limit, default is 100
+      - description: Pagination limit, default is 1000
         in: query
         name: pagination.limit
         type: integer
@@ -666,7 +666,7 @@ paths:
         in: query
         name: pagination.offset
         type: integer
-      - description: Pagination limit, default is 100
+      - description: Pagination limit, default is 1000
         in: query
         name: pagination.limit
         type: integer
@@ -704,7 +704,7 @@ paths:
         in: query
         name: pagination.offset
         type: integer
-      - description: Pagination limit, default is 100
+      - description: Pagination limit, default is 1000
         in: query
         name: pagination.limit
         type: integer
@@ -733,7 +733,7 @@ paths:
         in: query
         name: pagination.offset
         type: integer
-      - description: Pagination limit, default is 100
+      - description: Pagination limit, default is 1000
         in: query
         name: pagination.limit
         type: integer
@@ -792,7 +792,7 @@ paths:
         in: query
         name: pagination.offset
         type: integer
-      - description: Pagination limit, default is 100
+      - description: Pagination limit, default is 1000
         in: query
         name: pagination.limit
         type: integer
@@ -838,7 +838,7 @@ paths:
         in: query
         name: pagination.offset
         type: integer
-      - description: Pagination limit, default is 100
+      - description: Pagination limit, default is 1000
         in: query
         name: pagination.limit
         type: integer
