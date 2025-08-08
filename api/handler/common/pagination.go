@@ -12,6 +12,7 @@ import (
 
 const (
 	DefaultLimit  = 100
+	MaxLimit      = 1000
 	DefaultOffset = 0
 	OrderDesc     = "DESC"
 	OrderAsc      = "ASC"
@@ -31,8 +32,8 @@ type PaginationResponse struct {
 
 func ParsePagination(c *fiber.Ctx) (*Pagination, error) {
 	limit := c.QueryInt("pagination.limit", DefaultLimit)
-	if limit < 1 || limit > DefaultLimit {
-		return nil, errors.New("pagination.limit must be between 1 and 100")
+	if limit < 1 || limit > MaxLimit {
+		return nil, fmt.Errorf("pagination.limit must be between 1 and %d", MaxLimit)
 	}
 
 	key := c.Query("pagination.key")
