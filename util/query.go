@@ -1,6 +1,7 @@
 package util
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,14 +10,20 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"golang.org/x/sync/semaphore"
+
+	"github.com/initia-labs/rollytics/config"
 )
 
 const (
-	maxRetries            = 5
-	maxConcurrentRequests = 50
+	maxRetries = 5
 )
 
-var limiter = make(chan interface{}, maxConcurrentRequests)
+var limiter *semaphore.Weighted
+
+func InitLimiter(cfg *config.Config) {
+	limiter = semaphore.NewWeighted(int64(cfg.GetMaxConcurrentRequests()))
+}
 
 type ErrorResponse struct {
 	Code    int64  `json:"code"`
@@ -45,8 +52,11 @@ func Get(client *fiber.Client, coolingDuration, timeout time.Duration, baseUrl, 
 }
 
 func getRaw(client *fiber.Client, timeout time.Duration, baseUrl, path string, params map[string]string, headers map[string]string) (body []byte, err error) {
-	limiter <- nil
-	defer func() { <-limiter }()
+	ctx := context.Background()
+	if err := limiter.Acquire(ctx, 1); err != nil {
+		return nil, fmt.Errorf("failed to acquire semaphore: %w", err)
+	}
+	defer limiter.Release(1)
 
 	parsedUrl, err := url.Parse(fmt.Sprintf("%s%s", baseUrl, path))
 	if err != nil {
@@ -92,7 +102,7 @@ func getRaw(client *fiber.Client, timeout time.Duration, baseUrl, path string, p
 	return nil, fmt.Errorf("http response: %d, body: %s", code, string(body))
 }
 
-func Post(client *fiber.Client, coolingDuration, timeout time.Duration, baseUrl, path string, payload map[string]interface{}, headers map[string]string) ([]byte, error) {
+func Post(client *fiber.Client, coolingDuration, timeout time.Duration, baseUrl, path string, payload map[string]any, headers map[string]string) ([]byte, error) {
 	retryCount := 0
 	for retryCount < maxRetries {
 		body, err := postRaw(client, timeout, baseUrl, path, payload, headers)
@@ -113,9 +123,12 @@ func Post(client *fiber.Client, coolingDuration, timeout time.Duration, baseUrl,
 	return nil, fmt.Errorf("failed to post data after %d retries", maxRetries)
 }
 
-func postRaw(client *fiber.Client, timeout time.Duration, baseUrl, path string, payload map[string]interface{}, headers map[string]string) (body []byte, err error) {
-	limiter <- nil
-	defer func() { <-limiter }()
+func postRaw(client *fiber.Client, timeout time.Duration, baseUrl, path string, payload map[string]any, headers map[string]string) (body []byte, err error) {
+	ctx := context.Background()
+	if err := limiter.Acquire(ctx, 1); err != nil {
+		return nil, fmt.Errorf("failed to acquire semaphore: %w", err)
+	}
+	defer limiter.Release(1)
 
 	req := client.Post(fmt.Sprintf("%s%s", baseUrl, path))
 

@@ -7,6 +7,7 @@ import (
 	"github.com/initia-labs/rollytics/indexer"
 	"github.com/initia-labs/rollytics/log"
 	"github.com/initia-labs/rollytics/orm"
+	"github.com/initia-labs/rollytics/util"
 )
 
 func indexerCmd() *cobra.Command {
@@ -26,6 +27,10 @@ You can configure database, chain, logging, and indexer options via environment 
 			}
 
 			logger := log.NewLogger(cfg)
+			
+			// Initialize the request limiter
+			util.InitLimiter(cfg)
+			
 			db, err := orm.OpenDB(cfg.GetDBConfig(), logger)
 			if err != nil {
 				return err

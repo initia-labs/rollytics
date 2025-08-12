@@ -24,17 +24,18 @@ func SetBuildInfo(v, commit string) {
 }
 
 type Config struct {
-	listenPort       string
-	dbConfig         *dbconfig.Config
-	chainConfig      *ChainConfig
-	logLevel         string
-	logFormat        string
-	coolingDuration  time.Duration // for indexer only
-	queryTimeout     time.Duration // for indexer only
-	cacheSize        int
-	cacheTTL         time.Duration // for api only
-	pollingInterval  time.Duration // for api only
-	internalTxConfig *InternalTxConfig
+	listenPort            string
+	dbConfig              *dbconfig.Config
+	chainConfig           *ChainConfig
+	logLevel              string
+	logFormat             string
+	coolingDuration       time.Duration // for indexer only
+	queryTimeout          time.Duration // for indexer only
+	maxConcurrentRequests int           // for indexer only
+	cacheSize             int
+	cacheTTL              time.Duration // for api only
+	pollingInterval       time.Duration // for api only
+	internalTxConfig      *InternalTxConfig
 }
 
 func setDefaults() {
@@ -44,6 +45,7 @@ func setDefaults() {
 	viper.SetDefault("ACCOUNT_ADDRESS_PREFIX", "init")
 	viper.SetDefault("COOLING_DURATION", 100*time.Millisecond)
 	viper.SetDefault("QUERY_TIMEOUT", 10*time.Second)
+	viper.SetDefault("MAX_CONCURRENT_REQUESTS", 50)
 	viper.SetDefault("LOG_LEVEL", "warn")
 	viper.SetDefault("LOG_FORMAT", "plain")
 	viper.SetDefault("CACHE_SIZE", 1000)
@@ -93,16 +95,17 @@ func GetConfig() (*Config, error) {
 	}
 
 	config := &Config{
-		listenPort:      viper.GetString("PORT"),
-		dbConfig:        dc,
-		chainConfig:     cc,
-		logLevel:        viper.GetString("LOG_LEVEL"),
-		logFormat:       viper.GetString("LOG_FORMAT"),
-		coolingDuration: viper.GetDuration("COOLING_DURATION"),
-		queryTimeout:    viper.GetDuration("QUERY_TIMEOUT"),
-		cacheSize:       viper.GetInt("CACHE_SIZE"),
-		cacheTTL:        viper.GetDuration("CACHE_TTL"),
-		pollingInterval: viper.GetDuration("POLLING_INTERVAL"),
+		listenPort:            viper.GetString("PORT"),
+		dbConfig:              dc,
+		chainConfig:           cc,
+		logLevel:              viper.GetString("LOG_LEVEL"),
+		logFormat:             viper.GetString("LOG_FORMAT"),
+		coolingDuration:       viper.GetDuration("COOLING_DURATION"),
+		queryTimeout:          viper.GetDuration("QUERY_TIMEOUT"),
+		maxConcurrentRequests: viper.GetInt("MAX_CONCURRENT_REQUESTS"),
+		cacheSize:             viper.GetInt("CACHE_SIZE"),
+		cacheTTL:              viper.GetDuration("CACHE_TTL"),
+		pollingInterval:       viper.GetDuration("POLLING_INTERVAL"),
 		internalTxConfig: &InternalTxConfig{
 			Enabled:      viper.GetBool("INTERNAL_TX"),
 			PollInterval: viper.GetDuration("INTERNAL_TX_POLL_INTERVAL"),
@@ -200,6 +203,10 @@ func (c Config) GetCoolingDuration() time.Duration {
 
 func (c Config) GetQueryTimeout() time.Duration {
 	return c.queryTimeout
+}
+
+func (c Config) GetMaxConcurrentRequests() int {
+	return c.maxConcurrentRequests
 }
 
 func (c Config) GetLogFormat() string {
