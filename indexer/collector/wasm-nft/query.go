@@ -13,7 +13,7 @@ import (
 var qreqContractInfo = []byte("{\"contract_info\":{}}")
 
 func getCollectionName(collectionAddr string, cfg *config.Config, height int64) (name string, err error) {
-	queryData := base64.StdEncoding.EncodeToString(qreqContractInfo)
+	queryData := base64.URLEncoding.EncodeToString(qreqContractInfo)
 	body, err := querySmart(collectionAddr, queryData, cfg, height)
 	if err != nil {
 		return name, err
