@@ -1,16 +1,19 @@
 package cmd
 
 import (
+	"context"
 	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/initia-labs/rollytics/api"
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/log"
+	"github.com/initia-labs/rollytics/metrics"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/util"
 )
@@ -36,11 +39,25 @@ You can configure database, chain, logging, and server options via environment v
 			// Initialize the request limiter
 			util.InitLimiter(cfg)
 			
+			// Initialize metrics
+			metrics.Init()
+			metricsServer := metrics.NewServer(cfg, logger)
+			
+			// Start metrics server in background
+			go func() {
+				if err := metricsServer.Start(); err != nil {
+					logger.Error("metrics server failed", "error", err)
+				}
+			}()
+			
 			db, err := orm.OpenDB(cfg.GetDBConfig(), logger)
 			if err != nil {
 				return err
 			}
 			defer db.Close() //nolint:errcheck
+
+			// Start DB stats collection
+			metrics.StartDBStatsUpdater(db, logger)
 
 			server := api.New(cfg, logger, db)
 
@@ -50,6 +67,16 @@ You can configure database, chain, logging, and server options via environment v
 			go func() {
 				<-sigChan
 				logger.Info("shutting down API server...")
+				
+				// Shutdown metrics server and DB stats updater
+				metrics.StopDBStatsUpdater()
+				
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+				if err := metricsServer.Shutdown(ctx); err != nil {
+					logger.Error("failed to shutdown metrics server", slog.String("error", err.Error()))
+				}
+				
 				if err := server.Shutdown(); err != nil {
 					logger.Error("graceful shutdown failed", slog.String("error", err.Error()))
 					os.Exit(1)

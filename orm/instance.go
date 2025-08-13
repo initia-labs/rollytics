@@ -2,6 +2,7 @@ package orm
 
 import (
 	"context"
+	"database/sql"
 	"log/slog"
 	"os"
 
@@ -14,6 +15,7 @@ import (
 	"gorm.io/gorm/schema"
 
 	"github.com/initia-labs/rollytics/orm/config"
+	"github.com/initia-labs/rollytics/orm/plugins"
 )
 
 var (
@@ -49,6 +51,12 @@ func OpenDB(config *config.Config, logger *slog.Logger) (*Database, error) {
 	}
 	sqlDB.SetMaxOpenConns(config.MaxConns)
 	sqlDB.SetMaxIdleConns(config.IdleConns)
+
+	// Register custom metrics plugin
+	metricsPlugin := plugins.NewMetricsPlugin()
+	if err := instance.Use(metricsPlugin); err != nil {
+		return nil, err
+	}
 
 	return &Database{DB: instance, config: config}, nil
 }
@@ -92,4 +100,15 @@ func (d Database) Close() error {
 
 func (d Database) GetBatchSize() int {
 	return d.config.BatchSize
+}
+
+// GetDBStats returns database connection pool statistics
+func (d Database) GetDBStats() (*sql.DBStats, error) {
+	sqlDB, err := d.DB.DB()
+	if err != nil {
+		return nil, err
+	}
+	
+	stats := sqlDB.Stats()
+	return &stats, nil
 }

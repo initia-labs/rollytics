@@ -1,11 +1,17 @@
 package cmd
 
 import (
+	"context"
+	"os"
+	"os/signal"
+	"syscall"
+
 	"github.com/spf13/cobra"
 
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/indexer"
 	"github.com/initia-labs/rollytics/log"
+	"github.com/initia-labs/rollytics/metrics"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/util"
 )
@@ -31,6 +37,32 @@ You can configure database, chain, logging, and indexer options via environment 
 			// Initialize the request limiter
 			util.InitLimiter(cfg)
 			
+			// Initialize metrics
+			metrics.Init()
+			metricsServer := metrics.NewServer(cfg, logger)
+			
+			// Start metrics server in background
+			go func() {
+				if err := metricsServer.Start(); err != nil {
+					logger.Error("metrics server failed", "error", err)
+				}
+			}()
+			
+			// Setup graceful shutdown for metrics
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			
+			sigChan := make(chan os.Signal, 1)
+			signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+			go func() {
+				<-sigChan
+				logger.Info("shutting down indexer...")
+				if err := metricsServer.Shutdown(ctx); err != nil {
+					logger.Error("failed to shutdown metrics server", "error", err)
+				}
+				cancel()
+			}()
+			
 			db, err := orm.OpenDB(cfg.GetDBConfig(), logger)
 			if err != nil {
 				return err
@@ -40,6 +72,10 @@ You can configure database, chain, logging, and indexer options via environment 
 			if err := db.Migrate(); err != nil {
 				return err
 			}
+
+			// Start DB stats collection
+			metrics.StartDBStatsUpdater(db, logger)
+			defer metrics.StopDBStatsUpdater()
 
 			idxer := indexer.New(cfg, logger, db)
 			return idxer.Run()

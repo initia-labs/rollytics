@@ -14,6 +14,7 @@ import (
 	"golang.org/x/sync/semaphore"
 
 	"github.com/initia-labs/rollytics/config"
+	"github.com/initia-labs/rollytics/metrics"
 )
 
 const (
@@ -102,6 +103,10 @@ func Get(client *fiber.Client, coolingDuration, timeout time.Duration, baseUrl, 
 		// This doesn't count against regular retry limit to allow for rate limit recovery
 		if errors.Is(err, fiber.ErrTooManyRequests) {
 			rateLimitRetries++
+			
+			// Track rate limit hits
+			metrics.RateLimitHitsTotal().WithLabelValues(fmt.Sprintf("%s%s", baseUrl, path)).Inc()
+			
 			backoffDelay := calculateBackoffDelay(rateLimitRetries)
 			time.Sleep(backoffDelay)
 			continue
@@ -119,11 +124,29 @@ func Get(client *fiber.Client, coolingDuration, timeout time.Duration, baseUrl, 
 }
 
 func getRaw(client *fiber.Client, timeout time.Duration, baseUrl, path string, params map[string]string, headers map[string]string) (body []byte, err error) {
+	start := time.Now()
+	endpoint := fmt.Sprintf("%s%s", baseUrl, path)
+	
+	// Track concurrent requests
+	metrics.ConcurrentRequestsActive().Inc()
+	defer func() {
+		metrics.ConcurrentRequestsActive().Dec()
+		// Record API latency
+		duration := time.Since(start).Seconds()
+		metrics.ExternalAPILatency().WithLabelValues(endpoint).Observe(duration)
+	}()
+	
+	// Track semaphore wait time
+	semaphoreStart := time.Now()
 	ctx := context.Background()
 	if err := limiter.Acquire(ctx, 1); err != nil {
 		return nil, fmt.Errorf("failed to acquire semaphore: %w", err)
 	}
 	defer limiter.Release(1)
+	
+	// Record semaphore wait duration
+	semaphoreWaitTime := time.Since(semaphoreStart).Seconds()
+	metrics.SemaphoreWaitDuration().Observe(semaphoreWaitTime)
 
 	parsedUrl, err := url.Parse(fmt.Sprintf("%s%s", baseUrl, path))
 	if err != nil {
@@ -148,8 +171,13 @@ func getRaw(client *fiber.Client, timeout time.Duration, baseUrl, path string, p
 
 	code, body, errs := req.Timeout(timeout).Bytes()
 	if err := errors.Join(errs...); err != nil {
+		// Track network/timeout errors
+		metrics.ExternalAPIRequestsTotal().WithLabelValues(endpoint, "error").Inc()
 		return nil, err
 	}
+
+	// Track HTTP response with actual status code
+	metrics.ExternalAPIRequestsTotal().WithLabelValues(endpoint, fmt.Sprintf("%d", code)).Inc()
 
 	if code == fiber.StatusOK {
 		return body, nil
@@ -197,6 +225,10 @@ func Post(client *fiber.Client, coolingDuration, timeout time.Duration, baseUrl,
 		// This doesn't count against regular retry limit to allow for rate limit recovery
 		if errors.Is(err, fiber.ErrTooManyRequests) {
 			rateLimitRetries++
+			
+			// Track rate limit hits
+			metrics.RateLimitHitsTotal().WithLabelValues(fmt.Sprintf("%s%s", baseUrl, path)).Inc()
+			
 			backoffDelay := calculateBackoffDelay(rateLimitRetries)
 			time.Sleep(backoffDelay)
 			continue
@@ -214,11 +246,29 @@ func Post(client *fiber.Client, coolingDuration, timeout time.Duration, baseUrl,
 }
 
 func postRaw(client *fiber.Client, timeout time.Duration, baseUrl, path string, payload map[string]any, headers map[string]string) (body []byte, err error) {
+	start := time.Now()
+	endpoint := fmt.Sprintf("%s%s", baseUrl, path)
+	
+	// Track concurrent requests
+	metrics.ConcurrentRequestsActive().Inc()
+	defer func() {
+		metrics.ConcurrentRequestsActive().Dec()
+		// Record API latency
+		duration := time.Since(start).Seconds()
+		metrics.ExternalAPILatency().WithLabelValues(endpoint).Observe(duration)
+	}()
+	
+	// Track semaphore wait time
+	semaphoreStart := time.Now()
 	ctx := context.Background()
 	if err := limiter.Acquire(ctx, 1); err != nil {
 		return nil, fmt.Errorf("failed to acquire semaphore: %w", err)
 	}
 	defer limiter.Release(1)
+	
+	// Record semaphore wait duration
+	semaphoreWaitTime := time.Since(semaphoreStart).Seconds()
+	metrics.SemaphoreWaitDuration().Observe(semaphoreWaitTime)
 
 	req := client.Post(fmt.Sprintf("%s%s", baseUrl, path))
 
@@ -234,8 +284,13 @@ func postRaw(client *fiber.Client, timeout time.Duration, baseUrl, path string, 
 
 	code, body, errs := req.Timeout(timeout).Bytes()
 	if err := errors.Join(errs...); err != nil {
+		// Track network/timeout errors
+		metrics.ExternalAPIRequestsTotal().WithLabelValues(endpoint, "error").Inc()
 		return nil, err
 	}
+
+	// Track HTTP response with actual status code
+	metrics.ExternalAPIRequestsTotal().WithLabelValues(endpoint, fmt.Sprintf("%d", code)).Inc()
 
 	if code == fiber.StatusOK {
 		return body, nil

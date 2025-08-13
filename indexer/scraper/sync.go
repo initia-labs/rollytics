@@ -85,6 +85,7 @@ func (s *Scraper) fastSync(client *fiber.Client, height int64, blockChan chan<- 
 				if err == nil {
 					s.logger.Info("scraped block", slog.Int64("height", block.Height))
 					blockChan <- block
+					s.trackScrapedBlock()
 
 					s.mtx.Lock()
 					if block.Height > syncedHeight {
@@ -140,6 +141,7 @@ func (s *Scraper) slowSync(client *fiber.Client, height int64, blockChan chan<- 
 				if err == nil {
 					s.logger.Info("scraped block", slog.Int64("height", block.Height))
 					blockChan <- block
+					s.trackScrapedBlock()
 				} else if !reachedLatestHeight(fmt.Sprintf("%+v", err)) {
 					// log only if it is not related to reached latest height error
 					s.logger.Info("error while scraping block", slog.Int64("height", h), slog.Any("error", err))

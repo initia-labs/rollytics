@@ -6,6 +6,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 
 	"github.com/initia-labs/rollytics/config"
+	"github.com/initia-labs/rollytics/metrics"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
 	"github.com/initia-labs/rollytics/util"
@@ -87,4 +88,9 @@ func (h *BaseHandler) GetNftIds(keys []util.NftKey) ([]int64, error) {
 		}
 	}
 	return ids, nil
+}
+
+// TrackError tracks errors in handlers  
+func (h *BaseHandler) TrackError(errorType string) {
+	metrics.TrackError("api", errorType)
 }

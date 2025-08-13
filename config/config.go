@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -16,7 +17,17 @@ import (
 var (
 	Version    = "dev"
 	CommitHash = "unknown"
+
+	// Singleton instance
+	configInstance *Config
+	configOnce     sync.Once
 )
+
+type MetricsConfig struct {
+	Enabled bool   `json:"enabled"`
+	Path    string `json:"path"`
+	Port    string `json:"port"`
+}
 
 func SetBuildInfo(v, commit string) {
 	Version = v
@@ -36,27 +47,45 @@ type Config struct {
 	cacheTTL              time.Duration // for api only
 	pollingInterval       time.Duration // for api only
 	internalTxConfig      *InternalTxConfig
+	metricsConfig         *MetricsConfig
 }
 
 func setDefaults() {
+	viper.SetDefault("PORT", "8080")
 	viper.SetDefault("DB_AUTO_MIGRATE", false)
 	viper.SetDefault("DB_BATCH_SIZE", 100)
+	viper.SetDefault("DB_MAX_CONNS", 0)  // 0 means unlimited (GORM default)
+	viper.SetDefault("DB_IDLE_CONNS", 2) // GORM default is 2
 	viper.SetDefault("DB_MIGRATION_DIR", "orm/migrations")
 	viper.SetDefault("ACCOUNT_ADDRESS_PREFIX", "init")
 	viper.SetDefault("COOLING_DURATION", 100*time.Millisecond)
 	viper.SetDefault("QUERY_TIMEOUT", 10*time.Second)
 	viper.SetDefault("MAX_CONCURRENT_REQUESTS", 50)
 	viper.SetDefault("LOG_LEVEL", "warn")
-	viper.SetDefault("LOG_FORMAT", "plain")
+	viper.SetDefault("LOG_FORMAT", "json")
 	viper.SetDefault("CACHE_SIZE", 1000)
 	viper.SetDefault("CACHE_TTL", 10*time.Minute)
 	viper.SetDefault("POLLING_INTERVAL", 3*time.Second)
 	viper.SetDefault("INTERNAL_TX", false)
 	viper.SetDefault("INTERNAL_TX_POLL_INTERVAL", 5*time.Second)
 	viper.SetDefault("INTERNAL_TX_BATCH_SIZE", 10)
+	viper.SetDefault("METRICS_ENABLED", false)
+	viper.SetDefault("METRICS_PATH", "/metrics")
+	viper.SetDefault("METRICS_PORT", "9090")
+	//  CHAIN_ID, VM_TYPE, RPC_URL, REST_URL, and JSON_RPC_URL have no defaults
 }
 
 func GetConfig() (*Config, error) {
+	var err error
+
+	configOnce.Do(func() {
+		configInstance, err = loadConfig()
+	})
+
+	return configInstance, err
+}
+
+func loadConfig() (*Config, error) {
 	if err := godotenv.Load(); err != nil {
 		// just log without panic, local testing purpose only
 		fmt.Fprintln(os.Stderr, "No .env file found")
@@ -110,6 +139,11 @@ func GetConfig() (*Config, error) {
 			Enabled:      viper.GetBool("INTERNAL_TX"),
 			PollInterval: viper.GetDuration("INTERNAL_TX_POLL_INTERVAL"),
 			BatchSize:    viper.GetInt("INTERNAL_TX_BATCH_SIZE"),
+		},
+		metricsConfig: &MetricsConfig{
+			Enabled: viper.GetBool("METRICS_ENABLED"),
+			Path:    viper.GetString("METRICS_PATH"),
+			Port:    viper.GetString("METRICS_PORT"),
 		},
 	}
 
@@ -207,6 +241,10 @@ func (c Config) GetQueryTimeout() time.Duration {
 
 func (c Config) GetMaxConcurrentRequests() int {
 	return c.maxConcurrentRequests
+}
+
+func (c Config) GetMetricsConfig() *MetricsConfig {
+	return c.metricsConfig
 }
 
 func (c Config) GetLogFormat() string {

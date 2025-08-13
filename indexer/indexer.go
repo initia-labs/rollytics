@@ -17,6 +17,7 @@ import (
 	"github.com/initia-labs/rollytics/indexer/scraper"
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
 	"github.com/initia-labs/rollytics/indexer/util"
+	"github.com/initia-labs/rollytics/metrics"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
 )
@@ -111,9 +112,20 @@ func (i *Indexer) prepare() {
 
 		b := block
 		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					metrics.TrackPanic("indexer")
+					panic(r) // re-panic
+				}
+			}()
+
+			start := time.Now()
 			if err := i.collector.Prepare(b); err != nil {
+				metrics.GetMetrics().Indexer.ProcessingErrors.WithLabelValues("prepare", "collector_error").Inc()
+				metrics.TrackError("indexer", "prepare_error")
 				panic(err)
 			}
+			metrics.GetMetrics().Indexer.BlockProcessingTime.WithLabelValues("prepare").Observe(time.Since(start).Seconds())
 
 			i.mtx.Lock()
 			i.blockMap[b.Height] = b
@@ -128,6 +140,8 @@ func (i *Indexer) collect() {
 		i.mtx.Lock()
 
 		inflightCount := len(i.blockMap) + i.prepareCount
+		metrics.GetMetrics().Indexer.InflightBlocksCount.Set(float64(inflightCount))
+		
 		switch {
 		case inflightCount > 100 && !i.paused:
 			i.controlChan <- "pause"
@@ -146,9 +160,25 @@ func (i *Indexer) collect() {
 			continue
 		}
 
-		if err := i.collector.Collect(block); err != nil {
-			panic(err)
-		}
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					metrics.TrackPanic("indexer")
+					panic(r) // re-panic
+				}
+			}()
+
+			start := time.Now()
+			if err := i.collector.Collect(block); err != nil {
+				metrics.GetMetrics().Indexer.ProcessingErrors.WithLabelValues("collect", "collector_error").Inc()
+				metrics.TrackError("indexer", "collect_error")
+				panic(err)
+			}
+			metrics.GetMetrics().Indexer.BlockProcessingTime.WithLabelValues("collect").Observe(time.Since(start).Seconds())
+
+			metrics.GetMetrics().Indexer.BlocksProcessedTotal.Inc()
+			metrics.GetMetrics().Indexer.CurrentBlockHeight.Set(float64(block.Height))
+		}()
 
 		i.height++
 	}
