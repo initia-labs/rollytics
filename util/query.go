@@ -28,16 +28,39 @@ const (
 )
 
 var (
-	limiter    *semaphore.Weighted
-	jitterSeed atomic.Uint32
+	limiter        *semaphore.Weighted
+	jitterSeed     atomic.Uint32
+	metricsBatcher *metrics.MetricsBatcher
 )
 
 func init() {
 	jitterSeed.Store(uint32(time.Now().UnixNano()))
+	
+	// Initialize metrics batcher with default config
+	config := metrics.DefaultMetricsBatcherConfig()
+	metricsBatcher = metrics.NewMetricsBatcher(config)
+	metricsBatcher.Start()
 }
 
 func InitLimiter(cfg *config.Config) {
 	limiter = semaphore.NewWeighted(int64(cfg.GetMaxConcurrentRequests()))
+}
+
+// InitMetricsBatcher initializes metrics batcher with custom configuration
+func InitMetricsBatcher(config metrics.MetricsBatcherConfig) {
+	if metricsBatcher != nil {
+		metricsBatcher.Stop()
+	}
+	metricsBatcher = metrics.NewMetricsBatcher(config)
+	metricsBatcher.Start()
+}
+
+// GetMetricsBatcherStats returns current buffer statistics for monitoring
+func GetMetricsBatcherStats() map[string]int {
+	if metricsBatcher == nil {
+		return nil
+	}
+	return metricsBatcher.GetBufferStats()
 }
 
 func acquireLimiter(ctx context.Context) error {
@@ -160,8 +183,9 @@ func executeWithRetry(ctx context.Context, client *fiber.Client, coolingDuration
 		if errors.Is(err, fiber.ErrTooManyRequests) {
 			rateLimitRetries++
 
-			// Track rate limit hits
-			metrics.RateLimitHitsTotal().WithLabelValues(fmt.Sprintf("%s%s", baseUrl, path)).Inc()
+			// Track rate limit hits using batching
+			endpoint := fmt.Sprintf("%s%s", baseUrl, path)
+			metricsBatcher.RecordRateLimitHit(endpoint)
 
 			backoffDelay := calculateBackoffDelay(rateLimitRetries)
 			select {
@@ -201,13 +225,13 @@ func executeHTTPRequest(ctx context.Context, client *fiber.Client, timeout time.
 	start := time.Now()
 	endpoint := parsedUrl.String()
 
-	// Track concurrent requests
-	metrics.ConcurrentRequestsActive().Inc()
+	// Track concurrent requests using batching
+	metricsBatcher.RecordConcurrentRequest(1)
 	defer func() {
-		metrics.ConcurrentRequestsActive().Dec()
+		metricsBatcher.RecordConcurrentRequest(-1)
 		// Record API latency
 		duration := time.Since(start).Seconds()
-		metrics.ExternalAPILatency().WithLabelValues(endpoint).Observe(duration)
+		metricsBatcher.RecordAPILatency(endpoint, duration)
 	}()
 
 	// Track semaphore wait time
@@ -217,9 +241,9 @@ func executeHTTPRequest(ctx context.Context, client *fiber.Client, timeout time.
 	}
 	defer releaseLimiter()
 
-	// Record semaphore wait duration
+	// Record semaphore wait duration using batching
 	semaphoreWaitTime := time.Since(semaphoreStart).Seconds()
-	metrics.SemaphoreWaitDuration().Observe(semaphoreWaitTime)
+	metricsBatcher.RecordSemaphoreWait(semaphoreWaitTime)
 
 	var req *fiber.Agent
 	if config.method == "GET" {
@@ -249,13 +273,13 @@ func executeHTTPRequest(ctx context.Context, client *fiber.Client, timeout time.
 
 	code, body, errs := req.Timeout(timeout).Bytes()
 	if err := errors.Join(errs...); err != nil {
-		// Track network/timeout errors
-		metrics.ExternalAPIRequestsTotal().WithLabelValues(endpoint, "error").Inc()
+		// Track network/timeout errors using batching
+		metricsBatcher.RecordAPIRequest(endpoint, "error")
 		return nil, types.NewNetworkError(endpoint, err)
 	}
 
-	// Track HTTP response with actual status code
-	metrics.ExternalAPIRequestsTotal().WithLabelValues(endpoint, fmt.Sprintf("%d", code)).Inc()
+	// Track HTTP response with actual status code using batching
+	metricsBatcher.RecordAPIRequest(endpoint, fmt.Sprintf("%d", code))
 
 	if code == fiber.StatusOK {
 		return body, nil
