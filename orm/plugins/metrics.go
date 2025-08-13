@@ -1,7 +1,6 @@
 package plugins
 
 import (
-	"regexp"
 	"strings"
 	"time"
 
@@ -119,7 +118,7 @@ func getOperationType(db *gorm.DB) string {
 	if spaceIndex == -1 {
 		spaceIndex = len(sql)
 	}
-	
+
 	firstWord := strings.ToUpper(sql[:spaceIndex])
 
 	switch firstWord {
@@ -140,34 +139,5 @@ func getTableName(db *gorm.DB) string {
 		return db.Statement.Table
 	}
 
-	// Fallback: extract from SQL using regex
-	if db.Statement.SQL.String() != "" {
-		tableName := extractTableFromSQL(db.Statement.SQL.String())
-		if tableName != "" {
-			return tableName
-		}
-	}
-
 	return "unknown"
-}
-
-// extractTableFromSQL extracts table name from SQL statement using regex
-func extractTableFromSQL(sql string) string {
-	// Common patterns for extracting table names
-	patterns := []string{
-		`(?i)FROM\s+["\x60]?(\w+)["\x60]?`,          // SELECT ... FROM table
-		`(?i)INSERT\s+INTO\s+["\x60]?(\w+)["\x60]?`, // INSERT INTO table
-		`(?i)UPDATE\s+["\x60]?(\w+)["\x60]?`,        // UPDATE table
-		`(?i)DELETE\s+FROM\s+["\x60]?(\w+)["\x60]?`, // DELETE FROM table
-	}
-
-	for _, pattern := range patterns {
-		re := regexp.MustCompile(pattern)
-		matches := re.FindStringSubmatch(sql)
-		if len(matches) > 1 {
-			return matches[1]
-		}
-	}
-
-	return ""
 }
