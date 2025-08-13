@@ -259,7 +259,7 @@ func setupGracefulShutdown() {
 	go func() {
 		<-c
 		shutdownGlobalMetricsBatcher()
-		os.Exit(0)
+		signal.Stop(c)
 	}()
 }
 
