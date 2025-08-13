@@ -64,7 +64,31 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Api {
 
 		// Track requests in flight
 		metrics.GetMetrics().HTTP.RequestsInFlight.Inc()
-		defer metrics.GetMetrics().HTTP.RequestsInFlight.Dec()
+		defer func() {
+			// Always decrement requests in flight, even on panic
+			metrics.GetMetrics().HTTP.RequestsInFlight.Dec()
+
+			// Track metrics after request completion, with panic recovery
+			if r := recover(); r != nil {
+				// Track panic metrics
+				duration := time.Since(start).Seconds()
+				method := c.Method()
+				path := c.Route().Path
+				if path == "" {
+					path = c.Path()
+				}
+				handler := metrics.GetHandlerPattern(path)
+
+				// Track metrics for panicked request
+				metrics.GetMetrics().HTTP.RequestsTotal.WithLabelValues(method, handler, "5xx").Inc()
+				metrics.GetMetrics().HTTP.RequestDuration.WithLabelValues(method, handler).Observe(duration)
+				metrics.GetMetrics().HTTP.ErrorsTotal.WithLabelValues(handler, "server_error").Inc()
+				metrics.TrackEndpoint(path, duration)
+
+				// Re-panic to let upper panic handler deal with it
+				panic(r)
+			}
+		}()
 
 		// Continue with request
 		err := c.Next()
