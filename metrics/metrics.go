@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"log/slog"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -35,6 +36,9 @@ var (
 
 	// Global DB stats updater
 	dbStatsUpdater *DBStatsUpdater
+
+	// Singleton initialization
+	initOnce sync.Once
 )
 
 // MetricsServer represents the Prometheus metrics HTTP server
@@ -45,31 +49,34 @@ type MetricsServer struct {
 }
 
 // Init initializes the Prometheus metrics registry and registers all metrics
+// This function is safe to call multiple times - it will only initialize once
 func Init() {
-	registry = prometheus.NewRegistry()
+	initOnce.Do(func() {
+		registry = prometheus.NewRegistry()
 
-	// Create metric groups
-	metrics = &Metrics{
-		HTTP:        NewHTTPMetrics(),
-		Database:    NewDatabaseMetrics(),
-		Indexer:     NewIndexerMetrics(),
-		ExternalAPI: NewExternalAPIMetrics(),
-		Error:       NewErrorMetrics(),
-	}
+		// Create metric groups
+		metrics = &Metrics{
+			HTTP:        NewHTTPMetrics(),
+			Database:    NewDatabaseMetrics(),
+			Indexer:     NewIndexerMetrics(),
+			ExternalAPI: NewExternalAPIMetrics(),
+			Error:       NewErrorMetrics(),
+		}
 
-	// Register all metric groups
-	metrics.HTTP.Register(registry)
-	metrics.Database.Register(registry)
-	metrics.Indexer.Register(registry)
-	metrics.ExternalAPI.Register(registry)
-	metrics.Error.Register(registry)
+		// Register all metric groups
+		metrics.HTTP.Register(registry)
+		metrics.Database.Register(registry)
+		metrics.Indexer.Register(registry)
+		metrics.ExternalAPI.Register(registry)
+		metrics.Error.Register(registry)
 
-	// Add Go runtime metrics
-	registry.MustRegister(collectors.NewGoCollector())
-	registry.MustRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
+		// Add Go runtime metrics
+		registry.MustRegister(collectors.NewGoCollector())
+		registry.MustRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
 
-	// Start endpoint tracking for detailed analysis
-	StartEndpointTracking()
+		// Start endpoint tracking for detailed analysis
+		StartEndpointTracking()
+	})
 }
 
 // NewServer creates a new metrics server

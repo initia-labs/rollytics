@@ -42,8 +42,9 @@ func StartEndpointTracking() {
 // StopEndpointTracking stops the endpoint tracker
 func StopEndpointTracking() {
 	if globalTracker != nil {
-		close(globalTracker.done)
 		globalTracker.ticker.Stop()
+		close(globalTracker.done)
+		time.Sleep(50 * time.Millisecond) // wait for goroutine exit
 		globalTracker = nil
 	}
 }
@@ -106,11 +107,14 @@ func (et *EndpointTracker) updateTopEndpoints() {
 			continue // Skip inactive or low-traffic endpoints
 		}
 
-		// Calculate P99
 		durations := make([]float64, len(stats.Durations))
 		copy(durations, stats.Durations)
+		if len(durations) == 0 {
+			continue
+		}
 		sort.Float64s(durations)
 
+		// Calculate P99
 		p99Index := int(float64(len(durations)) * 0.99)
 		if p99Index >= len(durations) {
 			p99Index = len(durations) - 1

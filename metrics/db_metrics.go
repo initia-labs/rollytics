@@ -132,8 +132,8 @@ func (u *DBStatsUpdater) Start() {
 // Stop stops the database stats updater
 func (u *DBStatsUpdater) Stop() {
 	u.logger.Info("stopping database stats updater")
-	close(u.done)
 	u.ticker.Stop()
+	close(u.done)
 }
 
 // run is the main loop for updating database statistics
