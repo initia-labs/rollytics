@@ -33,16 +33,16 @@ const (
 	MaxPortNumber      = 65535
 
 	// Database settings
-	DefaultMaxConns  = 0 // 0 means unlimited (GORM default)
-	DefaultIdleConns = 2 // GORM default
-	DefaultBatchSize = 100
+	DefaultDBMaxConns  = 0 // 0 means unlimited (GORM default)
+	DefaultDBIdleConns = 2 // GORM default
+	DefaultDBBatchSize = 100
 
 	// Cache settings
 	DefaultCacheSize = 1000
 	DefaultCacheTTL  = 10 * time.Minute
 
 	// Timeout and interval settings
-	DefaultCoolingDuration = 100 * time.Millisecond
+	DefaultCoolingDuration = 50 * time.Millisecond
 	DefaultQueryTimeout    = 10 * time.Second
 	DefaultPollingInterval = 3 * time.Second
 
@@ -91,9 +91,9 @@ type Config struct {
 func setDefaults() {
 	viper.SetDefault("PORT", DefaultAPIPort)
 	viper.SetDefault("DB_AUTO_MIGRATE", false)
-	viper.SetDefault("DB_BATCH_SIZE", DefaultBatchSize)
-	viper.SetDefault("DB_MAX_CONNS", DefaultMaxConns)
-	viper.SetDefault("DB_IDLE_CONNS", DefaultIdleConns)
+	viper.SetDefault("DB_BATCH_SIZE", DefaultDBBatchSize)
+	viper.SetDefault("DB_MAX_CONNS", DefaultDBMaxConns)
+	viper.SetDefault("DB_IDLE_CONNS", DefaultDBIdleConns)
 	viper.SetDefault("DB_MIGRATION_DIR", "orm/migrations")
 	viper.SetDefault("ACCOUNT_ADDRESS_PREFIX", DefaultAccountAddressPrefix)
 	viper.SetDefault("COOLING_DURATION", DefaultCoolingDuration)
