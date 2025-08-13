@@ -2,7 +2,6 @@ package indexer
 
 import (
 	"errors"
-	"fmt"
 	"log/slog"
 	"sync"
 	"time"
@@ -63,7 +62,7 @@ func (i *Indexer) Run() error {
 		Limit(1).
 		First(&lastBlock).Error; err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		i.logger.Error("failed to get the last block from db", slog.Any("error", err))
-		return fmt.Errorf("failed to get the last block from db: %s", err.Error())
+		return types.NewDatabaseError("get last block", err)
 	}
 	i.height = lastBlock.Height + 1
 
@@ -85,10 +84,10 @@ func (i *Indexer) wait() {
 			time.Sleep(5 * time.Second)
 			continue
 		}
-		if chainHeight > 10 {
+		if chainHeight > types.MinChainHeightToStart {
 			break
 		}
-		time.Sleep(5 * time.Second)
+		time.Sleep(types.ChainCheckInterval)
 	}
 }
 
@@ -143,10 +142,10 @@ func (i *Indexer) collect() {
 		metrics.GetMetrics().Indexer.InflightBlocksCount.Set(float64(inflightCount))
 		
 		switch {
-		case inflightCount > 100 && !i.paused:
+		case inflightCount > types.MaxInflightBlocks && !i.paused:
 			i.controlChan <- "pause"
 			i.paused = true
-		case inflightCount < 50 && i.paused:
+		case inflightCount < types.MinInflightBlocks && i.paused:
 			i.controlChan <- "start"
 			i.paused = false
 		}

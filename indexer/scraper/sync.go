@@ -14,6 +14,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/initia-labs/rollytics/indexer/types"
+	commontypes "github.com/initia-labs/rollytics/types"
 )
 
 const (
@@ -103,7 +104,7 @@ func (s *Scraper) fastSync(client *fiber.Client, height int64, blockChan chan<- 
 				}
 
 				// retry until max err count
-				if errCount += 1; errCount > maxErrCount {
+				if errCount += 1; errCount > commontypes.MaxScrapeErrCount {
 					s.logger.Error("failed to scrap block", slog.Int64("height", h), slog.Any("error", err))
 					panic(err)
 				}
@@ -125,7 +126,7 @@ func (s *Scraper) slowSync(client *fiber.Client, height int64, blockChan chan<- 
 			g       errgroup.Group
 		)
 
-		for i := range batchScrapSize {
+		for i := range commontypes.BatchScrapSize {
 			h := height + int64(i)
 			g.Go(func() error {
 				block, err := scrapeBlock(client, h, s.cfg)
@@ -170,7 +171,7 @@ func (s *Scraper) slowSync(client *fiber.Client, height int64, blockChan chan<- 
 			}
 		}
 		if errorHeight == -1 {
-			height += batchScrapSize
+			height += commontypes.BatchScrapSize
 		} else {
 			height = errorHeight
 		}

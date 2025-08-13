@@ -10,12 +10,11 @@ import (
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/indexer/types"
 	"github.com/initia-labs/rollytics/metrics"
+	commontypes "github.com/initia-labs/rollytics/types"
 )
 
 const (
-	layout         = "2006-01-02T15:04:05.999999999Z"
-	batchScrapSize = 5
-	maxErrCount    = 5
+	layout = "2006-01-02T15:04:05.999999999Z"
 )
 
 type Scraper struct {
@@ -51,7 +50,7 @@ func (s *Scraper) Run(height int64, blockChan chan<- types.ScrapedBlock, control
 
 // updateScrapeSpeedMetrics periodically updates scrape speed metrics
 func (s *Scraper) updateScrapeSpeedMetrics() {
-	ticker := time.NewTicker(10 * time.Second)
+	ticker := time.NewTicker(commontypes.ScrapeSpeedUpdateInterval)
 	defer ticker.Stop()
 
 	for range ticker.C {

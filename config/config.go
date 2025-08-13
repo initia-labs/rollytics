@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 
@@ -21,6 +22,43 @@ var (
 	// Singleton instance
 	configInstance *Config
 	configOnce     sync.Once
+)
+
+// Default configuration constants
+const (
+	// Port settings
+	DefaultAPIPort     = "8080"
+	DefaultMetricsPort = "9090"
+	MinPortNumber      = 1
+	MaxPortNumber      = 65535
+
+	// Database settings
+	DefaultMaxConns  = 0 // 0 means unlimited (GORM default)
+	DefaultIdleConns = 2 // GORM default
+	DefaultBatchSize = 100
+
+	// Cache settings
+	DefaultCacheSize = 1000
+	DefaultCacheTTL  = 10 * time.Minute
+
+	// Timeout and interval settings
+	DefaultCoolingDuration = 100 * time.Millisecond
+	DefaultQueryTimeout    = 10 * time.Second
+	DefaultPollingInterval = 3 * time.Second
+
+	// Concurrent request settings
+	DefaultMaxConcurrentRequests = 50
+	MaxAllowedConcurrentRequests = 1000
+
+	// Internal TX settings
+	DefaultInternalTxPollInterval = 5 * time.Second
+	DefaultInternalTxBatchSize    = 10
+
+	// Metrics settings
+	DefaultMetricsPath = "/metrics"
+
+	// Default address prefix
+	DefaultAccountAddressPrefix = "init"
 )
 
 type MetricsConfig struct {
@@ -51,27 +89,27 @@ type Config struct {
 }
 
 func setDefaults() {
-	viper.SetDefault("PORT", "8080")
+	viper.SetDefault("PORT", DefaultAPIPort)
 	viper.SetDefault("DB_AUTO_MIGRATE", false)
-	viper.SetDefault("DB_BATCH_SIZE", 100)
-	viper.SetDefault("DB_MAX_CONNS", 0)  // 0 means unlimited (GORM default)
-	viper.SetDefault("DB_IDLE_CONNS", 2) // GORM default is 2
+	viper.SetDefault("DB_BATCH_SIZE", DefaultBatchSize)
+	viper.SetDefault("DB_MAX_CONNS", DefaultMaxConns)
+	viper.SetDefault("DB_IDLE_CONNS", DefaultIdleConns)
 	viper.SetDefault("DB_MIGRATION_DIR", "orm/migrations")
-	viper.SetDefault("ACCOUNT_ADDRESS_PREFIX", "init")
-	viper.SetDefault("COOLING_DURATION", 100*time.Millisecond)
-	viper.SetDefault("QUERY_TIMEOUT", 10*time.Second)
-	viper.SetDefault("MAX_CONCURRENT_REQUESTS", 50)
+	viper.SetDefault("ACCOUNT_ADDRESS_PREFIX", DefaultAccountAddressPrefix)
+	viper.SetDefault("COOLING_DURATION", DefaultCoolingDuration)
+	viper.SetDefault("QUERY_TIMEOUT", DefaultQueryTimeout)
+	viper.SetDefault("MAX_CONCURRENT_REQUESTS", DefaultMaxConcurrentRequests)
 	viper.SetDefault("LOG_LEVEL", "warn")
 	viper.SetDefault("LOG_FORMAT", "json")
-	viper.SetDefault("CACHE_SIZE", 1000)
-	viper.SetDefault("CACHE_TTL", 10*time.Minute)
-	viper.SetDefault("POLLING_INTERVAL", 3*time.Second)
+	viper.SetDefault("CACHE_SIZE", DefaultCacheSize)
+	viper.SetDefault("CACHE_TTL", DefaultCacheTTL)
+	viper.SetDefault("POLLING_INTERVAL", DefaultPollingInterval)
 	viper.SetDefault("INTERNAL_TX", false)
-	viper.SetDefault("INTERNAL_TX_POLL_INTERVAL", 5*time.Second)
-	viper.SetDefault("INTERNAL_TX_BATCH_SIZE", 10)
+	viper.SetDefault("INTERNAL_TX_POLL_INTERVAL", DefaultInternalTxPollInterval)
+	viper.SetDefault("INTERNAL_TX_BATCH_SIZE", DefaultInternalTxBatchSize)
 	viper.SetDefault("METRICS_ENABLED", false)
-	viper.SetDefault("METRICS_PATH", "/metrics")
-	viper.SetDefault("METRICS_PORT", "9090")
+	viper.SetDefault("METRICS_PATH", DefaultMetricsPath)
+	viper.SetDefault("METRICS_PORT", DefaultMetricsPort)
 	//  CHAIN_ID, VM_TYPE, RPC_URL, REST_URL, and JSON_RPC_URL have no defaults
 }
 
@@ -255,16 +293,31 @@ func (c Config) GetLogFormat() string {
 }
 
 func (c Config) Validate() error {
+	// Port validation
 	if len(c.listenPort) == 0 {
 		return fmt.Errorf("PORT is required")
 	}
+	if port, err := strconv.Atoi(c.listenPort); err != nil || port < MinPortNumber || port > MaxPortNumber {
+		return fmt.Errorf("PORT must be a valid port number (%d-%d)", MinPortNumber, MaxPortNumber)
+	}
+
+	// Log format validation
 	switch c.logFormat {
 	case "json", "plain":
 		break
 	default:
-		return fmt.Errorf("%s is invalid log format", c.logFormat)
+		return fmt.Errorf("%s is invalid log format, must be 'json' or 'plain'", c.logFormat)
 	}
 
+	// Log level validation
+	switch c.logLevel {
+	case "debug", "info", "warn", "error":
+		break
+	default:
+		return fmt.Errorf("%s is invalid log level, must be one of: debug, info, warn, error", c.logLevel)
+	}
+
+	// Numeric validations
 	if c.cacheSize < 0 {
 		return fmt.Errorf("CACHE_SIZE must be non-negative")
 	}
@@ -274,6 +327,40 @@ func (c Config) Validate() error {
 	if c.pollingInterval < 0 {
 		return fmt.Errorf("POLLING_INTERVAL must be non-negative")
 	}
+	if c.coolingDuration < 0 {
+		return fmt.Errorf("COOLING_DURATION must be non-negative")
+	}
+	if c.queryTimeout <= 0 {
+		return fmt.Errorf("QUERY_TIMEOUT must be positive")
+	}
+	if c.maxConcurrentRequests < 1 {
+		return fmt.Errorf("MAX_CONCURRENT_REQUESTS must be at least 1")
+	}
+	if c.maxConcurrentRequests > MaxAllowedConcurrentRequests {
+		return fmt.Errorf("MAX_CONCURRENT_REQUESTS is too high (max: %d)", MaxAllowedConcurrentRequests)
+	}
+
+	// Internal TX config validation
+	if c.internalTxConfig != nil && c.internalTxConfig.Enabled {
+		if c.internalTxConfig.PollInterval <= 0 {
+			return fmt.Errorf("INTERNAL_TX_POLL_INTERVAL must be positive when INTERNAL_TX is enabled")
+		}
+		if c.internalTxConfig.BatchSize < 1 {
+			return fmt.Errorf("INTERNAL_TX_BATCH_SIZE must be at least 1")
+		}
+	}
+
+	// Metrics config validation
+	if c.metricsConfig != nil && c.metricsConfig.Enabled {
+		if port, err := strconv.Atoi(c.metricsConfig.Port); err != nil || port < MinPortNumber || port > MaxPortNumber {
+			return fmt.Errorf("METRICS_PORT must be a valid port number (%d-%d)", MinPortNumber, MaxPortNumber)
+		}
+		if c.metricsConfig.Path == "" || c.metricsConfig.Path[0] != '/' {
+			return fmt.Errorf("METRICS_PATH must start with '/'")
+		}
+	}
+
+	// Delegate to sub-configs
 	if err := c.dbConfig.Validate(); err != nil {
 		return err
 	}
