@@ -355,6 +355,9 @@ func (c Config) Validate() error {
 		if port, err := strconv.Atoi(c.metricsConfig.Port); err != nil || port < MinPortNumber || port > MaxPortNumber {
 			return types.NewValidationError("METRICS_PORT", fmt.Sprintf("must be a valid port number (%d-%d)", MinPortNumber, MaxPortNumber))
 		}
+		if c.metricsConfig.Port == c.listenPort {
+			return types.NewValidationError("METRICS_PORT", fmt.Sprintf("metrics port %s conflicts with API port", c.metricsConfig.Port))
+		}
 		if c.metricsConfig.Path == "" || c.metricsConfig.Path[0] != '/' {
 			return types.NewValidationError("METRICS_PATH", "must start with '/'")
 		}

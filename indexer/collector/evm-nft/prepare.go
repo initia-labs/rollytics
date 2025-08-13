@@ -5,7 +5,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/gofiber/fiber/v2"
 	evmtypes "github.com/initia-labs/minievm/x/evm/types"
 	"golang.org/x/sync/errgroup"
 
@@ -14,9 +13,6 @@ import (
 )
 
 func (sub *EvmNftSubmodule) prepare(block indexertypes.ScrapedBlock) error {
-	client := fiber.AcquireClient()
-	defer fiber.ReleaseClient(client)
-
 	targetMap, err := filterEvmData(block)
 	if err != nil {
 		return err
@@ -36,7 +32,7 @@ func (sub *EvmNftSubmodule) prepare(block indexertypes.ScrapedBlock) error {
 
 		addr := collectionAddr
 		g.Go(func() error {
-			name, err := getCollectionName(addr, client, sub.cfg, block.Height)
+			name, err := getCollectionName(addr, sub.cfg, block.Height)
 			if err != nil {
 				if isEvmRevertError(err) {
 					sub.AddToBlacklist(addr)
@@ -56,7 +52,7 @@ func (sub *EvmNftSubmodule) prepare(block indexertypes.ScrapedBlock) error {
 		for tokenId := range tokenIdMap {
 			id := tokenId
 			g.Go(func() error {
-				tokenUri, err := getTokenUri(addr, id, client, sub.cfg, block.Height)
+				tokenUri, err := getTokenUri(addr, id, sub.cfg, block.Height)
 				if err != nil {
 					if isEvmRevertError(err) {
 						return nil

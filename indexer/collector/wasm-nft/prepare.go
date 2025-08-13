@@ -5,7 +5,6 @@ import (
 	"regexp"
 	"sync"
 
-	"github.com/gofiber/fiber/v2"
 	"golang.org/x/sync/errgroup"
 
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
@@ -15,9 +14,6 @@ import (
 var parseErrRegex = regexp.MustCompile(`Error parsing into type [^:]+::msg::QueryMsg: unknown variant`)
 
 func (sub *WasmNftSubmodule) prepare(block indexertypes.ScrapedBlock) error {
-	client := fiber.AcquireClient()
-	defer fiber.ReleaseClient(client)
-
 	creators, err := filterWasmData(block)
 	if err != nil {
 		return err
@@ -36,7 +32,7 @@ func (sub *WasmNftSubmodule) prepare(block indexertypes.ScrapedBlock) error {
 		}
 
 		g.Go(func() error {
-			name, err := getCollectionName(addr, client, sub.cfg, block.Height)
+			name, err := getCollectionName(addr, sub.cfg, block.Height)
 			if err != nil {
 				errString := fmt.Sprintf("%+v", err)
 				if parseErrRegex.MatchString(errString) {

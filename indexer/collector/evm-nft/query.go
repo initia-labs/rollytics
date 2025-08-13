@@ -8,7 +8,6 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/gofiber/fiber/v2"
 	"github.com/initia-labs/minievm/x/evm/contracts/erc721"
 
 	"github.com/initia-labs/rollytics/config"
@@ -16,7 +15,7 @@ import (
 	"github.com/initia-labs/rollytics/util"
 )
 
-func getCollectionName(collectionAddr string, client *fiber.Client, cfg *config.Config, height int64) (name string, err error) {
+func getCollectionName(collectionAddr string, cfg *config.Config, height int64) (name string, err error) {
 	abi, err := erc721.Erc721MetaData.GetAbi()
 	if err != nil {
 		return name, err
@@ -27,7 +26,7 @@ func getCollectionName(collectionAddr string, client *fiber.Client, cfg *config.
 		return name, err
 	}
 
-	callRes, err := evmCall(collectionAddr, input, client, cfg, height)
+	callRes, err := evmCall(collectionAddr, input, cfg, height)
 	if err != nil {
 		return name, err
 	}
@@ -36,7 +35,7 @@ func getCollectionName(collectionAddr string, client *fiber.Client, cfg *config.
 	return
 }
 
-func getTokenUri(collectionAddr, tokenIdStr string, client *fiber.Client, cfg *config.Config, height int64) (tokenUri string, err error) {
+func getTokenUri(collectionAddr, tokenIdStr string, cfg *config.Config, height int64) (tokenUri string, err error) {
 	abi, err := erc721.Erc721MetaData.GetAbi()
 	if err != nil {
 		return tokenUri, err
@@ -51,7 +50,7 @@ func getTokenUri(collectionAddr, tokenIdStr string, client *fiber.Client, cfg *c
 		return tokenUri, err
 	}
 
-	callRes, err := evmCall(collectionAddr, input, client, cfg, height)
+	callRes, err := evmCall(collectionAddr, input, cfg, height)
 	if err != nil {
 		return tokenUri, err
 	}
@@ -60,7 +59,7 @@ func getTokenUri(collectionAddr, tokenIdStr string, client *fiber.Client, cfg *c
 	return
 }
 
-func evmCall(contractAddr string, input []byte, client *fiber.Client, cfg *config.Config, height int64) (response []byte, err error) {
+func evmCall(contractAddr string, input []byte, cfg *config.Config, height int64) (response []byte, err error) {
 	payload := map[string]interface{}{
 		"sender":        "init1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqpqr5e3d",
 		"contract_addr": contractAddr,

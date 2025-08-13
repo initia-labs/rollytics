@@ -5,14 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/gofiber/fiber/v2"
-
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/types"
 	"github.com/initia-labs/rollytics/util"
 )
 
-func getCosmosTxs(client *fiber.Client, cfg *config.Config, height int64, txCount int) (txs []RestTx, err error) {
+func getCosmosTxs(cfg *config.Config, height int64, txCount int) (txs []RestTx, err error) {
 	params := map[string]string{"pagination.limit": "1000"}
 	path := fmt.Sprintf("/cosmos/tx/v1beta1/txs/block/%d", height)
 
@@ -35,7 +33,7 @@ func getCosmosTxs(client *fiber.Client, cfg *config.Config, height int64, txCoun
 	return response.Txs, nil
 }
 
-func getEvmTxs(client *fiber.Client, cfg *config.Config, height int64) (txs []types.EvmTx, err error) {
+func getEvmTxs(cfg *config.Config, height int64) (txs []types.EvmTx, err error) {
 	if cfg.GetVmType() != types.EVM {
 		return
 	}

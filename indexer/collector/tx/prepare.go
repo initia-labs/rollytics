@@ -1,7 +1,6 @@
 package tx
 
 import (
-	"github.com/gofiber/fiber/v2"
 	"golang.org/x/sync/errgroup"
 
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
@@ -9,15 +8,12 @@ import (
 )
 
 func (sub *TxSubmodule) prepare(block indexertypes.ScrapedBlock) error {
-	client := fiber.AcquireClient()
-	defer fiber.ReleaseClient(client)
-
 	var g errgroup.Group
 	var restTxs []RestTx
 	var evmTxs []types.EvmTx
 
 	g.Go(func() error {
-		txs, err := getCosmosTxs(client, sub.cfg, block.Height, len(block.Txs))
+		txs, err := getCosmosTxs(sub.cfg, block.Height, len(block.Txs))
 		if err != nil {
 			return err
 		}
@@ -27,7 +23,7 @@ func (sub *TxSubmodule) prepare(block indexertypes.ScrapedBlock) error {
 	})
 
 	g.Go(func() error {
-		txs, err := getEvmTxs(client, sub.cfg, block.Height)
+		txs, err := getEvmTxs(sub.cfg, block.Height)
 		if err != nil {
 			return err
 		}

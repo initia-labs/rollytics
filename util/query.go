@@ -29,41 +29,21 @@ const (
 )
 
 var (
-	limiter        *semaphore.Weighted
-	jitterSeed     atomic.Uint32
-	metricsBatcher *metrics.MetricsBatcher
-	globalConfig   *config.Config
+	limiter    *semaphore.Weighted
+	jitterSeed atomic.Uint32
+	cfg        *config.Config
 )
 
 func init() {
 	jitterSeed.Store(uint32(time.Now().UnixNano()))
-
-	// Initialize metrics batcher with default config
-	config := metrics.DefaultMetricsBatcherConfig()
-	metricsBatcher = metrics.NewMetricsBatcher(config)
-	metricsBatcher.Start()
 }
 
-func InitUtil(cfg *config.Config) {
-	globalConfig = cfg
-	limiter = semaphore.NewWeighted(int64(cfg.GetMaxConcurrentRequests()))
-}
-
-// InitMetricsBatcher initializes metrics batcher with custom configuration
-func InitMetricsBatcher(config metrics.MetricsBatcherConfig) {
-	if metricsBatcher != nil {
-		metricsBatcher.Stop()
+func InitUtil(_cfg *config.Config) {
+	if _cfg == nil {
+		panic("InitUtil: config cannot be nil")
 	}
-	metricsBatcher = metrics.NewMetricsBatcher(config)
-	metricsBatcher.Start()
-}
-
-// GetMetricsBatcherStats returns current buffer statistics for monitoring
-func GetMetricsBatcherStats() map[string]int {
-	if metricsBatcher == nil {
-		return nil
-	}
-	return metricsBatcher.GetBufferStats()
+	cfg = _cfg
+	limiter = semaphore.NewWeighted(int64(_cfg.GetMaxConcurrentRequests()))
 }
 
 func acquireLimiter(ctx context.Context) error {
@@ -176,7 +156,7 @@ func executeWithRetry(ctx context.Context, baseUrl, path string, config requestC
 			select {
 			case <-ctx.Done():
 				return nil, ctx.Err()
-			case <-time.After(globalConfig.GetCoolingDuration()):
+			case <-time.After(cfg.GetCoolingDuration()):
 				continue
 			}
 		}
@@ -188,7 +168,7 @@ func executeWithRetry(ctx context.Context, baseUrl, path string, config requestC
 
 			// Track rate limit hits using batching
 			endpoint := fmt.Sprintf("%s%s", baseUrl, path)
-			metricsBatcher.RecordRateLimitHit(endpoint)
+			metrics.GetGlobalMetricsBatcher().RecordRateLimitHit(endpoint)
 
 			backoffDelay := calculateBackoffDelay(rateLimitRetries)
 			select {
@@ -203,7 +183,7 @@ func executeWithRetry(ctx context.Context, baseUrl, path string, config requestC
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
-		case <-time.After(globalConfig.GetCoolingDuration()):
+		case <-time.After(cfg.GetCoolingDuration()):
 		}
 	}
 
@@ -232,12 +212,12 @@ func executeHTTPRequest(ctx context.Context, baseUrl, path string, config reques
 	endpoint := parsedUrl.String()
 
 	// Track concurrent requests using batching
-	metricsBatcher.RecordConcurrentRequest(1)
+	metrics.GetGlobalMetricsBatcher().RecordConcurrentRequest(1)
 	defer func() {
-		metricsBatcher.RecordConcurrentRequest(-1)
+		metrics.GetGlobalMetricsBatcher().RecordConcurrentRequest(-1)
 		// Record API latency
 		duration := time.Since(start).Seconds()
-		metricsBatcher.RecordAPILatency(endpoint, duration)
+		metrics.GetGlobalMetricsBatcher().RecordAPILatency(endpoint, duration)
 	}()
 
 	// Track semaphore wait time
@@ -249,7 +229,7 @@ func executeHTTPRequest(ctx context.Context, baseUrl, path string, config reques
 
 	// Record semaphore wait duration using batching
 	semaphoreWaitTime := time.Since(semaphoreStart).Seconds()
-	metricsBatcher.RecordSemaphoreWait(semaphoreWaitTime)
+	metrics.GetGlobalMetricsBatcher().RecordSemaphoreWait(semaphoreWaitTime)
 
 	var req *fiber.Agent
 	if config.method == fiber.MethodGet {
@@ -286,12 +266,12 @@ func executeHTTPRequest(ctx context.Context, baseUrl, path string, config reques
 	code, body, errs := req.Timeout(timeout).Bytes()
 	if err := errors.Join(errs...); err != nil {
 		// Track network/timeout errors using batching
-		metricsBatcher.RecordAPIRequest(endpoint, "error")
+		metrics.GetGlobalMetricsBatcher().RecordAPIRequest(endpoint, "error")
 		return nil, types.NewNetworkError(endpoint, err)
 	}
 
 	// Track HTTP response with actual status code using batching
-	metricsBatcher.RecordAPIRequest(endpoint, fmt.Sprintf("%d", code))
+	metrics.GetGlobalMetricsBatcher().RecordAPIRequest(endpoint, fmt.Sprintf("%d", code))
 
 	if code == fiber.StatusOK {
 		return body, nil

@@ -1,8 +1,11 @@
 package metrics
 
 import (
+	"os"
+	"os/signal"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 )
 
@@ -232,4 +235,66 @@ func (b *MetricsBatcher) GetBufferStats() map[string]int {
 	}
 
 	return stats
+}
+
+// Global metrics batcher instance
+var globalMetricsBatcher *MetricsBatcher
+var shutdownOnce sync.Once
+
+func init() {
+	// Initialize global metrics batcher with default config
+	config := DefaultMetricsBatcherConfig()
+	globalMetricsBatcher = NewMetricsBatcher(config)
+	globalMetricsBatcher.Start()
+	
+	// Set up graceful shutdown
+	setupGracefulShutdown()
+}
+
+// setupGracefulShutdown sets up signal handlers for graceful shutdown
+func setupGracefulShutdown() {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	
+	go func() {
+		<-c
+		shutdownGlobalMetricsBatcher()
+		os.Exit(0)
+	}()
+}
+
+// shutdownGlobalMetricsBatcher performs graceful shutdown of the global metrics batcher
+func shutdownGlobalMetricsBatcher() {
+	shutdownOnce.Do(func() {
+		if globalMetricsBatcher != nil {
+			globalMetricsBatcher.Stop()
+		}
+	})
+}
+
+// ShutdownGlobalMetricsBatcher provides a public interface for graceful shutdown
+func ShutdownGlobalMetricsBatcher() {
+	shutdownGlobalMetricsBatcher()
+}
+
+// InitGlobalMetricsBatcher initializes global metrics batcher with custom configuration
+func InitGlobalMetricsBatcher(config MetricsBatcherConfig) {
+	if globalMetricsBatcher != nil {
+		globalMetricsBatcher.Stop()
+	}
+	globalMetricsBatcher = NewMetricsBatcher(config)
+	globalMetricsBatcher.Start()
+}
+
+// GetGlobalMetricsBatcherStats returns current buffer statistics for monitoring
+func GetGlobalMetricsBatcherStats() map[string]int {
+	if globalMetricsBatcher == nil {
+		return nil
+	}
+	return globalMetricsBatcher.GetBufferStats()
+}
+
+// GetGlobalMetricsBatcher returns the global metrics batcher instance
+func GetGlobalMetricsBatcher() *MetricsBatcher {
+	return globalMetricsBatcher
 }
