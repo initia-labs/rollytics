@@ -1,6 +1,7 @@
 package util
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -22,7 +23,7 @@ type BlockResponse struct {
 func GetLatestHeight(client *fiber.Client, cfg *config.Config) (int64, error) {
 	path := "/cosmos/base/tendermint/v1beta1/blocks/latest"
 
-	body, err := util.Get(client, cfg.GetCoolingDuration(), cfg.GetQueryTimeout(), cfg.GetChainConfig().RestUrl, path, nil, nil)
+	body, err := util.Get(context.Background(), client, cfg.GetCoolingDuration(), cfg.GetQueryTimeout(), cfg.GetChainConfig().RestUrl, path, nil, nil)
 	if err != nil {
 		return 0, err
 	}

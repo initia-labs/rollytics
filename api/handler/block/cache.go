@@ -1,6 +1,7 @@
 package block
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"sync"
@@ -49,7 +50,7 @@ func getValidator(validatorAddr string, cfg *config.Config) (*Validator, error) 
 	defer fiber.ReleaseClient(client)
 
 	path := fmt.Sprintf("/opinit/opchild/v1/validator/%s", validatorAddr)
-	body, err := util.Get(client, cfg.GetCoolingDuration(), cfg.GetQueryTimeout(), cfg.GetChainConfig().RestUrl, path, nil, nil)
+	body, err := util.Get(context.Background(), client, cfg.GetCoolingDuration(), cfg.GetQueryTimeout(), cfg.GetChainConfig().RestUrl, path, nil, nil)
 	if err != nil {
 		return nil, err
 	}

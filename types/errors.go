@@ -112,3 +112,17 @@ func NewInternalError(msg string, cause error) error {
 		Cause:   cause,
 	}
 }
+
+func NewInvalidHeightError() error {
+	return &StandardError{
+		Type:    ErrTypeBadRequest,
+		Message: "invalid height: cannot query with height in the future",
+	}
+}
+
+func NewLimiterNotInitializedError() error {
+	return &StandardError{
+		Type:    ErrTypeConfig,
+		Message: "rate limiter not initialized: call InitLimiter first",
+	}
+}
