@@ -149,7 +149,7 @@ func loadConfig() (*Config, error) {
 	case "evm":
 		vmType = types.EVM
 	default:
-		return nil, fmt.Errorf("VM_TYPE is invalid")
+		return nil, types.NewConfigError("VM_TYPE is invalid", nil)
 	}
 
 	cc := &ChainConfig{
@@ -295,10 +295,10 @@ func (c Config) GetLogFormat() string {
 func (c Config) Validate() error {
 	// Port validation
 	if len(c.listenPort) == 0 {
-		return fmt.Errorf("PORT is required")
+		return types.NewValidationError("PORT", "required field is missing")
 	}
 	if port, err := strconv.Atoi(c.listenPort); err != nil || port < MinPortNumber || port > MaxPortNumber {
-		return fmt.Errorf("PORT must be a valid port number (%d-%d)", MinPortNumber, MaxPortNumber)
+		return types.NewValidationError("PORT", fmt.Sprintf("must be a valid port number (%d-%d)", MinPortNumber, MaxPortNumber))
 	}
 
 	// Log format validation
@@ -306,7 +306,7 @@ func (c Config) Validate() error {
 	case "json", "plain":
 		break
 	default:
-		return fmt.Errorf("%s is invalid log format, must be 'json' or 'plain'", c.logFormat)
+		return types.NewValidationError("LOG_FORMAT", fmt.Sprintf("invalid value '%s', must be 'json' or 'plain'", c.logFormat))
 	}
 
 	// Log level validation
@@ -314,7 +314,7 @@ func (c Config) Validate() error {
 	case "debug", "info", "warn", "error":
 		break
 	default:
-		return fmt.Errorf("%s is invalid log level, must be one of: debug, info, warn, error", c.logLevel)
+		return types.NewValidationError("LOG_LEVEL", fmt.Sprintf("invalid value '%s', must be one of: debug, info, warn, error", c.logLevel))
 	}
 
 	// Numeric validations

@@ -132,7 +132,7 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB
 			if sub.IsBlacklisted(collectionAddr) {
 				continue
 			}
-			return fmt.Errorf("collection name info not found for collection address %s", collectionAddr)
+			return types.NewNotFoundError(fmt.Sprintf("collection name info for collection address %s", collectionAddr))
 		}
 
 		creationInfo, err := getCollectionCreationInfo(block.ChainId, collectionAddr, tx)

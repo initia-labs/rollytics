@@ -33,25 +33,25 @@ You can configure database, chain, logging, and indexer options via environment 
 			}
 
 			logger := log.NewLogger(cfg)
-			
+
 			// Initialize the request limiter
-			util.InitLimiter(cfg)
-			
+			util.InitUtil(cfg)
+
 			// Initialize metrics
 			metrics.Init()
 			metricsServer := metrics.NewServer(cfg, logger)
-			
+
 			// Start metrics server in background
 			go func() {
 				if err := metricsServer.Start(); err != nil {
 					logger.Error("metrics server failed", "error", err)
 				}
 			}()
-			
+
 			// Setup graceful shutdown for metrics
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			
+
 			sigChan := make(chan os.Signal, 1)
 			signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 			go func() {
@@ -62,7 +62,7 @@ You can configure database, chain, logging, and indexer options via environment 
 				}
 				cancel()
 			}()
-			
+
 			db, err := orm.OpenDB(cfg.GetDBConfig(), logger)
 			if err != nil {
 				return err

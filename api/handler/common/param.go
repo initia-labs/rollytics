@@ -1,13 +1,13 @@
 package common
 
 import (
-	"errors"
 	"fmt"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 
 	"github.com/initia-labs/rollytics/config"
+	"github.com/initia-labs/rollytics/types"
 	"github.com/initia-labs/rollytics/util"
 )
 
@@ -27,11 +27,11 @@ func GetHeightParam(c *fiber.Ctx) (int64, error) {
 
 	intValue, err := strconv.ParseInt(value, 10, 64)
 	if err != nil {
-		return 0, fmt.Errorf("invalid height: %s", err.Error())
+		return 0, types.NewInvalidValueError("height", value, "must be a valid integer")
 	}
 
 	if intValue < 1 {
-		return 0, errors.New("height must be positive integer")
+		return 0, types.NewInvalidValueError("height", fmt.Sprintf("%d", intValue), "must be a positive integer")
 	}
 
 	return intValue, nil
@@ -45,7 +45,7 @@ func GetAccountParam(c *fiber.Ctx) (string, error) {
 
 	accAddr, err := util.AccAddressFromString(account)
 	if err != nil {
-		return "", fmt.Errorf("invalid account: %s", err.Error())
+		return "", types.NewInvalidValueError("account", account, "invalid address format")
 	}
 	return accAddr.String(), nil
 }

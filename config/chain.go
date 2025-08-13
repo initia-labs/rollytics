@@ -19,17 +19,17 @@ type ChainConfig struct {
 func (cc ChainConfig) Validate() error {
 	// Chain ID validation
 	if len(cc.ChainId) == 0 {
-		return fmt.Errorf("CHAIN_ID is required")
+		return types.NewValidationError("CHAIN_ID", "required field is missing")
 	}
 
 	// RPC URL validation
 	if len(cc.RpcUrl) == 0 {
-		return fmt.Errorf("RPC_URL is required")
+		return types.NewValidationError("RPC_URL", "required field is missing")
 	}
 	if u, err := url.Parse(cc.RpcUrl); err != nil {
-		return fmt.Errorf("RPC_URL(%s) is invalid: %w", cc.RpcUrl, err)
+		return types.NewValidationError("RPC_URL", fmt.Sprintf("invalid URL format: %s", cc.RpcUrl))
 	} else if u.Scheme != "http" && u.Scheme != "https" {
-		return fmt.Errorf("RPC_URL must use http or https scheme, got: %s", u.Scheme)
+		return types.NewValidationError("RPC_URL", fmt.Sprintf("must use http or https scheme, got: %s", u.Scheme))
 	}
 
 	// REST URL validation

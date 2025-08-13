@@ -8,15 +8,16 @@ import (
 type ErrorType string
 
 const (
-	ErrTypeConfig      ErrorType = "CONFIG_ERROR"
-	ErrTypeValidation  ErrorType = "VALIDATION_ERROR"
-	ErrTypeDatabase    ErrorType = "DATABASE_ERROR"
-	ErrTypeNetwork     ErrorType = "NETWORK_ERROR"
-	ErrTypeInternal    ErrorType = "INTERNAL_ERROR"
-	ErrTypeNotFound    ErrorType = "NOT_FOUND"
-	ErrTypeBadRequest  ErrorType = "BAD_REQUEST"
-	ErrTypeRateLimit   ErrorType = "RATE_LIMIT"
-	ErrTypeTimeout     ErrorType = "TIMEOUT"
+	ErrTypeConfig       ErrorType = "CONFIG_ERROR"
+	ErrTypeValidation   ErrorType = "VALIDATION_ERROR"
+	ErrTypeInvalidValue ErrorType = "INVALID_VALUE"
+	ErrTypeDatabase     ErrorType = "DATABASE_ERROR"
+	ErrTypeNetwork      ErrorType = "NETWORK_ERROR"
+	ErrTypeInternal     ErrorType = "INTERNAL_ERROR"
+	ErrTypeNotFound     ErrorType = "NOT_FOUND"
+	ErrTypeBadRequest   ErrorType = "BAD_REQUEST"
+	ErrTypeRateLimit    ErrorType = "RATE_LIMIT"
+	ErrTypeTimeout      ErrorType = "TIMEOUT"
 	ErrTypeUnauthorized ErrorType = "UNAUTHORIZED"
 )
 
@@ -53,7 +54,22 @@ func NewValidationError(field, msg string) error {
 	return &StandardError{
 		Type:    ErrTypeValidation,
 		Message: fmt.Sprintf("validation failed for %s: %s", field, msg),
-		Details: map[string]interface{}{"field": field},
+		Details: map[string]any{"field": field},
+	}
+}
+
+func NewInvalidValueError(field, value, msg string) error {
+	return &StandardError{
+		Type:    ErrTypeInvalidValue,
+		Message: fmt.Sprintf("invalid value for %s: %s (%s)", field, value, msg),
+		Details: map[string]any{"field": field, "value": value},
+	}
+}
+
+func NewUnauthorizedError(msg string) error {
+	return &StandardError{
+		Type:    ErrTypeUnauthorized,
+		Message: msg,
 	}
 }
 

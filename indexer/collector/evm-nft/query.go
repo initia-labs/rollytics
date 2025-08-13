@@ -12,6 +12,7 @@ import (
 	"github.com/initia-labs/minievm/x/evm/contracts/erc721"
 
 	"github.com/initia-labs/rollytics/config"
+	"github.com/initia-labs/rollytics/types"
 	"github.com/initia-labs/rollytics/util"
 )
 
@@ -43,7 +44,7 @@ func getTokenUri(collectionAddr, tokenIdStr string, client *fiber.Client, cfg *c
 
 	tokenId, ok := new(big.Int).SetString(tokenIdStr, 10)
 	if !ok {
-		return tokenUri, fmt.Errorf("invalid token id: %s", tokenIdStr)
+		return tokenUri, types.NewInvalidValueError("token_id", tokenIdStr, "must be a valid decimal number")
 	}
 	input, err := abi.Pack("tokenURI", tokenId)
 	if err != nil {

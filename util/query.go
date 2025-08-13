@@ -44,7 +44,7 @@ func init() {
 	metricsBatcher.Start()
 }
 
-func InitConfig(cfg *config.Config) {
+func InitUtil(cfg *config.Config) {
 	globalConfig = cfg
 	limiter = semaphore.NewWeighted(int64(cfg.GetMaxConcurrentRequests()))
 }
