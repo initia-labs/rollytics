@@ -98,8 +98,8 @@ func (b *MetricsBatcher) Stop() {
 	if !b.started.Load() {
 		return
 	}
-	close(b.done)
 	b.started.Store(false)
+	close(b.done)
 }
 
 // RecordConcurrentRequest records a change in concurrent requests

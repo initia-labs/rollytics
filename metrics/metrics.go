@@ -127,6 +127,8 @@ func (m *MetricsServer) Shutdown(ctx context.Context) error {
 	}
 
 	m.logger.Info("shutting down metrics server")
+	StopDBStatsUpdater()
+	StopEndpointTracking()
 	return m.server.Shutdown(ctx)
 }
 
