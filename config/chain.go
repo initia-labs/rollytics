@@ -34,23 +34,23 @@ func (cc ChainConfig) Validate() error {
 
 	// REST URL validation
 	if len(cc.RestUrl) == 0 {
-		return fmt.Errorf("REST_URL is required")
+		return types.NewValidationError("REST_URL", "is required")
 	}
 	if u, err := url.Parse(cc.RestUrl); err != nil {
-		return fmt.Errorf("REST_URL(%s) is invalid: %w", cc.RestUrl, err)
+		return types.NewInvalidValueError("REST_URL", cc.RestUrl, fmt.Sprintf("invalid URL: %v", err))
 	} else if u.Scheme != "http" && u.Scheme != "https" {
-		return fmt.Errorf("REST_URL must use http or https scheme, got: %s", u.Scheme)
+		return types.NewInvalidValueError("REST_URL", cc.RestUrl, fmt.Sprintf("must use http or https scheme, got: %s", u.Scheme))
 	}
 
 	// EVM specific validation
 	if cc.VmType == types.EVM {
 		if len(cc.JsonRpcUrl) == 0 {
-			return fmt.Errorf("JSON_RPC_URL is required for EVM")
+			return types.NewValidationError("JSON_RPC_URL", "is required for EVM")
 		}
 		if u, err := url.Parse(cc.JsonRpcUrl); err != nil {
-			return fmt.Errorf("JSON_RPC_URL(%s) is invalid: %w", cc.JsonRpcUrl, err)
+			return types.NewInvalidValueError("JSON_RPC_URL", cc.JsonRpcUrl, fmt.Sprintf("invalid URL: %v", err))
 		} else if u.Scheme != "http" && u.Scheme != "https" && u.Scheme != "ws" && u.Scheme != "wss" {
-			return fmt.Errorf("JSON_RPC_URL must use http, https, ws or wss scheme, got: %s", u.Scheme)
+			return types.NewInvalidValueError("JSON_RPC_URL", cc.JsonRpcUrl, fmt.Sprintf("must use http, https, ws or wss scheme, got: %s", u.Scheme))
 		}
 	}
 
@@ -59,12 +59,12 @@ func (cc ChainConfig) Validate() error {
 	case types.MoveVM, types.WasmVM, types.EVM:
 		// Valid VM types
 	default:
-		return fmt.Errorf("invalid VM_TYPE: must be 'move', 'wasm', or 'evm'")
+		return types.NewInvalidValueError("VM_TYPE", fmt.Sprintf("%v", cc.VmType), "must be 'move', 'wasm', or 'evm'")
 	}
 
 	// Account address prefix validation
 	if len(cc.AccountAddressPrefix) == 0 {
-		return fmt.Errorf("ACCOUNT_ADDRESS_PREFIX is required")
+		return types.NewValidationError("ACCOUNT_ADDRESS_PREFIX", "is required")
 	}
 
 	return nil

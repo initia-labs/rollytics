@@ -12,13 +12,13 @@ type IndexerMetrics struct {
 	BlocksProcessedTotal prometheus.Counter
 	CurrentBlockHeight   prometheus.Gauge
 	BlockProcessingTime  *prometheus.HistogramVec
-	
+
 	// Queue and throughput metrics
 	InflightBlocksCount prometheus.Gauge
 	ProcessingSpeed     prometheus.Gauge
-	
+
 	// Error tracking
-	ProcessingErrors    *prometheus.CounterVec
+	ProcessingErrors *prometheus.CounterVec
 }
 
 // NewIndexerMetrics creates and returns indexer metrics

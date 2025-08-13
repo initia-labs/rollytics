@@ -122,10 +122,10 @@ func NewDBStatsUpdater(provider DBStatsProvider, logger *slog.Logger, metrics *D
 // Start starts the database stats updater
 func (u *DBStatsUpdater) Start() {
 	u.logger.Info("starting database stats updater")
-	
+
 	// Update once immediately
 	u.updateStats()
-	
+
 	go u.run()
 }
 
@@ -155,21 +155,21 @@ func (u *DBStatsUpdater) updateStats() {
 		u.logger.Error("failed to get database stats", "error", err)
 		return
 	}
-	
+
 	// Update Prometheus metrics
 	u.metrics.ConnectionsActive.Set(float64(stats.InUse))
 	u.metrics.ConnectionsIdle.Set(float64(stats.Idle))
 	u.metrics.ConnectionsMaxOpen.Set(float64(stats.MaxOpenConnections))
-	
+
 	// Update counters (these are cumulative)
 	u.metrics.ConnectionsWaitCount.WithLabelValues("total").Add(float64(stats.WaitCount))
 	if stats.WaitDuration > 0 {
 		u.metrics.ConnectionsWaitDuration.Observe(stats.WaitDuration.Seconds())
 	}
-	
-	u.logger.Debug("updated database stats", 
+
+	u.logger.Debug("updated database stats",
 		"active", stats.InUse,
-		"idle", stats.Idle, 
+		"idle", stats.Idle,
 		"max_open", stats.MaxOpenConnections,
 		"wait_count", stats.WaitCount)
 }

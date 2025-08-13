@@ -27,42 +27,42 @@ func (p *MetricsPlugin) Initialize(db *gorm.DB) error {
 	if err != nil {
 		return err
 	}
-	
+
 	err = db.Callback().Query().After("*").Register("metrics:after_query", p.afterQuery)
 	if err != nil {
 		return err
 	}
-	
+
 	err = db.Callback().Create().Before("*").Register("metrics:before_create", p.beforeQuery)
 	if err != nil {
 		return err
 	}
-	
+
 	err = db.Callback().Create().After("*").Register("metrics:after_create", p.afterQuery)
 	if err != nil {
 		return err
 	}
-	
+
 	err = db.Callback().Update().Before("*").Register("metrics:before_update", p.beforeQuery)
 	if err != nil {
 		return err
 	}
-	
+
 	err = db.Callback().Update().After("*").Register("metrics:after_update", p.afterQuery)
 	if err != nil {
 		return err
 	}
-	
+
 	err = db.Callback().Delete().Before("*").Register("metrics:before_delete", p.beforeQuery)
 	if err != nil {
 		return err
 	}
-	
+
 	err = db.Callback().Delete().After("*").Register("metrics:after_delete", p.afterQuery)
 	if err != nil {
 		return err
 	}
-	
+
 	return nil
 }
 
@@ -75,28 +75,28 @@ func (p *MetricsPlugin) afterQuery(db *gorm.DB) {
 	if !exists {
 		return
 	}
-	
+
 	start, ok := startTime.(time.Time)
 	if !ok {
 		return
 	}
-	
+
 	duration := time.Since(start).Seconds()
-	
+
 	// Determine operation type and table name
 	operation := getOperationType(db)
 	tableName := getTableName(db)
-	
+
 	// Determine status
 	status := "success"
 	if db.Error != nil {
 		status = "error"
 	}
-	
+
 	// Track metrics
 	metrics.DBQueriesTotal().WithLabelValues(operation, status).Inc()
 	metrics.DBQueryDuration().WithLabelValues(operation, tableName).Observe(duration)
-	
+
 	// Track rows affected for write operations
 	if operation != "SELECT" && db.RowsAffected >= 0 {
 		metrics.DBRowsAffected().WithLabelValues(operation).Observe(float64(db.RowsAffected))
@@ -108,26 +108,26 @@ func getOperationType(db *gorm.DB) string {
 	if db.Statement == nil || db.Statement.SQL.String() == "" {
 		return "UNKNOWN"
 	}
-	
-	sql := strings.ToUpper(strings.TrimSpace(db.Statement.SQL.String()))
-	
-	if strings.HasPrefix(sql, "SELECT") {
-		return "SELECT"
-	} else if strings.HasPrefix(sql, "INSERT") {
-		return "INSERT"
-	} else if strings.HasPrefix(sql, "UPDATE") {
-		return "UPDATE"
-	} else if strings.HasPrefix(sql, "DELETE") {
-		return "DELETE"
-	} else if strings.HasPrefix(sql, "CREATE") {
-		return "CREATE"
-	} else if strings.HasPrefix(sql, "ALTER") {
-		return "ALTER"
-	} else if strings.HasPrefix(sql, "DROP") {
-		return "DROP"
+
+	sql := strings.TrimSpace(db.Statement.SQL.String())
+	if sql == "" {
+		return "UNKNOWN"
+	}
+
+	// Find the first word (operation type)
+	spaceIndex := strings.IndexByte(sql, ' ')
+	if spaceIndex == -1 {
+		spaceIndex = len(sql)
 	}
 	
-	return "OTHER"
+	firstWord := strings.ToUpper(sql[:spaceIndex])
+
+	switch firstWord {
+	case "SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "ALTER", "DROP":
+		return firstWord
+	default:
+		return "OTHER"
+	}
 }
 
 // getTableName extracts the table name from the GORM statement
@@ -135,11 +135,11 @@ func getTableName(db *gorm.DB) string {
 	if db.Statement == nil {
 		return "unknown"
 	}
-	
+
 	if db.Statement.Table != "" {
 		return db.Statement.Table
 	}
-	
+
 	// Fallback: extract from SQL using regex
 	if db.Statement.SQL.String() != "" {
 		tableName := extractTableFromSQL(db.Statement.SQL.String())
@@ -147,7 +147,7 @@ func getTableName(db *gorm.DB) string {
 			return tableName
 		}
 	}
-	
+
 	return "unknown"
 }
 
@@ -155,12 +155,12 @@ func getTableName(db *gorm.DB) string {
 func extractTableFromSQL(sql string) string {
 	// Common patterns for extracting table names
 	patterns := []string{
-		`(?i)FROM\s+["\x60]?(\w+)["\x60]?`,           // SELECT ... FROM table
-		`(?i)INSERT\s+INTO\s+["\x60]?(\w+)["\x60]?`,  // INSERT INTO table
-		`(?i)UPDATE\s+["\x60]?(\w+)["\x60]?`,         // UPDATE table
-		`(?i)DELETE\s+FROM\s+["\x60]?(\w+)["\x60]?`,  // DELETE FROM table
+		`(?i)FROM\s+["\x60]?(\w+)["\x60]?`,          // SELECT ... FROM table
+		`(?i)INSERT\s+INTO\s+["\x60]?(\w+)["\x60]?`, // INSERT INTO table
+		`(?i)UPDATE\s+["\x60]?(\w+)["\x60]?`,        // UPDATE table
+		`(?i)DELETE\s+FROM\s+["\x60]?(\w+)["\x60]?`, // DELETE FROM table
 	}
-	
+
 	for _, pattern := range patterns {
 		re := regexp.MustCompile(pattern)
 		matches := re.FindStringSubmatch(sql)
@@ -168,6 +168,6 @@ func extractTableFromSQL(sql string) string {
 			return matches[1]
 		}
 	}
-	
+
 	return ""
 }

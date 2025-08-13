@@ -179,7 +179,7 @@ func (h *TxHandler) GetEvmTxsByHeight(c *fiber.Ctx) error {
 // @Param tx_hash path string true "Transaction hash"
 // @Router /indexer/tx/v1/evm-txs/{tx_hash} [get]
 //
-//nolint:dupl
+
 func (h *TxHandler) GetEvmTxByHash(c *fiber.Ctx) error {
 	hash, err := common.GetParams(c, "tx_hash")
 	if err != nil {

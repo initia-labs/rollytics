@@ -140,7 +140,7 @@ func (i *Indexer) collect() {
 
 		inflightCount := len(i.blockMap) + i.prepareCount
 		metrics.GetMetrics().Indexer.InflightBlocksCount.Set(float64(inflightCount))
-		
+
 		switch {
 		case inflightCount > types.MaxInflightBlocks && !i.paused:
 			i.controlChan <- "pause"

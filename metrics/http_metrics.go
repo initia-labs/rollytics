@@ -2,7 +2,7 @@ package metrics
 
 import (
 	"strings"
-	
+
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -16,13 +16,13 @@ type HTTPMetrics struct {
 	RequestsTotal    *prometheus.CounterVec
 	RequestDuration  *prometheus.HistogramVec
 	RequestsInFlight prometheus.Gauge
-	
+
 	// Error tracking
-	ErrorsTotal      *prometheus.CounterVec
-	
+	ErrorsTotal *prometheus.CounterVec
+
 	// Detailed metrics for troubleshooting (lower cardinality sampling)
-	SlowRequests     *prometheus.CounterVec
-	TopEndpoints     *prometheus.GaugeVec
+	SlowRequests *prometheus.CounterVec
+	TopEndpoints *prometheus.GaugeVec
 }
 
 // NewHTTPMetrics creates and returns HTTP metrics
@@ -106,7 +106,7 @@ func GetHandlerPattern(path string) string {
 	if len(path) == 0 {
 		return "root"
 	}
-	
+
 	// Common API patterns
 	switch {
 	case path == "/":
@@ -147,7 +147,7 @@ func ShouldTrackDetailed(duration float64, path string) bool {
 	if duration >= 1.0 {
 		return true
 	}
-	
+
 	// Always track certain critical endpoints even if fast
 	switch {
 	case strings.Contains(path, "/latest"):

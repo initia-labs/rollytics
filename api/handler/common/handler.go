@@ -90,7 +90,7 @@ func (h *BaseHandler) GetNftIds(keys []util.NftKey) ([]int64, error) {
 	return ids, nil
 }
 
-// TrackError tracks errors in handlers  
+// TrackError tracks errors in handlers
 func (h *BaseHandler) TrackError(errorType string) {
 	metrics.TrackError("api", errorType)
 }

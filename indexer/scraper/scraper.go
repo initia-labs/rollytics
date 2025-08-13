@@ -18,9 +18,9 @@ const (
 )
 
 type Scraper struct {
-	cfg          *config.Config
-	logger       *slog.Logger
-	mtx          sync.Mutex
+	cfg            *config.Config
+	logger         *slog.Logger
+	mtx            sync.Mutex
 	lastScrapeTime time.Time
 	scrapedCount   int64
 }

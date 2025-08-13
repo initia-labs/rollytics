@@ -31,10 +31,9 @@ var (
 	// Global registry and metrics
 	registry *prometheus.Registry
 	metrics  *Metrics
-	
+
 	// Global DB stats updater
 	dbStatsUpdater *DBStatsUpdater
-
 )
 
 // MetricsServer represents the Prometheus metrics HTTP server
@@ -67,7 +66,7 @@ func Init() {
 	// Add Go runtime metrics
 	registry.MustRegister(collectors.NewGoCollector())
 	registry.MustRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
-	
+
 	// Start endpoint tracking for detailed analysis
 	StartEndpointTracking()
 }
@@ -185,7 +184,7 @@ func StartDBStatsUpdater(provider DBStatsProvider, logger *slog.Logger) {
 	if dbStatsUpdater != nil {
 		return // Already started
 	}
-	
+
 	dbStatsUpdater = NewDBStatsUpdater(provider, logger, metrics.Database)
 	dbStatsUpdater.Start()
 }

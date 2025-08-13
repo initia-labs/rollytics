@@ -57,6 +57,7 @@ You can configure database, chain, logging, and indexer options via environment 
 			go func() {
 				<-sigChan
 				logger.Info("shutting down indexer...")
+				metrics.StopEndpointTracking()
 				if err := metricsServer.Shutdown(ctx); err != nil {
 					logger.Error("failed to shutdown metrics server", "error", err)
 				}

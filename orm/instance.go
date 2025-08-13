@@ -108,7 +108,7 @@ func (d Database) GetDBStats() (*sql.DBStats, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	stats := sqlDB.Stats()
 	return &stats, nil
 }

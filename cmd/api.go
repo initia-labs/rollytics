@@ -70,6 +70,7 @@ You can configure database, chain, logging, and server options via environment v
 
 				// Shutdown metrics server and DB stats updater
 				metrics.StopDBStatsUpdater()
+				metrics.StopEndpointTracking()
 
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 				defer cancel()

@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
+
 	commontypes "github.com/initia-labs/rollytics/types"
 )
 

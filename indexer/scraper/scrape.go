@@ -20,7 +20,7 @@ import (
 
 func scrapeBlock(client *fiber.Client, height int64, cfg *config.Config) (types.ScrapedBlock, error) {
 	start := time.Now()
-	
+
 	var g errgroup.Group
 	getBlockRes := make(chan GetBlockResponse, 1)
 	getBlockResultsRes := make(chan GetBlockResultsResponse, 1)

@@ -9,4 +9,3 @@ func TrackPanic(component string) {
 func TrackError(component, errorType string) {
 	GetMetrics().Error.ErrorsTotal.WithLabelValues(component, errorType).Inc()
 }
-

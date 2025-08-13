@@ -319,44 +319,44 @@ func (c Config) Validate() error {
 
 	// Numeric validations
 	if c.cacheSize < 0 {
-		return fmt.Errorf("CACHE_SIZE must be non-negative")
+		return types.NewValidationError("CACHE_SIZE", "must be non-negative")
 	}
 	if c.cacheTTL < 0 {
-		return fmt.Errorf("CACHE_TTL must be non-negative")
+		return types.NewValidationError("CACHE_TTL", "must be non-negative")
 	}
 	if c.pollingInterval < 0 {
-		return fmt.Errorf("POLLING_INTERVAL must be non-negative")
+		return types.NewValidationError("POLLING_INTERVAL", "must be non-negative")
 	}
 	if c.coolingDuration < 0 {
-		return fmt.Errorf("COOLING_DURATION must be non-negative")
+		return types.NewValidationError("COOLING_DURATION", "must be non-negative")
 	}
 	if c.queryTimeout <= 0 {
-		return fmt.Errorf("QUERY_TIMEOUT must be positive")
+		return types.NewValidationError("QUERY_TIMEOUT", "must be positive")
 	}
 	if c.maxConcurrentRequests < 1 {
-		return fmt.Errorf("MAX_CONCURRENT_REQUESTS must be at least 1")
+		return types.NewValidationError("MAX_CONCURRENT_REQUESTS", "must be at least 1")
 	}
 	if c.maxConcurrentRequests > MaxAllowedConcurrentRequests {
-		return fmt.Errorf("MAX_CONCURRENT_REQUESTS is too high (max: %d)", MaxAllowedConcurrentRequests)
+		return types.NewInvalidValueError("MAX_CONCURRENT_REQUESTS", fmt.Sprintf("%d", c.maxConcurrentRequests), fmt.Sprintf("must not exceed %d", MaxAllowedConcurrentRequests))
 	}
 
 	// Internal TX config validation
 	if c.internalTxConfig != nil && c.internalTxConfig.Enabled {
 		if c.internalTxConfig.PollInterval <= 0 {
-			return fmt.Errorf("INTERNAL_TX_POLL_INTERVAL must be positive when INTERNAL_TX is enabled")
+			return types.NewValidationError("INTERNAL_TX_POLL_INTERVAL", "must be positive when INTERNAL_TX is enabled")
 		}
 		if c.internalTxConfig.BatchSize < 1 {
-			return fmt.Errorf("INTERNAL_TX_BATCH_SIZE must be at least 1")
+			return types.NewValidationError("INTERNAL_TX_BATCH_SIZE", "must be at least 1")
 		}
 	}
 
 	// Metrics config validation
 	if c.metricsConfig != nil && c.metricsConfig.Enabled {
 		if port, err := strconv.Atoi(c.metricsConfig.Port); err != nil || port < MinPortNumber || port > MaxPortNumber {
-			return fmt.Errorf("METRICS_PORT must be a valid port number (%d-%d)", MinPortNumber, MaxPortNumber)
+			return types.NewValidationError("METRICS_PORT", fmt.Sprintf("must be a valid port number (%d-%d)", MinPortNumber, MaxPortNumber))
 		}
 		if c.metricsConfig.Path == "" || c.metricsConfig.Path[0] != '/' {
-			return fmt.Errorf("METRICS_PATH must start with '/'")
+			return types.NewValidationError("METRICS_PATH", "must start with '/'")
 		}
 	}
 

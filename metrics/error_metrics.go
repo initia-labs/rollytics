@@ -5,11 +5,11 @@ import "github.com/prometheus/client_golang/prometheus"
 // ErrorMetrics groups error tracking metrics
 type ErrorMetrics struct {
 	// Core error tracking
-	PanicsTotal      *prometheus.CounterVec
-	ErrorsTotal      *prometheus.CounterVec
-	
+	PanicsTotal *prometheus.CounterVec
+	ErrorsTotal *prometheus.CounterVec
+
 	// Component health
-	ComponentHealth  *prometheus.GaugeVec
+	ComponentHealth *prometheus.GaugeVec
 }
 
 // NewErrorMetrics creates and returns error tracking metrics

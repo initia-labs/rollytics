@@ -8,6 +8,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 
 	"github.com/initia-labs/rollytics/config"
+	"github.com/initia-labs/rollytics/types"
 	"github.com/initia-labs/rollytics/util"
 )
 
@@ -37,7 +38,7 @@ func GetLatestHeight(client *fiber.Client, cfg *config.Config) (int64, error) {
 
 	height := int64(0)
 	if _, err := fmt.Sscanf(response.Block.Header.Height, "%d", &height); err != nil {
-		return 0, fmt.Errorf("failed to parse height: %w", err)
+		return 0, types.NewInvalidValueError("height", response.Block.Header.Height, "failed to parse as integer")
 	}
 
 	return height, nil

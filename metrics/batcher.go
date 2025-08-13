@@ -61,9 +61,9 @@ func NewMetricsBatcher(config MetricsBatcherConfig) *MetricsBatcher {
 // newMetricsBuffer creates a new empty buffer
 func newMetricsBuffer() *MetricsBuffer {
 	return &MetricsBuffer{
-		apiLatencies:  make(map[string][]float64),
-		apiRequests:   make(map[string]map[string]int64),
-		rateLimitHits: make(map[string]int64),
+		apiLatencies:   make(map[string][]float64),
+		apiRequests:    make(map[string]map[string]int64),
+		rateLimitHits:  make(map[string]int64),
 		semaphoreWaits: make([]float64, 0),
 	}
 }

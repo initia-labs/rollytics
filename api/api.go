@@ -61,14 +61,14 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Api {
 	// Add metrics middleware
 	app.Use(func(c *fiber.Ctx) error {
 		start := time.Now()
-		
+
 		// Track requests in flight
 		metrics.GetMetrics().HTTP.RequestsInFlight.Inc()
 		defer metrics.GetMetrics().HTTP.RequestsInFlight.Dec()
-		
+
 		// Continue with request
 		err := c.Next()
-		
+
 		// Track metrics after request completion
 		duration := time.Since(start).Seconds()
 		method := c.Method()
@@ -76,16 +76,16 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Api {
 		if path == "" {
 			path = c.Path()
 		}
-		
+
 		// Get handler pattern and status class
 		handler := metrics.GetHandlerPattern(path)
 		statusCode := c.Response().StatusCode()
 		statusClass := metrics.GetStatusClass(statusCode)
-		
+
 		// Track HTTP metrics
 		metrics.GetMetrics().HTTP.RequestsTotal.WithLabelValues(method, handler, statusClass).Inc()
 		metrics.GetMetrics().HTTP.RequestDuration.WithLabelValues(method, handler).Observe(duration)
-		
+
 		// Track detailed metrics for slow or important requests
 		if metrics.ShouldTrackDetailed(duration, path) {
 			bucket := metrics.GetDurationBucket(duration)
@@ -93,14 +93,15 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Api {
 				metrics.GetMetrics().HTTP.SlowRequests.WithLabelValues(method, path, bucket).Inc()
 			}
 		}
-		
+
 		// Track endpoint performance for top endpoints analysis
 		metrics.TrackEndpoint(path, duration)
-		
+
 		// Track HTTP errors
 		if err != nil {
 			errorType := "server_error"
-			if fiberErr, ok := err.(*fiber.Error); ok {
+			fiberErr := &fiber.Error{}
+			if errors.As(err, &fiberErr) {
 				switch {
 				case fiberErr.Code == 401:
 					errorType = "unauthorized"
@@ -116,7 +117,7 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Api {
 			}
 			metrics.GetMetrics().HTTP.ErrorsTotal.WithLabelValues(handler, errorType).Inc()
 		}
-		
+
 		return err
 	})
 

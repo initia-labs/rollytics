@@ -75,9 +75,9 @@ func (h *BlockHandler) GetBlockByHeight(c *fiber.Ctx) error {
 		Where("height = ?", height).
 		First(&block).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return fiber.NewError(fiber.StatusNotFound, "block not found")
+			return fiber.NewError(fiber.StatusNotFound, types.NewNotFoundError("block").Error())
 		}
-		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		return fiber.NewError(fiber.StatusInternalServerError, types.NewDatabaseError("get block", err).Error())
 	}
 
 	blockRes, err := ToBlockResponse(block, h.GetConfig())
