@@ -16,7 +16,9 @@ func getCosmosTxs(client *fiber.Client, cfg *config.Config, height int64, txCoun
 	params := map[string]string{"pagination.limit": "1000"}
 	path := fmt.Sprintf("/cosmos/tx/v1beta1/txs/block/%d", height)
 
-	body, err := util.Get(context.Background(), client, cfg.GetCoolingDuration(), cfg.GetQueryTimeout(), cfg.GetChainConfig().RestUrl, path, params, nil)
+	ctx, cancel := context.WithTimeout(context.Background(), cfg.GetQueryTimeout())
+	defer cancel()
+	body, err := util.Get(ctx, cfg.GetChainConfig().RestUrl, path, params, nil)
 	if err != nil {
 		return txs, err
 	}
@@ -47,7 +49,9 @@ func getEvmTxs(client *fiber.Client, cfg *config.Config, height int64) (txs []ty
 	headers := map[string]string{"Content-Type": "application/json"}
 	path := ""
 
-	body, err := util.Post(context.Background(), client, cfg.GetCoolingDuration(), cfg.GetQueryTimeout(), cfg.GetChainConfig().JsonRpcUrl, path, payload, headers)
+	ctx, cancel := context.WithTimeout(context.Background(), cfg.GetQueryTimeout())
+	defer cancel()
+	body, err := util.Post(ctx, cfg.GetChainConfig().JsonRpcUrl, path, payload, headers)
 	if err != nil {
 		return txs, err
 	}

@@ -25,12 +25,14 @@ const (
 	maxBackoffDelay   = 30 * time.Second
 	backoffMultiplier = 2.0
 	jitterFactor      = 0.1
+	defaultTimeout    = 30 * time.Second
 )
 
 var (
 	limiter        *semaphore.Weighted
 	jitterSeed     atomic.Uint32
 	metricsBatcher *metrics.MetricsBatcher
+	globalConfig   *config.Config
 )
 
 func init() {
@@ -42,7 +44,8 @@ func init() {
 	metricsBatcher.Start()
 }
 
-func InitLimiter(cfg *config.Config) {
+func InitConfig(cfg *config.Config) {
+	globalConfig = cfg
 	limiter = semaphore.NewWeighted(int64(cfg.GetMaxConcurrentRequests()))
 }
 
@@ -135,31 +138,31 @@ type requestConfig struct {
 	headers map[string]string
 }
 
-func Get(ctx context.Context, client *fiber.Client, coolingDuration, timeout time.Duration, baseUrl, path string, params map[string]string, headers map[string]string) ([]byte, error) {
+func Get(ctx context.Context, baseUrl, path string, params map[string]string, headers map[string]string) ([]byte, error) {
 	config := requestConfig{
 		method:  fiber.MethodGet,
 		params:  params,
 		headers: headers,
 	}
-	return executeWithRetry(ctx, client, coolingDuration, timeout, baseUrl, path, config)
+	return executeWithRetry(ctx, baseUrl, path, config)
 }
 
-func Post(ctx context.Context, client *fiber.Client, coolingDuration, timeout time.Duration, baseUrl, path string, payload map[string]any, headers map[string]string) ([]byte, error) {
+func Post(ctx context.Context, baseUrl, path string, payload map[string]any, headers map[string]string) ([]byte, error) {
 	config := requestConfig{
 		method:  fiber.MethodPost,
 		payload: payload,
 		headers: headers,
 	}
-	return executeWithRetry(ctx, client, coolingDuration, timeout, baseUrl, path, config)
+	return executeWithRetry(ctx, baseUrl, path, config)
 }
 
-func executeWithRetry(ctx context.Context, client *fiber.Client, coolingDuration, timeout time.Duration, baseUrl, path string, config requestConfig) ([]byte, error) {
+func executeWithRetry(ctx context.Context, baseUrl, path string, config requestConfig) ([]byte, error) {
 	retryCount := 0
 	rateLimitRetries := 0
 	var lastErr error
 
 	for retryCount < maxRetries {
-		body, err := executeHTTPRequest(ctx, client, timeout, baseUrl, path, config)
+		body, err := executeHTTPRequest(ctx, baseUrl, path, config)
 		if err == nil {
 			return body, nil
 		}
@@ -173,7 +176,7 @@ func executeWithRetry(ctx context.Context, client *fiber.Client, coolingDuration
 			select {
 			case <-ctx.Done():
 				return nil, ctx.Err()
-			case <-time.After(coolingDuration):
+			case <-time.After(globalConfig.GetCoolingDuration()):
 				continue
 			}
 		}
@@ -200,7 +203,7 @@ func executeWithRetry(ctx context.Context, client *fiber.Client, coolingDuration
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
-		case <-time.After(coolingDuration):
+		case <-time.After(globalConfig.GetCoolingDuration()):
 		}
 	}
 
@@ -215,7 +218,10 @@ func executeWithRetry(ctx context.Context, client *fiber.Client, coolingDuration
 	return nil, types.NewTimeoutError("GET request")
 }
 
-func executeHTTPRequest(ctx context.Context, client *fiber.Client, timeout time.Duration, baseUrl, path string, config requestConfig) (body []byte, err error) {
+func executeHTTPRequest(ctx context.Context, baseUrl, path string, config requestConfig) (body []byte, err error) {
+	client := fiber.AcquireClient()
+	defer fiber.ReleaseClient(client)
+
 	// Validate URL for security and get parsed URL (prevents duplicate parsing)
 	parsedUrl, err := validateAndParseURL(baseUrl, path)
 	if err != nil {
@@ -269,6 +275,12 @@ func executeHTTPRequest(ctx context.Context, client *fiber.Client, timeout time.
 	// set headers
 	for key, value := range config.headers {
 		req.Set(key, value)
+	}
+
+	// Extract timeout from context if available
+	timeout := defaultTimeout
+	if deadline, ok := ctx.Deadline(); ok {
+		timeout = time.Until(deadline)
 	}
 
 	code, body, errs := req.Timeout(timeout).Bytes()

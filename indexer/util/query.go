@@ -23,7 +23,9 @@ type BlockResponse struct {
 func GetLatestHeight(client *fiber.Client, cfg *config.Config) (int64, error) {
 	path := "/cosmos/base/tendermint/v1beta1/blocks/latest"
 
-	body, err := util.Get(context.Background(), client, cfg.GetCoolingDuration(), cfg.GetQueryTimeout(), cfg.GetChainConfig().RestUrl, path, nil, nil)
+	ctx, cancel := context.WithTimeout(context.Background(), cfg.GetQueryTimeout())
+	defer cancel()
+	body, err := util.Get(ctx, cfg.GetChainConfig().RestUrl, path, nil, nil)
 	if err != nil {
 		return 0, err
 	}

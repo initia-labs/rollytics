@@ -46,11 +46,10 @@ func getValidator(validatorAddr string, cfg *config.Config) (*Validator, error) 
 	if ok {
 		return cached, nil
 	}
-	client := fiber.AcquireClient()
-	defer fiber.ReleaseClient(client)
-
 	path := fmt.Sprintf("/opinit/opchild/v1/validator/%s", validatorAddr)
-	body, err := util.Get(context.Background(), client, cfg.GetCoolingDuration(), cfg.GetQueryTimeout(), cfg.GetChainConfig().RestUrl, path, nil, nil)
+	ctx, cancel := context.WithTimeout(context.Background(), cfg.GetQueryTimeout())
+	defer cancel()
+	body, err := util.Get(ctx, cfg.GetChainConfig().RestUrl, path, nil, nil)
 	if err != nil {
 		return nil, err
 	}
