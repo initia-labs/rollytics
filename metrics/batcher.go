@@ -175,15 +175,7 @@ func (b *MetricsBatcher) flush() {
 
 	// Process concurrent requests delta
 	if buffer.concurrentRequestsDelta != 0 {
-		if buffer.concurrentRequestsDelta > 0 {
-			for range buffer.concurrentRequestsDelta {
-				ConcurrentRequestsActive().Inc()
-			}
-		} else {
-			for range -buffer.concurrentRequestsDelta {
-				ConcurrentRequestsActive().Dec()
-			}
-		}
+		ConcurrentRequestsActive().Add(float64(buffer.concurrentRequestsDelta))
 	}
 
 	// Process API latencies
@@ -201,17 +193,13 @@ func (b *MetricsBatcher) flush() {
 	// Process API requests
 	for endpoint, statuses := range buffer.apiRequests {
 		for status, count := range statuses {
-			for range count {
-				ExternalAPIRequestsTotal().WithLabelValues(endpoint, status).Inc()
-			}
+			ExternalAPIRequestsTotal().WithLabelValues(endpoint, status).Add(float64(count))
 		}
 	}
 
 	// Process rate limit hits
 	for endpoint, count := range buffer.rateLimitHits {
-		for range count {
-			RateLimitHitsTotal().WithLabelValues(endpoint).Inc()
-		}
+		RateLimitHitsTotal().WithLabelValues(endpoint).Add(float64(count))
 	}
 }
 
