@@ -14,14 +14,10 @@ var (
 
 // DatabaseMetrics groups database-related metrics
 type DatabaseMetrics struct {
-	ConnectionsActive       prometheus.Gauge
-	ConnectionsIdle         prometheus.Gauge
-	ConnectionsMaxOpen      prometheus.Gauge
-	ConnectionsWaitCount    *prometheus.CounterVec
-	ConnectionsWaitDuration prometheus.Histogram
-	QueriesTotal            *prometheus.CounterVec
-	QueryDuration           *prometheus.HistogramVec
-	RowsAffected            *prometheus.HistogramVec
+	ConnectionsActive prometheus.Gauge
+	QueriesTotal      *prometheus.CounterVec
+	QueryDuration     *prometheus.HistogramVec
+	RowsAffected      *prometheus.HistogramVec
 }
 
 // NewDatabaseMetrics creates and returns database metrics
@@ -31,32 +27,6 @@ func NewDatabaseMetrics() *DatabaseMetrics {
 			prometheus.GaugeOpts{
 				Name: "rollytics_db_connections_active",
 				Help: "Number of active database connections",
-			},
-		),
-		ConnectionsIdle: prometheus.NewGauge(
-			prometheus.GaugeOpts{
-				Name: "rollytics_db_connections_idle",
-				Help: "Number of idle database connections",
-			},
-		),
-		ConnectionsMaxOpen: prometheus.NewGauge(
-			prometheus.GaugeOpts{
-				Name: "rollytics_db_connections_max_open",
-				Help: "Maximum number of open database connections",
-			},
-		),
-		ConnectionsWaitCount: prometheus.NewCounterVec(
-			prometheus.CounterOpts{
-				Name: "rollytics_db_connections_wait_count_total",
-				Help: "Total number of database connection waits",
-			},
-			[]string{"status"}, // "timeout", "success"
-		),
-		ConnectionsWaitDuration: prometheus.NewHistogram(
-			prometheus.HistogramOpts{
-				Name:    "rollytics_db_connections_wait_duration_seconds",
-				Help:    "Time spent waiting for database connections",
-				Buckets: prometheus.DefBuckets,
 			},
 		),
 		QueriesTotal: prometheus.NewCounterVec(
@@ -89,10 +59,6 @@ func NewDatabaseMetrics() *DatabaseMetrics {
 func (d *DatabaseMetrics) Register(reg *prometheus.Registry) {
 	reg.MustRegister(
 		d.ConnectionsActive,
-		d.ConnectionsIdle,
-		d.ConnectionsMaxOpen,
-		d.ConnectionsWaitCount,
-		d.ConnectionsWaitDuration,
 		d.QueriesTotal,
 		d.QueryDuration,
 		d.RowsAffected,
@@ -158,18 +124,7 @@ func (u *DBStatsUpdater) updateStats() {
 
 	// Update Prometheus metrics
 	u.metrics.ConnectionsActive.Set(float64(stats.InUse))
-	u.metrics.ConnectionsIdle.Set(float64(stats.Idle))
-	u.metrics.ConnectionsMaxOpen.Set(float64(stats.MaxOpenConnections))
-
-	// Update counters (these are cumulative)
-	u.metrics.ConnectionsWaitCount.WithLabelValues("total").Add(float64(stats.WaitCount))
-	if stats.WaitDuration > 0 {
-		u.metrics.ConnectionsWaitDuration.Observe(stats.WaitDuration.Seconds())
-	}
 
 	u.logger.Debug("updated database stats",
-		"active", stats.InUse,
-		"idle", stats.Idle,
-		"max_open", stats.MaxOpenConnections,
-		"wait_count", stats.WaitCount)
+		"active", stats.InUse)
 }

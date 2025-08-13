@@ -17,6 +17,7 @@ type MetricsBatcher struct {
 	maxBufferSize int
 	done          chan struct{}
 	started       atomic.Bool
+	flushing      atomic.Bool
 }
 
 // MetricsBuffer holds batched metrics before flushing
@@ -158,12 +159,15 @@ func (b *MetricsBatcher) checkBufferSize() {
 	totalItems += len(b.buffer.rateLimitHits)
 
 	if totalItems >= b.maxBufferSize {
-		go b.flush() // Async flush to avoid blocking
+		if b.flushing.CompareAndSwap(false, true) {
+			go b.flush() // Async flush to avoid blocking
+		}
 	}
 }
 
 // flush processes all batched metrics and sends them to Prometheus
 func (b *MetricsBatcher) flush() {
+	defer b.flushing.Store(false)
 	b.mu.Lock()
 	buffer := b.buffer
 	b.buffer = newMetricsBuffer() // Replace with new buffer
