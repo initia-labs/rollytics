@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"sync"
 
-	"github.com/gofiber/fiber/v2"
 	"golang.org/x/sync/errgroup"
 
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
@@ -14,9 +13,6 @@ import (
 const nftStructTag = "0x1::nft::Nft"
 
 func (sub *MoveNftSubmodule) prepare(block indexertypes.ScrapedBlock) error {
-	client := fiber.AcquireClient()
-	defer fiber.ReleaseClient(client)
-
 	nftAddrs, err := filterMoveData(block)
 	if err != nil {
 		return err
@@ -30,7 +26,7 @@ func (sub *MoveNftSubmodule) prepare(block indexertypes.ScrapedBlock) error {
 	for _, nftAddr := range nftAddrs {
 		addr := nftAddr
 		g.Go(func() error {
-			resource, err := getMoveResource(addr, nftStructTag, client, sub.cfg, block.Height)
+			resource, err := getMoveResource(addr, nftStructTag, sub.cfg, block.Height)
 			if err != nil {
 				return err
 			}
@@ -57,7 +53,7 @@ func (sub *MoveNftSubmodule) prepare(block indexertypes.ScrapedBlock) error {
 }
 
 func filterMoveData(block indexertypes.ScrapedBlock) (nftAddrs []string, err error) {
-	nftAddrMap := make(map[string]interface{})
+	nftAddrMap := make(map[string]any)
 	events, err := util.ExtractEvents(block, "move")
 	if err != nil {
 		return nftAddrs, err

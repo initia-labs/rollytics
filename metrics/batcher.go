@@ -246,7 +246,7 @@ func init() {
 	config := DefaultMetricsBatcherConfig()
 	globalMetricsBatcher = NewMetricsBatcher(config)
 	globalMetricsBatcher.Start()
-	
+
 	// Set up graceful shutdown
 	setupGracefulShutdown()
 }
@@ -255,7 +255,7 @@ func init() {
 func setupGracefulShutdown() {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-	
+
 	go func() {
 		<-c
 		shutdownGlobalMetricsBatcher()

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
@@ -75,14 +76,20 @@ func Init() {
 func NewServer(cfg *config.Config, logger *slog.Logger) *MetricsServer {
 	metricsConfig := cfg.GetMetricsConfig()
 
+	// Ensure metrics subsystem is initialized
+	if registry == nil || metrics == nil {
+		Init()
+	}
+
 	mux := http.NewServeMux()
 	mux.Handle(metricsConfig.Path, promhttp.HandlerFor(registry, promhttp.HandlerOpts{
 		EnableOpenMetrics: true,
 	}))
 
 	server := &http.Server{
-		Addr:    ":" + metricsConfig.Port,
-		Handler: mux,
+		Addr:              ":" + metricsConfig.Port,
+		Handler:           mux,
+		ReadHeaderTimeout: 3 * time.Second,
 	}
 
 	return &MetricsServer{

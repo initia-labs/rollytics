@@ -35,7 +35,7 @@ var (
 )
 
 func init() {
-	jitterSeed.Store(uint32(time.Now().UnixNano()))
+	jitterSeed.Store(uint32(time.Now().UnixNano())) //nolint:gosec
 }
 
 func InitUtil(_cfg *config.Config) {

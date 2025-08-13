@@ -52,7 +52,7 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Api {
 				metrics.TrackPanic("api")
 				metrics.TrackError("api", "panic")
 				logger.Error("panic recovered in API handler", "path", c.Path(), "panic", r)
-				c.Status(fiber.StatusInternalServerError).SendString("Internal Server Error")
+				_ = c.Status(fiber.StatusInternalServerError).SendString("Internal Server Error")
 			}
 		}()
 		return c.Next()
