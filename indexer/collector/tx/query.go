@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
 
@@ -13,33 +12,25 @@ import (
 	"github.com/initia-labs/rollytics/util"
 )
 
-const maxRetries = 5
-
-func getRestTxs(client *fiber.Client, cfg *config.Config, height int64, txCount int) (txs []RestTx, err error) {
+func getCosmosTxs(client *fiber.Client, cfg *config.Config, height int64, txCount int) (txs []RestTx, err error) {
 	params := map[string]string{"pagination.limit": "1000"}
 	path := fmt.Sprintf("/cosmos/tx/v1beta1/txs/block/%d", height)
 
-	for retry := 1; retry <= maxRetries; retry++ {
-		body, err := util.Get(context.Background(), client, cfg.GetCoolingDuration(), cfg.GetQueryTimeout(), cfg.GetChainConfig().RestUrl, path, params, nil)
-		if err != nil {
-			return txs, err
-		}
-
-		var response QueryRestTxsResponse
-		if err := json.Unmarshal(body, &response); err != nil {
-			return txs, err
-		}
-
-		if len(response.Txs) == txCount {
-			return response.Txs, nil
-		}
-
-		if retry < maxRetries {
-			time.Sleep(cfg.GetCoolingDuration())
-		}
+	body, err := util.Get(context.Background(), client, cfg.GetCoolingDuration(), cfg.GetQueryTimeout(), cfg.GetChainConfig().RestUrl, path, params, nil)
+	if err != nil {
+		return txs, err
 	}
 
-	return txs, fmt.Errorf("retried %d times but got empty rest txs for height %d", maxRetries, height)
+	var response QueryRestTxsResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return txs, err
+	}
+
+	if len(response.Txs) != txCount {
+		return txs, fmt.Errorf("expected %d txs but got %d for height %d", txCount, len(response.Txs), height)
+	}
+
+	return response.Txs, nil
 }
 
 func getEvmTxs(client *fiber.Client, cfg *config.Config, height int64) (txs []types.EvmTx, err error) {

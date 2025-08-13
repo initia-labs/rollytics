@@ -17,7 +17,7 @@ func (sub *TxSubmodule) prepare(block indexertypes.ScrapedBlock) error {
 	var evmTxs []types.EvmTx
 
 	g.Go(func() error {
-		txs, err := getRestTxs(client, sub.cfg, block.Height, len(block.Txs))
+		txs, err := getCosmosTxs(client, sub.cfg, block.Height, len(block.Txs))
 		if err != nil {
 			return err
 		}

@@ -35,7 +35,7 @@ var (
 
 func init() {
 	jitterSeed.Store(uint32(time.Now().UnixNano()))
-	
+
 	// Initialize metrics batcher with default config
 	config := metrics.DefaultMetricsBatcherConfig()
 	metricsBatcher = metrics.NewMetricsBatcher(config)
@@ -137,7 +137,7 @@ type requestConfig struct {
 
 func Get(ctx context.Context, client *fiber.Client, coolingDuration, timeout time.Duration, baseUrl, path string, params map[string]string, headers map[string]string) ([]byte, error) {
 	config := requestConfig{
-		method:  "GET",
+		method:  fiber.MethodGet,
 		params:  params,
 		headers: headers,
 	}
@@ -146,7 +146,7 @@ func Get(ctx context.Context, client *fiber.Client, coolingDuration, timeout tim
 
 func Post(ctx context.Context, client *fiber.Client, coolingDuration, timeout time.Duration, baseUrl, path string, payload map[string]any, headers map[string]string) ([]byte, error) {
 	config := requestConfig{
-		method:  "POST",
+		method:  fiber.MethodPost,
 		payload: payload,
 		headers: headers,
 	}
@@ -209,7 +209,7 @@ func executeWithRetry(ctx context.Context, client *fiber.Client, coolingDuration
 		return nil, lastErr
 	}
 
-	if config.method == "POST" {
+	if config.method == fiber.MethodPost {
 		return nil, types.NewTimeoutError("POST request")
 	}
 	return nil, types.NewTimeoutError("GET request")
@@ -246,7 +246,7 @@ func executeHTTPRequest(ctx context.Context, client *fiber.Client, timeout time.
 	metricsBatcher.RecordSemaphoreWait(semaphoreWaitTime)
 
 	var req *fiber.Agent
-	if config.method == "GET" {
+	if config.method == fiber.MethodGet {
 		// set query params
 		if config.params != nil {
 			query := parsedUrl.Query()
