@@ -119,12 +119,14 @@ func (i *Indexer) prepare() {
 			}()
 
 			start := time.Now()
+			indexerMetrics := metrics.GetMetrics().IndexerMetrics()
 			if err := i.collector.Prepare(b); err != nil {
-				metrics.GetMetrics().Indexer.ProcessingErrors.WithLabelValues("prepare", "collector_error").Inc()
+				i.logger.Error("failed to prepare block", slog.Int64("height", b.Height), slog.Any("error", err))
+				indexerMetrics.ProcessingErrors.WithLabelValues("prepare", "collector_error").Inc()
 				metrics.TrackError("indexer", "prepare_error")
 				panic(err)
 			}
-			metrics.GetMetrics().Indexer.BlockProcessingTime.WithLabelValues("prepare").Observe(time.Since(start).Seconds())
+			indexerMetrics.BlockProcessingTime.WithLabelValues("prepare").Observe(time.Since(start).Seconds())
 
 			i.mtx.Lock()
 			i.blockMap[b.Height] = b
@@ -139,7 +141,8 @@ func (i *Indexer) collect() {
 		i.mtx.Lock()
 
 		inflightCount := len(i.blockMap) + i.prepareCount
-		metrics.GetMetrics().Indexer.InflightBlocksCount.Set(float64(inflightCount))
+		indexerMetrics := metrics.GetMetrics().IndexerMetrics()
+		indexerMetrics.InflightBlocksCount.Set(float64(inflightCount))
 
 		switch {
 		case inflightCount > types.MaxInflightBlocks && !i.paused:
@@ -168,15 +171,17 @@ func (i *Indexer) collect() {
 			}()
 
 			start := time.Now()
+			indexerMetrics := metrics.GetMetrics().IndexerMetrics()
 			if err := i.collector.Collect(block); err != nil {
-				metrics.GetMetrics().Indexer.ProcessingErrors.WithLabelValues("collect", "collector_error").Inc()
+				i.logger.Error("failed to collect block", slog.Int64("height", block.Height))
+				indexerMetrics.ProcessingErrors.WithLabelValues("collect", "collector_error").Inc()
 				metrics.TrackError("indexer", "collect_error")
 				panic(err)
 			}
-			metrics.GetMetrics().Indexer.BlockProcessingTime.WithLabelValues("collect").Observe(time.Since(start).Seconds())
+			indexerMetrics.BlockProcessingTime.WithLabelValues("collect").Observe(time.Since(start).Seconds())
 
-			metrics.GetMetrics().Indexer.BlocksProcessedTotal.Inc()
-			metrics.GetMetrics().Indexer.CurrentBlockHeight.Set(float64(block.Height))
+			indexerMetrics.BlocksProcessedTotal.Inc()
+			indexerMetrics.CurrentBlockHeight.Set(float64(block.Height))
 		}()
 
 		i.height++

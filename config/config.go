@@ -41,6 +41,13 @@ const (
 	DefaultCacheSize = 1000
 	DefaultCacheTTL  = 10 * time.Minute
 
+	// Dictionary cache settings
+	DefaultAccountCacheSize   = 40960
+	DefaultNftCacheSize       = 40960
+	DefaultMsgTypeCacheSize   = 1024
+	DefaultTypeTagCacheSize   = 1024
+	DefaultEvmTxHashCacheSize = 40960
+
 	// Timeout and interval settings
 	DefaultCoolingDuration = 50 * time.Millisecond
 	DefaultQueryTimeout    = 10 * time.Second
@@ -67,6 +74,15 @@ type MetricsConfig struct {
 	Port    string `json:"port"`
 }
 
+// CacheConfig contains configuration for dictionary caches
+type CacheConfig struct {
+	AccountCacheSize   int `json:"account_cache_size"`
+	NftCacheSize       int `json:"nft_cache_size"`
+	MsgTypeCacheSize   int `json:"msg_type_cache_size"`
+	TypeTagCacheSize   int `json:"type_tag_cache_size"`
+	EvmTxHashCacheSize int `json:"evm_tx_hash_cache_size"`
+}
+
 func SetBuildInfo(v, commit string) {
 	Version = v
 	CommitHash = commit
@@ -86,6 +102,7 @@ type Config struct {
 	pollingInterval       time.Duration // for api only
 	internalTxConfig      *InternalTxConfig
 	metricsConfig         *MetricsConfig
+	cacheConfig           *CacheConfig
 }
 
 func setDefaults() {
@@ -110,7 +127,28 @@ func setDefaults() {
 	viper.SetDefault("METRICS_ENABLED", false)
 	viper.SetDefault("METRICS_PATH", DefaultMetricsPath)
 	viper.SetDefault("METRICS_PORT", DefaultMetricsPort)
+
+	// Dictionary cache defaults
+	viper.SetDefault("ACCOUNT_CACHE_SIZE", DefaultAccountCacheSize)
+	viper.SetDefault("NFT_CACHE_SIZE", DefaultNftCacheSize)
+	viper.SetDefault("MSG_TYPE_CACHE_SIZE", DefaultMsgTypeCacheSize)
+	viper.SetDefault("TYPE_TAG_CACHE_SIZE", DefaultTypeTagCacheSize)
+	viper.SetDefault("EVM_TX_HASH_CACHE_SIZE", DefaultEvmTxHashCacheSize)
+
 	//  CHAIN_ID, VM_TYPE, RPC_URL, REST_URL, and JSON_RPC_URL have no defaults
+}
+
+// setVMSpecificDefaults sets defaults based on VM type
+func setVMSpecificDefaults(vmType types.VMType) {
+	// Only set if not already explicitly set by user
+	if !viper.IsSet("INTERNAL_TX") {
+		switch vmType {
+		case types.EVM:
+			viper.SetDefault("INTERNAL_TX", true)
+		default:
+			viper.SetDefault("INTERNAL_TX", false)
+		}
+	}
 }
 
 func GetConfig() (*Config, error) {
@@ -152,6 +190,9 @@ func loadConfig() (*Config, error) {
 		return nil, types.NewConfigError("VM_TYPE is invalid", nil)
 	}
 
+	// Set VM-specific defaults
+	setVMSpecificDefaults(vmType)
+
 	cc := &ChainConfig{
 		ChainId:              viper.GetString("CHAIN_ID"),
 		VmType:               vmType,
@@ -182,6 +223,13 @@ func loadConfig() (*Config, error) {
 			Enabled: viper.GetBool("METRICS_ENABLED"),
 			Path:    viper.GetString("METRICS_PATH"),
 			Port:    viper.GetString("METRICS_PORT"),
+		},
+		cacheConfig: &CacheConfig{
+			AccountCacheSize:   viper.GetInt("ACCOUNT_CACHE_SIZE"),
+			NftCacheSize:       viper.GetInt("NFT_CACHE_SIZE"),
+			MsgTypeCacheSize:   viper.GetInt("MSG_TYPE_CACHE_SIZE"),
+			TypeTagCacheSize:   viper.GetInt("TYPE_TAG_CACHE_SIZE"),
+			EvmTxHashCacheSize: viper.GetInt("EVM_TX_HASH_CACHE_SIZE"),
 		},
 	}
 
@@ -285,6 +333,10 @@ func (c Config) GetMetricsConfig() *MetricsConfig {
 	return c.metricsConfig
 }
 
+func (c Config) GetCacheConfig() *CacheConfig {
+	return c.cacheConfig
+}
+
 func (c Config) GetLogFormat() string {
 	if c.logFormat == "json" {
 		return "json"
@@ -342,6 +394,17 @@ func (c Config) Validate() error {
 
 	// Internal TX config validation
 	if c.internalTxConfig != nil && c.internalTxConfig.Enabled {
+		// Internal TX is only supported for EVM chains
+		if c.chainConfig.VmType != types.EVM {
+			vmTypeStr := "unknown"
+			switch c.chainConfig.VmType {
+			case types.MoveVM:
+				vmTypeStr = "Move"
+			case types.WasmVM:
+				vmTypeStr = "Wasm"
+			}
+			return types.NewValidationError("INTERNAL_TX", fmt.Sprintf("internal transaction tracking is not supported for %s VM type, only EVM", vmTypeStr))
+		}
 		if c.internalTxConfig.PollInterval <= 0 {
 			return types.NewValidationError("INTERNAL_TX_POLL_INTERVAL", "must be positive when INTERNAL_TX is enabled")
 		}

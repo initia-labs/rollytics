@@ -59,7 +59,7 @@ func (s *Scraper) updateScrapeSpeedMetrics() {
 		elapsed := now.Sub(s.lastScrapeTime).Seconds()
 		if elapsed > 0 {
 			speed := float64(s.scrapedCount) / elapsed
-			metrics.GetMetrics().Indexer.ProcessingSpeed.Set(speed)
+			metrics.GetMetrics().IndexerMetrics().ProcessingSpeed.Set(speed)
 		}
 		s.scrapedCount = 0
 		s.lastScrapeTime = now

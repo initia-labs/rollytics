@@ -132,7 +132,7 @@ func (et *EndpointTracker) updateTopEndpoints() {
 	})
 
 	// Clear old metrics
-	GetMetrics().HTTP.TopEndpoints.Reset()
+	GetMetrics().HTTPMetrics().TopEndpoints.Reset()
 
 	// Update with top slow endpoints (limit to 20 to control cardinality)
 	limit := 20
@@ -141,6 +141,6 @@ func (et *EndpointTracker) updateTopEndpoints() {
 	}
 
 	for i := 0; i < limit; i++ {
-		GetMetrics().HTTP.TopEndpoints.WithLabelValues(metrics[i].path).Set(metrics[i].p99)
+		GetMetrics().HTTPMetrics().TopEndpoints.WithLabelValues(metrics[i].path).Set(metrics[i].p99)
 	}
 }

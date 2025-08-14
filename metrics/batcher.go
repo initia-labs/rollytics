@@ -173,33 +173,35 @@ func (b *MetricsBatcher) flush() {
 	b.buffer = newMetricsBuffer() // Replace with new buffer
 	b.mu.Unlock()
 
+	apiMetrics := GetMetrics().ExternalAPIMetrics()
+	
 	// Process concurrent requests delta
 	if buffer.concurrentRequestsDelta != 0 {
-		ConcurrentRequestsActive().Add(float64(buffer.concurrentRequestsDelta))
+		apiMetrics.ConcurrentActive.Add(float64(buffer.concurrentRequestsDelta))
 	}
 
 	// Process API latencies
 	for endpoint, latencies := range buffer.apiLatencies {
 		for _, latency := range latencies {
-			ExternalAPILatency().WithLabelValues(endpoint).Observe(latency)
+			apiMetrics.Latency.WithLabelValues(endpoint).Observe(latency)
 		}
 	}
 
 	// Process semaphore wait times
 	for _, waitTime := range buffer.semaphoreWaits {
-		SemaphoreWaitDuration().Observe(waitTime)
+		apiMetrics.SemaphoreWaitDuration.Observe(waitTime)
 	}
 
 	// Process API requests
 	for endpoint, statuses := range buffer.apiRequests {
 		for status, count := range statuses {
-			ExternalAPIRequestsTotal().WithLabelValues(endpoint, status).Add(float64(count))
+			apiMetrics.RequestsTotal.WithLabelValues(endpoint, status).Add(float64(count))
 		}
 	}
 
 	// Process rate limit hits
 	for endpoint, count := range buffer.rateLimitHits {
-		RateLimitHitsTotal().WithLabelValues(endpoint).Add(float64(count))
+		apiMetrics.RateLimitHitsTotal.WithLabelValues(endpoint).Add(float64(count))
 	}
 }
 

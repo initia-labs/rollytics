@@ -35,8 +35,10 @@ func scrapeBlock(client *fiber.Client, height int64, cfg *config.Config) (types.
 		return fetchBlockResults(client, height, cfg, getBlockResultsRes)
 	})
 
+	indexerMetrics := metrics.GetMetrics().IndexerMetrics()
+	
 	if err := g.Wait(); err != nil {
-		metrics.GetMetrics().Indexer.ProcessingErrors.WithLabelValues("scrape", "network_error").Inc()
+		indexerMetrics.ProcessingErrors.WithLabelValues("scrape", "network_error").Inc()
 		return types.ScrapedBlock{}, err
 	}
 
@@ -45,13 +47,13 @@ func scrapeBlock(client *fiber.Client, height int64, cfg *config.Config) (types.
 
 	scrapedBlock, err := parseScrapedBlock(block, blockResults, height)
 	if err != nil {
-		metrics.GetMetrics().Indexer.ProcessingErrors.WithLabelValues("scrape", "parse_error").Inc()
+		indexerMetrics.ProcessingErrors.WithLabelValues("scrape", "parse_error").Inc()
 		return types.ScrapedBlock{}, err
 	}
 
 	// Track scrape metrics
 	duration := time.Since(start).Seconds()
-	metrics.GetMetrics().Indexer.BlockProcessingTime.WithLabelValues("scrape").Observe(duration)
+	indexerMetrics.BlockProcessingTime.WithLabelValues("scrape").Observe(duration)
 
 	return scrapedBlock, nil
 }

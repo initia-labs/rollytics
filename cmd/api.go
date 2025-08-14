@@ -39,6 +39,9 @@ You can configure database, chain, logging, and server options via environment v
 			// Initialize the request limiter
 			util.InitUtil(cfg)
 
+			// Initialize dictionary caches
+			util.InitializeCaches(cfg.GetCacheConfig())
+
 			// Initialize metrics
 			metrics.Init()
 			metricsServer := metrics.NewServer(cfg, logger)

@@ -93,12 +93,13 @@ func (p *MetricsPlugin) afterQuery(db *gorm.DB) {
 	}
 
 	// Track metrics
-	metrics.DBQueriesTotal().WithLabelValues(operation, status).Inc()
-	metrics.DBQueryDuration().WithLabelValues(operation, tableName).Observe(duration)
+	dbMetrics := metrics.GetMetrics().DatabaseMetrics()
+	dbMetrics.QueriesTotal.WithLabelValues(operation, status).Inc()
+	dbMetrics.QueryDuration.WithLabelValues(operation, tableName).Observe(duration)
 
 	// Track rows affected for write operations
 	if operation != "SELECT" && db.RowsAffected >= 0 {
-		metrics.DBRowsAffected().WithLabelValues(operation).Observe(float64(db.RowsAffected))
+		dbMetrics.RowsAffected.WithLabelValues(operation).Observe(float64(db.RowsAffected))
 	}
 }
 

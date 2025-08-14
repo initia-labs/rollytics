@@ -63,10 +63,11 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Api {
 		start := time.Now()
 
 		// Track requests in flight
-		metrics.GetMetrics().HTTP.RequestsInFlight.Inc()
+		httpMetrics := metrics.GetMetrics().HTTPMetrics()
+		httpMetrics.RequestsInFlight.Inc()
 		defer func() {
 			// Always decrement requests in flight, even on panic
-			metrics.GetMetrics().HTTP.RequestsInFlight.Dec()
+			httpMetrics.RequestsInFlight.Dec()
 
 			// Track metrics after request completion, with panic recovery
 			if r := recover(); r != nil {
@@ -80,9 +81,9 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Api {
 				handler := metrics.GetHandlerPattern(path)
 
 				// Track metrics for panicked request
-				metrics.GetMetrics().HTTP.RequestsTotal.WithLabelValues(method, handler, "5xx").Inc()
-				metrics.GetMetrics().HTTP.RequestDuration.WithLabelValues(method, handler).Observe(duration)
-				metrics.GetMetrics().HTTP.ErrorsTotal.WithLabelValues(handler, "server_error").Inc()
+				httpMetrics.RequestsTotal.WithLabelValues(method, handler, "5xx").Inc()
+				httpMetrics.RequestDuration.WithLabelValues(method, handler).Observe(duration)
+				httpMetrics.ErrorsTotal.WithLabelValues(handler, "server_error").Inc()
 				metrics.TrackEndpoint(path, duration)
 
 				// Re-panic to let upper panic handler deal with it
@@ -107,14 +108,14 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Api {
 		statusClass := metrics.GetStatusClass(statusCode)
 
 		// Track HTTP metrics
-		metrics.GetMetrics().HTTP.RequestsTotal.WithLabelValues(method, handler, statusClass).Inc()
-		metrics.GetMetrics().HTTP.RequestDuration.WithLabelValues(method, handler).Observe(duration)
+		httpMetrics.RequestsTotal.WithLabelValues(method, handler, statusClass).Inc()
+		httpMetrics.RequestDuration.WithLabelValues(method, handler).Observe(duration)
 
 		// Track detailed metrics for slow or important requests
 		if metrics.ShouldTrackDetailed(duration, path) {
 			bucket := metrics.GetDurationBucket(duration)
 			if bucket != "" {
-				metrics.GetMetrics().HTTP.SlowRequests.WithLabelValues(method, path, bucket).Inc()
+				httpMetrics.SlowRequests.WithLabelValues(method, path, bucket).Inc()
 			}
 		}
 
@@ -139,7 +140,7 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Api {
 					errorType = "server_error"
 				}
 			}
-			metrics.GetMetrics().HTTP.ErrorsTotal.WithLabelValues(handler, errorType).Inc()
+			httpMetrics.ErrorsTotal.WithLabelValues(handler, errorType).Inc()
 		}
 
 		return err

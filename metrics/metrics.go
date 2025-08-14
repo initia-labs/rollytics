@@ -132,67 +132,34 @@ func (m *MetricsServer) Shutdown(ctx context.Context) error {
 	return m.server.Shutdown(ctx)
 }
 
-// GetRegistry returns the Prometheus registry
-func GetRegistry() *prometheus.Registry {
-	return registry
-}
-
 // GetMetrics returns the global metrics instance
 func GetMetrics() *Metrics {
 	return metrics
 }
 
-// Legacy accessor functions for backward compatibility
-func HTTPRequestsTotal() *prometheus.CounterVec {
-	return metrics.HTTP.RequestsTotal
+// HTTPMetrics returns the HTTP metrics group
+func (m *Metrics) HTTPMetrics() *HTTPMetrics {
+	return m.HTTP
 }
 
-func HTTPRequestDuration() *prometheus.HistogramVec {
-	return metrics.HTTP.RequestDuration
+// DatabaseMetrics returns the Database metrics group
+func (m *Metrics) DatabaseMetrics() *DatabaseMetrics {
+	return m.Database
 }
 
-func DBConnectionsActive() prometheus.Gauge {
-	return metrics.Database.ConnectionsActive
+// IndexerMetrics returns the Indexer metrics group
+func (m *Metrics) IndexerMetrics() *IndexerMetrics {
+	return m.Indexer
 }
 
-func DBQueriesTotal() *prometheus.CounterVec {
-	return metrics.Database.QueriesTotal
+// ExternalAPIMetrics returns the ExternalAPI metrics group
+func (m *Metrics) ExternalAPIMetrics() *ExternalAPIMetrics {
+	return m.ExternalAPI
 }
 
-func BlocksProcessedTotal() prometheus.Counter {
-	return metrics.Indexer.BlocksProcessedTotal
-}
-
-func CurrentBlockHeight() prometheus.Gauge {
-	return metrics.Indexer.CurrentBlockHeight
-}
-
-func ExternalAPIRequestsTotal() *prometheus.CounterVec {
-	return metrics.ExternalAPI.RequestsTotal
-}
-
-func RateLimitHitsTotal() *prometheus.CounterVec {
-	return metrics.ExternalAPI.RateLimitHitsTotal
-}
-
-func ExternalAPILatency() *prometheus.HistogramVec {
-	return metrics.ExternalAPI.Latency
-}
-
-func ConcurrentRequestsActive() prometheus.Gauge {
-	return metrics.ExternalAPI.ConcurrentActive
-}
-
-func SemaphoreWaitDuration() prometheus.Histogram {
-	return metrics.ExternalAPI.SemaphoreWaitDuration
-}
-
-func DBQueryDuration() *prometheus.HistogramVec {
-	return metrics.Database.QueryDuration
-}
-
-func DBRowsAffected() *prometheus.HistogramVec {
-	return metrics.Database.RowsAffected
+// ErrorMetrics returns the Error metrics group
+func (m *Metrics) ErrorMetrics() *ErrorMetrics {
+	return m.Error
 }
 
 // StartDBStatsUpdater starts periodic database statistics collection

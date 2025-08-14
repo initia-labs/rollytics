@@ -24,7 +24,7 @@ var (
 	regexInitBech = regexp.MustCompile(InitBech32Regex)
 	regexHex      = regexp.MustCompile(InitHexRegex)
 	regexMoveHex  = regexp.MustCompile(MoveHexRegex)
-	faStoreCache  = cache.New[string, string](10000)
+	faStoreCache  = cache.New[string, string](10240) // don't need to be configurable since it's internal use only
 )
 
 func findAllBech32Address(attr string) []string {
