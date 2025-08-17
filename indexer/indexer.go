@@ -22,6 +22,11 @@ import (
 	"github.com/initia-labs/rollytics/types"
 )
 
+const (
+	// ShutdownTimeout defines the maximum time to wait for graceful shutdown
+	ShutdownTimeout = 30 * time.Second
+)
+
 type Indexer struct {
 	cfg              *config.Config
 	logger           *slog.Logger
@@ -69,10 +74,50 @@ func (i *Indexer) Run(ctx context.Context) error {
 	}
 	i.height = lastBlock.Height + 1
 
-	go i.extend()
-	go i.scrape()
-	go i.prepare()
-	i.collect()
+	// Use a wait group to track all goroutines
+	var wg sync.WaitGroup
+
+	// Start all components
+	wg.Add(4)
+	go func() {
+		defer wg.Done()
+		i.extend()
+	}()
+	go func() {
+		defer wg.Done()
+		i.scrape()
+	}()
+	go func() {
+		defer wg.Done()
+		i.prepare()
+	}()
+	go func() {
+		defer wg.Done()
+		i.collect()
+	}()
+
+	// Wait for context cancellation
+	<-ctx.Done()
+	i.logger.Info("indexer shutdown initiated")
+
+	// Create shutdown context with timeout
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), ShutdownTimeout)
+	defer cancel()
+
+	// Channel to signal completion
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	// Wait for graceful shutdown or timeout
+	select {
+	case <-done:
+		i.logger.Info("indexer shutdown completed gracefully")
+	case <-shutdownCtx.Done():
+		i.logger.Warn("indexer shutdown timed out, some goroutines may still be running")
+	}
 
 	return nil
 }
@@ -95,7 +140,7 @@ func (i *Indexer) wait() {
 }
 
 func (i *Indexer) extend() {
-	i.extensionManager.Run()
+	i.extensionManager.Run(i.ctx)
 }
 
 func (i *Indexer) scrape() {

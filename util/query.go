@@ -29,13 +29,73 @@ const (
 )
 
 var (
-	limiter    *semaphore.Weighted
-	jitterSeed atomic.Uint32
-	cfg        *config.Config
+	limiter             *semaphore.Weighted
+	jitterSeed          atomic.Uint32
+	cfg                 *config.Config
+	endpointCategorizer *EndpointCategorizer
 )
 
 func init() {
 	jitterSeed.Store(uint32(time.Now().UnixNano())) //nolint:gosec
+}
+
+// EndpointCategorizer categorizes API endpoints based on VM type
+type EndpointCategorizer struct {
+	vmType types.VMType
+}
+
+// NewEndpointCategorizer creates a new endpoint categorizer for the given VM type
+func NewEndpointCategorizer(vmType types.VMType) *EndpointCategorizer {
+	return &EndpointCategorizer{
+		vmType: vmType,
+	}
+}
+
+// Categorize returns the category for a given API path
+func (ec *EndpointCategorizer) Categorize(path string) string {
+	switch {
+	// Common categories for all VMs
+	case strings.HasPrefix(path, "/cosmos/tx/v1beta1/txs/block/"):
+		return "cosmos_tx_block"
+	case strings.HasPrefix(path, "/cosmos/tx/v1beta1/tx/"):
+		return "cosmos_tx_hash"
+	case strings.HasPrefix(path, "/cosmos/bank/v1beta1/balances/"):
+		return "cosmos_balance"
+	case strings.HasPrefix(path, "/cosmos/auth/v1beta1/accounts/"):
+		return "cosmos_account"
+	case path == "/block" || strings.HasPrefix(path, "/block?"):
+		return "tendermint_block"
+	case path == "/block_results":
+		return "tendermint_block_results"
+	case strings.HasPrefix(path, "/cosmos/base/tendermint/"):
+		return "cosmos_node_info"
+	case strings.HasPrefix(path, "/cosmos/staking/"):
+		return "cosmos_staking"
+	case strings.HasPrefix(path, "/cosmos/tx/v1beta1/txs"):
+		return "cosmos_tx_search"
+
+	// VM-specific categories
+	case strings.HasPrefix(path, "/cosmwasm/wasm/v1/contract/"):
+		if ec.vmType == types.WasmVM {
+			return "wasm_contract" // Wasm only
+		}
+		return "other"
+
+	case strings.HasPrefix(path, "/initia/move/v1/"):
+		if ec.vmType == types.MoveVM {
+			return "move_contract" // Move only
+		}
+		return "other"
+
+	case path == "": // JSON-RPC endpoints have empty path
+		if ec.vmType == types.EVM {
+			return "evm_jsonrpc" // EVM only
+		}
+		return "other"
+
+	default:
+		return "other"
+	}
 }
 
 func InitUtil(_cfg *config.Config) {
@@ -44,6 +104,7 @@ func InitUtil(_cfg *config.Config) {
 	}
 	cfg = _cfg
 	limiter = semaphore.NewWeighted(int64(_cfg.GetMaxConcurrentRequests()))
+	endpointCategorizer = NewEndpointCategorizer(_cfg.GetVmType())
 }
 
 func acquireLimiter(ctx context.Context) error {
@@ -167,8 +228,8 @@ func executeWithRetry(ctx context.Context, baseUrl, path string, config requestC
 			rateLimitRetries++
 
 			// Track rate limit hits using batching
-			endpoint := fmt.Sprintf("%s%s", baseUrl, path)
-			metrics.GetGlobalMetricsBatcher().RecordRateLimitHit(endpoint)
+			endpointCategory := endpointCategorizer.Categorize(path)
+			metrics.GetGlobalMetricsBatcher().RecordRateLimitHit(endpointCategory)
 
 			backoffDelay := calculateBackoffDelay(rateLimitRetries)
 			select {
@@ -201,15 +262,16 @@ func executeHTTPRequest(ctx context.Context, baseUrl, path string, config reques
 	}
 
 	start := time.Now()
-	endpoint := parsedUrl.String()
+	// Categorize endpoint to reduce metric cardinality
+	endpointCategory := endpointCategorizer.Categorize(path)
 
 	// Track concurrent requests using batching
 	metrics.GetGlobalMetricsBatcher().RecordConcurrentRequest(1)
 	defer func() {
 		metrics.GetGlobalMetricsBatcher().RecordConcurrentRequest(-1)
-		// Record API latency
+		// Record API latency using endpoint category
 		duration := time.Since(start).Seconds()
-		metrics.GetGlobalMetricsBatcher().RecordAPILatency(endpoint, duration)
+		metrics.GetGlobalMetricsBatcher().RecordAPILatency(endpointCategory, duration)
 	}()
 
 	// Track semaphore wait time
@@ -258,12 +320,12 @@ func executeHTTPRequest(ctx context.Context, baseUrl, path string, config reques
 	code, body, errs := req.Timeout(timeout).Bytes()
 	if err := errors.Join(errs...); err != nil {
 		// Track network/timeout errors using batching
-		metrics.GetGlobalMetricsBatcher().RecordAPIRequest(endpoint, "error")
-		return nil, types.NewNetworkError(endpoint, err)
+		metrics.GetGlobalMetricsBatcher().RecordAPIRequest(endpointCategory, "error")
+		return nil, types.NewNetworkError(parsedUrl.String(), err)
 	}
 
 	// Track HTTP response with actual status code using batching
-	metrics.GetGlobalMetricsBatcher().RecordAPIRequest(endpoint, fmt.Sprintf("%d", code))
+	metrics.GetGlobalMetricsBatcher().RecordAPIRequest(endpointCategory, fmt.Sprintf("%d", code))
 
 	if code == fiber.StatusOK {
 		return body, nil
@@ -271,7 +333,7 @@ func executeHTTPRequest(ctx context.Context, baseUrl, path string, config reques
 
 	// Handle 429 Too Many Requests specifically
 	if code == fiber.StatusTooManyRequests {
-		return nil, errors.Join(fiber.ErrTooManyRequests, types.NewRateLimitError(endpoint))
+		return nil, errors.Join(fiber.ErrTooManyRequests, types.NewRateLimitError(parsedUrl.String()))
 	}
 
 	if code == fiber.StatusInternalServerError {
@@ -285,7 +347,7 @@ func executeHTTPRequest(ctx context.Context, baseUrl, path string, config reques
 		}
 	}
 
-	return nil, types.NewNetworkError(endpoint, fmt.Errorf("HTTP %d: %s", code, string(body)))
+	return nil, types.NewNetworkError(parsedUrl.String(), fmt.Errorf("HTTP %d: %s", code, string(body)))
 }
 
 // validateAndParseURL performs security validation and returns parsed URL
