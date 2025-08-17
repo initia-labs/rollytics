@@ -12,7 +12,13 @@ type CacheData struct {
 }
 
 type QueryRestTxsResponse struct {
-	Txs []RestTx `json:"txs"`
+	Txs        []RestTx   `json:"txs"`
+	Pagination Pagination `json:"pagination,omitempty"`
+}
+
+type Pagination struct {
+	NextKey []byte `json:"next_key"`
+	Total   string `json:"total"`
 }
 
 type RestTx struct {

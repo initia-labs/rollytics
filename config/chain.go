@@ -34,7 +34,7 @@ func (cc ChainConfig) Validate() error {
 
 	// REST URL validation
 	if len(cc.RestUrl) == 0 {
-		return types.NewValidationError("REST_URL", "is required")
+		return types.NewValidationError("REST_URL", "required field is missing")
 	}
 	if u, err := url.Parse(cc.RestUrl); err != nil {
 		return types.NewInvalidValueError("REST_URL", cc.RestUrl, fmt.Sprintf("invalid URL: %v", err))
