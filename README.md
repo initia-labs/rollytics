@@ -218,7 +218,7 @@ docker logs -f rollytics-indexer
 
 ## License
 
-- Proprietary. All rights reserved.
+Business Source License 1.1 - see [LICENSE](LICENSE) file for details.
 
 ## Changelog
 
