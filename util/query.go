@@ -140,7 +140,7 @@ func executeWithRetry(ctx context.Context, baseUrl, path string, config requestC
 	retryCount := 0
 	rateLimitRetries := 0
 	// Initialize with a default error to ensure err is never nil after retries
-	var err error = types.NewTimeoutError("no attempts made")
+	var err = types.NewTimeoutError("no attempts made")
 
 	for retryCount < maxRetries {
 		body, innerErr := executeHTTPRequest(ctx, baseUrl, path, config)

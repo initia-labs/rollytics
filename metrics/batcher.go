@@ -174,7 +174,7 @@ func (b *MetricsBatcher) flush() {
 	b.mu.Unlock()
 
 	apiMetrics := GetMetrics().ExternalAPIMetrics()
-	
+
 	// Process concurrent requests delta
 	if buffer.concurrentRequestsDelta != 0 {
 		apiMetrics.ConcurrentActive.Add(float64(buffer.concurrentRequestsDelta))

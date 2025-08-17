@@ -23,7 +23,7 @@ var (
 	msgTypeCache   *cache.Cache[string, int64]
 	typeTagCache   *cache.Cache[string, int64]
 	evmTxHashCache *cache.Cache[string, int64]
-	
+
 	// Singleton initialization
 	cacheInitOnce sync.Once
 )

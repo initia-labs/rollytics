@@ -36,7 +36,7 @@ func scrapeBlock(client *fiber.Client, height int64, cfg *config.Config) (types.
 	})
 
 	indexerMetrics := metrics.GetMetrics().IndexerMetrics()
-	
+
 	if err := g.Wait(); err != nil {
 		indexerMetrics.ProcessingErrors.WithLabelValues("scrape", "network_error").Inc()
 		return types.ScrapedBlock{}, err

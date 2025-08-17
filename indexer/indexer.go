@@ -1,6 +1,7 @@
 package indexer
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"sync"
@@ -35,6 +36,7 @@ type Indexer struct {
 	mtx              sync.Mutex
 	height           int64
 	prepareCount     int
+	ctx              context.Context
 }
 
 func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Indexer {
@@ -51,7 +53,8 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Indexer {
 	}
 }
 
-func (i *Indexer) Run() error {
+func (i *Indexer) Run(ctx context.Context) error {
+	i.ctx = ctx
 	// wait for the chain to be ready
 	i.wait()
 
@@ -96,48 +99,61 @@ func (i *Indexer) extend() {
 }
 
 func (i *Indexer) scrape() {
-	i.scraper.Run(i.height, i.blockChan, i.controlChan)
+	i.scraper.Run(i.ctx, i.height, i.blockChan, i.controlChan)
 }
 
 func (i *Indexer) prepare() {
-	for block := range i.blockChan {
-		if block.Height < i.height {
-			continue
-		}
-
-		i.mtx.Lock()
-		i.prepareCount++
-		i.mtx.Unlock()
-
-		b := block
-		go func() {
-			defer func() {
-				if r := recover(); r != nil {
-					metrics.TrackPanic("indexer")
-					panic(r) // re-panic
-				}
-			}()
-
-			start := time.Now()
-			indexerMetrics := metrics.GetMetrics().IndexerMetrics()
-			if err := i.collector.Prepare(b); err != nil {
-				i.logger.Error("failed to prepare block", slog.Int64("height", b.Height), slog.Any("error", err))
-				indexerMetrics.ProcessingErrors.WithLabelValues("prepare", "collector_error").Inc()
-				metrics.TrackError("indexer", "prepare_error")
-				panic(err)
+	for {
+		select {
+		case <-i.ctx.Done():
+			i.logger.Info("prepare() shutting down gracefully")
+			return
+		case block := <-i.blockChan:
+			if block.Height < i.height {
+				continue
 			}
-			indexerMetrics.BlockProcessingTime.WithLabelValues("prepare").Observe(time.Since(start).Seconds())
 
 			i.mtx.Lock()
-			i.blockMap[b.Height] = b
-			i.prepareCount--
+			i.prepareCount++
 			i.mtx.Unlock()
-		}()
+
+			b := block
+			go func() {
+				defer func() {
+					if r := recover(); r != nil {
+						metrics.TrackPanic("indexer")
+						panic(r) // re-panic
+					}
+				}()
+
+				start := time.Now()
+				indexerMetrics := metrics.GetMetrics().IndexerMetrics()
+				if err := i.collector.Prepare(b); err != nil {
+					i.logger.Error("failed to prepare block", slog.Int64("height", b.Height), slog.Any("error", err))
+					indexerMetrics.ProcessingErrors.WithLabelValues("prepare", "collector_error").Inc()
+					metrics.TrackError("indexer", "prepare_error")
+					panic(err)
+				}
+				indexerMetrics.BlockProcessingTime.WithLabelValues("prepare").Observe(time.Since(start).Seconds())
+
+				i.mtx.Lock()
+				i.blockMap[b.Height] = b
+				i.prepareCount--
+				i.mtx.Unlock()
+			}()
+		}
 	}
 }
 
 func (i *Indexer) collect() {
 	for {
+		select {
+		case <-i.ctx.Done():
+			i.logger.Info("collect() shutting down gracefully")
+			return
+		default:
+		}
+
 		i.mtx.Lock()
 
 		inflightCount := len(i.blockMap) + i.prepareCount
@@ -158,7 +174,12 @@ func (i *Indexer) collect() {
 		i.mtx.Unlock()
 
 		if !ok {
-			time.Sleep(i.cfg.GetCoolingDuration())
+			select {
+			case <-i.ctx.Done():
+				i.logger.Info("collect() shutting down gracefully")
+				return
+			case <-time.After(i.cfg.GetCoolingDuration()):
+			}
 			continue
 		}
 

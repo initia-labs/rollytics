@@ -51,7 +51,7 @@ You can configure database, chain, logging, and indexer options via environment 
 				}
 			}()
 
-			// Setup graceful shutdown for metrics
+			// Setup graceful shutdown
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
@@ -81,7 +81,7 @@ You can configure database, chain, logging, and indexer options via environment 
 			defer metrics.StopDBStatsUpdater()
 
 			idxer := indexer.New(cfg, logger, db)
-			return idxer.Run()
+			return idxer.Run(ctx)
 		},
 	}
 

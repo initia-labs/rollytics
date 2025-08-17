@@ -1,6 +1,7 @@
 package scraper
 
 import (
+	"context"
 	"log/slog"
 	"sync"
 	"time"
@@ -34,7 +35,7 @@ func New(cfg *config.Config, logger *slog.Logger) *Scraper {
 	}
 }
 
-func (s *Scraper) Run(height int64, blockChan chan<- types.ScrapedBlock, controlChan <-chan string) {
+func (s *Scraper) Run(ctx context.Context, height int64, blockChan chan<- types.ScrapedBlock, controlChan <-chan string) {
 	client := fiber.AcquireClient()
 	defer fiber.ReleaseClient(client)
 
@@ -42,10 +43,10 @@ func (s *Scraper) Run(height int64, blockChan chan<- types.ScrapedBlock, control
 	go s.updateScrapeSpeedMetrics()
 
 	s.logger.Info("fast syncing until fully synced")
-	syncedHeight := s.fastSync(client, height, blockChan, controlChan)
+	syncedHeight := s.fastSync(ctx, client, height, blockChan, controlChan)
 
 	s.logger.Info("switching to slow syncing")
-	s.slowSync(client, syncedHeight+1, blockChan)
+	s.slowSync(ctx, client, syncedHeight+1, blockChan)
 }
 
 // updateScrapeSpeedMetrics periodically updates scrape speed metrics

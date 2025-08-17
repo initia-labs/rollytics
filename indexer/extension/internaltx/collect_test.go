@@ -105,7 +105,7 @@ func TestIndexer_CollectInternalTxs(t *testing.T) {
 	db, mock := setupTestDB(t)
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelWarn}))
 	cfg := setupTestConfig()
-	
+
 	// Initialize caches for testing
 	util.InitializeCaches(&config.CacheConfig{
 		AccountCacheSize:   1000,
@@ -114,7 +114,7 @@ func TestIndexer_CollectInternalTxs(t *testing.T) {
 		TypeTagCacheSize:   100,
 		EvmTxHashCacheSize: 1000,
 	})
-	
+
 	indexer := internal_tx.New(cfg, logger, db)
 
 	mock.ExpectBegin()
@@ -307,7 +307,7 @@ func TestIndexer_CollectInternalTxs_EmptyInternalTxs(t *testing.T) {
 		TypeTagCacheSize:   100,
 		EvmTxHashCacheSize: 1000,
 	})
-	
+
 	db, mock := setupTestDB(t)
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelWarn}))
 	cfg := setupTestConfig()

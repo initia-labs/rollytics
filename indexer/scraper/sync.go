@@ -23,7 +23,7 @@ const (
 	stopped
 )
 
-func (s *Scraper) fastSync(client *fiber.Client, height int64, blockChan chan<- types.ScrapedBlock, controlChan <-chan string) int64 {
+func (s *Scraper) fastSync(ctx context.Context, client *fiber.Client, height int64, blockChan chan<- types.ScrapedBlock, controlChan <-chan string) int64 {
 	var (
 		syncedHeight = height - 1
 		status       atomic.Int32
@@ -45,14 +45,19 @@ func (s *Scraper) fastSync(client *fiber.Client, height int64, blockChan chan<- 
 		}
 	}()
 
-	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
-		cancel()
 		// wait for all goroutines to finish
 		wg.Wait()
 	}()
 
 	for {
+		select {
+		case <-ctx.Done():
+			s.logger.Info("fastSync() shutting down gracefully")
+			wg.Wait()
+			return syncedHeight
+		default:
+		}
 		currentState := status.Load()
 
 		// exit if stopped (reached latest height)
@@ -119,8 +124,14 @@ func (s *Scraper) fastSync(client *fiber.Client, height int64, blockChan chan<- 
 	}
 }
 
-func (s *Scraper) slowSync(client *fiber.Client, height int64, blockChan chan<- types.ScrapedBlock) {
+func (s *Scraper) slowSync(ctx context.Context, client *fiber.Client, height int64, blockChan chan<- types.ScrapedBlock) {
 	for {
+		select {
+		case <-ctx.Done():
+			s.logger.Info("slowSync() shutting down gracefully")
+			return
+		default:
+		}
 		var (
 			results []ScrapResult
 			g       errgroup.Group
