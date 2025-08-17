@@ -15,7 +15,7 @@ func (c Config) Validate() error {
 	if c.DSN == "" {
 		return errors.New("DB_DSN is required")
 	}
-	if c.MaxConns < 1 {
+	if c.MaxConns < 0 {
 		return errors.New("DB_MAX_CONNS is invalid")
 	}
 	if c.IdleConns < 1 {
