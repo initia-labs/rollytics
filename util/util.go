@@ -2,10 +2,11 @@ package util
 
 import (
 	"encoding/hex"
-	"fmt"
 	"strings"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
+
+	commontypes "github.com/initia-labs/rollytics/types"
 )
 
 func AccAddressFromString(addrStr string) (sdk.AccAddress, error) {
@@ -23,7 +24,7 @@ func AccAddressFromString(addrStr string) (sdk.AccAddress, error) {
 	} else if len(hexStr) <= 64 {
 		hexStr = strings.Repeat("0", 64-len(hexStr)) + hexStr
 	} else {
-		return nil, fmt.Errorf("invalid address string: %s", addrStr)
+		return nil, commontypes.NewInvalidValueError("address", addrStr, "invalid address format")
 	}
 
 	return hex.DecodeString(hexStr)

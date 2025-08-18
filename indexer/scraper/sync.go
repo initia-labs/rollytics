@@ -14,6 +14,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/initia-labs/rollytics/indexer/types"
+	commontypes "github.com/initia-labs/rollytics/types"
 )
 
 const (
@@ -22,7 +23,7 @@ const (
 	stopped
 )
 
-func (s *Scraper) fastSync(client *fiber.Client, height int64, blockChan chan<- types.ScrapedBlock, controlChan <-chan string) int64 {
+func (s *Scraper) fastSync(ctx context.Context, client *fiber.Client, height int64, blockChan chan<- types.ScrapedBlock, controlChan <-chan string) int64 {
 	var (
 		syncedHeight = height - 1
 		status       atomic.Int32
@@ -44,14 +45,19 @@ func (s *Scraper) fastSync(client *fiber.Client, height int64, blockChan chan<- 
 		}
 	}()
 
-	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
-		cancel()
 		// wait for all goroutines to finish
 		wg.Wait()
 	}()
 
 	for {
+		select {
+		case <-ctx.Done():
+			s.logger.Info("fastSync() shutting down gracefully")
+			wg.Wait()
+			return syncedHeight
+		default:
+		}
 		currentState := status.Load()
 
 		// exit if stopped (reached latest height)
@@ -85,6 +91,7 @@ func (s *Scraper) fastSync(client *fiber.Client, height int64, blockChan chan<- 
 				if err == nil {
 					s.logger.Info("scraped block", slog.Int64("height", block.Height))
 					blockChan <- block
+					s.trackScrapedBlock()
 
 					s.mtx.Lock()
 					if block.Height > syncedHeight {
@@ -102,7 +109,7 @@ func (s *Scraper) fastSync(client *fiber.Client, height int64, blockChan chan<- 
 				}
 
 				// retry until max err count
-				if errCount += 1; errCount > maxErrCount {
+				if errCount += 1; errCount > commontypes.MaxScrapeErrCount {
 					s.logger.Error("failed to scrap block", slog.Int64("height", h), slog.Any("error", err))
 					panic(err)
 				}
@@ -117,14 +124,20 @@ func (s *Scraper) fastSync(client *fiber.Client, height int64, blockChan chan<- 
 	}
 }
 
-func (s *Scraper) slowSync(client *fiber.Client, height int64, blockChan chan<- types.ScrapedBlock) {
+func (s *Scraper) slowSync(ctx context.Context, client *fiber.Client, height int64, blockChan chan<- types.ScrapedBlock) {
 	for {
+		select {
+		case <-ctx.Done():
+			s.logger.Info("slowSync() shutting down gracefully")
+			return
+		default:
+		}
 		var (
 			results []ScrapResult
 			g       errgroup.Group
 		)
 
-		for i := range batchScrapSize {
+		for i := range commontypes.BatchScrapSize {
 			h := height + int64(i)
 			g.Go(func() error {
 				block, err := scrapeBlock(client, h, s.cfg)
@@ -140,6 +153,7 @@ func (s *Scraper) slowSync(client *fiber.Client, height int64, blockChan chan<- 
 				if err == nil {
 					s.logger.Info("scraped block", slog.Int64("height", block.Height))
 					blockChan <- block
+					s.trackScrapedBlock()
 				} else if !reachedLatestHeight(fmt.Sprintf("%+v", err)) {
 					// log only if it is not related to reached latest height error
 					s.logger.Info("error while scraping block", slog.Int64("height", h), slog.Any("error", err))
@@ -168,7 +182,7 @@ func (s *Scraper) slowSync(client *fiber.Client, height int64, blockChan chan<- 
 			}
 		}
 		if errorHeight == -1 {
-			height += batchScrapSize
+			height += commontypes.BatchScrapSize
 		} else {
 			height = errorHeight
 		}

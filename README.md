@@ -3,6 +3,7 @@
 Rollytics is an analytics and indexing tool designed for the Minitia ecosystem. It provides comprehensive data collection, processing, and API services for blockchain networks, supporting multiple VM types (Move, Wasm, EVM).
 
 ## Features
+
 - Minitia data indexing and analytics
 - RESTful API server for data access
 - Support for Move, Wasm, and EVM based minitias
@@ -10,6 +11,7 @@ Rollytics is an analytics and indexing tool designed for the Minitia ecosystem. 
 - Database auto-migration and batch processing
 
 ## Requirements
+
 - Go 1.24+
 - Docker (optional, for containerized deployment)
 - PostgreSQL 15+ compatible
@@ -17,107 +19,207 @@ Rollytics is an analytics and indexing tool designed for the Minitia ecosystem. 
 ## Installation
 
 ### Build from Source
+
 ```sh
 git clone https://github.com/initia-labs/rollytics.git
 cd rollytics
 make install
 ```
+
 This will produce the `rollytics` binary in $GOBIN.
 
 ### Docker
+
+#### Option 1: Pull from GitHub Container Registry
+
+```sh
+# Pull latest version
+docker pull ghcr.io/initia-labs/rollytics:latest
+
+# Or pull specific version
+docker pull ghcr.io/initia-labs/rollytics:v1.0.0
+```
+
+#### Option 2: Build from Source
+
 ```sh
 docker build -t rollytics .
 ```
 
 ## Configuration
-You can configure rollytics using CLI flags or environment variables. CLI flags take precedence.
 
-### Common Options
-- `--log_format` (`plain`|`json`): Log output format (default: `plain`)
-- `--log_level` (`debug`|`info`|`warn`|`error`): Log level (default: `warn`)
+You can configure rollytics using environment variables. All settings can be configured via environment variables or .env file.
+
+### Core Settings
+
+- **`CHAIN_ID`: Chain ID (required)**
+- **`VM_TYPE`: Virtual machine type - `move`, `wasm`, or `evm` (required, affects default settings)**
+- **`RPC_URL`: Tendermint RPC URL (required)**
+- **`REST_URL`: Cosmos REST API URL (required)**
+- **`JSON_RPC_URL`: JSON-RPC URL for EVM chains (required for EVM)**
+- `ACCOUNT_ADDRESS_PREFIX`: Address prefix (optional, default: `init`)
+
+### Server Settings
+
+- `PORT`: API server port (optional, default: `8080`)
+- `LOG_FORMAT`: Log format - `plain` or `json` (optional, default: `json`)
+- `LOG_LEVEL`: Log level - `debug`, `info`, `warn`, `error` (optional, default: `warn`)
+
+### Database Settings
+
+- **`DB_DSN`: Database connection string (required)**
+- `DB_MAX_CONNS`: Maximum database connections (optional, default: `0` - unlimited)
+- `DB_IDLE_CONNS`: Idle database connections (optional, default: `2`)
+- `DB_BATCH_SIZE`: Batch insert size (optional, default: `100`)
+- `DB_AUTO_MIGRATE`: Auto-migrate database schema (optional, default: `false`)
+- `DB_MIGRATION_DIR`: Migration files directory (optional, default: `orm/migrations`)
+
+### Performance Settings
+
+- `COOLING_DURATION`: Cooling period between operations (optional, default: `50ms`)
+- `QUERY_TIMEOUT`: Query timeout duration (optional, default: `10s`)
+- `MAX_CONCURRENT_REQUESTS`: Maximum concurrent requests (optional, default: `50`, max: `1000`)
+- `POLLING_INTERVAL`: API polling interval (optional, default: `3s`)
+
+### Cache Settings
+
+- `CACHE_SIZE`: General cache size (optional, default: `1000`)
+- `CACHE_TTL`: Cache time-to-live (optional, default: `10m`)
+- `ACCOUNT_CACHE_SIZE`: Account cache size (optional, default: `40960`)
+- `NFT_CACHE_SIZE`: NFT cache size (optional, default: `40960`)
+- `MSG_TYPE_CACHE_SIZE`: Message type cache size (optional, default: `1024`)
+- `TYPE_TAG_CACHE_SIZE`: Type tag cache size (optional, default: `1024`)
+- `EVM_TX_HASH_CACHE_SIZE`: EVM transaction hash cache size (optional, default: `40960`)
+
+### Internal Transaction Settings
+
+- `INTERNAL_TX`: Enable internal transaction tracking (optional, default: `true` for EVM, `false` for Move/Wasm)
+- `INTERNAL_TX_POLL_INTERVAL`: Internal TX polling interval (optional, default: `5s`)
+- `INTERNAL_TX_BATCH_SIZE`: Internal TX batch size (optional, default: `10`)
+
+> **Important**: Internal transaction tracking is **only supported for EVM chains**. Setting `INTERNAL_TX=true` for Move or Wasm chains will result in a configuration error. For EVM chains, it's automatically enabled by default as it's essential for EVM analytics.
+
+### Metrics Settings
+
+- `METRICS_ENABLED`: Enable metrics endpoint (optional, default: `false`)
+- `METRICS_PATH`: Metrics endpoint path (optional, default: `/metrics`)
+- `METRICS_PORT`: Metrics server port (optional, default: `9090`)
 
 ### Example
+
 ```sh
-export DB_DSN='postgres://user:pass@tcp(localhost:5432)/db'
+# Required environment variables
+export DB_DSN='postgres://user:pass@localhost:5432/rollytics'
 export CHAIN_ID='myminitia-1'
 export VM_TYPE='evm'
-export JSON_RPC_URL='http://localhost:8545'
 export RPC_URL='http://localhost:26657'
 export REST_URL='http://localhost:1317'
-export PORT='8080'
-export LOG_FORMAT='json'
+export JSON_RPC_URL='http://localhost:8545'  # Required for EVM only
+
+# Optional overrides (showing non-default values)
 export LOG_LEVEL='info'
+export DB_AUTO_MIGRATE='true'
+export MAX_CONCURRENT_REQUESTS='100'
+# INTERNAL_TX=true is automatically set for EVM chains
+
 ./rollytics api
+```
+
+#### VM-Specific Defaults
+
+Different VM types have different default configurations:
+
+```sh
+# EVM chains - INTERNAL_TX automatically enabled
+export VM_TYPE='evm'
+# INTERNAL_TX=true (automatic)
+
+# Move chains - INTERNAL_TX disabled by default
+export VM_TYPE='move'
+# INTERNAL_TX=false (default)
+
+# Wasm chains - INTERNAL_TX disabled by default  
+export VM_TYPE='wasm'
+# INTERNAL_TX=false (default)
+```
+
+To explicitly override the VM-specific defaults:
+
+```sh
+# Force disable internal TX for EVM chains
+export VM_TYPE='evm'
+export INTERNAL_TX='false'
+
+# Attempting to enable internal TX for Move/Wasm chains will fail
+# export VM_TYPE='move'
+# export INTERNAL_TX='true'  # ERROR: Not supported for non-EVM chains
 ```
 
 ## Usage
 
 ### API Server
+
 Start the API server :
+
 ```sh
 ./rollytics api
 ```
 
 By Docker :
+
 ```sh
 # Run API server with Docker
 docker run -d \
   --name rollytics-api \
   -p 8080:8080 \
-  -e DB_DSN= $DB_DSN\
-  -e DB_MAX_CONNS=10 \
-  -e DB_IDLE_CONNS=10 \
-  -e COOLING_DURATION=100ms \
-  -e CHAIN_ID=$CHAIN_ID \
-  -e VM_TYPE=$VM_TYPE \
-  -e RPC_URL=$RPC_URL \
-  -e REST_URL=$REST_URL \
-  -e JSON_RPC_URL=$JSON_RPC_URL \
-  -e LOG_LEVEL='info' \
-  -e PORT='3000' \
-  -e DB_AUTO_MIGRATE='false' \
-  rollytics:$VERSION api
+  -e DB_DSN="$DB_DSN" \
+  -e CHAIN_ID="$CHAIN_ID" \
+  -e VM_TYPE="$VM_TYPE" \
+  -e RPC_URL="$RPC_URL" \
+  -e REST_URL="$REST_URL" \
+  -e JSON_RPC_URL="$JSON_RPC_URL" \  # EVM only
+  ghcr.io/initia-labs/rollytics:latest api
 
 # Check logs
 docker logs -f rollytics-api
 ```
 
 ### Indexer
+
 Start the indexer :
+
 ```sh
 ./rollytics indexer
 ```
+
 By Docker :
+
 ```sh
 # Run indexer with Docker
 docker run -d \
   --name rollytics-indexer \
-  -p 3000:3000 \
-  -e DB_DSN=$DB_DSN \
-  -e DB_MAX_CONNS=10 \
-  -e DB_IDLE_CONNS=10 \
-  -e COOLING_DURATION=100ms \
-  -e CHAIN_ID=$CHAIN_ID \
-  -e VM_TYPE=$VM_TYPE \
-  -e RPC_URL=$RPC_URL \
-  -e REST_URL=$REST_URL \
-  -e JSON_RPC_URL=$JSON_RPC_URL \
-  -e LOG_LEVEL='info' \
-  -e PORT='3000' \
-  -e DB_AUTO_MIGRATE='true' \
-  rollytics:$VERSION indexer
+  -e DB_DSN="$DB_DSN" \
+  -e CHAIN_ID="$CHAIN_ID" \
+  -e VM_TYPE="$VM_TYPE" \
+  -e RPC_URL="$RPC_URL" \
+  -e REST_URL="$REST_URL" \
+  -e JSON_RPC_URL="$JSON_RPC_URL" \  # EVM only
+  ghcr.io/initia-labs/rollytics:latest indexer
 
 # Check logs
 docker logs -f rollytics-indexer
 ```
 
 ## Development
+
 - Run tests: `make test`
 - Lint: `make lint`
 - Generate Swagger docs: `make swagger-gen`
 
 ## License
-- Proprietary. All rights reserved. 
+
+Business Source License 1.1 - see [LICENSE](LICENSE) file for details.
 
 ## Changelog
+
 For full version history, see **[CHANGELOG.md](CHANGELOG.md)**.

@@ -1,12 +1,14 @@
 package util
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
 	"github.com/gofiber/fiber/v2"
 
 	"github.com/initia-labs/rollytics/config"
+	"github.com/initia-labs/rollytics/types"
 	"github.com/initia-labs/rollytics/util"
 )
 
@@ -22,7 +24,9 @@ type BlockResponse struct {
 func GetLatestHeight(client *fiber.Client, cfg *config.Config) (int64, error) {
 	path := "/cosmos/base/tendermint/v1beta1/blocks/latest"
 
-	body, err := util.Get(client, cfg.GetCoolingDuration(), cfg.GetQueryTimeout(), cfg.GetChainConfig().RestUrl, path, nil, nil)
+	ctx, cancel := context.WithTimeout(context.Background(), cfg.GetQueryTimeout())
+	defer cancel()
+	body, err := util.Get(ctx, cfg.GetChainConfig().RestUrl, path, nil, nil)
 	if err != nil {
 		return 0, err
 	}
@@ -34,7 +38,7 @@ func GetLatestHeight(client *fiber.Client, cfg *config.Config) (int64, error) {
 
 	height := int64(0)
 	if _, err := fmt.Sscanf(response.Block.Header.Height, "%d", &height); err != nil {
-		return 0, fmt.Errorf("failed to parse height: %w", err)
+		return 0, types.NewInvalidValueError("height", response.Block.Header.Height, "failed to parse as integer")
 	}
 
 	return height, nil

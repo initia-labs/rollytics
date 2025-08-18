@@ -1,47 +1,111 @@
 package tx
 
 import (
+	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"time"
-
-	"github.com/gofiber/fiber/v2"
 
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/types"
 	"github.com/initia-labs/rollytics/util"
 )
 
-const maxRetries = 5
+const (
+	paginationLimit = "100"
+	maxRetries      = 10
+	retryDelay      = 500 * time.Millisecond
+)
 
-func getRestTxs(client *fiber.Client, cfg *config.Config, height int64, txCount int) (txs []RestTx, err error) {
-	params := map[string]string{"pagination.limit": "1000"}
+var paginationLimitInt int
+
+func init() {
+	var err error
+	paginationLimitInt, err = strconv.Atoi(paginationLimit)
+	if err != nil {
+		panic(err)
+	}
+}
+
+// getCosmosTxs retrieves all transactions for a specific block height with retry logic.
+//
+// This function implements a retry mechanism because there can be a brief window where:
+// - The block data (via RPC) shows that transactions exist (txCount > 0)
+// - But the REST API query returns empty results temporarily
+//
+// This happens because different endpoints may have slightly different data propagation
+// timing in the node, creating a temporary inconsistency where block metadata is available
+// but transaction details are not yet queryable via REST API.
+//
+// The retry logic with 500ms delays helps handle this temporary state until the data
+// becomes consistent across all endpoints.
+func getCosmosTxs(cfg *config.Config, height int64, txCount int) (txs []RestTx, err error) {
 	path := fmt.Sprintf("/cosmos/tx/v1beta1/txs/block/%d", height)
 
-	for retry := 1; retry <= maxRetries; retry++ {
-		body, err := util.Get(client, cfg.GetCoolingDuration(), cfg.GetQueryTimeout(), cfg.GetChainConfig().RestUrl, path, params, nil)
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		allTxs, err := fetchAllTxsWithPagination(cfg, path)
 		if err != nil {
 			return txs, err
 		}
 
-		var response QueryRestTxsResponse
-		if err := json.Unmarshal(body, &response); err != nil {
-			return txs, err
+		// If we get the expected number of transactions, return immediately
+		if len(allTxs) == txCount {
+			return allTxs, nil
 		}
 
-		if len(response.Txs) == txCount {
-			return response.Txs, nil
+		// If this is not the last attempt and we got an empty result, wait and retry
+		// This specifically handles the case where block shows txCount > 0 but REST API returns no txs
+		if attempt < maxRetries && len(allTxs) == 0 {
+			time.Sleep(retryDelay)
+			continue
 		}
 
-		if retry < maxRetries {
-			time.Sleep(cfg.GetCoolingDuration())
-		}
+		// If we got some transactions but not the expected count, or this is the last attempt
+		return txs, fmt.Errorf("expected %d txs but got %d for height %d (attempt %d/%d)",
+			txCount, len(allTxs), height, attempt+1, maxRetries+1)
 	}
 
-	return txs, fmt.Errorf("retried %d times but got empty rest txs for height %d", maxRetries, height)
+	return txs, fmt.Errorf("failed to get cosmos txs after %d retries for height %d", maxRetries+1, height)
 }
 
-func getEvmTxs(client *fiber.Client, cfg *config.Config, height int64) (txs []types.EvmTx, err error) {
+func fetchAllTxsWithPagination(cfg *config.Config, path string) ([]RestTx, error) {
+	var allTxs []RestTx
+	var nextKey []byte
+
+	for {
+		params := map[string]string{"pagination.limit": paginationLimit}
+		if len(nextKey) > 0 {
+			params["pagination.key"] = base64.StdEncoding.EncodeToString(nextKey)
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), cfg.GetQueryTimeout())
+		defer cancel() // defer is safe here as tx pagination very rarely requires many iterations
+		body, err := util.Get(ctx, cfg.GetChainConfig().RestUrl, path, params, nil)
+
+		if err != nil {
+			return allTxs, err
+		}
+
+		var response QueryRestTxsResponse
+		if err := json.Unmarshal(body, &response); err != nil {
+			return allTxs, err
+		}
+
+		allTxs = append(allTxs, response.Txs...)
+
+		if len(response.Pagination.NextKey) == 0 || len(response.Txs) < paginationLimitInt {
+			break
+		}
+
+		nextKey = response.Pagination.NextKey
+	}
+
+	return allTxs, nil
+}
+
+func getEvmTxs(cfg *config.Config, height int64) (txs []types.EvmTx, err error) {
 	if cfg.GetVmType() != types.EVM {
 		return
 	}
@@ -55,7 +119,9 @@ func getEvmTxs(client *fiber.Client, cfg *config.Config, height int64) (txs []ty
 	headers := map[string]string{"Content-Type": "application/json"}
 	path := ""
 
-	body, err := util.Post(client, cfg.GetCoolingDuration(), cfg.GetQueryTimeout(), cfg.GetChainConfig().JsonRpcUrl, path, payload, headers)
+	ctx, cancel := context.WithTimeout(context.Background(), cfg.GetQueryTimeout())
+	defer cancel()
+	body, err := util.Post(ctx, cfg.GetChainConfig().JsonRpcUrl, path, payload, headers)
 	if err != nil {
 		return txs, err
 	}

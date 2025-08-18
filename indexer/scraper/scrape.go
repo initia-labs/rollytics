@@ -15,9 +15,12 @@ import (
 
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/indexer/types"
+	"github.com/initia-labs/rollytics/metrics"
 )
 
 func scrapeBlock(client *fiber.Client, height int64, cfg *config.Config) (types.ScrapedBlock, error) {
+	start := time.Now()
+
 	var g errgroup.Group
 	getBlockRes := make(chan GetBlockResponse, 1)
 	getBlockResultsRes := make(chan GetBlockResultsResponse, 1)
@@ -32,14 +35,27 @@ func scrapeBlock(client *fiber.Client, height int64, cfg *config.Config) (types.
 		return fetchBlockResults(client, height, cfg, getBlockResultsRes)
 	})
 
+	indexerMetrics := metrics.GetMetrics().IndexerMetrics()
+
 	if err := g.Wait(); err != nil {
+		indexerMetrics.ProcessingErrors.WithLabelValues("scrape", "network_error").Inc()
 		return types.ScrapedBlock{}, err
 	}
 
 	block := <-getBlockRes
 	blockResults := <-getBlockResultsRes
 
-	return parseScrapedBlock(block, blockResults, height)
+	scrapedBlock, err := parseScrapedBlock(block, blockResults, height)
+	if err != nil {
+		indexerMetrics.ProcessingErrors.WithLabelValues("scrape", "parse_error").Inc()
+		return types.ScrapedBlock{}, err
+	}
+
+	// Track scrape metrics
+	duration := time.Since(start).Seconds()
+	indexerMetrics.BlockProcessingTime.WithLabelValues("scrape").Observe(duration)
+
+	return scrapedBlock, nil
 }
 
 func fetchBlock(client *fiber.Client, height int64, cfg *config.Config, getBlockRes chan<- GetBlockResponse) error {

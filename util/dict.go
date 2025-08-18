@@ -1,10 +1,13 @@
 package util
 
 import (
+	"sync"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"gorm.io/gorm"
 
 	"github.com/initia-labs/rollytics/cache"
+	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
 )
@@ -15,12 +18,27 @@ type NftKey struct {
 }
 
 var (
-	accountCache   = cache.New[string, int64](10000)
-	nftCache       = cache.New[NftKey, int64](10000)
-	msgTypeCache   = cache.New[string, int64](10000)
-	typeTagCache   = cache.New[string, int64](10000)
-	evmTxHashCache = cache.New[string, int64](10000)
+	accountCache   *cache.Cache[string, int64]
+	nftCache       *cache.Cache[NftKey, int64]
+	msgTypeCache   *cache.Cache[string, int64]
+	typeTagCache   *cache.Cache[string, int64]
+	evmTxHashCache *cache.Cache[string, int64]
+
+	// Singleton initialization
+	cacheInitOnce sync.Once
 )
+
+// InitializeCaches initializes all dictionary caches with the given configuration
+// This function is safe to call multiple times - it will only initialize once
+func InitializeCaches(cfg *config.CacheConfig) {
+	cacheInitOnce.Do(func() {
+		accountCache = cache.New[string, int64](cfg.AccountCacheSize)
+		nftCache = cache.New[NftKey, int64](cfg.NftCacheSize)
+		msgTypeCache = cache.New[string, int64](cfg.MsgTypeCacheSize)
+		typeTagCache = cache.New[string, int64](cfg.TypeTagCacheSize)
+		evmTxHashCache = cache.New[string, int64](cfg.EvmTxHashCacheSize)
+	})
+}
 
 func GetOrCreateAccountIds(db *gorm.DB, accounts []string, createNew bool) (idMap map[string]int64, err error) {
 	idMap = make(map[string]int64, len(accounts))

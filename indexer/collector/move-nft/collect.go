@@ -160,7 +160,7 @@ func (sub *MoveNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 		for nftAddr := range nftMap {
 			nftResourceRaw, ok := cacheData.NftResources[nftAddr]
 			if !ok {
-				return fmt.Errorf("move resource not found for nft address %s", nftAddr)
+				return types.NewNotFoundError(fmt.Sprintf("move resource for nft address %s", nftAddr))
 			}
 			var nftResource NftResource
 			if err := json.Unmarshal([]byte(nftResourceRaw), &nftResource); err != nil {

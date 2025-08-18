@@ -1,20 +1,21 @@
 package evm_nft
 
 import (
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math/big"
 	"strings"
 
-	"github.com/gofiber/fiber/v2"
 	"github.com/initia-labs/minievm/x/evm/contracts/erc721"
 
 	"github.com/initia-labs/rollytics/config"
+	"github.com/initia-labs/rollytics/types"
 	"github.com/initia-labs/rollytics/util"
 )
 
-func getCollectionName(collectionAddr string, client *fiber.Client, cfg *config.Config, height int64) (name string, err error) {
+func getCollectionName(collectionAddr string, cfg *config.Config, height int64) (name string, err error) {
 	abi, err := erc721.Erc721MetaData.GetAbi()
 	if err != nil {
 		return name, err
@@ -25,7 +26,7 @@ func getCollectionName(collectionAddr string, client *fiber.Client, cfg *config.
 		return name, err
 	}
 
-	callRes, err := evmCall(collectionAddr, input, client, cfg, height)
+	callRes, err := evmCall(collectionAddr, input, cfg, height)
 	if err != nil {
 		return name, err
 	}
@@ -34,7 +35,7 @@ func getCollectionName(collectionAddr string, client *fiber.Client, cfg *config.
 	return
 }
 
-func getTokenUri(collectionAddr, tokenIdStr string, client *fiber.Client, cfg *config.Config, height int64) (tokenUri string, err error) {
+func getTokenUri(collectionAddr, tokenIdStr string, cfg *config.Config, height int64) (tokenUri string, err error) {
 	abi, err := erc721.Erc721MetaData.GetAbi()
 	if err != nil {
 		return tokenUri, err
@@ -42,14 +43,14 @@ func getTokenUri(collectionAddr, tokenIdStr string, client *fiber.Client, cfg *c
 
 	tokenId, ok := new(big.Int).SetString(tokenIdStr, 10)
 	if !ok {
-		return tokenUri, fmt.Errorf("invalid token id: %s", tokenIdStr)
+		return tokenUri, types.NewInvalidValueError("token_id", tokenIdStr, "must be a valid decimal number")
 	}
 	input, err := abi.Pack("tokenURI", tokenId)
 	if err != nil {
 		return tokenUri, err
 	}
 
-	callRes, err := evmCall(collectionAddr, input, client, cfg, height)
+	callRes, err := evmCall(collectionAddr, input, cfg, height)
 	if err != nil {
 		return tokenUri, err
 	}
@@ -58,7 +59,7 @@ func getTokenUri(collectionAddr, tokenIdStr string, client *fiber.Client, cfg *c
 	return
 }
 
-func evmCall(contractAddr string, input []byte, client *fiber.Client, cfg *config.Config, height int64) (response []byte, err error) {
+func evmCall(contractAddr string, input []byte, cfg *config.Config, height int64) (response []byte, err error) {
 	payload := map[string]interface{}{
 		"sender":        "init1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqpqr5e3d",
 		"contract_addr": contractAddr,
@@ -67,7 +68,9 @@ func evmCall(contractAddr string, input []byte, client *fiber.Client, cfg *confi
 	}
 	headers := map[string]string{"x-cosmos-block-height": fmt.Sprintf("%d", height)}
 	path := "/minievm/evm/v1/call"
-	body, err := util.Post(client, cfg.GetCoolingDuration(), cfg.GetQueryTimeout(), cfg.GetChainConfig().RestUrl, path, payload, headers)
+	ctx, cancel := context.WithTimeout(context.Background(), cfg.GetQueryTimeout())
+	defer cancel()
+	body, err := util.Post(ctx, cfg.GetChainConfig().RestUrl, path, payload, headers)
 	if err != nil {
 		return response, err
 	}

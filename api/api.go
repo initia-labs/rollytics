@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"log/slog"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/swagger"
@@ -13,6 +14,7 @@ import (
 	"github.com/initia-labs/rollytics/api/docs"
 	"github.com/initia-labs/rollytics/api/handler"
 	"github.com/initia-labs/rollytics/config"
+	"github.com/initia-labs/rollytics/metrics"
 	"github.com/initia-labs/rollytics/orm"
 )
 
@@ -41,6 +43,107 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Api {
 
 			return c.Status(code).SendString(errString)
 		},
+	})
+
+	// Add panic recovery middleware
+	app.Use(func(c *fiber.Ctx) error {
+		defer func() {
+			if r := recover(); r != nil {
+				metrics.TrackPanic("api")
+				metrics.TrackError("api", "panic")
+				logger.Error("panic recovered in API handler", "path", c.Path(), "panic", r)
+				_ = c.Status(fiber.StatusInternalServerError).SendString("Internal Server Error")
+			}
+		}()
+		return c.Next()
+	})
+
+	// Add metrics middleware
+	app.Use(func(c *fiber.Ctx) error {
+		start := time.Now()
+
+		// Track requests in flight
+		httpMetrics := metrics.GetMetrics().HTTPMetrics()
+		httpMetrics.RequestsInFlight.Inc()
+		defer func() {
+			// Always decrement requests in flight, even on panic
+			httpMetrics.RequestsInFlight.Dec()
+
+			// Track metrics after request completion, with panic recovery
+			if r := recover(); r != nil {
+				// Track panic metrics
+				duration := time.Since(start).Seconds()
+				method := c.Method()
+				path := c.Route().Path
+				if path == "" {
+					path = c.Path()
+				}
+				handler := metrics.GetHandlerPattern(path)
+
+				// Track metrics for panicked request
+				httpMetrics.RequestsTotal.WithLabelValues(method, handler, "5xx").Inc()
+				httpMetrics.RequestDuration.WithLabelValues(method, handler).Observe(duration)
+				httpMetrics.ErrorsTotal.WithLabelValues(handler, "server_error").Inc()
+				metrics.TrackEndpoint(path, duration)
+
+				// Re-panic to let upper panic handler deal with it
+				panic(r)
+			}
+		}()
+
+		// Continue with request
+		err := c.Next()
+
+		// Track metrics after request completion
+		duration := time.Since(start).Seconds()
+		method := c.Method()
+		path := c.Route().Path
+		if path == "" {
+			path = c.Path()
+		}
+
+		// Get handler pattern and status class
+		handler := metrics.GetHandlerPattern(path)
+		statusCode := c.Response().StatusCode()
+		statusClass := metrics.GetStatusClass(statusCode)
+
+		// Track HTTP metrics
+		httpMetrics.RequestsTotal.WithLabelValues(method, handler, statusClass).Inc()
+		httpMetrics.RequestDuration.WithLabelValues(method, handler).Observe(duration)
+
+		// Track detailed metrics for slow or important requests
+		if metrics.ShouldTrackDetailed(duration, path) {
+			bucket := metrics.GetDurationBucket(duration)
+			if bucket != "" {
+				httpMetrics.SlowRequests.WithLabelValues(method, path, bucket).Inc()
+			}
+		}
+
+		// Track endpoint performance for top endpoints analysis
+		metrics.TrackEndpoint(path, duration)
+
+		// Track HTTP errors
+		if err != nil {
+			errorType := "server_error"
+			fiberErr := &fiber.Error{}
+			if errors.As(err, &fiberErr) {
+				switch {
+				case fiberErr.Code == 401:
+					errorType = "unauthorized"
+				case fiberErr.Code == 403:
+					errorType = "forbidden"
+				case fiberErr.Code == 404:
+					errorType = "not_found"
+				case fiberErr.Code >= 400 && fiberErr.Code < 500:
+					errorType = "client_error"
+				case fiberErr.Code >= 500:
+					errorType = "server_error"
+				}
+			}
+			httpMetrics.ErrorsTotal.WithLabelValues(handler, errorType).Inc()
+		}
+
+		return err
 	})
 
 	handler.Register(app, db, cfg, logger)

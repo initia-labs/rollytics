@@ -110,7 +110,7 @@ func (i *InternalTxExtension) CollectInternalTxs(db *orm.Database, internalTx *I
 			hashHex := strings.ToLower(strings.TrimPrefix(trace.TxHash, "0x"))
 			hashId, ok := hashIdMap[hashHex]
 			if !ok {
-				return fmt.Errorf("hash ID not found for hash %s", hashHex)
+				return types.NewNotFoundError(fmt.Sprintf("hash ID for hash %s", hashHex))
 			}
 
 			topLevelCall := InternalTransaction{

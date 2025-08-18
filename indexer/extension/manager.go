@@ -1,6 +1,8 @@
 package extension
 
 import (
+	"context"
+	"errors"
 	"log/slog"
 
 	"golang.org/x/sync/errgroup"
@@ -16,7 +18,6 @@ type ExtensionManager struct {
 	logger     *slog.Logger
 	db         *orm.Database
 	extensions []types.Extension
-	g          errgroup.Group
 }
 
 func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *ExtensionManager {
@@ -33,24 +34,54 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *ExtensionMa
 	}
 }
 
-func (m *ExtensionManager) Run() {
+func (m *ExtensionManager) Run(ctx context.Context) {
+	// Use context-aware errgroup
+	g, gCtx := errgroup.WithContext(ctx)
+
 	for _, extension := range m.extensions {
 		ext := extension
-		m.g.Go(func() error {
+		g.Go(func() error {
 			m.logger.Info("Starting extension", slog.String("name", ext.Name()))
-			if err := ext.Run(); err != nil {
-				m.logger.Error("Extension error",
-					slog.String("name", ext.Name()),
-					slog.Any("error", err))
 
-				return err
+			// Check if extension supports context-aware Run method
+			if ctxAwareExt, ok := ext.(types.ContextAwareExtension); ok {
+				if err := ctxAwareExt.RunWithContext(gCtx); err != nil {
+					m.logger.Error("Extension error",
+						slog.String("name", ext.Name()),
+						slog.Any("error", err))
+					return err
+				}
+			} else {
+				// Fallback for extensions that don't support context yet
+				// Run in a separate goroutine and listen for context cancellation
+				done := make(chan error, 1)
+				go func() {
+					done <- ext.Run()
+				}()
+
+				select {
+				case err := <-done:
+					if err != nil {
+						m.logger.Error("Extension error",
+							slog.String("name", ext.Name()),
+							slog.Any("error", err))
+						return err
+					}
+				case <-gCtx.Done():
+					m.logger.Info("Extension shutting down", slog.String("name", ext.Name()))
+					return gCtx.Err()
+				}
 			}
 
 			return nil
 		})
 	}
 
-	if err := m.g.Wait(); err != nil {
-		panic(err)
+	if err := g.Wait(); err != nil && !errors.Is(err, context.Canceled) {
+		m.logger.Error("Extension manager error", slog.Any("error", err))
+		// Don't panic on context cancellation, it's expected during shutdown
+		if !errors.Is(err, context.Canceled) {
+			panic(err)
+		}
 	}
 }

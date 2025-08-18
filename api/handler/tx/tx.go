@@ -214,7 +214,7 @@ func (h *TxHandler) GetTxsByHeight(c *fiber.Ctx) error {
 // @Param tx_hash path string true "Transaction hash"
 // @Router /indexer/tx/v1/txs/{tx_hash} [get]
 //
-//nolint:dupl
+
 func (h *TxHandler) GetTxByHash(c *fiber.Ctx) error {
 	hash, err := common.GetParams(c, "tx_hash")
 	if err != nil {
@@ -231,9 +231,9 @@ func (h *TxHandler) GetTxByHash(c *fiber.Ctx) error {
 		Where("hash = ?", hashBytes).
 		First(&tx).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return fiber.NewError(fiber.StatusNotFound, "tx not found")
+			return fiber.NewError(fiber.StatusNotFound, types.NewNotFoundError("transaction").Error())
 		}
-		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		return fiber.NewError(fiber.StatusInternalServerError, types.NewDatabaseError("get transaction", err).Error())
 	}
 
 	txRes, err := ToTxResponse(tx)
