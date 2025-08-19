@@ -836,31 +836,6 @@ const docTemplate = `{
                 "responses": {}
             }
         },
-        "/indexer/tx/v1/evm-txs/{tx_hash}": {
-            "get": {
-                "description": "Get a specific EVM transaction by its hash",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "EVM Tx"
-                ],
-                "summary": "Get EVM transaction by hash",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Transaction hash",
-                        "name": "tx_hash",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {}
-            }
-        },
         "/indexer/tx/v1/txs": {
             "get": {
                 "description": "Get a list of transactions with pagination",
@@ -1035,31 +1010,6 @@ const docTemplate = `{
                         "description": "Message types to filter (comma-separated or multiple params)",
                         "name": "msgs",
                         "in": "query"
-                    }
-                ],
-                "responses": {}
-            }
-        },
-        "/indexer/tx/v1/txs/{tx_hash}": {
-            "get": {
-                "description": "Get a specific transaction by its hash",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Tx"
-                ],
-                "summary": "Get transaction by hash",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Transaction hash",
-                        "name": "tx_hash",
-                        "in": "path",
-                        "required": true
                     }
                 ],
                 "responses": {}
