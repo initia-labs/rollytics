@@ -50,7 +50,7 @@ const (
 
 	// Timeout and interval settings
 	DefaultCoolingDuration = 50 * time.Millisecond
-	DefaultQueryTimeout    = 10 * time.Second
+	DefaultQueryTimeout    = 30 * time.Second
 	DefaultPollingInterval = 3 * time.Second
 
 	// Concurrent request settings

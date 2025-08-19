@@ -77,7 +77,7 @@ You can configure rollytics using environment variables. All settings can be con
 ### Performance Settings
 
 - `COOLING_DURATION`: Cooling period between operations (optional, default: `50ms`)
-- `QUERY_TIMEOUT`: Query timeout duration (optional, default: `10s`)
+- `QUERY_TIMEOUT`: Query timeout duration (optional, default: `30s`)
 - `MAX_CONCURRENT_REQUESTS`: Maximum concurrent requests (optional, default: `50`, max: `1000`)
 - `POLLING_INTERVAL`: API polling interval (optional, default: `3s`)
 
@@ -138,7 +138,7 @@ export VM_TYPE='evm'
 export VM_TYPE='move'
 # INTERNAL_TX=false (default)
 
-# Wasm chains - INTERNAL_TX disabled by default  
+# Wasm chains - INTERNAL_TX disabled by default
 export VM_TYPE='wasm'
 # INTERNAL_TX=false (default)
 ```
