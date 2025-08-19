@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	cbjson "github.com/cometbft/cometbft/libs/json"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/initia-labs/rollytics/api/handler/common"
 	"github.com/initia-labs/rollytics/types"
@@ -36,6 +37,10 @@ func ToTxsResponse(ctxs []types.CollectedTx) ([]types.Tx, error) {
 func ToTxResponse(ctx types.CollectedTx) (tx types.Tx, err error) {
 	if err := cbjson.Unmarshal(ctx.Data, &tx); err != nil {
 		return tx, fmt.Errorf("failed to unmarshal Tx: %w", err)
+	}
+
+	if tx.Logs == nil {
+		tx.Logs = make(sdk.ABCIMessageLogs, 0)
 	}
 
 	return tx, nil
