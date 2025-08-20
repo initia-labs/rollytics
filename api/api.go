@@ -167,7 +167,7 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Api {
 
 			var spec map[string]any
 			if err := json.Unmarshal([]byte(swaggerData), &spec); err != nil {
-				return c.JSON(docs.SwaggerInfo)
+				return c.Type("json").SendString(swaggerData)
 			}
 
 			if paths, ok := spec["paths"].(map[string]any); ok {
