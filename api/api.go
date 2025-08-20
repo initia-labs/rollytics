@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"html/template"
@@ -16,6 +17,7 @@ import (
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/metrics"
 	"github.com/initia-labs/rollytics/orm"
+	"github.com/initia-labs/rollytics/types"
 )
 
 type Api struct {
@@ -156,6 +158,28 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Api {
 			const order = ["Block", "Tx", "EVM Tx", "EVM Internal Tx", "NFT"];
 			return order.indexOf(a) - order.indexOf(b);
 		}`),
+	}
+
+	// If not EVM, filter out EVM paths
+	if cfg.GetVmType() != types.EVM {
+		app.Get("/swagger/doc.json", func(c *fiber.Ctx) error {
+			swaggerData := docs.SwaggerInfo.ReadDoc()
+
+			var spec map[string]any
+			if err := json.Unmarshal([]byte(swaggerData), &spec); err != nil {
+				return c.Type("json").SendString(swaggerData)
+			}
+
+			if paths, ok := spec["paths"].(map[string]any); ok {
+				for path := range paths {
+					if strings.Contains(path, "/evm-") {
+						delete(paths, path)
+					}
+				}
+			}
+
+			return c.JSON(spec)
+		})
 	}
 
 	app.Get("/swagger/*", swagger.New(swaggerConfig))
