@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"html/template"
@@ -10,8 +11,6 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/swagger"
-
-	"encoding/json"
 
 	"github.com/initia-labs/rollytics/api/docs"
 	"github.com/initia-labs/rollytics/api/handler"
