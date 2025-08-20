@@ -11,11 +11,14 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/swagger"
 
+	"encoding/json"
+
 	"github.com/initia-labs/rollytics/api/docs"
 	"github.com/initia-labs/rollytics/api/handler"
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/metrics"
 	"github.com/initia-labs/rollytics/orm"
+	"github.com/initia-labs/rollytics/types"
 )
 
 type Api struct {
@@ -148,7 +151,7 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Api {
 
 	handler.Register(app, db, cfg, logger)
 
-	// Swagger documentation
+	// Configure Swagger documentation based on VM type
 	swaggerConfig := swagger.Config{
 		URL:         "/swagger/doc.json",
 		DeepLinking: true,
@@ -156,6 +159,33 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Api {
 			const order = ["Block", "Tx", "EVM Tx", "EVM Internal Tx", "NFT"];
 			return order.indexOf(a) - order.indexOf(b);
 		}`),
+	}
+
+	if cfg.GetVmType() != types.EVM {
+		// Add this before the swagger route
+		app.Get("/swagger/doc.json", func(c *fiber.Ctx) error {
+			// If not EVM, filter out EVM paths and tags
+			// Get the actual swagger spec by reading the generated file
+			swaggerData := docs.SwaggerInfo.ReadDoc()
+
+			// Parse the JSON and remove EVM-related paths
+			var spec map[string]any
+			if err := json.Unmarshal([]byte(swaggerData), &spec); err != nil {
+				return c.JSON(docs.SwaggerInfo)
+			}
+
+			// Remove EVM paths
+			if paths, ok := spec["paths"].(map[string]any); ok {
+				for path := range paths {
+					if strings.Contains(path, "/evm-") {
+						delete(paths, path)
+					}
+				}
+			}
+
+			// Return filtered spec
+			return c.JSON(spec)
+		})
 	}
 
 	app.Get("/swagger/*", swagger.New(swaggerConfig))
