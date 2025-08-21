@@ -6,10 +6,12 @@ import (
 	"log/slog"
 	"time"
 
+	"gorm.io/gorm"
+
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/orm"
+	"github.com/initia-labs/rollytics/patcher/v1_0_2"
 	"github.com/initia-labs/rollytics/types"
-	"gorm.io/gorm"
 )
 
 type PatchHandler struct {
@@ -18,7 +20,8 @@ type PatchHandler struct {
 }
 
 var patches = []PatchHandler{
-	{"v1.0.2", PatchV1_0_2},
+	// should be ordered by version
+	{"v1.0.2", v1_0_2.Patch},
 }
 
 func Patch(cfg *config.Config, db *orm.Database, logger *slog.Logger) error {
