@@ -123,7 +123,7 @@ func (p *WasmNFTPatcher) lookUpWasmNFTEvents(tx types.CollectedTx) bool {
 			if a, ok := attr.(map[string]interface{}); ok {
 				key, _ := a["key"].(string)
 				value, _ := a["value"].(string)
-				if key == "action" && (value == "instantiate" || value == "mint" || 
+				if key == "action" && (value == "instantiate" || value == "mint" ||
 					value == "transfer_nft" || value == "send_nft" || value == "burn") {
 					hasAction = true
 					break
@@ -220,7 +220,7 @@ func (p *WasmNFTPatcher) processTxBatch(txs []types.CollectedTx) error {
 	if err := p.saveCollections(collectionMap); err != nil {
 		return err
 	}
-	
+
 	if err := p.saveMintedNFTs(mintMap); err != nil {
 		return err
 	}
@@ -290,7 +290,7 @@ func (p *WasmNFTPatcher) processWasmEvent(
 		if creator == "" {
 			creator = attrMap["creator"]
 		}
-		
+
 		// Store collection info
 		if _, exists := collectionMap[collectionAddr]; !exists {
 			collectionMap[collectionAddr] = CollectionInfo{
@@ -300,7 +300,7 @@ func (p *WasmNFTPatcher) processWasmEvent(
 				TxInfo:  txInfo,
 			}
 		}
-		
+
 	case "mint":
 		tokenId, found := attrMap["token_id"]
 		if !found {
@@ -323,7 +323,7 @@ func (p *WasmNFTPatcher) processWasmEvent(
 		}
 		delete(burnMap, nftKey)
 		updateCountMap[collectionAddr] = nil
-		
+
 		// Track NFT transaction
 		if _, ok := nftTxMap[txHash]; !ok {
 			nftTxMap[txHash] = make(map[string]map[string]interface{})
@@ -332,7 +332,7 @@ func (p *WasmNFTPatcher) processWasmEvent(
 			nftTxMap[txHash][collectionAddr] = make(map[string]interface{})
 		}
 		nftTxMap[txHash][collectionAddr][tokenId] = nil
-		
+
 		// Track collection if not already tracked
 		if _, exists := collectionMap[collectionAddr]; !exists {
 			collectionMap[collectionAddr] = CollectionInfo{
@@ -362,7 +362,7 @@ func (p *WasmNFTPatcher) processWasmEvent(
 			Owner:  recipient,
 			TxInfo: txInfo,
 		}
-		
+
 		// Track NFT transaction
 		if _, ok := nftTxMap[txHash]; !ok {
 			nftTxMap[txHash] = make(map[string]map[string]interface{})
@@ -387,7 +387,7 @@ func (p *WasmNFTPatcher) processWasmEvent(
 		delete(mintMap, nftKey)
 		delete(transferMap, nftKey)
 		updateCountMap[collectionAddr] = nil
-		
+
 		// Track NFT transaction
 		if _, ok := nftTxMap[txHash]; !ok {
 			nftTxMap[txHash] = make(map[string]map[string]interface{})
@@ -563,6 +563,7 @@ func (p *WasmNFTPatcher) deleteBurnedNFTs(burnMap map[util.NftKey]TxInfo) error 
 	return nil
 }
 
+//nolint:dupl
 func (p *WasmNFTPatcher) updateNFTCounts(updateCountMap map[string]interface{}) error {
 	if len(updateCountMap) == 0 {
 		return nil

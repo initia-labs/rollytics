@@ -254,8 +254,6 @@ func (p *MoveNFTPatcher) processTxBatch(txs []types.CollectedTx) error {
 	return nil
 }
 
-
-
 func (p *MoveNFTPatcher) saveCollections(events []CollectionEventInfo) error {
 	if len(events) == 0 {
 		return nil
@@ -425,6 +423,7 @@ func (p *MoveNFTPatcher) deleteBurnedNFTs(burnMap map[string]TxInfo) error {
 	return nil
 }
 
+//nolint:dupl
 func (p *MoveNFTPatcher) updateNFTCounts(updateCountMap map[string]interface{}) error {
 	if len(updateCountMap) == 0 {
 		return nil
