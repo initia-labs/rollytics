@@ -13,6 +13,7 @@ import (
 	"github.com/initia-labs/rollytics/log"
 	"github.com/initia-labs/rollytics/metrics"
 	"github.com/initia-labs/rollytics/orm"
+	"github.com/initia-labs/rollytics/patcher"
 	"github.com/initia-labs/rollytics/util"
 )
 
@@ -73,6 +74,11 @@ You can configure database, chain, logging, and indexer options via environment 
 			defer db.Close() //nolint:errcheck
 
 			if err := db.Migrate(); err != nil {
+				return err
+			}
+
+			// Apply patch
+			if err := patcher.Patch(cfg, db, logger); err != nil {
 				return err
 			}
 
