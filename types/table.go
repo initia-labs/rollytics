@@ -12,6 +12,11 @@ type Table struct {
 	Name  string
 }
 
+type CollectedUpgradeHistory struct {
+	Version string    `gorm:"type:text;primaryKey"`
+	Applied time.Time `gorm:"type:timestamptz"`
+}
+
 type CollectedSeqInfo struct {
 	Name     string `gorm:"type:text;primaryKey"`
 	Sequence int64  `gorm:"type:bigint"`
@@ -119,6 +124,10 @@ type CollectedEvmInternalTx struct {
 type CollectedEvmTxHashDict struct {
 	Id   int64  `gorm:"type:bigint;primaryKey"`
 	Hash []byte `gorm:"type:bytea;uniqueIndex:evm_tx_hash_dict_hash"`
+}
+
+func (CollectedUpgradeHistory) TableName() string {
+	return "upgrade_history"
 }
 
 func (CollectedSeqInfo) TableName() string {

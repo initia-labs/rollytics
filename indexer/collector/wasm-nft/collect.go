@@ -43,6 +43,12 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 		if !found {
 			continue
 		}
+		// use hex address for collection instead of acc address
+		collectionAddrBytes, err := util.AccAddressFromString(collectionAddr)
+		if err != nil {
+			return err
+		}
+		collectionAddr = util.BytesToHexWithPrefix(collectionAddrBytes)
 		action, found := event.AttrMap["action"]
 		if !found {
 			continue
@@ -215,12 +221,12 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 		return err
 	}
 
-	burnedCollections := make(map[string][]string) // collectionAddr -> tokenIds
+	burnedNftMap := make(map[string][]string) // collectionAddr -> tokenIds
 	for nftKey := range burnMap {
-		burnedCollections[nftKey.CollectionAddr] = append(burnedCollections[nftKey.CollectionAddr], nftKey.TokenId)
+		burnedNftMap[nftKey.CollectionAddr] = append(burnedNftMap[nftKey.CollectionAddr], nftKey.TokenId)
 	}
 
-	for collectionAddr, tokenIds := range burnedCollections {
+	for collectionAddr, tokenIds := range burnedNftMap {
 		collectionAddrBytes, err := util.AccAddressFromString(collectionAddr)
 		if err != nil {
 			return err
@@ -232,9 +238,13 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 		}
 	}
 
-	var updateAddrs []string
+	var updateAddrs [][]byte
 	for collectionAddr := range updateCountMap {
-		updateAddrs = append(updateAddrs, collectionAddr)
+		collectionAddrBytes, err := util.HexToBytes(collectionAddr)
+		if err != nil {
+			return err
+		}
+		updateAddrs = append(updateAddrs, collectionAddrBytes)
 	}
 
 	var nftCounts []indexertypes.NftCount

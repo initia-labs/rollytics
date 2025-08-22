@@ -173,6 +173,11 @@ func (b *MetricsBatcher) flush() {
 	b.buffer = newMetricsBuffer() // Replace with new buffer
 	b.mu.Unlock()
 
+	// Check if metrics is initialized (expect for migrate cmd)
+	if GetMetrics() == nil || GetMetrics().ExternalAPIMetrics() == nil {
+		return
+	}
+
 	apiMetrics := GetMetrics().ExternalAPIMetrics()
 
 	// Process concurrent requests delta
