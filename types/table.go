@@ -12,7 +12,7 @@ type Table struct {
 	Name  string
 }
 
-type CollectedPatch struct {
+type CollectedUpgradeHistory struct {
 	Version string    `gorm:"type:text;primaryKey"`
 	Applied time.Time `gorm:"type:timestamptz"`
 }
@@ -126,8 +126,8 @@ type CollectedEvmTxHashDict struct {
 	Hash []byte `gorm:"type:bytea;uniqueIndex:evm_tx_hash_dict_hash"`
 }
 
-func (CollectedPatch) TableName() string {
-	return "patch"
+func (CollectedUpgradeHistory) TableName() string {
+	return "upgrade_history"
 }
 
 func (CollectedSeqInfo) TableName() string {

@@ -4,47 +4,48 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"log/slog"
 
 	"github.com/lib/pq"
 	"gorm.io/gorm"
 
 	"github.com/initia-labs/rollytics/config"
-	indexertypes "github.com/initia-labs/rollytics/indexer/types"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
 	"github.com/initia-labs/rollytics/util"
 )
 
-func PatchWasmNFT(tx *gorm.DB, cfg *config.Config) error {
+func PatchWasmNFT(tx *gorm.DB, cfg *config.Config, logger *slog.Logger) error {
 	patcher := &WasmNFTPatcher{
-		db:  tx,
-		cfg: cfg,
+		db:     tx,
+		cfg:    cfg,
+		logger: logger,
 	}
 	return patcher.Run()
 }
 
 type WasmNFTPatcher struct {
-	db  *gorm.DB
-	cfg *config.Config
+	db     *gorm.DB
+	cfg    *config.Config
+	logger *slog.Logger
 }
 
 func (p *WasmNFTPatcher) Run() error {
-	log.Println("[Patch v1.0.2] Starting Wasm NFT data recovery...")
+	p.logger.Info("[Patch v1.0.2] Starting Wasm NFT data recovery")
 
-	// Step 1: Get total transaction count
 	var totalCount int64
 	if err := p.db.Model(&types.CollectedTx{}).Count(&totalCount).Error; err != nil {
 		return fmt.Errorf("failed to get transaction count: %w", err)
 	}
+	p.logger.Info("[Patch v1.0.2] Step 1: Scanning transactions", slog.Int64("total", totalCount))
 
-	log.Printf("[Patch v1.0.2] Total transactions to scan: %d", totalCount)
-
-	// Step 2: Clear existing NFT data to rebuild
-	if err := p.clearNFTData(); err != nil {
+	p.logger.Info("[Patch v1.0.2] Step 2: Clearing NFT data only")
+	if err := p.clearNFT(); err != nil {
 		return err
 	}
 
-	// Step 3: Process transactions in batches of 10000
+	p.logger.Info("[Patch v1.0.2] Step 3: Processing transactions in batches")
+	// Process transactions in batches of 10000
 	batchSize := 10000
 	processedTxCount := 0
 	offset := 0
@@ -52,7 +53,7 @@ func (p *WasmNFTPatcher) Run() error {
 	for offset < int(totalCount) {
 		// Get batch of transactions
 		var txs []types.CollectedTx
-		if err := p.db.Order("height ASC, sequence ASC").
+		if err := p.db.Order("sequence ASC").
 			Limit(batchSize).
 			Offset(offset).
 			Find(&txs).Error; err != nil {
@@ -63,104 +64,38 @@ func (p *WasmNFTPatcher) Run() error {
 			break
 		}
 
-		// Filter for transactions with wasm events
-		var wasmTxs []types.CollectedTx
-		for _, tx := range txs {
-			if p.lookUpWasmNFTEvents(tx) {
-				wasmTxs = append(wasmTxs, tx)
+		if len(txs) > 0 {
+			if err := p.processTxBatch(txs); err != nil {
+				p.logger.Warn("Failed to process batch",
+					slog.Int("offset", offset),
+					slog.String("error", err.Error()))
 			}
-		}
-
-		if len(wasmTxs) > 0 {
-			if err := p.processTxBatch(wasmTxs); err != nil {
-				log.Printf("[Patch v1.0.2] Warning: failed to process batch at offset %d: %v", offset, err)
-				// Continue processing next batch even if this one fails
-			}
-			processedTxCount += len(wasmTxs)
+			processedTxCount += len(txs)
 		}
 
 		offset += batchSize
-		log.Printf("[Patch v1.0.2] Processed %d/%d transactions (found %d NFT txs in this batch, total NFT txs: %d)",
-			min(offset, int(totalCount)), totalCount, len(wasmTxs), processedTxCount)
 	}
 
-	log.Println("[Patch v1.0.2] Wasm NFT data recovery completed")
+	var finalNftCount int64
+	p.db.Model(&types.CollectedNft{}).Count(&finalNftCount)
+	p.logger.Info("[Patch v1.0.2] Wasm NFT data recovery completed",
+		slog.Int("processed_txs", processedTxCount),
+		slog.Int64("nfts", finalNftCount))
 	return nil
 }
 
-func (p *WasmNFTPatcher) lookUpWasmNFTEvents(tx types.CollectedTx) bool {
-	// Parse tx data to check for wasm NFT events
-	var txData types.Tx
-	if err := json.Unmarshal(tx.Data, &txData); err != nil {
-		return false
-	}
-
-	var events []interface{}
-	if err := json.Unmarshal(txData.Events, &events); err != nil {
-		return false
-	}
-
-	// Check for wasm events with NFT actions
-	for _, evt := range events {
-		eventMap, ok := evt.(map[string]interface{})
-		if !ok {
-			continue
-		}
-
-		eventType, _ := eventMap["type"].(string)
-		if eventType != "wasm" {
-			continue
-		}
-
-		attributes, ok := eventMap["attributes"].([]interface{})
-		if !ok {
-			continue
-		}
-
-		// Check if this is an NFT-related event
-		hasAction := false
-		for _, attr := range attributes {
-			if a, ok := attr.(map[string]interface{}); ok {
-				key, _ := a["key"].(string)
-				value, _ := a["value"].(string)
-				if key == "action" && (value == "instantiate" || value == "mint" ||
-					value == "transfer_nft" || value == "send_nft" || value == "burn") {
-					hasAction = true
-					break
-				}
-			}
-		}
-
-		if hasAction {
-			return true
-		}
-	}
-
-	return false
-}
-
-func (p *WasmNFTPatcher) clearNFTData() error {
-	log.Println("[Patch v1.0.2] Clearing NFT data for rebuild...")
-
+func (p *WasmNFTPatcher) clearNFT() error {
 	if err := p.db.Exec("DELETE FROM nft").Error; err != nil {
 		return fmt.Errorf("failed to clear nft table: %w", err)
 	}
-
-	// Also clear collections since they might be corrupted
-	if err := p.db.Exec("DELETE FROM nft_collection").Error; err != nil {
-		return fmt.Errorf("failed to clear nft_collection table: %w", err)
-	}
-
 	return nil
 }
 
 func (p *WasmNFTPatcher) processTxBatch(txs []types.CollectedTx) error {
 	// Maps to track NFT state changes
-	collectionMap := make(map[string]CollectionInfo) // collection addr -> info
 	mintMap := make(map[util.NftKey]MintInfo)
 	transferMap := make(map[util.NftKey]TransferInfo)
 	burnMap := make(map[util.NftKey]TxInfo)
-	updateCountMap := make(map[string]interface{})
 	nftTxMap := make(map[string]map[string]map[string]interface{}) // txHash -> collectionAddr -> tokenId -> nil
 
 	// Process each transaction
@@ -178,24 +113,19 @@ func (p *WasmNFTPatcher) processTxBatch(txs []types.CollectedTx) error {
 		}
 
 		// Parse events
-		var events []interface{}
+		var events []map[string]interface{}
 		if err := json.Unmarshal(txData.Events, &events); err != nil {
 			continue
 		}
 
 		// Process each event
-		for _, evt := range events {
-			eventMap, ok := evt.(map[string]interface{})
-			if !ok {
-				continue
-			}
-
-			eventType, _ := eventMap["type"].(string)
+		for _, event := range events {
+			eventType, _ := event["type"].(string)
 			if eventType != "wasm" {
 				continue
 			}
 
-			attributes, ok := eventMap["attributes"].([]interface{})
+			attributes, ok := event["attributes"].([]interface{})
 			if !ok {
 				continue
 			}
@@ -203,41 +133,37 @@ func (p *WasmNFTPatcher) processTxBatch(txs []types.CollectedTx) error {
 			// Convert attributes to map
 			attrMap := make(map[string]string)
 			for _, attr := range attributes {
-				if a, ok := attr.(map[string]interface{}); ok {
-					key, _ := a["key"].(string)
-					value, _ := a["value"].(string)
-					attrMap[key] = value
+				attrObj, ok := attr.(map[string]interface{})
+				if !ok {
+					continue
 				}
+				key, _ := attrObj["key"].(string)
+				value, _ := attrObj["value"].(string)
+				attrMap[key] = value
 			}
 
 			// Process based on action
 			txHash := util.BytesToHexWithPrefix(tx.Hash)
-			p.processWasmEvent(attrMap, txInfo, txHash, collectionMap, mintMap, transferMap, burnMap, updateCountMap, nftTxMap)
+			p.processWasmEvent(attrMap, txInfo, txHash, mintMap, transferMap, burnMap, nftTxMap)
 		}
 	}
 
-	// Save processed data
-	if err := p.saveCollections(collectionMap); err != nil {
+	// Save processed NFT data only - skip collections
+	if err := p.handleMintNFTs(mintMap); err != nil {
 		return err
 	}
 
-	if err := p.saveMintedNFTs(mintMap); err != nil {
+	if err := p.handleTransferNft(transferMap); err != nil {
 		return err
 	}
 
-	if err := p.updateTransfers(transferMap); err != nil {
+	if err := p.handleBurnedNFTs(burnMap); err != nil {
 		return err
 	}
 
-	if err := p.deleteBurnedNFTs(burnMap); err != nil {
-		return err
-	}
+	// Skip updating collection NFT counts
 
-	if err := p.updateNFTCounts(updateCountMap); err != nil {
-		return err
-	}
-
-	if err := p.updateNFTTransactions(nftTxMap); err != nil {
+	if err := p.handleNftTransations(nftTxMap); err != nil {
 		return err
 	}
 
@@ -248,11 +174,9 @@ func (p *WasmNFTPatcher) processWasmEvent(
 	attrMap map[string]string,
 	txInfo TxInfo,
 	txHash string,
-	collectionMap map[string]CollectionInfo,
 	mintMap map[util.NftKey]MintInfo,
 	transferMap map[util.NftKey]TransferInfo,
 	burnMap map[util.NftKey]TxInfo,
-	updateCountMap map[string]interface{},
 	nftTxMap map[string]map[string]map[string]interface{},
 ) {
 	collectionAddr, found := attrMap["_contract_address"]
@@ -274,32 +198,7 @@ func (p *WasmNFTPatcher) processWasmEvent(
 
 	switch action {
 	case "instantiate":
-		// Collection creation event
-		name := attrMap["name"]
-		if name == "" {
-			name = attrMap["collection_name"]
-		}
-		symbol := attrMap["symbol"]
-		if symbol == "" {
-			symbol = attrMap["collection_symbol"]
-		}
-		creator := attrMap["minter"]
-		if creator == "" {
-			creator = attrMap["admin"]
-		}
-		if creator == "" {
-			creator = attrMap["creator"]
-		}
-
-		// Store collection info
-		if _, exists := collectionMap[collectionAddr]; !exists {
-			collectionMap[collectionAddr] = CollectionInfo{
-				Name:    name,
-				Symbol:  symbol,
-				Creator: creator,
-				TxInfo:  txInfo,
-			}
-		}
+		// Skip collection creation events - we don't modify collections
 
 	case "mint":
 		tokenId, found := attrMap["token_id"]
@@ -322,7 +221,6 @@ func (p *WasmNFTPatcher) processWasmEvent(
 			TxInfo: txInfo,
 		}
 		delete(burnMap, nftKey)
-		updateCountMap[collectionAddr] = nil
 
 		// Track NFT transaction
 		if _, ok := nftTxMap[txHash]; !ok {
@@ -332,16 +230,6 @@ func (p *WasmNFTPatcher) processWasmEvent(
 			nftTxMap[txHash][collectionAddr] = make(map[string]interface{})
 		}
 		nftTxMap[txHash][collectionAddr][tokenId] = nil
-
-		// Track collection if not already tracked
-		if _, exists := collectionMap[collectionAddr]; !exists {
-			collectionMap[collectionAddr] = CollectionInfo{
-				Name:    "", // Will be filled from contract info if available
-				Symbol:  "",
-				Creator: owner, // Use the NFT owner as a fallback creator
-				TxInfo:  txInfo,
-			}
-		}
 
 	case "transfer_nft", "send_nft":
 		tokenId, found := attrMap["token_id"]
@@ -386,7 +274,6 @@ func (p *WasmNFTPatcher) processWasmEvent(
 		burnMap[nftKey] = txInfo
 		delete(mintMap, nftKey)
 		delete(transferMap, nftKey)
-		updateCountMap[collectionAddr] = nil
 
 		// Track NFT transaction
 		if _, ok := nftTxMap[txHash]; !ok {
@@ -399,68 +286,13 @@ func (p *WasmNFTPatcher) processWasmEvent(
 	}
 }
 
-type CollectionInfo struct {
-	Name    string
-	Symbol  string
-	Creator string
-	TxInfo  TxInfo
-}
-
 type MintInfo struct {
 	Owner  string
 	Uri    string
 	TxInfo TxInfo
 }
 
-func (p *WasmNFTPatcher) saveCollections(collectionMap map[string]CollectionInfo) error {
-	if len(collectionMap) == 0 {
-		return nil
-	}
-
-	var collections []types.CollectedNftCollection
-	var allAddresses []string
-
-	// Collect all creator addresses
-	for _, info := range collectionMap {
-		if info.Creator != "" {
-			allAddresses = append(allAddresses, info.Creator)
-		}
-	}
-
-	// Get account IDs for creators
-	accountIdMap, err := util.GetOrCreateAccountIds(p.db, allAddresses, true)
-	if err != nil {
-		return err
-	}
-
-	for collectionAddr, info := range collectionMap {
-		collectionAddrBytes, err := util.AccAddressFromString(collectionAddr)
-		if err != nil {
-			continue
-		}
-
-		creatorId := int64(0)
-		if info.Creator != "" {
-			creatorId = accountIdMap[info.Creator]
-		}
-
-		collections = append(collections, types.CollectedNftCollection{
-			Addr:      collectionAddrBytes,
-			Name:      info.Name,
-			Height:    info.TxInfo.Height,
-			Timestamp: info.TxInfo.Timestamp,
-			CreatorId: creatorId,
-		})
-	}
-
-	if len(collections) > 0 {
-		batchSize := p.cfg.GetDBBatchSize()
-		return p.db.Clauses(orm.DoNothingWhenConflict).CreateInBatches(collections, batchSize).Error
-	}
-	return nil
-}
-
-func (p *WasmNFTPatcher) saveMintedNFTs(mintMap map[util.NftKey]MintInfo) error {
+func (p *WasmNFTPatcher) handleMintNFTs(mintMap map[util.NftKey]MintInfo) error {
 	if len(mintMap) == 0 {
 		return nil
 	}
@@ -505,7 +337,7 @@ func (p *WasmNFTPatcher) saveMintedNFTs(mintMap map[util.NftKey]MintInfo) error 
 	return nil
 }
 
-func (p *WasmNFTPatcher) updateTransfers(transferMap map[util.NftKey]TransferInfo) error {
+func (p *WasmNFTPatcher) handleTransferNft(transferMap map[util.NftKey]TransferInfo) error {
 	if len(transferMap) == 0 {
 		return nil
 	}
@@ -542,7 +374,7 @@ func (p *WasmNFTPatcher) updateTransfers(transferMap map[util.NftKey]TransferInf
 	return nil
 }
 
-func (p *WasmNFTPatcher) deleteBurnedNFTs(burnMap map[util.NftKey]TxInfo) error {
+func (p *WasmNFTPatcher) handleBurnedNFTs(burnMap map[util.NftKey]TxInfo) error {
 	if len(burnMap) == 0 {
 		return nil
 	}
@@ -563,46 +395,7 @@ func (p *WasmNFTPatcher) deleteBurnedNFTs(burnMap map[util.NftKey]TxInfo) error 
 	return nil
 }
 
-//nolint:dupl
-func (p *WasmNFTPatcher) updateNFTCounts(updateCountMap map[string]interface{}) error {
-	if len(updateCountMap) == 0 {
-		return nil
-	}
-
-	var updateAddrs [][]byte
-	for collectionAddr := range updateCountMap {
-		addrBytes, err := util.AccAddressFromString(collectionAddr)
-		if err != nil {
-			continue
-		}
-		updateAddrs = append(updateAddrs, addrBytes)
-	}
-
-	if len(updateAddrs) == 0 {
-		return nil
-	}
-
-	var nftCounts []indexertypes.NftCount
-	if err := p.db.Table("nft").
-		Select("collection_addr, COUNT(*) as count").
-		Where("collection_addr IN ?", updateAddrs).
-		Group("collection_addr").
-		Scan(&nftCounts).Error; err != nil {
-		return err
-	}
-
-	for _, nftCount := range nftCounts {
-		if err := p.db.Model(&types.CollectedNftCollection{}).
-			Where("addr = ?", nftCount.CollectionAddr).
-			Update("nft_count", nftCount.Count).Error; err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (p *WasmNFTPatcher) updateNFTTransactions(nftTxMap map[string]map[string]map[string]interface{}) error {
+func (p *WasmNFTPatcher) handleNftTransations(nftTxMap map[string]map[string]map[string]interface{}) error {
 	if len(nftTxMap) == 0 {
 		return nil
 	}

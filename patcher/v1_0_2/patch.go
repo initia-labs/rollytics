@@ -1,12 +1,12 @@
 package v1_0_2
 
 import (
+	"log/slog"
 	"time"
 
 	"gorm.io/gorm"
 
 	"github.com/initia-labs/rollytics/config"
-	movenft "github.com/initia-labs/rollytics/indexer/collector/move-nft"
 	"github.com/initia-labs/rollytics/types"
 )
 
@@ -16,10 +16,7 @@ type TxInfo struct {
 	Timestamp time.Time
 }
 
-type CollectionEventInfo struct {
-	Event  movenft.CreateCollectionEvent
-	TxInfo TxInfo
-}
+// CollectionEventInfo removed - we don't process collections
 
 type TransferInfo struct {
 	Owner  string
@@ -31,14 +28,14 @@ type MutationInfo struct {
 	TxInfo TxInfo
 }
 
-func Patch(tx *gorm.DB, cfg *config.Config) error {
+func Patch(tx *gorm.DB, cfg *config.Config, logger *slog.Logger) error {
 	switch cfg.GetVmType() {
 	case types.EVM:
 		return nil
 	case types.WasmVM:
-		return PatchWasmNFT(tx, cfg)
+		return PatchWasmNFT(tx, cfg, logger)
 	case types.MoveVM:
-		return PatchMoveNFT(tx, cfg)
+		return PatchMoveNFT(tx, cfg, logger)
 	}
 
 	return nil

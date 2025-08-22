@@ -16,14 +16,19 @@ import (
 
 type PatchHandler struct {
 	Version string
-	Func    func(*gorm.DB, *config.Config) error
+	Func    func(*gorm.DB, *config.Config, *slog.Logger) error
 }
 
 var patches = []PatchHandler{
-	// should be ordered by version
+	// Patches must be ordered by version in ascending order (oldest to newest).
+	// Each patch builds on the previous ones, so the order is critical.
 	{"v1.0.2", v1_0_2.Patch},
 }
 
+// Patch applies data migration patches to fix or update existing data in the database.
+// Similar to schema migrations, but for data corrections and updates.
+// Each patch is applied only once and tracked in the upgrade_history table.
+// Patches are applied in order and wrapped in a serializable transaction for consistency.
 func Patch(cfg *config.Config, db *orm.Database, logger *slog.Logger) error {
 	err := db.Transaction(func(tx *gorm.DB) error {
 		for _, patch := range patches {
@@ -37,7 +42,7 @@ func Patch(cfg *config.Config, db *orm.Database, logger *slog.Logger) error {
 				continue
 			}
 
-			if err := patch.apply(tx, cfg); err != nil {
+			if err := patch.apply(tx, cfg, logger); err != nil {
 				return fmt.Errorf("failed to apply patch %s: %w", patch.Version, err)
 			}
 			logger.Info("Patch applied successfully", slog.String("version", patch.Version))
@@ -49,16 +54,16 @@ func Patch(cfg *config.Config, db *orm.Database, logger *slog.Logger) error {
 
 func (p *PatchHandler) isApplied(db *gorm.DB) (bool, error) {
 	var count int64
-	err := db.Model(&types.CollectedPatch{}).Where("version = ?", p.Version).Count(&count).Error
+	err := db.Model(&types.CollectedUpgradeHistory{}).Where("version = ?", p.Version).Count(&count).Error
 	return count > 0, err
 }
 
-func (p *PatchHandler) apply(db *gorm.DB, cfg *config.Config) error {
-	if err := p.Func(db, cfg); err != nil {
+func (p *PatchHandler) apply(db *gorm.DB, cfg *config.Config, logger *slog.Logger) error {
+	if err := p.Func(db, cfg, logger); err != nil {
 		return err
 	}
 
-	patch := &types.CollectedPatch{
+	patch := &types.CollectedUpgradeHistory{
 		Version: p.Version,
 		Applied: time.Now(),
 	}
