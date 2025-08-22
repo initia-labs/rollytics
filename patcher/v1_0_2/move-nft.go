@@ -173,7 +173,9 @@ func (p *MoveNFTPatcher) processTxBatch(txs []types.CollectedTx) error {
 				case "type_tag":
 					typeTag = value
 				case "data":
-					json.Unmarshal([]byte(value), &data)
+					if err := json.Unmarshal([]byte(value), &data); err != nil {
+						continue
+					}
 				}
 			}
 
