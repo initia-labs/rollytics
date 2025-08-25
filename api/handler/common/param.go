@@ -56,7 +56,7 @@ func GetCollectionAddrParam(c *fiber.Ctx, config *config.ChainConfig) ([]byte, e
 		return nil, err
 	}
 
-	return normalizeCollectionAddr(collectionAddr, config)
+	return normalizeCollectionAddr(collectionAddr)
 }
 
 func GetMsgsQuery(c *fiber.Ctx) (msgs []string) {
@@ -73,5 +73,5 @@ func GetCollectionAddrQuery(c *fiber.Ctx, config *config.ChainConfig) ([]byte, e
 		return nil, nil
 	}
 
-	return normalizeCollectionAddr(collectionAddr, config)
+	return normalizeCollectionAddr(collectionAddr)
 }
