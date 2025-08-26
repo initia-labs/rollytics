@@ -163,7 +163,7 @@ func loadConfig() (*Config, error) {
 		fmt.Fprintln(os.Stderr, "No .env file found")
 	}
 	viper.AutomaticEnv()
-	
+
 	var vmType types.VMType
 	switch viper.GetString("VM_TYPE") {
 	case "move":
