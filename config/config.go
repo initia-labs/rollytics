@@ -121,7 +121,6 @@ func setDefaults() {
 	viper.SetDefault("CACHE_SIZE", DefaultCacheSize)
 	viper.SetDefault("CACHE_TTL", DefaultCacheTTL)
 	viper.SetDefault("POLLING_INTERVAL", DefaultPollingInterval)
-	viper.SetDefault("INTERNAL_TX", false)
 	viper.SetDefault("INTERNAL_TX_POLL_INTERVAL", DefaultInternalTxPollInterval)
 	viper.SetDefault("INTERNAL_TX_BATCH_SIZE", DefaultInternalTxBatchSize)
 	viper.SetDefault("METRICS_ENABLED", false)
@@ -140,14 +139,11 @@ func setDefaults() {
 
 // setVMSpecificDefaults sets defaults based on VM type
 func setVMSpecificDefaults(vmType types.VMType) {
-	// Only set if not already explicitly set by user
-	if !viper.IsSet("INTERNAL_TX") {
-		switch vmType {
-		case types.EVM:
-			viper.SetDefault("INTERNAL_TX", true)
-		default:
-			viper.SetDefault("INTERNAL_TX", false)
-		}
+	switch vmType {
+	case types.EVM:
+		viper.SetDefault("INTERNAL_TX", true)
+	default:
+		viper.SetDefault("INTERNAL_TX", false)
 	}
 }
 
@@ -167,17 +163,7 @@ func loadConfig() (*Config, error) {
 		fmt.Fprintln(os.Stderr, "No .env file found")
 	}
 	viper.AutomaticEnv()
-	setDefaults()
-
-	dc := &dbconfig.Config{
-		DSN:          viper.GetString("DB_DSN"),
-		AutoMigrate:  viper.GetBool("DB_AUTO_MIGRATE"),
-		MaxConns:     viper.GetInt("DB_MAX_CONNS"),
-		IdleConns:    viper.GetInt("DB_IDLE_CONNS"),
-		BatchSize:    viper.GetInt("DB_BATCH_SIZE"),
-		MigrationDir: viper.GetString("DB_MIGRATION_DIR"),
-	}
-
+	
 	var vmType types.VMType
 	switch viper.GetString("VM_TYPE") {
 	case "move":
@@ -190,8 +176,18 @@ func loadConfig() (*Config, error) {
 		return nil, types.NewConfigError("VM_TYPE is invalid", nil)
 	}
 
-	// Set VM-specific defaults
+	// Set VM-specific defaults before general defaults
 	setVMSpecificDefaults(vmType)
+	setDefaults()
+
+	dc := &dbconfig.Config{
+		DSN:          viper.GetString("DB_DSN"),
+		AutoMigrate:  viper.GetBool("DB_AUTO_MIGRATE"),
+		MaxConns:     viper.GetInt("DB_MAX_CONNS"),
+		IdleConns:    viper.GetInt("DB_IDLE_CONNS"),
+		BatchSize:    viper.GetInt("DB_BATCH_SIZE"),
+		MigrationDir: viper.GetString("DB_MIGRATION_DIR"),
+	}
 
 	cc := &ChainConfig{
 		ChainId:              viper.GetString("CHAIN_ID"),
