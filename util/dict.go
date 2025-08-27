@@ -40,11 +40,9 @@ func InitializeCaches(cfg *config.CacheConfig) {
 	})
 }
 
-func GetOrCreateAccountIds(db *gorm.DB, accounts []string, createNew bool) (idMap map[string]int64, err error) {
+// checkAccountCache checks the cache for accounts and returns cached IDs and uncached accounts
+func checkAccountCache(accounts []string) (idMap map[string]int64, uncached []string) {
 	idMap = make(map[string]int64, len(accounts))
-
-	// check cache and collect uncached
-	var uncached []string
 	for _, account := range accounts {
 		id, ok := accountCache.Get(account)
 		if ok {
@@ -53,71 +51,100 @@ func GetOrCreateAccountIds(db *gorm.DB, accounts []string, createNew bool) (idMa
 			uncached = append(uncached, account)
 		}
 	}
+	return idMap, uncached
+}
 
-	if len(uncached) == 0 {
-		return idMap, nil
-	}
-
-	// fetch from db to create accountIdMap
+// fetchAccountsFromDB queries the database for uncached accounts and returns a map of account -> id
+func fetchAccountsFromDB(db *gorm.DB, uncached []string) (map[string]int64, error) {
 	var entries []types.CollectedAccountDict
 	// Convert strings to bytes for the query
 	var uncachedBytes [][]byte
 	for _, account := range uncached {
 		accBytes, err := AccAddressFromString(account)
 		if err != nil {
-			return idMap, err
+			return nil, err
 		}
 		uncachedBytes = append(uncachedBytes, accBytes)
 	}
+
 	if err := db.Where("account IN ?", uncachedBytes).Find(&entries).Error; err != nil {
-		return idMap, err
+		return nil, err
 	}
+
 	accountIdMap := make(map[string]int64) // account -> id
 	for _, entry := range entries {
 		// Use the bech32 string representation as the map key
 		accAddr := sdk.AccAddress(entry.Account)
 		accountIdMap[accAddr.String()] = entry.Id
 	}
+	return accountIdMap, nil
+}
 
-	if createNew { //nolint:nestif
-		// create new entries if not in DB
-		var newEntries []types.CollectedAccountDict
-		for _, account := range uncached {
-			if _, ok := accountIdMap[account]; !ok {
-				accBytes, err := AccAddressFromString(account)
-				if err != nil {
-					return idMap, err
-				}
-				newEntries = append(newEntries, types.CollectedAccountDict{Account: accBytes})
+// createNewAccountEntries creates new account entries in the database if they don't exist
+func createNewAccountEntries(db *gorm.DB, uncached []string, accountIdMap map[string]int64) error {
+	var newEntries []types.CollectedAccountDict
+	for _, account := range uncached {
+		if _, ok := accountIdMap[account]; !ok {
+			accBytes, err := AccAddressFromString(account)
+			if err != nil {
+				return err
 			}
-		}
-
-		if len(newEntries) > 0 {
-			if err := db.Clauses(orm.DoNothingWhenConflict).Create(&newEntries).Error; err != nil {
-				return idMap, err
-			}
-			for i, entry := range newEntries {
-				accAddr := sdk.AccAddress(entry.Account)
-				accountIdMap[accAddr.String()] = newEntries[i].Id
-			}
+			newEntries = append(newEntries, types.CollectedAccountDict{Account: accBytes})
 		}
 	}
 
+	if len(newEntries) > 0 {
+		if err := db.Clauses(orm.DoNothingWhenConflict).Create(&newEntries).Error; err != nil {
+			return err
+		}
+		for i, entry := range newEntries {
+			accAddr := sdk.AccAddress(entry.Account)
+			accountIdMap[accAddr.String()] = newEntries[i].Id
+		}
+	}
+	return nil
+}
+
+// updateAccountCacheAndResult updates the cache and result map with found account IDs
+func updateAccountCacheAndResult(uncached []string, accountIdMap map[string]int64, idMap map[string]int64) {
 	for _, account := range uncached {
 		if id, ok := accountIdMap[account]; ok {
 			accountCache.Set(account, id)
 			idMap[account] = id
 		}
 	}
+}
+
+func GetOrCreateAccountIds(db *gorm.DB, accounts []string, createNew bool) (idMap map[string]int64, err error) {
+	// Check cache and collect uncached accounts
+	idMap, uncached := checkAccountCache(accounts)
+
+	if len(uncached) == 0 {
+		return idMap, nil
+	}
+
+	// Fetch existing accounts from database
+	accountIdMap, err := fetchAccountsFromDB(db, uncached)
+	if err != nil {
+		return idMap, err
+	}
+
+	// Create new entries if requested
+	if createNew {
+		if err := createNewAccountEntries(db, uncached, accountIdMap); err != nil {
+			return idMap, err
+		}
+	}
+
+	// Update cache and result map
+	updateAccountCacheAndResult(uncached, accountIdMap, idMap)
 
 	return idMap, nil
 }
 
-func GetOrCreateNftIds(db *gorm.DB, keys []NftKey, createNew bool) (idMap map[NftKey]int64, err error) {
+// checkNftCache checks the cache for NFT keys and returns cached IDs and uncached keys
+func checkNftCache(keys []NftKey) (idMap map[NftKey]int64, uncached []NftKey) {
 	idMap = make(map[NftKey]int64, len(keys))
-
-	// check cache and collect uncached
-	var uncached []NftKey
 	for _, key := range keys {
 		id, ok := nftCache.Get(key)
 		if ok {
@@ -126,18 +153,17 @@ func GetOrCreateNftIds(db *gorm.DB, keys []NftKey, createNew bool) (idMap map[Nf
 			uncached = append(uncached, key)
 		}
 	}
+	return idMap, uncached
+}
 
-	if len(uncached) == 0 {
-		return idMap, nil
-	}
-
-	// fetch from db to create nftIdMap
+// fetchNftsFromDB queries the database for uncached NFT keys and returns a map of key -> id
+func fetchNftsFromDB(db *gorm.DB, uncached []NftKey) (map[NftKey]int64, error) {
 	tx := db.Model(&types.CollectedNftDict{})
 	for i, key := range uncached {
 		// Convert collection address to bytes
 		colAddrBytes, err := AccAddressFromString(key.CollectionAddr)
 		if err != nil {
-			return idMap, err
+			return nil, err
 		}
 		if i == 0 {
 			tx = tx.Where("collection_addr = ? AND token_id = ?", colAddrBytes, key.TokenId)
@@ -148,8 +174,9 @@ func GetOrCreateNftIds(db *gorm.DB, keys []NftKey, createNew bool) (idMap map[Nf
 
 	var entries []types.CollectedNftDict
 	if err := tx.Find(&entries).Error; err != nil {
-		return idMap, err
+		return nil, err
 	}
+
 	nftIdMap := make(map[NftKey]int64) // nft key -> id
 	for _, entry := range entries {
 		// Convert bytes back to string for map key
@@ -159,45 +186,74 @@ func GetOrCreateNftIds(db *gorm.DB, keys []NftKey, createNew bool) (idMap map[Nf
 		}
 		nftIdMap[key] = entry.Id
 	}
+	return nftIdMap, nil
+}
 
-	if createNew { //nolint:nestif
-		// create new entries if not in DB
-		var newEntries []types.CollectedNftDict
-		for _, key := range uncached {
-			if _, ok := nftIdMap[key]; !ok {
-				// Convert collection address to bytes
-				colAddrBytes, err := AccAddressFromString(key.CollectionAddr)
-				if err != nil {
-					return idMap, err
-				}
-				newEntries = append(newEntries, types.CollectedNftDict{
-					CollectionAddr: colAddrBytes,
-					TokenId:        key.TokenId,
-				})
+// createNewNftEntries creates new NFT entries in the database if they don't exist
+func createNewNftEntries(db *gorm.DB, uncached []NftKey, nftIdMap map[NftKey]int64) error {
+	var newEntries []types.CollectedNftDict
+	for _, key := range uncached {
+		if _, ok := nftIdMap[key]; !ok {
+			// Convert collection address to bytes
+			colAddrBytes, err := AccAddressFromString(key.CollectionAddr)
+			if err != nil {
+				return err
 			}
-		}
-
-		if len(newEntries) > 0 {
-			if err := db.Clauses(orm.DoNothingWhenConflict).Create(&newEntries).Error; err != nil {
-				return idMap, err
-			}
-			for _, entry := range newEntries {
-				key := NftKey{
-					CollectionAddr: BytesToHexWithPrefix(entry.CollectionAddr),
-					TokenId:        entry.TokenId,
-				}
-				nftIdMap[key] = entry.Id
-			}
+			newEntries = append(newEntries, types.CollectedNftDict{
+				CollectionAddr: colAddrBytes,
+				TokenId:        key.TokenId,
+			})
 		}
 	}
 
-	// set cache and add to result map
+	if len(newEntries) > 0 {
+		if err := db.Clauses(orm.DoNothingWhenConflict).Create(&newEntries).Error; err != nil {
+			return err
+		}
+		for _, entry := range newEntries {
+			key := NftKey{
+				CollectionAddr: BytesToHexWithPrefix(entry.CollectionAddr),
+				TokenId:        entry.TokenId,
+			}
+			nftIdMap[key] = entry.Id
+		}
+	}
+	return nil
+}
+
+// updateNftCacheAndResult updates the cache and result map with found NFT IDs
+func updateNftCacheAndResult(uncached []NftKey, nftIdMap map[NftKey]int64, idMap map[NftKey]int64) {
 	for _, key := range uncached {
 		if id, ok := nftIdMap[key]; ok {
 			nftCache.Set(key, id)
 			idMap[key] = id
 		}
 	}
+}
+
+func GetOrCreateNftIds(db *gorm.DB, keys []NftKey, createNew bool) (idMap map[NftKey]int64, err error) {
+	// Check cache and collect uncached NFT keys
+	idMap, uncached := checkNftCache(keys)
+
+	if len(uncached) == 0 {
+		return idMap, nil
+	}
+
+	// Fetch existing NFTs from database
+	nftIdMap, err := fetchNftsFromDB(db, uncached)
+	if err != nil {
+		return idMap, err
+	}
+
+	// Create new entries if requested
+	if createNew {
+		if err := createNewNftEntries(db, uncached, nftIdMap); err != nil {
+			return idMap, err
+		}
+	}
+
+	// Update cache and result map
+	updateNftCacheAndResult(uncached, nftIdMap, idMap)
 
 	return idMap, nil
 }

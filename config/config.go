@@ -345,14 +345,40 @@ func (c Config) GetLogFormat() string {
 }
 
 func (c Config) Validate() error {
-	// Port validation
+	if err := c.validatePort(); err != nil {
+		return err
+	}
+	if err := c.validateLogSettings(); err != nil {
+		return err
+	}
+	if err := c.validateNumericSettings(); err != nil {
+		return err
+	}
+	if err := c.validateInternalTxConfig(); err != nil {
+		return err
+	}
+	if err := c.validateMetricsConfig(); err != nil {
+		return err
+	}
+	if err := c.validateSubConfigs(); err != nil {
+		return err
+	}
+	return nil
+}
+
+// validatePort validates the listen port configuration
+func (c Config) validatePort() error {
 	if len(c.listenPort) == 0 {
 		return types.NewValidationError("PORT", "required field is missing")
 	}
 	if port, err := strconv.Atoi(c.listenPort); err != nil || port < MinPortNumber || port > MaxPortNumber {
 		return types.NewValidationError("PORT", fmt.Sprintf("must be a valid port number (%d-%d)", MinPortNumber, MaxPortNumber))
 	}
+	return nil
+}
 
+// validateLogSettings validates log format and level configuration
+func (c Config) validateLogSettings() error {
 	// Log format validation
 	switch c.logFormat {
 	case "json", "plain":
@@ -368,8 +394,11 @@ func (c Config) Validate() error {
 	default:
 		return types.NewValidationError("LOG_LEVEL", fmt.Sprintf("invalid value '%s', must be one of: debug, info, warn, error", c.logLevel))
 	}
+	return nil
+}
 
-	// Numeric validations
+// validateNumericSettings validates all numeric configuration values
+func (c Config) validateNumericSettings() error {
 	if c.cacheSize < 0 {
 		return types.NewValidationError("CACHE_SIZE", "must be non-negative")
 	}
@@ -391,42 +420,82 @@ func (c Config) Validate() error {
 	if c.maxConcurrentRequests > MaxAllowedConcurrentRequests {
 		return types.NewInvalidValueError("MAX_CONCURRENT_REQUESTS", fmt.Sprintf("%d", c.maxConcurrentRequests), fmt.Sprintf("must not exceed %d", MaxAllowedConcurrentRequests))
 	}
+	return nil
+}
 
-	// Internal TX config validation
+// validateInternalTxConfig validates internal transaction configuration
+func (c Config) validateInternalTxConfig() error {
 	if c.internalTxConfig != nil && c.internalTxConfig.Enabled {
-		// Internal TX is only supported for EVM chains
-		if c.chainConfig.VmType != types.EVM {
-			vmTypeStr := "unknown"
-			switch c.chainConfig.VmType {
-			case types.MoveVM:
-				vmTypeStr = "Move"
-			case types.WasmVM:
-				vmTypeStr = "Wasm"
-			}
-			return types.NewValidationError("INTERNAL_TX", fmt.Sprintf("internal transaction tracking is not supported for %s VM type, only EVM", vmTypeStr))
+		if err := c.validateInternalTxVMSupport(); err != nil {
+			return err
 		}
-		if c.internalTxConfig.PollInterval <= 0 {
-			return types.NewValidationError("INTERNAL_TX_POLL_INTERVAL", "must be positive when INTERNAL_TX is enabled")
-		}
-		if c.internalTxConfig.BatchSize < 1 {
-			return types.NewValidationError("INTERNAL_TX_BATCH_SIZE", "must be at least 1")
+		if err := c.validateInternalTxSettings(); err != nil {
+			return err
 		}
 	}
+	return nil
+}
 
-	// Metrics config validation
+// validateInternalTxVMSupport validates that internal TX is only enabled for supported VM types
+func (c Config) validateInternalTxVMSupport() error {
+	if c.chainConfig.VmType != types.EVM {
+		vmTypeStr := "unknown"
+		switch c.chainConfig.VmType {
+		case types.MoveVM:
+			vmTypeStr = "Move"
+		case types.WasmVM:
+			vmTypeStr = "Wasm"
+		}
+		return types.NewValidationError("INTERNAL_TX", fmt.Sprintf("internal transaction tracking is not supported for %s VM type, only EVM", vmTypeStr))
+	}
+	return nil
+}
+
+// validateInternalTxSettings validates internal transaction specific settings
+func (c Config) validateInternalTxSettings() error {
+	if c.internalTxConfig.PollInterval <= 0 {
+		return types.NewValidationError("INTERNAL_TX_POLL_INTERVAL", "must be positive when INTERNAL_TX is enabled")
+	}
+	if c.internalTxConfig.BatchSize < 1 {
+		return types.NewValidationError("INTERNAL_TX_BATCH_SIZE", "must be at least 1")
+	}
+	return nil
+}
+
+// validateMetricsConfig validates metrics configuration
+func (c Config) validateMetricsConfig() error {
 	if c.metricsConfig != nil && c.metricsConfig.Enabled {
-		if port, err := strconv.Atoi(c.metricsConfig.Port); err != nil || port < MinPortNumber || port > MaxPortNumber {
-			return types.NewValidationError("METRICS_PORT", fmt.Sprintf("must be a valid port number (%d-%d)", MinPortNumber, MaxPortNumber))
+		if err := c.validateMetricsPort(); err != nil {
+			return err
 		}
-		if c.metricsConfig.Port == c.listenPort {
-			return types.NewValidationError("METRICS_PORT", fmt.Sprintf("metrics port %s conflicts with API port", c.metricsConfig.Port))
-		}
-		if c.metricsConfig.Path == "" || c.metricsConfig.Path[0] != '/' {
-			return types.NewValidationError("METRICS_PATH", "must start with '/'")
+		if err := c.validateMetricsPath(); err != nil {
+			return err
 		}
 	}
+	return nil
+}
 
-	// Delegate to sub-configs
+// validateMetricsPort validates the metrics port configuration
+func (c Config) validateMetricsPort() error {
+	if port, err := strconv.Atoi(c.metricsConfig.Port); err != nil || port < MinPortNumber || port > MaxPortNumber {
+		return types.NewValidationError("METRICS_PORT", fmt.Sprintf("must be a valid port number (%d-%d)", MinPortNumber, MaxPortNumber))
+	}
+	if c.metricsConfig.Port == c.listenPort {
+		return types.NewValidationError("METRICS_PORT", fmt.Sprintf("metrics port %s conflicts with API port", c.metricsConfig.Port))
+	}
+	return nil
+}
+
+// validateMetricsPath validates the metrics path configuration
+func (c Config) validateMetricsPath() error {
+	if c.metricsConfig.Path == "" || c.metricsConfig.Path[0] != '/' {
+		return types.NewValidationError("METRICS_PATH", "must start with '/'")
+	}
+	return nil
+}
+
+// validateSubConfigs validates nested configuration objects
+func (c Config) validateSubConfigs() error {
 	if err := c.dbConfig.Validate(); err != nil {
 		return err
 	}

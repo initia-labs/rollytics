@@ -31,23 +31,42 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Api {
 	app := fiber.New(fiber.Config{
 		AppName:               "Rollytics API",
 		DisableStartupMessage: true,
-		ErrorHandler: func(c *fiber.Ctx, err error) error {
-			errString := err.Error()
-			if !strings.HasPrefix(errString, "Cannot GET") {
-				logger.Error(errString, "path", c.Path(), "method", c.Method())
-			}
-
-			code := fiber.StatusInternalServerError
-			e := &fiber.Error{}
-			if errors.As(err, &e) {
-				code = e.Code
-			}
-
-			return c.Status(code).SendString(errString)
-		},
+		ErrorHandler:          createErrorHandler(logger),
 	})
 
-	// Add panic recovery middleware
+	addPanicRecoveryMiddleware(app, logger)
+	addMetricsMiddleware(app)
+	handler.Register(app, db, cfg, logger)
+	setupSwagger(app, cfg)
+
+	return &Api{
+		app:    app,
+		cfg:    cfg,
+		logger: logger,
+		db:     db,
+	}
+}
+
+// createErrorHandler creates the error handler function for the fiber app
+func createErrorHandler(logger *slog.Logger) func(c *fiber.Ctx, err error) error {
+	return func(c *fiber.Ctx, err error) error {
+		errString := err.Error()
+		if !strings.HasPrefix(errString, "Cannot GET") {
+			logger.Error(errString, "path", c.Path(), "method", c.Method())
+		}
+
+		code := fiber.StatusInternalServerError
+		e := &fiber.Error{}
+		if errors.As(err, &e) {
+			code = e.Code
+		}
+
+		return c.Status(code).SendString(errString)
+	}
+}
+
+// addPanicRecoveryMiddleware adds panic recovery middleware to the app
+func addPanicRecoveryMiddleware(app *fiber.App, logger *slog.Logger) {
 	app.Use(func(c *fiber.Ctx) error {
 		defer func() {
 			if r := recover(); r != nil {
@@ -59,98 +78,108 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Api {
 		}()
 		return c.Next()
 	})
+}
 
-	// Add metrics middleware
+// addMetricsMiddleware adds metrics tracking middleware to the app
+func addMetricsMiddleware(app *fiber.App) {
 	app.Use(func(c *fiber.Ctx) error {
 		start := time.Now()
-
-		// Track requests in flight
 		httpMetrics := metrics.GetMetrics().HTTPMetrics()
+
 		httpMetrics.RequestsInFlight.Inc()
-		defer func() {
-			// Always decrement requests in flight, even on panic
-			httpMetrics.RequestsInFlight.Dec()
+		defer httpMetrics.RequestsInFlight.Dec()
 
-			// Track metrics after request completion, with panic recovery
-			if r := recover(); r != nil {
-				// Track panic metrics
-				duration := time.Since(start).Seconds()
-				method := c.Method()
-				path := c.Route().Path
-				if path == "" {
-					path = c.Path()
-				}
-				handler := metrics.GetHandlerPattern(path)
+		defer handlePanicMetrics(start, c, httpMetrics)
 
-				// Track metrics for panicked request
-				httpMetrics.RequestsTotal.WithLabelValues(method, handler, "5xx").Inc()
-				httpMetrics.RequestDuration.WithLabelValues(method, handler).Observe(duration)
-				httpMetrics.ErrorsTotal.WithLabelValues(handler, "server_error").Inc()
-				metrics.TrackEndpoint(path, duration)
-
-				// Re-panic to let upper panic handler deal with it
-				panic(r)
-			}
-		}()
-
-		// Continue with request
 		err := c.Next()
-
-		// Track metrics after request completion
-		duration := time.Since(start).Seconds()
-		method := c.Method()
-		path := c.Route().Path
-		if path == "" {
-			path = c.Path()
-		}
-
-		// Get handler pattern and status class
-		handler := metrics.GetHandlerPattern(path)
-		statusCode := c.Response().StatusCode()
-		statusClass := metrics.GetStatusClass(statusCode)
-
-		// Track HTTP metrics
-		httpMetrics.RequestsTotal.WithLabelValues(method, handler, statusClass).Inc()
-		httpMetrics.RequestDuration.WithLabelValues(method, handler).Observe(duration)
-
-		// Track detailed metrics for slow or important requests
-		if metrics.ShouldTrackDetailed(duration, path) {
-			bucket := metrics.GetDurationBucket(duration)
-			if bucket != "" {
-				httpMetrics.SlowRequests.WithLabelValues(method, path, bucket).Inc()
-			}
-		}
-
-		// Track endpoint performance for top endpoints analysis
-		metrics.TrackEndpoint(path, duration)
-
-		// Track HTTP errors
-		if err != nil {
-			errorType := "server_error"
-			fiberErr := &fiber.Error{}
-			if errors.As(err, &fiberErr) {
-				switch {
-				case fiberErr.Code == 401:
-					errorType = "unauthorized"
-				case fiberErr.Code == 403:
-					errorType = "forbidden"
-				case fiberErr.Code == 404:
-					errorType = "not_found"
-				case fiberErr.Code >= 400 && fiberErr.Code < 500:
-					errorType = "client_error"
-				case fiberErr.Code >= 500:
-					errorType = "server_error"
-				}
-			}
-			httpMetrics.ErrorsTotal.WithLabelValues(handler, errorType).Inc()
-		}
-
+		trackRequestMetrics(start, c, httpMetrics, err)
 		return err
 	})
+}
 
-	handler.Register(app, db, cfg, logger)
+// handlePanicMetrics handles metrics tracking during panic recovery
+func handlePanicMetrics(start time.Time, c *fiber.Ctx, httpMetrics *metrics.HTTPMetrics) {
+	if r := recover(); r != nil {
+		duration := time.Since(start).Seconds()
+		method := c.Method()
+		path := getRequestPath(c)
+		handler := metrics.GetHandlerPattern(path)
 
-	// Swagger documentation
+		httpMetrics.RequestsTotal.WithLabelValues(method, handler, "5xx").Inc()
+		httpMetrics.RequestDuration.WithLabelValues(method, handler).Observe(duration)
+		httpMetrics.ErrorsTotal.WithLabelValues(handler, "server_error").Inc()
+		metrics.TrackEndpoint(path, duration)
+
+		panic(r)
+	}
+}
+
+// trackRequestMetrics tracks metrics for completed requests
+func trackRequestMetrics(start time.Time, c *fiber.Ctx, httpMetrics *metrics.HTTPMetrics, err error) {
+	duration := time.Since(start).Seconds()
+	method := c.Method()
+	path := getRequestPath(c)
+	handler := metrics.GetHandlerPattern(path)
+	statusCode := c.Response().StatusCode()
+	statusClass := metrics.GetStatusClass(statusCode)
+
+	httpMetrics.RequestsTotal.WithLabelValues(method, handler, statusClass).Inc()
+	httpMetrics.RequestDuration.WithLabelValues(method, handler).Observe(duration)
+
+	trackSlowRequests(duration, path, method, httpMetrics)
+	metrics.TrackEndpoint(path, duration)
+	trackHTTPErrors(err, handler, httpMetrics)
+}
+
+// getRequestPath gets the request path for metrics tracking
+func getRequestPath(c *fiber.Ctx) string {
+	path := c.Route().Path
+	if path == "" {
+		path = c.Path()
+	}
+	return path
+}
+
+// trackSlowRequests tracks detailed metrics for slow requests
+func trackSlowRequests(duration float64, path, method string, httpMetrics *metrics.HTTPMetrics) {
+	if metrics.ShouldTrackDetailed(duration, path) {
+		bucket := metrics.GetDurationBucket(duration)
+		if bucket != "" {
+			httpMetrics.SlowRequests.WithLabelValues(method, path, bucket).Inc()
+		}
+	}
+}
+
+// trackHTTPErrors tracks HTTP error metrics
+func trackHTTPErrors(err error, handler string, httpMetrics *metrics.HTTPMetrics) {
+	if err != nil {
+		errorType := determineErrorType(err)
+		httpMetrics.ErrorsTotal.WithLabelValues(handler, errorType).Inc()
+	}
+}
+
+// determineErrorType determines the error type for metrics tracking
+func determineErrorType(err error) string {
+	fiberErr := &fiber.Error{}
+	if errors.As(err, &fiberErr) {
+		switch {
+		case fiberErr.Code == 401:
+			return "unauthorized"
+		case fiberErr.Code == 403:
+			return "forbidden"
+		case fiberErr.Code == 404:
+			return "not_found"
+		case fiberErr.Code >= 400 && fiberErr.Code < 500:
+			return "client_error"
+		case fiberErr.Code >= 500:
+			return "server_error"
+		}
+	}
+	return "server_error"
+}
+
+// setupSwagger configures swagger documentation
+func setupSwagger(app *fiber.App, cfg *config.Config) {
 	swaggerConfig := swagger.Config{
 		URL:         "/swagger/doc.json",
 		DeepLinking: true,
@@ -160,36 +189,33 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Api {
 		}`),
 	}
 
-	// If not EVM, filter out EVM paths
 	if cfg.GetVmType() != types.EVM {
-		app.Get("/swagger/doc.json", func(c *fiber.Ctx) error {
-			swaggerData := docs.SwaggerInfo.ReadDoc()
-
-			var spec map[string]any
-			if err := json.Unmarshal([]byte(swaggerData), &spec); err != nil {
-				return c.Type("json").SendString(swaggerData)
-			}
-
-			if paths, ok := spec["paths"].(map[string]any); ok {
-				for path := range paths {
-					if strings.Contains(path, "/evm-") {
-						delete(paths, path)
-					}
-				}
-			}
-
-			return c.JSON(spec)
-		})
+		setupNonEVMSwagger(app)
 	}
 
 	app.Get("/swagger/*", swagger.New(swaggerConfig))
+}
 
-	return &Api{
-		app:    app,
-		cfg:    cfg,
-		logger: logger,
-		db:     db,
-	}
+// setupNonEVMSwagger sets up swagger for non-EVM configurations
+func setupNonEVMSwagger(app *fiber.App) {
+	app.Get("/swagger/doc.json", func(c *fiber.Ctx) error {
+		swaggerData := docs.SwaggerInfo.ReadDoc()
+
+		var spec map[string]any
+		if err := json.Unmarshal([]byte(swaggerData), &spec); err != nil {
+			return c.Type("json").SendString(swaggerData)
+		}
+
+		if paths, ok := spec["paths"].(map[string]any); ok {
+			for path := range paths {
+				if strings.Contains(path, "/evm-") {
+					delete(paths, path)
+				}
+			}
+		}
+
+		return c.JSON(spec)
+	})
 }
 
 // @title Rollytics API

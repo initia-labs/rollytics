@@ -5,15 +5,15 @@ linters:
   enable:
     - asasalint
     - bodyclose
-    # - depguard
+    - depguard
     - dogsled
     - dupl
     - durationcheck
     - errorlint
     - forbidigo
-    # - gocognit
+    - gocognit
     - gocritic
-    # - gocyclo
+    - gocyclo
     - gosec
     - makezero
     - misspell
@@ -24,12 +24,12 @@ linters:
     - revive
     - rowserrcheck
     - staticcheck
-    # - thelper
+    - thelper
     - tparallel
     - unparam
     - wastedassign
     - whitespace
-    # - wrapcheck
+#    - wrapcheck
     - zerologlint
   settings:
     dupl:
@@ -41,6 +41,12 @@ linters:
       tab-width: 4
     revive:
       severity: warning
+    depguard:
+      rules:
+        packages:
+          deny:
+            - pkg: "io/ioutil"
+              desc: io/ioutil is deprecated. Use io or os instead.
   exclusions:
     generated: lax
     rules:
@@ -48,6 +54,8 @@ linters:
         text: should have comment or be unexported
       - path: (.+)\.go$
         text: 'fieldalignment: struct of size.*could be.*smaller'
+    paths:
+      - indexer/
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0
