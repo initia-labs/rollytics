@@ -77,8 +77,8 @@ func (p *Pagination) ToResponse(total int64) (res PaginationResponse) {
 		nextKey := base64.StdEncoding.EncodeToString([]byte(strconv.Itoa(p.Offset + p.Limit + 1)))
 		res.NextKey = &nextKey
 	}
-	// if offset is greater than limit, previousKey can be set
-	if p.Offset > 0 && p.Offset > p.Limit {
+	// if offset is greater than or equal to limit, previousKey can be set
+	if p.Offset > 0 && p.Offset >= p.Limit {
 		previousKey := base64.StdEncoding.EncodeToString([]byte(strconv.Itoa(p.Offset - p.Limit)))
 		res.PreviousKey = &previousKey
 	}
