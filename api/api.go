@@ -61,6 +61,9 @@ func createErrorHandler(logger *slog.Logger) func(c *fiber.Ctx, err error) error
 			code = e.Code
 		}
 
+		if code >= fiber.StatusInternalServerError {
+			return c.Status(code).SendString("Internal Server Error")
+		}
 		return c.Status(code).SendString(errString)
 	}
 }
