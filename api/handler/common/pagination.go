@@ -73,7 +73,8 @@ func (p *Pagination) OrderBy(keys ...string) string {
 
 func (p *Pagination) ToResponse(total int64) (res PaginationResponse) {
 	if total > int64(p.Offset+p.Limit) {
-		nextKey := base64.StdEncoding.EncodeToString([]byte(strconv.Itoa(p.Offset + p.Limit)))
+		// Add +1 to prevent overlap: ensures next page doesn't include current page's last item
+		nextKey := base64.StdEncoding.EncodeToString([]byte(strconv.Itoa(p.Offset + p.Limit + 1)))
 		res.NextKey = &nextKey
 	}
 	// if offset is greater than limit, previousKey can be set
