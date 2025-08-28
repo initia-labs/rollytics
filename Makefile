@@ -31,7 +31,7 @@ build: go.sum
 	go build -mod=readonly $(LDFLAGS) -o rollytics ./cmd/rollytics
 
 lint:
-	golangci-lint run ./... --fix --timeout=15m
+	golangci-lint run --fix --timeout=15m
 
 swagger-gen:
 	swag init -g cmd/api.go --output api/docs
