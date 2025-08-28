@@ -105,7 +105,10 @@ func (h *TxHandler) GetTxsByAccount(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 	if len(accountIds) == 0 {
-		return c.JSON(TxsResponse{})
+		return c.JSON(TxsResponse{
+			Txs:        []types.Tx{},
+			Pagination: pagination.ToResponse(0),
+		})
 	}
 	query := h.buildBaseTxQuery().Where("account_ids && ?", pq.Array(accountIds))
 

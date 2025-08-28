@@ -84,7 +84,10 @@ func (h *NftHandler) GetCollectionsByAccount(c *fiber.Ctx) error {
 	}
 
 	if len(accountIds) == 0 {
-		return c.JSON(CollectionsResponse{})
+		return c.JSON(CollectionsResponse{
+			Collections: []Collection{},
+			Pagination:  pagination.ToResponse(0),
+		})
 	}
 
 	query := h.buildBaseCollectionQuery().
