@@ -44,7 +44,12 @@ func InitializeCaches(cfg *config.CacheConfig) {
 func checkAccountCache(accounts []string) (idMap map[string]int64, uncached []string) {
 	idMap = make(map[string]int64, len(accounts))
 	for _, account := range accounts {
-		id, ok := accountCache.Get(account)
+		key, err := normalizeAccountToBech32(account)
+		if err != nil {
+			uncached = append(uncached, account)
+			continue
+		}
+		id, ok := accountCache.Get(key)
 		if ok {
 			idMap[account] = id
 		} else {
@@ -108,11 +113,24 @@ func createNewAccountEntries(db *gorm.DB, uncached []string, accountIdMap map[st
 // updateAccountCacheAndResult updates the cache and result map with found account IDs
 func updateAccountCacheAndResult(uncached []string, accountIdMap map[string]int64, idMap map[string]int64) {
 	for _, account := range uncached {
-		if id, ok := accountIdMap[account]; ok {
-			accountCache.Set(account, id)
+		key, err := normalizeAccountToBech32(account)
+		if err != nil {
+			continue
+		}
+
+		if id, ok := accountIdMap[key]; ok {
+			accountCache.Set(key, id)
 			idMap[account] = id
 		}
 	}
+}
+
+func normalizeAccountToBech32(account string) (string, error) {
+	accBytes, err := AccAddressFromString(account)
+	if err != nil {
+		return "", err
+	}
+	return sdk.AccAddress(accBytes).String(), nil
 }
 
 func GetOrCreateAccountIds(db *gorm.DB, accounts []string, createNew bool) (idMap map[string]int64, err error) {
