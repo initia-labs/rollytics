@@ -55,6 +55,9 @@ linters:
       - path: (.+)\.go$
         text: 'fieldalignment: struct of size.*could be.*smaller'
       - path: ^patcher/.+\.go$
+        linters:
+          - gocyclo
+          - gocognit
         text: 'cognitive complexity .*processTxBatch'
     paths:
       - ^indexer/
