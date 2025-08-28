@@ -103,8 +103,11 @@ func (i *InternalTxExtension) CollectInternalTxs(db *orm.Database, internalTx *I
 		var allInternalTxs []types.CollectedEvmInternalTx
 		for _, trace := range internalTx.CallTrace.Result {
 			if trace.Error != "" {
-				return fmt.Errorf("trace error at height %d, txHash %s: %s",
-					internalTx.Height, trace.TxHash, trace.Error)
+				i.logger.Info("skip indexing in failed transaction",
+					slog.Int64("height", internalTx.Height),
+					slog.String("tx_hash", trace.TxHash),
+					slog.String("error", trace.Error))
+				return nil
 			}
 			height := internalTx.Height
 			hashHex := strings.ToLower(strings.TrimPrefix(trace.TxHash, "0x"))
