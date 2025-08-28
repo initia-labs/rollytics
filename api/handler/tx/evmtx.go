@@ -88,7 +88,10 @@ func (h *TxHandler) GetEvmTxsByAccount(c *fiber.Ctx) error {
 	}
 
 	if len(accountIds) == 0 {
-		return c.JSON(EvmTxsResponse{})
+		return c.JSON(EvmTxsResponse{
+			Txs:        []types.EvmTx{},
+			Pagination: pagination.ToResponse(0),
+		})
 	}
 	query := h.buildBaseEvmTxQuery().Where("account_ids && ?", pq.Array(accountIds))
 
