@@ -58,6 +58,10 @@ linters:
         linters:
           - gocyclo
           - gocognit
+      - path: ^patcher/.+\.go$
+        linters:
+          - gocyclo
+          - gocognit
     paths:
       - ^indexer/
 issues:
