@@ -107,7 +107,7 @@ func (i *InternalTxExtension) CollectInternalTxs(db *orm.Database, internalTx *I
 					slog.Int64("height", internalTx.Height),
 					slog.String("tx_hash", trace.TxHash),
 					slog.String("error", trace.Error))
-				return nil
+				continue
 			}
 			height := internalTx.Height
 			hashHex := strings.ToLower(strings.TrimPrefix(trace.TxHash, "0x"))
