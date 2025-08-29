@@ -19,6 +19,8 @@ import (
 )
 
 func setupTestDB(t *testing.T) (*orm.Database, sqlmock.Sqlmock) {
+	t.Helper()
+
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelWarn}))
 	db, mock, err := testutil.NewMockDB(logger)
 	require.NoError(t, err)
