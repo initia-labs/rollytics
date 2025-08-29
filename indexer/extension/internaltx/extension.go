@@ -38,6 +38,10 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *InternalTxE
 }
 
 func (i *InternalTxExtension) Run() error {
+	if err := CheckNodeVersion(i.cfg); err != nil {
+		i.logger.Info("skipping internal transaction indexing", slog.Any("reason", err.Error()))
+		return nil
+	}
 	var lastItx types.CollectedEvmInternalTx
 	if err := i.db.Model(types.CollectedEvmInternalTx{}).Order("height desc").
 		First(&lastItx).Error; err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {

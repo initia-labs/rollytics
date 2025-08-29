@@ -4,12 +4,23 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/util"
 )
+
+const (
+	EnableNodeVersion = "v1.1.0"
+)
+
+type NodeInfoResponse struct {
+	AppVersion struct {
+		Version string `json:"version"`
+	} `json:"application_version"`
+}
 
 type JSONRPCError struct {
 	Code    int    `json:"code"`
@@ -20,6 +31,46 @@ type JSONRPCErrorResponse struct {
 	JSONRPC string        `json:"jsonrpc"`
 	ID      int           `json:"id"`
 	Error   *JSONRPCError `json:"error"`
+}
+
+func CheckNodeVersion(cfg *config.Config) error {
+	client := fiber.AcquireClient()
+	defer fiber.ReleaseClient(client)
+
+	path := fmt.Sprintf("/cosmos/base/tendermint/v1beta1/node_info")
+	ctx, cancel := context.WithTimeout(context.Background(), cfg.GetQueryTimeout())
+	defer cancel()
+	body, err := util.Get(ctx, cfg.GetChainConfig().RestUrl, path, nil, nil)
+	if err != nil {
+		return err
+	}
+
+	var response NodeInfoResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return err
+	}
+
+	// check version higher than minimum required version
+	nodeVersion := strings.TrimPrefix(response.AppVersion.Version, "v")
+	requiredVersion := strings.TrimPrefix(EnableNodeVersion, "v")
+
+	nodeParts := strings.Split(nodeVersion, ".")
+	requiredParts := strings.Split(requiredVersion, ".")
+
+	// major, minor, patch
+	for i := 0; i < 3 && i < len(nodeParts) && i < len(requiredParts); i++ {
+		var nodeNum, reqNum int
+		fmt.Sscanf(nodeParts[i], "%d", &nodeNum)
+		fmt.Sscanf(requiredParts[i], "%d", &reqNum)
+
+		if nodeNum < reqNum {
+			return fmt.Errorf("node version %s is lower than required version %s", response.AppVersion.Version, EnableNodeVersion)
+		} else if nodeNum > reqNum {
+			return nil
+		}
+	}
+
+	return nil
 }
 
 func TraceCallByBlock(cfg *config.Config, client *fiber.Client, height int64) (*DebugCallTraceBlockResponse, error) {
