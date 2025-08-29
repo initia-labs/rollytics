@@ -54,6 +54,11 @@ func CheckNodeVersion(cfg *config.Config) error {
 	nodeVersion := strings.TrimPrefix(response.AppVersion.Version, "v")
 	requiredVersion := strings.TrimPrefix(EnableNodeVersion, "v")
 
+	// Remove pre-release suffixes (e.g., -rc.1, -beta, -alpha)
+	if idx := strings.IndexAny(nodeVersion, "-+"); idx != -1 {
+		nodeVersion = nodeVersion[:idx]
+	}
+
 	nodeParts := strings.Split(nodeVersion, ".")
 	requiredParts := strings.Split(requiredVersion, ".")
 

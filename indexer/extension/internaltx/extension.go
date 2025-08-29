@@ -39,7 +39,7 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *InternalTxE
 
 func (i *InternalTxExtension) Run() error {
 	if err := CheckNodeVersion(i.cfg); err != nil {
-		i.logger.Info("skipping internal transaction indexing", slog.Any("reason", err.Error()))
+		i.logger.Warn("skipping internal transaction indexing", slog.Any("reason", err.Error()))
 		return nil
 	}
 	var lastItx types.CollectedEvmInternalTx
