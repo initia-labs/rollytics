@@ -6,10 +6,21 @@ import (
 	"fmt"
 
 	"github.com/gofiber/fiber/v2"
+	"golang.org/x/mod/semver"
 
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/util"
 )
+
+const (
+	EnableNodeVersion = "v1.1.0"
+)
+
+type NodeInfoResponse struct {
+	AppVersion struct {
+		Version string `json:"version"`
+	} `json:"application_version"`
+}
 
 type JSONRPCError struct {
 	Code    int    `json:"code"`
@@ -20,6 +31,36 @@ type JSONRPCErrorResponse struct {
 	JSONRPC string        `json:"jsonrpc"`
 	ID      int           `json:"id"`
 	Error   *JSONRPCError `json:"error"`
+}
+
+func CheckNodeVersion(cfg *config.Config) error {
+	client := fiber.AcquireClient()
+	defer fiber.ReleaseClient(client)
+
+	path := fmt.Sprintf("/cosmos/base/tendermint/v1beta1/node_info")
+	ctx, cancel := context.WithTimeout(context.Background(), cfg.GetQueryTimeout())
+	defer cancel()
+	body, err := util.Get(ctx, cfg.GetChainConfig().RestUrl, path, nil, nil)
+	if err != nil {
+		return err
+	}
+
+	var response NodeInfoResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return err
+	}
+
+	// check version higher than minimum required version
+	nodeVersion := response.AppVersion.Version
+	if !semver.IsValid(nodeVersion) {
+		nodeVersion = "v" + nodeVersion
+	}
+	
+	if semver.Compare(nodeVersion, EnableNodeVersion) < 0 {
+		return fmt.Errorf("node version %s is lower than required version %s", response.AppVersion.Version, EnableNodeVersion)
+	}
+	
+	return nil
 }
 
 func TraceCallByBlock(cfg *config.Config, client *fiber.Client, height int64) (*DebugCallTraceBlockResponse, error) {
