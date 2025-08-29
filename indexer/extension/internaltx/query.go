@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/gofiber/fiber/v2"
+	"golang.org/x/mod/semver"
 
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/util"
@@ -51,30 +51,15 @@ func CheckNodeVersion(cfg *config.Config) error {
 	}
 
 	// check version higher than minimum required version
-	nodeVersion := strings.TrimPrefix(response.AppVersion.Version, "v")
-	requiredVersion := strings.TrimPrefix(EnableNodeVersion, "v")
-
-	// Remove pre-release suffixes (e.g., -rc.1, -beta, -alpha)
-	if idx := strings.IndexAny(nodeVersion, "-+"); idx != -1 {
-		nodeVersion = nodeVersion[:idx]
+	nodeVersion := response.AppVersion.Version
+	if !semver.IsValid(nodeVersion) {
+		nodeVersion = "v" + nodeVersion
 	}
-
-	nodeParts := strings.Split(nodeVersion, ".")
-	requiredParts := strings.Split(requiredVersion, ".")
-
-	// major, minor, patch
-	for i := 0; i < 3 && i < len(nodeParts) && i < len(requiredParts); i++ {
-		var nodeNum, reqNum int
-		fmt.Sscanf(nodeParts[i], "%d", &nodeNum)
-		fmt.Sscanf(requiredParts[i], "%d", &reqNum)
-
-		if nodeNum < reqNum {
-			return fmt.Errorf("node version %s is lower than required version %s", response.AppVersion.Version, EnableNodeVersion)
-		} else if nodeNum > reqNum {
-			return nil
-		}
+	
+	if semver.Compare(nodeVersion, EnableNodeVersion) < 0 {
+		return fmt.Errorf("node version %s is lower than required version %s", response.AppVersion.Version, EnableNodeVersion)
 	}
-
+	
 	return nil
 }
 
