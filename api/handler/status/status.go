@@ -1,10 +1,19 @@
 package status
 
 import (
+	"database/sql"
+	"errors"
+	"sync/atomic"
+
 	"github.com/gofiber/fiber/v2"
+	"gorm.io/gorm"
 
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/types"
+)
+
+var (
+	lastEvmInternalTxHeight atomic.Int64
 )
 
 // status handles GET /status
@@ -21,7 +30,11 @@ func (h *StatusHandler) GetStatus(c *fiber.Ctx) error {
 		lastEvmInternalTx types.CollectedEvmInternalTx
 	)
 
-	if err := h.GetDatabase().
+	// Use single transaction for consistent snapshot
+	tx := h.GetDatabase().Begin(&sql.TxOptions{ReadOnly: true})
+	defer tx.Rollback()
+
+	if err := tx.
 		Model(&types.CollectedBlock{}).
 		Where("block.chain_id = ?", h.GetChainId()).
 		Order("height DESC").
@@ -29,27 +42,40 @@ func (h *StatusHandler) GetStatus(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	internalTxHeight := int64(0)
+	internalTxHeight := lastEvmInternalTxHeight.Load()
 	if h.GetChainConfig().VmType == types.EVM && h.GetConfig().InternalTxEnabled() {
-		if err := h.GetDatabase().
+
+		if err := tx.
 			Model(&types.CollectedEvmInternalTx{}).
 			Order("height DESC").
 			First(&lastEvmInternalTx).Error; err != nil {
-			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+			if !errors.Is(err, gorm.ErrRecordNotFound) {
+				return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+			}
 		}
-		itxHeight := lastEvmInternalTx.Height
-		var count int64
-		if err := h.GetDatabase().Model(&types.CollectedBlock{}).
-			Where("block.chain_id = ?", h.GetChainId()).
-			Where("height > ?", itxHeight).
+
+		// replace if current height is higher than last one using compare-and-swap
+		if lastEvmInternalTx.Height > 0 && lastEvmInternalTx.Height > internalTxHeight {
+			if lastEvmInternalTxHeight.CompareAndSwap(internalTxHeight, lastEvmInternalTx.Height) {
+				internalTxHeight = lastEvmInternalTx.Height
+			} else {
+				internalTxHeight = lastEvmInternalTxHeight.Load()
+			}
+		}
+
+		var exists bool
+		if err := tx.
+			Model(&types.CollectedBlock{}).
+			Select("1").
+			Where("chain_id = ?", h.GetChainId()).
+			Where("height > ?", internalTxHeight).
 			Where("tx_count > 0").
-			Count(&count).Error; err != nil {
+			Limit(1).
+			Find(&exists).Error; err != nil {
 			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 		}
 
-		if count > 0 {
-			internalTxHeight = itxHeight
-		} else {
+		if !exists {
 			internalTxHeight = lastBlock.Height
 		}
 	}
