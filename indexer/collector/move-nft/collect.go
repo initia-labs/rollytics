@@ -194,9 +194,12 @@ func (sub *MoveNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 	// update transferred nfts
 	for nftAddr, owner := range transferMap {
 		ownerId := accountIdMap[owner]
-
+		nftAddrBytes, err := util.HexToBytes(nftAddr)
+		if err != nil {
+			return err
+		}
 		if err := tx.Model(&types.CollectedNft{}).
-			Where("addr = ?", nftAddr).
+			Where("addr = ?", nftAddrBytes).
 			Updates(map[string]interface{}{"height": block.Height, "timestamp": block.Timestamp, "owner_id": ownerId}).Error; err != nil {
 			return err
 		}
@@ -204,17 +207,25 @@ func (sub *MoveNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 
 	// update mutated nfts
 	for nftAddr, uri := range mutMap {
+		nftAddrBytes, err := util.HexToBytes(nftAddr)
+		if err != nil {
+			return err
+		}
 		if err := tx.Model(&types.CollectedNft{}).
-			Where("addr = ?", nftAddr).
+			Where("addr = ?", nftAddrBytes).
 			Updates(map[string]interface{}{"height": block.Height, "timestamp": block.Timestamp, "uri": uri}).Error; err != nil {
 			return err
 		}
 	}
 
 	// batch delete burned nfts
-	var burnedNfts []string
+	var burnedNfts [][]byte
 	for nftAddr := range burnMap {
-		burnedNfts = append(burnedNfts, nftAddr)
+		burnedNft, err := util.HexToBytes(nftAddr)
+		if err != nil {
+			return err
+		}
+		burnedNfts = append(burnedNfts, burnedNft)
 	}
 	if err := tx.
 		Where("addr IN ?", burnedNfts).
@@ -223,9 +234,13 @@ func (sub *MoveNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 	}
 
 	// update nft count
-	var updateAddrs []string
+	var updateAddrs [][]byte
 	for collectionAddr := range updateCountMap {
-		updateAddrs = append(updateAddrs, collectionAddr)
+		addrBytes, err := util.HexToBytes(collectionAddr)
+		if err != nil {
+			return err
+		}
+		updateAddrs = append(updateAddrs, addrBytes)
 	}
 
 	var nftCounts []indexertypes.NftCount

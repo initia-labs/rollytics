@@ -64,7 +64,10 @@ func (h *NftHandler) GetNftTxs(c *fiber.Ctx) error {
 			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 		}
 		if len(accountIds) == 0 {
-			return c.JSON(tx.TxsResponse{})
+			return c.JSON(tx.TxsResponse{
+				Txs:        []types.Tx{},
+				Pagination: pagination.ToResponse(0),
+			})
 		}
 		query = query.Where("account_ids && ?", pq.Array(accountIds))
 
@@ -78,7 +81,10 @@ func (h *NftHandler) GetNftTxs(c *fiber.Ctx) error {
 			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 		}
 		if len(nftIds) == 0 {
-			return c.JSON(tx.TxsResponse{})
+			return c.JSON(tx.TxsResponse{
+				Txs:        []types.Tx{},
+				Pagination: pagination.ToResponse(0),
+			})
 		}
 		query = query.Where("nft_ids && ?", pq.Array(nftIds))
 	}

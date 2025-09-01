@@ -105,7 +105,10 @@ func (h *TxHandler) GetTxsByAccount(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 	if len(accountIds) == 0 {
-		return c.JSON(TxsResponse{})
+		return c.JSON(TxsResponse{
+			Txs:        []types.Tx{},
+			Pagination: pagination.ToResponse(0),
+		})
 	}
 	query := h.buildBaseTxQuery().Where("account_ids && ?", pq.Array(accountIds))
 
@@ -213,8 +216,6 @@ func (h *TxHandler) GetTxsByHeight(c *fiber.Ctx) error {
 // @Produce json
 // @Param tx_hash path string true "Transaction hash"
 // @Router /indexer/tx/v1/txs/{tx_hash} [get]
-//
-
 func (h *TxHandler) GetTxByHash(c *fiber.Ctx) error {
 	hash, err := common.GetParams(c, "tx_hash")
 	if err != nil {

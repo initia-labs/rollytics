@@ -88,7 +88,10 @@ func (h *TxHandler) GetEvmTxsByAccount(c *fiber.Ctx) error {
 	}
 
 	if len(accountIds) == 0 {
-		return c.JSON(EvmTxsResponse{})
+		return c.JSON(EvmTxsResponse{
+			Txs:        []types.EvmTx{},
+			Pagination: pagination.ToResponse(0),
+		})
 	}
 	query := h.buildBaseEvmTxQuery().Where("account_ids && ?", pq.Array(accountIds))
 
@@ -178,8 +181,6 @@ func (h *TxHandler) GetEvmTxsByHeight(c *fiber.Ctx) error {
 // @Produce json
 // @Param tx_hash path string true "Transaction hash"
 // @Router /indexer/tx/v1/evm-txs/{tx_hash} [get]
-//
-
 func (h *TxHandler) GetEvmTxByHash(c *fiber.Ctx) error {
 	hash, err := common.GetParams(c, "tx_hash")
 	if err != nil {

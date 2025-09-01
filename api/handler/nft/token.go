@@ -45,7 +45,10 @@ func (h *NftHandler) GetTokensByAccount(c *fiber.Ctx) error {
 	}
 
 	if len(accountIds) == 0 {
-		return c.JSON(NftsResponse{})
+		return c.JSON(NftsResponse{
+			Tokens:     []Nft{},
+			Pagination: pagination.ToResponse(0),
+		})
 	}
 	query := h.buildBaseNftQuery().Where("owner_id = ?", accountIds[0])
 
