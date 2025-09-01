@@ -90,7 +90,7 @@ func (c *Collector) Collect(sb indexertypes.ScrapedBlock) error {
 
 		c.logger.Info("indexed block", slog.Int64("height", sb.Height))
 		return nil
-	}, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	}, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
 
 	// handle serialization error
 	var pgErr *pgconn.PgError
