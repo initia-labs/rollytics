@@ -154,7 +154,7 @@ func (i *InternalTxExtension) CollectInternalTxs(db *orm.Database, internalTx *I
 
 		return nil
 	}, &sql.TxOptions{
-		Isolation: sql.LevelRepeatableRead,
+		Isolation: sql.LevelReadCommitted,
 	})
 	if err != nil {
 		// handle intended serialization error
