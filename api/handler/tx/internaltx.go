@@ -35,21 +35,19 @@ func (h *TxHandler) GetEvmInternalTxs(c *fiber.Ctx) error {
 	tx := h.GetDatabase().Begin(&sql.TxOptions{ReadOnly: true})
 	defer tx.Rollback()
 
-	var lastTx types.CollectedEvmInternalTx
-	if err := tx.Model(&types.CollectedEvmInternalTx{}).
-		Order("sequence DESC").
-		Limit(1).
-		First(&lastTx).Error; err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+	// Use optimized COUNT - no filters
+	query := tx.Model(&types.CollectedEvmInternalTx{})
+	var strategy types.CollectedEvmInternalTx
+	hasFilters := false // no filters in basic GetEvmInternalTxs
+	var total int64
+	total, err = common.GetOptimizedCount(query, strategy, hasFilters)
+	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
-	total := lastTx.Sequence
 
 	var txs []types.CollectedEvmInternalTx
-	if err := tx.Model(&types.CollectedEvmInternalTx{}).
-		Order(pagination.OrderBy("sequence")).
-		Offset(pagination.Offset).
-		Limit(pagination.Limit).
-		Find(&txs).Error; err != nil {
+	findQuery := pagination.ApplyToEvmInternalTx(tx.Model(&types.CollectedEvmInternalTx{}))
+	if err := findQuery.Find(&txs).Error; err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
@@ -66,9 +64,14 @@ func (h *TxHandler) GetEvmInternalTxs(c *fiber.Ctx) error {
 
 	txsRes := ToEvmInternalTxsResponse(txs, accounts, hashes)
 
+	var lastRecord any
+	if len(txs) > 0 {
+		lastRecord = txs[len(txs)-1]
+	}
+
 	return c.JSON(EvmInternalTxsResponse{
 		Txs:        txsRes,
-		Pagination: pagination.ToResponse(total),
+		Pagination: pagination.ToResponseWithLastRecord(total, lastRecord),
 	})
 }
 
@@ -105,8 +108,12 @@ func (h *TxHandler) GetEvmInternalTxsByAccount(c *fiber.Ctx) error {
 	}
 	query := tx.Model(&types.CollectedEvmInternalTx{}).Where("account_ids && ?", pq.Array(accountIds))
 
+	// Use optimized COUNT - always has filters (account_ids)
+	var strategy types.CollectedEvmInternalTx
+	hasFilters := true // always has account_ids filter
 	var total int64
-	if err := query.Count(&total).Error; err != nil {
+	total, err = common.GetOptimizedCount(query, strategy, hasFilters)
+	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
@@ -167,8 +174,12 @@ func (h *TxHandler) GetEvmInternalTxsByHeight(c *fiber.Ctx) error {
 
 	query := tx.Model(&types.CollectedEvmInternalTx{}).Where("height = ?", height)
 
+	// Use optimized COUNT - always has filters (height)
+	var strategy types.CollectedEvmInternalTx
+	hasFilters := true // always has height filter
 	var total int64
-	if err := query.Count(&total).Error; err != nil {
+	total, err = common.GetOptimizedCount(query, strategy, hasFilters)
+	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
@@ -241,8 +252,13 @@ func (h *TxHandler) GetEvmInternalTxsByHash(c *fiber.Ctx) error {
 	}
 
 	query := tx.Model(&types.CollectedEvmInternalTx{}).Where("hash_id = ?", hashDict.Id)
+	
+	// Use optimized COUNT - always has filters (hash_id)
+	var strategy types.CollectedEvmInternalTx
+	hasFilters := true // always has hash_id filter
 	var total int64
-	if err := query.Count(&total).Error; err != nil {
+	total, err = common.GetOptimizedCount(query, strategy, hasFilters)
+	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 

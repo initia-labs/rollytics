@@ -64,17 +64,18 @@ func (h *NftHandler) GetTokensByAccount(c *fiber.Ctx) error {
 		query = query.Where("token_id = ?", tokenId)
 	}
 
+	// Use optimized COUNT - always has filters (owner_id + optional collection/token)
+	var strategy types.CollectedNft
+	hasFilters := true // always has owner_id filter
 	var total int64
-	if err := query.Count(&total).Error; err != nil {
+	total, err = common.GetOptimizedCount(query, strategy, hasFilters)
+	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	var nfts []types.CollectedNft
-	if err := query.
-		Order(pagination.OrderBy("height", "token_id")).
-		Offset(pagination.Offset).
-		Limit(pagination.Limit).
-		Find(&nfts).Error; err != nil {
+	finalQuery := pagination.ApplyToNft(query)
+	if err := finalQuery.Find(&nfts).Error; err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
@@ -88,9 +89,14 @@ func (h *NftHandler) GetTokensByAccount(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
+	var lastRecord any
+	if len(nfts) > 0 {
+		lastRecord = nfts[len(nfts)-1]
+	}
+
 	return c.JSON(NftsResponse{
 		Tokens:     nftsRes,
-		Pagination: pagination.ToResponse(total),
+		Pagination: pagination.ToResponseWithLastRecord(total, lastRecord),
 	})
 }
 
@@ -129,17 +135,18 @@ func (h *NftHandler) GetTokensByCollectionAddr(c *fiber.Ctx) error {
 		query = query.Where("token_id = ?", tokenId)
 	}
 
+	// Use optimized COUNT - always has filters (collection_addr + optional token_id)
+	var strategy types.CollectedNft
+	hasFilters := true // always has collection_addr filter
 	var total int64
-	if err := query.Count(&total).Error; err != nil {
+	total, err = common.GetOptimizedCount(query, strategy, hasFilters)
+	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	var nfts []types.CollectedNft
-	if err := query.
-		Order(pagination.OrderBy("height", "token_id")).
-		Offset(pagination.Offset).
-		Limit(pagination.Limit).
-		Find(&nfts).Error; err != nil {
+	finalQuery := pagination.ApplyToNft(query)
+	if err := finalQuery.Find(&nfts).Error; err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
@@ -153,8 +160,13 @@ func (h *NftHandler) GetTokensByCollectionAddr(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
+	var lastRecord any
+	if len(nfts) > 0 {
+		lastRecord = nfts[len(nfts)-1]
+	}
+
 	return c.JSON(NftsResponse{
 		Tokens:     nftsRes,
-		Pagination: pagination.ToResponse(total),
+		Pagination: pagination.ToResponseWithLastRecord(total, lastRecord),
 	})
 }

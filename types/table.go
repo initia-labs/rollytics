@@ -7,8 +7,25 @@ import (
 	"github.com/lib/pq"
 )
 
+// Fast count optimization types (duplicated to avoid circular import)
+type CountOptimizationType int
+
+const (
+	CountOptimizationTypeMax     CountOptimizationType = iota + 1 // MAX(field) for sequential fields
+	CountOptimizationTypePgClass                                  // pg_class.reltuples for table stats
+	CountOptimizationTypeCount                                    // Regular COUNT (fallback)
+)
+
+// FastCountStrategy defines how each table can optimize COUNT operations
+type FastCountStrategy interface {
+	TableName() string
+	GetOptimizationType() CountOptimizationType
+	GetOptimizationField() string // field to use for MAX optimization
+	SupportsFastCount() bool
+}
+
 type Table struct {
-	Model interface{}
+	Model any
 	Name  string
 }
 
@@ -181,3 +198,161 @@ func (CollectedTypeTagDict) TableName() string {
 func (CollectedEvmTxHashDict) TableName() string {
 	return "evm_tx_hash_dict"
 }
+
+// CursorRecord interface implementations
+
+// Sequence-based tables
+func (t CollectedTx) GetCursorFields() []string {
+	return []string{"sequence"}
+}
+
+func (t CollectedTx) GetCursorValue(field string) any {
+	switch field {
+	case "sequence":
+		return t.Sequence
+	default:
+		return nil
+	}
+}
+
+func (t CollectedTx) GetCursorData() map[string]any {
+	return map[string]any{
+		"sequence": t.Sequence,
+	}
+}
+
+func (t CollectedEvmTx) GetCursorFields() []string {
+	return []string{"sequence"}
+}
+
+func (t CollectedEvmTx) GetCursorValue(field string) any {
+	switch field {
+	case "sequence":
+		return t.Sequence
+	default:
+		return nil
+	}
+}
+
+func (t CollectedEvmTx) GetCursorData() map[string]any {
+	return map[string]any{
+		"sequence": t.Sequence,
+	}
+}
+
+func (t CollectedEvmInternalTx) GetCursorFields() []string {
+	return []string{"sequence"}
+}
+
+func (t CollectedEvmInternalTx) GetCursorValue(field string) any {
+	switch field {
+	case "sequence":
+		return t.Sequence
+	default:
+		return nil
+	}
+}
+
+func (t CollectedEvmInternalTx) GetCursorData() map[string]any {
+	return map[string]any{
+		"sequence": t.Sequence,
+	}
+}
+
+// Height-based tables
+func (b CollectedBlock) GetCursorFields() []string {
+	return []string{"height"}
+}
+
+func (b CollectedBlock) GetCursorValue(field string) any {
+	switch field {
+	case "height":
+		return b.Height
+	default:
+		return nil
+	}
+}
+
+func (b CollectedBlock) GetCursorData() map[string]any {
+	return map[string]any{
+		"height": b.Height,
+	}
+}
+
+func (c CollectedNftCollection) GetCursorFields() []string {
+	return []string{"height"}
+}
+
+func (c CollectedNftCollection) GetCursorValue(field string) any {
+	switch field {
+	case "height":
+		return c.Height
+	default:
+		return nil
+	}
+}
+
+func (c CollectedNftCollection) GetCursorData() map[string]any {
+	return map[string]any{
+		"height": c.Height,
+	}
+}
+
+// Composite cursor (height + token_id)
+func (n CollectedNft) GetCursorFields() []string {
+	return []string{"height", "token_id"}
+}
+
+func (n CollectedNft) GetCursorValue(field string) any {
+	switch field {
+	case "height":
+		return n.Height
+	case "token_id":
+		return n.TokenId
+	default:
+		return nil
+	}
+}
+
+func (n CollectedNft) GetCursorData() map[string]any {
+	return map[string]any{
+		"height":   n.Height,
+		"token_id": n.TokenId,
+	}
+}
+
+// FastCountStrategy implementations for each table
+
+// TX tables - use MAX(sequence) for fast counting
+func (t CollectedTx) GetOptimizationType() CountOptimizationType { return CountOptimizationTypeMax }
+func (t CollectedTx) GetOptimizationField() string               { return "sequence" }
+func (t CollectedTx) SupportsFastCount() bool                    { return true }
+
+func (t CollectedEvmTx) GetOptimizationType() CountOptimizationType { return CountOptimizationTypeMax }
+func (t CollectedEvmTx) GetOptimizationField() string               { return "sequence" }
+func (t CollectedEvmTx) SupportsFastCount() bool                    { return true }
+
+func (t CollectedEvmInternalTx) GetOptimizationType() CountOptimizationType {
+	return CountOptimizationTypeMax
+}
+func (t CollectedEvmInternalTx) GetOptimizationField() string { return "sequence" }
+func (t CollectedEvmInternalTx) SupportsFastCount() bool      { return true }
+
+// Block table - use MAX(height)
+func (b CollectedBlock) GetOptimizationType() CountOptimizationType { return CountOptimizationTypeMax }
+func (b CollectedBlock) GetOptimizationField() string               { return "height" }
+func (b CollectedBlock) SupportsFastCount() bool                    { return true }
+
+// NFT Collection - use PostgreSQL statistics
+func (c CollectedNftCollection) GetOptimizationType() CountOptimizationType {
+	return CountOptimizationTypePgClass
+}
+func (c CollectedNftCollection) GetOptimizationField() string { return "" } // not used for pg_class
+func (c CollectedNftCollection) SupportsFastCount() bool      { return true }
+
+// NFT tokens - use PostgreSQL statistics (large table)
+func (n CollectedNft) GetOptimizationType() CountOptimizationType {
+	return CountOptimizationTypePgClass
+}
+func (n CollectedNft) GetOptimizationField() string { return "" } // not used for pg_class
+func (n CollectedNft) SupportsFastCount() bool      { return true }

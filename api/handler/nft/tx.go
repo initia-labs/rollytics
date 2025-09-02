@@ -89,8 +89,12 @@ func (h *NftHandler) GetNftTxs(c *fiber.Ctx) error {
 		query = query.Where("nft_ids && ?", pq.Array(nftIds))
 	}
 
+	// Use optimized COUNT - always has filters (account_ids or nft_ids)
+	var strategy types.CollectedTx
+	hasFilters := true // always has account_ids or nft_ids filter
 	var total int64
-	if err := query.Count(&total).Error; err != nil {
+	total, err = common.GetOptimizedCount(query, strategy, hasFilters)
+	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 

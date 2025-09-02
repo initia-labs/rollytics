@@ -34,21 +34,19 @@ func (h *TxHandler) GetEvmTxs(c *fiber.Ctx) error {
 	tx := h.GetDatabase().Begin(&sql.TxOptions{ReadOnly: true})
 	defer tx.Rollback()
 
-	var lastTx types.CollectedEvmTx
-	if err := tx.Model(&types.CollectedEvmTx{}).
-		Order("sequence DESC").
-		Limit(1).
-		First(&lastTx).Error; err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+	// Use optimized COUNT - no filters
+	query := tx.Model(&types.CollectedEvmTx{})
+	var strategy types.CollectedEvmTx
+	hasFilters := false // no filters in basic GetEvmTxs
+	var total int64
+	total, err = common.GetOptimizedCount(query, strategy, hasFilters)
+	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
-	total := lastTx.Sequence
 
 	var txs []types.CollectedEvmTx
-	if err := tx.Model(&types.CollectedEvmTx{}).
-		Order(pagination.OrderBy("sequence")).
-		Offset(pagination.Offset).
-		Limit(pagination.Limit).
-		Find(&txs).Error; err != nil {
+	findQuery := pagination.ApplyToEvmTx(tx.Model(&types.CollectedEvmTx{}))
+	if err := findQuery.Find(&txs).Error; err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
@@ -57,9 +55,14 @@ func (h *TxHandler) GetEvmTxs(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
+	var lastRecord any
+	if len(txs) > 0 {
+		lastRecord = txs[len(txs)-1]
+	}
+
 	return c.JSON(EvmTxsResponse{
 		Txs:        txsRes,
-		Pagination: pagination.ToResponse(total),
+		Pagination: pagination.ToResponseWithLastRecord(total, lastRecord),
 	})
 }
 
@@ -108,17 +111,18 @@ func (h *TxHandler) GetEvmTxsByAccount(c *fiber.Ctx) error {
 		query = query.Where("signer_id = ?", accountIds[0])
 	}
 
+	// Use optimized COUNT - always has filters (account_ids + optional signer)
+	var strategy types.CollectedEvmTx
+	hasFilters := true // always has account_ids filter
 	var total int64
-	if err := query.Count(&total).Error; err != nil {
+	total, err = common.GetOptimizedCount(query, strategy, hasFilters)
+	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	var txs []types.CollectedEvmTx
-	if err := query.
-		Order(pagination.OrderBy("sequence")).
-		Offset(pagination.Offset).
-		Limit(pagination.Limit).
-		Find(&txs).Error; err != nil {
+	finalQuery := pagination.ApplyToEvmTxWithFilter(query)
+	if err := finalQuery.Find(&txs).Error; err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
@@ -127,9 +131,14 @@ func (h *TxHandler) GetEvmTxsByAccount(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
+	var lastRecord any
+	if len(txs) > 0 {
+		lastRecord = txs[len(txs)-1]
+	}
+
 	return c.JSON(EvmTxsResponse{
 		Txs:        txsRes,
-		Pagination: pagination.ToResponse(total),
+		Pagination: pagination.ToResponseWithLastRecord(total, lastRecord),
 	})
 }
 
@@ -161,17 +170,18 @@ func (h *TxHandler) GetEvmTxsByHeight(c *fiber.Ctx) error {
 
 	query := tx.Model(&types.CollectedEvmTx{}).Where("height = ?", height)
 
+	// Use optimized COUNT - always has filters (height)
+	var strategy types.CollectedEvmTx
+	hasFilters := true // always has height filter
 	var total int64
-	if err := query.Count(&total).Error; err != nil {
+	total, err = common.GetOptimizedCount(query, strategy, hasFilters)
+	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	var txs []types.CollectedEvmTx
-	if err := query.
-		Order(pagination.OrderBy("sequence")).
-		Offset(pagination.Offset).
-		Limit(pagination.Limit).
-		Find(&txs).Error; err != nil {
+	finalQuery := pagination.ApplyToEvmTxWithFilter(query)
+	if err := finalQuery.Find(&txs).Error; err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
@@ -180,9 +190,14 @@ func (h *TxHandler) GetEvmTxsByHeight(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
+	var lastRecord any
+	if len(txs) > 0 {
+		lastRecord = txs[len(txs)-1]
+	}
+
 	return c.JSON(EvmTxsResponse{
 		Txs:        txsRes,
-		Pagination: pagination.ToResponse(total),
+		Pagination: pagination.ToResponseWithLastRecord(total, lastRecord),
 	})
 }
 
