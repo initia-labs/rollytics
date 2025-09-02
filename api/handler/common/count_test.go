@@ -60,6 +60,7 @@ func TestHasFilters(t *testing.T) {
 
 // setupMockDB creates a mock database connection for testing
 func setupMockDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock, func()) {
+	t.Helper()
 	sqlDB, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("Failed to create sqlmock: %v", err)
@@ -73,7 +74,7 @@ func setupMockDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock, func()) {
 	}
 
 	cleanup := func() {
-		sqlDB.Close()
+		_ = sqlDB.Close()
 	}
 
 	return gormDB, mock, cleanup
@@ -205,12 +206,16 @@ func TestGetOptimizedCount_DatabaseError(t *testing.T) {
 // Mock strategy that doesn't support fast count for testing
 type mockUnsupportedStrategy struct{}
 
-func (m *mockUnsupportedStrategy) TableName() string                                    { return "mock_table" }
-func (m *mockUnsupportedStrategy) GetOptimizationType() types.CountOptimizationType    { return types.CountOptimizationTypeCount }
-func (m *mockUnsupportedStrategy) GetOptimizationField() string                        { return "" }
-func (m *mockUnsupportedStrategy) SupportsFastCount() bool                             { return false }
+func (m *mockUnsupportedStrategy) TableName() string { return "mock_table" }
+func (m *mockUnsupportedStrategy) GetOptimizationType() types.CountOptimizationType {
+	return types.CountOptimizationTypeCount
+}
+func (m *mockUnsupportedStrategy) GetOptimizationField() string { return "" }
+func (m *mockUnsupportedStrategy) SupportsFastCount() bool      { return false }
 
 // Integration test with real strategy types
+//
+//nolint:dupl
 func TestGetOptimizedCount_RealStrategies(t *testing.T) {
 	tests := []struct {
 		name              string
@@ -296,11 +301,11 @@ func TestCountOptimizer_Interface(t *testing.T) {
 // Test optimization logic paths (unit test level)
 func TestOptimizationStrategyLogic(t *testing.T) {
 	tests := []struct {
-		name                string
-		strategy            types.FastCountStrategy
-		hasFilters          bool
-		expectOptimization  bool
-		expectedOptType     types.CountOptimizationType
+		name               string
+		strategy           types.FastCountStrategy
+		hasFilters         bool
+		expectOptimization bool
+		expectedOptType    types.CountOptimizationType
 	}{
 		{
 			name:               "TX without filters - should optimize",
@@ -347,10 +352,10 @@ func TestOptimizationStrategyLogic(t *testing.T) {
 
 func TestOptimizationFieldMapping(t *testing.T) {
 	tests := []struct {
-		name           string
-		strategy       types.FastCountStrategy
-		expectedField  string
-		usesField      bool
+		name          string
+		strategy      types.FastCountStrategy
+		expectedField string
+		usesField     bool
 	}{
 		{
 			name:          "TX uses sequence field",
@@ -424,6 +429,8 @@ func TestTableNameConsistency(t *testing.T) {
 }
 
 // Benchmark tests for optimization strategies
+//
+//nolint:dupl
 func BenchmarkGetOptimizedCount_WithFilters(b *testing.B) {
 	db, mock, cleanup := setupMockDB(&testing.T{})
 	defer cleanup()
@@ -443,6 +450,7 @@ func BenchmarkGetOptimizedCount_WithFilters(b *testing.B) {
 	}
 }
 
+//nolint:dupl
 func BenchmarkGetOptimizedCount_WithoutFilters(b *testing.B) {
 	db, mock, cleanup := setupMockDB(&testing.T{})
 	defer cleanup()

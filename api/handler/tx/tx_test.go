@@ -11,7 +11,6 @@ import (
 	"github.com/initia-labs/rollytics/types"
 )
 
-
 func TestToTxsResponse(t *testing.T) {
 	tests := []struct {
 		name         string

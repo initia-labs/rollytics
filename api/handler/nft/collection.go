@@ -137,7 +137,7 @@ func (h *NftHandler) GetCollectionsByAccount(c *fiber.Ctx) error {
 	default:
 		query = query.Order(pagination.OrderBy("nft_collection.height")).Offset(pagination.Offset).Limit(pagination.Limit)
 	}
-	
+
 	if err := query.Find(&collections).Error; err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
@@ -242,4 +242,3 @@ func (h *NftHandler) GetCollectionByCollectionAddr(c *fiber.Ctx) error {
 		Collection: ToCollectionResponse(collection, creatorAccount.Account),
 	})
 }
-

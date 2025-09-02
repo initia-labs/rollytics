@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
 	"github.com/initia-labs/rollytics/types"
 )
 
@@ -400,62 +401,64 @@ func TestAllTableNames(t *testing.T) {
 }
 
 // Test all FastCountStrategy implementations from types/table.go
+//
+//nolint:dupl
 func TestAllFastCountStrategies(t *testing.T) {
 	tests := []struct {
-		name                string
-		strategy            types.FastCountStrategy
-		expectedTable       string
-		expectedOptType     types.CountOptimizationType
-		expectedField       string
-		expectedSupports    bool
+		name             string
+		strategy         types.FastCountStrategy
+		expectedTable    string
+		expectedOptType  types.CountOptimizationType
+		expectedField    string
+		expectedSupports bool
 	}{
 		{
-			name:                "CollectedTx MAX optimization",
-			strategy:            types.CollectedTx{},
-			expectedTable:       "tx",
-			expectedOptType:     types.CountOptimizationTypeMax,
-			expectedField:       "sequence",
-			expectedSupports:    true,
+			name:             "CollectedTx MAX optimization",
+			strategy:         types.CollectedTx{},
+			expectedTable:    "tx",
+			expectedOptType:  types.CountOptimizationTypeMax,
+			expectedField:    "sequence",
+			expectedSupports: true,
 		},
 		{
-			name:                "CollectedEvmTx MAX optimization",
-			strategy:            types.CollectedEvmTx{},
-			expectedTable:       "evm_tx",
-			expectedOptType:     types.CountOptimizationTypeMax,
-			expectedField:       "sequence",
-			expectedSupports:    true,
+			name:             "CollectedEvmTx MAX optimization",
+			strategy:         types.CollectedEvmTx{},
+			expectedTable:    "evm_tx",
+			expectedOptType:  types.CountOptimizationTypeMax,
+			expectedField:    "sequence",
+			expectedSupports: true,
 		},
 		{
-			name:                "CollectedEvmInternalTx MAX optimization",
-			strategy:            types.CollectedEvmInternalTx{},
-			expectedTable:       "evm_internal_tx",
-			expectedOptType:     types.CountOptimizationTypeMax,
-			expectedField:       "sequence",
-			expectedSupports:    true,
+			name:             "CollectedEvmInternalTx MAX optimization",
+			strategy:         types.CollectedEvmInternalTx{},
+			expectedTable:    "evm_internal_tx",
+			expectedOptType:  types.CountOptimizationTypeMax,
+			expectedField:    "sequence",
+			expectedSupports: true,
 		},
 		{
-			name:                "CollectedBlock MAX optimization",
-			strategy:            types.CollectedBlock{},
-			expectedTable:       "block",
-			expectedOptType:     types.CountOptimizationTypeMax,
-			expectedField:       "height",
-			expectedSupports:    true,
+			name:             "CollectedBlock MAX optimization",
+			strategy:         types.CollectedBlock{},
+			expectedTable:    "block",
+			expectedOptType:  types.CountOptimizationTypeMax,
+			expectedField:    "height",
+			expectedSupports: true,
 		},
 		{
-			name:                "CollectedNftCollection pg_class optimization",
-			strategy:            types.CollectedNftCollection{},
-			expectedTable:       "nft_collection",
-			expectedOptType:     types.CountOptimizationTypePgClass,
-			expectedField:       "",
-			expectedSupports:    true,
+			name:             "CollectedNftCollection pg_class optimization",
+			strategy:         types.CollectedNftCollection{},
+			expectedTable:    "nft_collection",
+			expectedOptType:  types.CountOptimizationTypePgClass,
+			expectedField:    "",
+			expectedSupports: true,
 		},
 		{
-			name:                "CollectedNft pg_class optimization",
-			strategy:            types.CollectedNft{},
-			expectedTable:       "nft",
-			expectedOptType:     types.CountOptimizationTypePgClass,
-			expectedField:       "",
-			expectedSupports:    true,
+			name:             "CollectedNft pg_class optimization",
+			strategy:         types.CollectedNft{},
+			expectedTable:    "nft",
+			expectedOptType:  types.CountOptimizationTypePgClass,
+			expectedField:    "",
+			expectedSupports: true,
 		},
 	}
 
@@ -472,10 +475,10 @@ func TestAllFastCountStrategies(t *testing.T) {
 // Test all CursorRecord implementations from types/table.go
 func TestAllCursorRecordImplementations(t *testing.T) {
 	tests := []struct {
-		name              string
-		record            CursorRecord
-		expectedFields    []string
-		testFieldValue    map[string]any
+		name           string
+		record         CursorRecord
+		expectedFields []string
+		testFieldValue map[string]any
 	}{
 		{
 			name:           "CollectedTx sequence cursor",
@@ -752,38 +755,38 @@ func TestTableNameConsistencyAllTypes(t *testing.T) {
 // Test comprehensive cursor field mapping for all cursor-enabled tables
 func TestAllTableCursorFieldMapping(t *testing.T) {
 	cursorFieldMappings := map[string]struct {
-		record         CursorRecord
-		expectedFields []string
+		record            CursorRecord
+		expectedFields    []string
 		optimizationField string
 	}{
 		"TX Tables": {
-			record: types.CollectedTx{},
-			expectedFields: []string{"sequence"},
+			record:            types.CollectedTx{},
+			expectedFields:    []string{"sequence"},
 			optimizationField: "sequence",
 		},
 		"EVM TX Tables": {
-			record: types.CollectedEvmTx{},
-			expectedFields: []string{"sequence"},
+			record:            types.CollectedEvmTx{},
+			expectedFields:    []string{"sequence"},
 			optimizationField: "sequence",
 		},
 		"EVM Internal TX Tables": {
-			record: types.CollectedEvmInternalTx{},
-			expectedFields: []string{"sequence"},
+			record:            types.CollectedEvmInternalTx{},
+			expectedFields:    []string{"sequence"},
 			optimizationField: "sequence",
 		},
 		"Block Tables": {
-			record: types.CollectedBlock{},
-			expectedFields: []string{"height"},
+			record:            types.CollectedBlock{},
+			expectedFields:    []string{"height"},
 			optimizationField: "height",
 		},
 		"NFT Collection Tables": {
-			record: types.CollectedNftCollection{},
-			expectedFields: []string{"height"},
+			record:            types.CollectedNftCollection{},
+			expectedFields:    []string{"height"},
 			optimizationField: "", // pg_class doesn't use field
 		},
 		"NFT Tables": {
-			record: types.CollectedNft{},
-			expectedFields: []string{"height", "token_id"},
+			record:            types.CollectedNft{},
+			expectedFields:    []string{"height", "token_id"},
 			optimizationField: "", // pg_class doesn't use field
 		},
 	}

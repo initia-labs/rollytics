@@ -1,8 +1,9 @@
 package nft
 
 import (
-	"github.com/initia-labs/rollytics/types"
 	"gorm.io/gorm"
+
+	"github.com/initia-labs/rollytics/types"
 )
 
 func (h *NftHandler) getAccountIdMap(tx *gorm.DB, accountIds []int64) (map[int64][]byte, error) {

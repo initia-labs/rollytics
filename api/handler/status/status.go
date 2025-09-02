@@ -43,8 +43,8 @@ func (h *StatusHandler) GetStatus(c *fiber.Ctx) error {
 	}
 
 	internalTxHeight := lastEvmInternalTxHeight.Load()
-	if h.GetChainConfig().VmType == types.EVM && h.GetConfig().InternalTxEnabled() {
-
+	//nolint:nestif
+	if h.isInternalTxEnabledEvm() {
 		if err := tx.
 			Model(&types.CollectedEvmInternalTx{}).
 			Order("height DESC").
@@ -87,4 +87,8 @@ func (h *StatusHandler) GetStatus(c *fiber.Ctx) error {
 		Height:           lastBlock.Height,
 		InternalTxHeight: internalTxHeight,
 	})
+}
+
+func (h *StatusHandler) isInternalTxEnabledEvm() bool {
+	return (h.GetChainConfig().VmType == types.EVM) && h.GetConfig().InternalTxEnabled()
 }

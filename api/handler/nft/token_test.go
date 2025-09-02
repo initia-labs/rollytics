@@ -11,7 +11,7 @@ import (
 
 func TestToNftsResponse(t *testing.T) {
 	// Note: This would require a real database connection, so we test input validation instead
-	
+
 	nfts := []types.CollectedNft{
 		{
 			CollectionAddr: []byte("collection_addr_1"),
@@ -170,8 +170,8 @@ func TestNft_OwnerIdMapping(t *testing.T) {
 	}
 
 	tests := []struct {
-		name        string
-		ownerId     int64
+		name          string
+		ownerId       int64
 		expectedOwner string
 	}{
 		{"Valid owner ID 1", 1, "owner1"},
@@ -222,7 +222,7 @@ func TestNft_UriHandling(t *testing.T) {
 func TestNft_CollectionAddressHandling(t *testing.T) {
 	// Test that collection addresses are properly handled as hex strings
 	collectionAddrBytes := []byte{0xAB, 0xCD, 0xEF, 0x01, 0x23, 0x45}
-	
+
 	collectedNft := types.CollectedNft{
 		CollectionAddr: collectionAddrBytes,
 		TokenId:        "test_token",

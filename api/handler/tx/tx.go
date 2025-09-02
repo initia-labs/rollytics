@@ -40,7 +40,7 @@ func (h *TxHandler) GetTxs(c *fiber.Ctx) error {
 
 	var total int64
 	hasFilters := len(msgs) > 0
-	
+
 	if hasFilters {
 		msgTypeIds, err := h.GetMsgTypeIds(msgs)
 		if err != nil {
@@ -48,7 +48,7 @@ func (h *TxHandler) GetTxs(c *fiber.Ctx) error {
 		}
 		query = query.Where("msg_type_ids && ?", pq.Array(msgTypeIds))
 	}
-	
+
 	// Use optimized COUNT with CollectedTx strategy
 	var strategy types.CollectedTx
 	total, err = common.GetOptimizedCount(query, strategy, hasFilters)
@@ -65,7 +65,7 @@ func (h *TxHandler) GetTxs(c *fiber.Ctx) error {
 		// Without filters
 		finalQuery = pagination.ApplyToTx(query)
 	}
-	
+
 	if err := finalQuery.Find(&txs).Error; err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
@@ -282,4 +282,3 @@ func (h *TxHandler) GetTxByHash(c *fiber.Ctx) error {
 		Tx: txRes,
 	})
 }
-

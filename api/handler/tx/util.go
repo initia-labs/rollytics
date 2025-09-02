@@ -1,8 +1,9 @@
 package tx
 
 import (
-	"github.com/initia-labs/rollytics/types"
 	"gorm.io/gorm"
+
+	"github.com/initia-labs/rollytics/types"
 )
 
 func (h *TxHandler) getAccounts(tx *gorm.DB, txs []types.CollectedEvmInternalTx) (map[int64][]byte, error) {

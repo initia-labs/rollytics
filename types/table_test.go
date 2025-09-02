@@ -6,60 +6,60 @@ import (
 
 func TestFastCountStrategyImplementation(t *testing.T) {
 	tests := []struct {
-		name           string
-		strategy       FastCountStrategy
-		expectedTable  string
+		name            string
+		strategy        FastCountStrategy
+		expectedTable   string
 		expectedOptType CountOptimizationType
-		expectedField  string
-		supportsFast   bool
+		expectedField   string
+		supportsFast    bool
 	}{
 		{
-			name:           "CollectedTx",
-			strategy:       CollectedTx{},
-			expectedTable:  "tx",
+			name:            "CollectedTx",
+			strategy:        CollectedTx{},
+			expectedTable:   "tx",
 			expectedOptType: CountOptimizationTypeMax,
-			expectedField:  "sequence",
-			supportsFast:   true,
+			expectedField:   "sequence",
+			supportsFast:    true,
 		},
 		{
-			name:           "CollectedEvmTx",
-			strategy:       CollectedEvmTx{},
-			expectedTable:  "evm_tx",
+			name:            "CollectedEvmTx",
+			strategy:        CollectedEvmTx{},
+			expectedTable:   "evm_tx",
 			expectedOptType: CountOptimizationTypeMax,
-			expectedField:  "sequence",
-			supportsFast:   true,
+			expectedField:   "sequence",
+			supportsFast:    true,
 		},
 		{
-			name:           "CollectedEvmInternalTx",
-			strategy:       CollectedEvmInternalTx{},
-			expectedTable:  "evm_internal_tx",
+			name:            "CollectedEvmInternalTx",
+			strategy:        CollectedEvmInternalTx{},
+			expectedTable:   "evm_internal_tx",
 			expectedOptType: CountOptimizationTypeMax,
-			expectedField:  "sequence",
-			supportsFast:   true,
+			expectedField:   "sequence",
+			supportsFast:    true,
 		},
 		{
-			name:           "CollectedBlock",
-			strategy:       CollectedBlock{},
-			expectedTable:  "block",
+			name:            "CollectedBlock",
+			strategy:        CollectedBlock{},
+			expectedTable:   "block",
 			expectedOptType: CountOptimizationTypeMax,
-			expectedField:  "height",
-			supportsFast:   true,
+			expectedField:   "height",
+			supportsFast:    true,
 		},
 		{
-			name:           "CollectedNftCollection",
-			strategy:       CollectedNftCollection{},
-			expectedTable:  "nft_collection",
+			name:            "CollectedNftCollection",
+			strategy:        CollectedNftCollection{},
+			expectedTable:   "nft_collection",
 			expectedOptType: CountOptimizationTypePgClass,
-			expectedField:  "",
-			supportsFast:   true,
+			expectedField:   "",
+			supportsFast:    true,
 		},
 		{
-			name:           "CollectedNft",
-			strategy:       CollectedNft{},
-			expectedTable:  "nft",
+			name:            "CollectedNft",
+			strategy:        CollectedNft{},
+			expectedTable:   "nft",
 			expectedOptType: CountOptimizationTypePgClass,
-			expectedField:  "",
-			supportsFast:   true,
+			expectedField:   "",
+			supportsFast:    true,
 		},
 	}
 

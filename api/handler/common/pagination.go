@@ -1,3 +1,4 @@
+//nolint:dupl
 package common
 
 import (
@@ -90,36 +91,58 @@ func ParsePagination(c *fiber.Ctx) (*Pagination, error) {
 	}
 
 	if key != "" {
-		decoded, err := base64.StdEncoding.DecodeString(key)
-		if err != nil {
-			return nil, errors.New("pagination.key must be a valid base64 encoded string")
-		}
-
-		// Check if it's JSON cursor format
-		if strings.HasPrefix(string(bytes.TrimSpace(decoded)), "{") {
-			var cursorData map[string]any
-			if json.Unmarshal(decoded, &cursorData) == nil {
-				pagination.CursorValue = cursorData
-				pagination.CursorType = detectCursorType(cursorData)
-			} else {
-				// Fallback to traditional approach if JSON parsing fails
-				if parsedOffset, err := strconv.Atoi(string(decoded)); err == nil && parsedOffset >= 0 {
-					pagination.Offset = parsedOffset
-				} else {
-					return nil, errors.New("invalid pagination.key format")
-				}
-			}
-		} else {
-			// Traditional integer approach
-			if parsedOffset, err := strconv.Atoi(string(decoded)); err == nil && parsedOffset >= 0 {
-				pagination.Offset = parsedOffset
-			} else {
-				return nil, errors.New("pagination.key must decode to a nonnegative integer")
-			}
+		if err := parsePaginationKey(key, pagination); err != nil {
+			return nil, err
 		}
 	}
 
 	return pagination, nil
+}
+
+// parsePaginationKey parses the pagination key and updates pagination accordingly
+func parsePaginationKey(key string, pagination *Pagination) error {
+	decoded, err := base64.StdEncoding.DecodeString(key)
+	if err != nil {
+		return errors.New("pagination.key must be a valid base64 encoded string")
+	}
+
+	// Try JSON cursor format first
+	if strings.HasPrefix(string(bytes.TrimSpace(decoded)), "{") {
+		return parseJSONCursor(decoded, pagination)
+	}
+
+	// Fallback to traditional integer approach
+	return parseIntegerCursor(string(decoded), pagination)
+}
+
+// parseJSONCursor attempts to parse JSON cursor format
+func parseJSONCursor(decoded []byte, pagination *Pagination) error {
+	var cursorData map[string]any
+	if json.Unmarshal(decoded, &cursorData) == nil {
+		pagination.CursorValue = cursorData
+		pagination.CursorType = detectCursorType(cursorData)
+		return nil
+	}
+
+	// JSON parsing failed, try fallback to integer with appropriate error message
+	parsedOffset, err := strconv.Atoi(string(decoded))
+	if err != nil || parsedOffset < 0 {
+		return errors.New("invalid pagination.key format")
+	}
+
+	pagination.Offset = parsedOffset
+	return nil
+}
+
+// parseIntegerCursor parses traditional integer cursor format
+func parseIntegerCursor(decodedStr string, pagination *Pagination) error {
+	parsedOffset, err := strconv.Atoi(decodedStr)
+	if err != nil || parsedOffset < 0 {
+		return errors.New("pagination.key must decode to a nonnegative integer")
+	}
+
+	pagination.Offset = parsedOffset
+	return nil
 }
 
 func getOrder(c *fiber.Ctx) string {

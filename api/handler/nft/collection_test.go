@@ -37,7 +37,7 @@ func TestToCollectionsResponse(t *testing.T) {
 	result := ToCollectionsResponse(collections, creatorAccounts)
 
 	assert.Len(t, result, 2)
-	
+
 	// Test first collection
 	assert.NotEmpty(t, result[0].Address)
 	assert.Equal(t, int64(100), result[0].Height)

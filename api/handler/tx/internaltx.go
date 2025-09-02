@@ -252,7 +252,7 @@ func (h *TxHandler) GetEvmInternalTxsByHash(c *fiber.Ctx) error {
 	}
 
 	query := tx.Model(&types.CollectedEvmInternalTx{}).Where("hash_id = ?", hashDict.Id)
-	
+
 	// Use optimized COUNT - always has filters (hash_id)
 	var strategy types.CollectedEvmInternalTx
 	hasFilters := true // always has hash_id filter
@@ -291,4 +291,3 @@ func (h *TxHandler) GetEvmInternalTxsByHash(c *fiber.Ctx) error {
 		Pagination: pagination.ToResponse(total),
 	})
 }
-
