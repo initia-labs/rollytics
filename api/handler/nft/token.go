@@ -2,9 +2,8 @@ package nft
 
 import (
 	"database/sql"
-	
+
 	"github.com/gofiber/fiber/v2"
-	"gorm.io/gorm"
 
 	"github.com/initia-labs/rollytics/api/handler/common"
 	"github.com/initia-labs/rollytics/types"
@@ -159,4 +158,3 @@ func (h *NftHandler) GetTokensByCollectionAddr(c *fiber.Ctx) error {
 		Pagination: pagination.ToResponse(total),
 	})
 }
-
