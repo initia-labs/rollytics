@@ -36,7 +36,7 @@ func (h *StatusHandler) GetStatus(c *fiber.Ctx) error {
 
 	if err := tx.
 		Model(&types.CollectedBlock{}).
-		Where("block.chain_id = ?", h.GetChainId()).
+		Where("chain_id = ?", h.GetChainId()).
 		Order("height DESC").
 		First(&lastBlock).Error; err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())

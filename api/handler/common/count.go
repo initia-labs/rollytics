@@ -48,17 +48,14 @@ func getCountByMax(db *gorm.DB, field string) (int64, error) {
 func getCountByPgClass(db *gorm.DB, tableName string) (int64, error) {
 	var total int64
 	err := db.Raw(`
-		SELECT CASE 
-			WHEN reltuples >= 0 THEN reltuples::BIGINT
-			ELSE 0 
-		END
-		FROM pg_class 
-		WHERE relname = ?
+		SELECT COALESCE(reltuples, 0)::BIGINT
+		FROM pg_class
+		WHERE oid = to_regclass(?)::oid
 	`, tableName).Scan(&total).Error
 
 	if err != nil || total == 0 {
 		// Fallback to regular COUNT
-		return total, db.Count(&total).Error
+		return total, db.Table(tableName).Count(&total).Error
 	}
 
 	return total, err
