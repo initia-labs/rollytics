@@ -55,7 +55,12 @@ func getCountByPgClass(db *gorm.DB, tableName string) (int64, error) {
 
 	if err != nil || total == 0 {
 		// Fallback to regular COUNT
-		return total, db.Table(tableName).Count(&total).Error
+		var fallbackTotal int64
+		fallbackErr := db.Table(tableName).Count(&fallbackTotal).Error
+		if fallbackErr != nil {
+			return 0, fallbackErr
+		}
+		return fallbackTotal, nil
 	}
 
 	return total, err
