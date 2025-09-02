@@ -125,10 +125,10 @@ func TestGetOptimizedCount_NoFilters_PgClassOptimization(t *testing.T) {
 	strategy := types.CollectedNft{}
 
 	// When hasFilters is false and strategy uses pg_class, should use pg_class optimization
-	expectedSQL := `SELECT CASE\s+WHEN reltuples >= 0 THEN reltuples::BIGINT\s+ELSE 0\s+END\s+FROM pg_class\s+WHERE relname = \$1`
+	expectedSQL := `SELECT COALESCE\(reltuples, 0\)::BIGINT\s+FROM pg_class\s+WHERE oid = to_regclass\(\$1\)::oid`
 	mock.ExpectQuery(expectedSQL).
 		WithArgs("nft").
-		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(50000))
+		WillReturnRows(sqlmock.NewRows([]string{"coalesce"}).AddRow(50000))
 
 	// Create query with table context
 	query := db.Model(&types.CollectedNft{})
@@ -146,10 +146,10 @@ func TestGetOptimizedCount_PgClassFallback(t *testing.T) {
 	strategy := types.CollectedNft{}
 
 	// First query returns 0, triggering fallback to regular COUNT
-	expectedSQL := `SELECT CASE\s+WHEN reltuples >= 0 THEN reltuples::BIGINT\s+ELSE 0\s+END\s+FROM pg_class\s+WHERE relname = \$1`
+	expectedSQL := `SELECT COALESCE\(reltuples, 0\)::BIGINT\s+FROM pg_class\s+WHERE oid = to_regclass\(\$1\)::oid`
 	mock.ExpectQuery(expectedSQL).
 		WithArgs("nft").
-		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
+		WillReturnRows(sqlmock.NewRows([]string{"coalesce"}).AddRow(0))
 
 	// Fallback to regular COUNT
 	mock.ExpectQuery(`SELECT count\(\*\) FROM "nft"`).
