@@ -55,7 +55,7 @@ type CollectedBlock struct {
 type CollectedTx struct {
 	Hash       []byte          `gorm:"type:bytea;primaryKey"`
 	Height     int64           `gorm:"type:bigint;primaryKey;autoIncrement:false;index:tx_height"`
-	Sequence   int64           `gorm:"type:bigint;index:tx_sequence_desc,sort:desc"`
+	Sequence   int64           `gorm:"type:bigint;index:tx_sequence_desc,sort:desc;index:tx_account_sequence_partial,sort:desc,where:account_ids IS NOT NULL;index:tx_nft_sequence_partial,sort:desc,where:nft_ids IS NOT NULL;index:tx_msg_type_sequence_partial,sort:desc,where:msg_type_ids IS NOT NULL"`
 	SignerId   int64           `gorm:"type:bigint;index:tx_signer_id"`
 	Data       json.RawMessage `gorm:"type:jsonb"`
 	AccountIds pq.Int64Array   `gorm:"type:bigint[];index:tx_account_ids,type:gin"`
@@ -67,7 +67,7 @@ type CollectedTx struct {
 type CollectedEvmTx struct {
 	Hash       []byte          `gorm:"type:bytea;primaryKey"`
 	Height     int64           `gorm:"type:bigint;primaryKey;autoIncrement:false;index:evm_tx_height"`
-	Sequence   int64           `gorm:"type:bigint;index:evm_tx_sequence_desc,sort:desc"`
+	Sequence   int64           `gorm:"type:bigint;index:evm_tx_sequence_desc,sort:desc;index:evm_tx_account_sequence_partial,sort:desc,where:account_ids IS NOT NULL"`
 	SignerId   int64           `gorm:"type:bigint;index:evm_tx_signer_id"`
 	Data       json.RawMessage `gorm:"type:jsonb"`
 	AccountIds pq.Int64Array   `gorm:"type:bigint[];index:evm_tx_account_ids,type:gin"`
@@ -126,7 +126,7 @@ type CollectedEvmInternalTx struct {
 	HashId      int64         `gorm:"type:bigint;primaryKey"` // use hash id from evm_tx_hash_dict
 	Index       int64         `gorm:"type:bigint;primaryKey;index:evm_internal_tx_index"`
 	ParentIndex int64         `gorm:"type:bigint;index:evm_internal_tx_parent_index"`
-	Sequence    int64         `gorm:"type:bigint;index:evm_internal_tx_sequence_desc,sort:desc"`
+	Sequence    int64         `gorm:"type:bigint;index:evm_internal_tx_sequence_desc,sort:desc;index:evm_internal_tx_account_sequence_partial,sort:desc,where:account_ids IS NOT NULL"`
 	Type        string        `gorm:"type:text;index:evm_internal_tx_type"`
 	FromId      int64         `gorm:"type:bigint;index:evm_internal_tx_from_id"`
 	ToId        int64         `gorm:"type:bigint;index:evm_internal_tx_to_id"`
