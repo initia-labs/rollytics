@@ -177,6 +177,44 @@ func (p *Pagination) OrderBy(keys ...string) string {
 	return strings.Join(parts, ", ")
 }
 
+// safeGetInt64 safely extracts int64 value from cursor data with error handling
+func (p *Pagination) safeGetInt64(field string) (int64, error) {
+	value, exists := p.CursorValue[field]
+	if !exists {
+		return 0, fmt.Errorf("cursor field '%s' not found", field)
+	}
+
+	switch v := value.(type) {
+	case int64:
+		return v, nil
+	case float64:
+		// Check if float64 can be safely converted to int64
+		if v != float64(int64(v)) {
+			return 0, fmt.Errorf("cursor field '%s' contains non-integer value: %f", field, v)
+		}
+		return int64(v), nil
+	case int:
+		return int64(v), nil
+	case int32:
+		return int64(v), nil
+	default:
+		return 0, fmt.Errorf("cursor field '%s' has unsupported type %T: %v", field, v, v)
+	}
+}
+
+// safeGetString safely extracts string value from cursor data
+func (p *Pagination) safeGetString(field string) (string, error) {
+	value, exists := p.CursorValue[field]
+	if !exists {
+		return "", fmt.Errorf("cursor field '%s' not found", field)
+	}
+
+	if str, ok := value.(string); ok {
+		return str, nil
+	}
+	return "", fmt.Errorf("cursor field '%s' is not a string: %T", field, value)
+}
+
 func (p *Pagination) ToResponse(total int64) (res PaginationResponse) {
 	if total > int64(p.Offset+p.Limit) {
 		nextKey := base64.StdEncoding.EncodeToString([]byte(strconv.Itoa(p.Offset + p.Limit)))
@@ -214,7 +252,11 @@ func (p *Pagination) ToResponseWithLastRecord(total int64, lastRecord any) Pagin
 func (p *Pagination) ApplyToEvmInternalTx(query *gorm.DB) *gorm.DB {
 	switch p.CursorType {
 	case CursorTypeSequence:
-		sequence := int64(p.CursorValue["sequence"].(float64))
+		sequence, err := p.safeGetInt64("sequence")
+		if err != nil {
+			// Fallback to offset-based pagination on error
+			return query.Order(p.OrderBy("sequence")).Offset(p.Offset).Limit(p.Limit)
+		}
 		if p.Order == OrderDesc {
 			query = query.Where("sequence < ?", sequence)
 		} else {
@@ -232,7 +274,11 @@ func (p *Pagination) ApplyToEvmInternalTx(query *gorm.DB) *gorm.DB {
 func (p *Pagination) ApplyToNftCollection(query *gorm.DB) *gorm.DB {
 	switch p.CursorType {
 	case CursorTypeHeight:
-		height := int64(p.CursorValue["height"].(float64))
+		height, err := p.safeGetInt64("height")
+		if err != nil {
+			// Fallback to offset-based pagination on error
+			return query.Order(p.OrderBy("height")).Offset(p.Offset).Limit(p.Limit)
+		}
 		if p.Order == OrderDesc {
 			query = query.Where("height < ?", height)
 		} else {
@@ -250,8 +296,16 @@ func (p *Pagination) ApplyToNftCollection(query *gorm.DB) *gorm.DB {
 func (p *Pagination) ApplyToNft(query *gorm.DB) *gorm.DB {
 	switch p.CursorType {
 	case CursorTypeComposite:
-		height := int64(p.CursorValue["height"].(float64))
-		tokenId := p.CursorValue["token_id"].(string)
+		height, err := p.safeGetInt64("height")
+		if err != nil {
+			// Fallback to offset-based pagination on error
+			return query.Order(p.OrderBy("height", "token_id")).Offset(p.Offset).Limit(p.Limit)
+		}
+		tokenId, err := p.safeGetString("token_id")
+		if err != nil {
+			// Fallback to offset-based pagination on error
+			return query.Order(p.OrderBy("height", "token_id")).Offset(p.Offset).Limit(p.Limit)
+		}
 
 		if p.Order == OrderDesc {
 			query = query.Where("(height, token_id) < (?, ?)", height, tokenId)
@@ -261,7 +315,11 @@ func (p *Pagination) ApplyToNft(query *gorm.DB) *gorm.DB {
 		return query.Order(p.OrderBy("height", "token_id")).Limit(p.Limit)
 
 	case CursorTypeHeight:
-		height := int64(p.CursorValue["height"].(float64))
+		height, err := p.safeGetInt64("height")
+		if err != nil {
+			// Fallback to offset-based pagination on error
+			return query.Order(p.OrderBy("height", "token_id")).Offset(p.Offset).Limit(p.Limit)
+		}
 		if p.Order == OrderDesc {
 			query = query.Where("height < ?", height)
 		} else {
@@ -280,7 +338,11 @@ func (p *Pagination) ApplyToNft(query *gorm.DB) *gorm.DB {
 func (p *Pagination) ApplyToTx(query *gorm.DB) *gorm.DB {
 	switch p.CursorType {
 	case CursorTypeSequence:
-		sequence := int64(p.CursorValue["sequence"].(float64))
+		sequence, err := p.safeGetInt64("sequence")
+		if err != nil {
+			// Fallback to offset-based pagination on error
+			return query.Order(p.OrderBy("sequence")).Offset(p.Offset).Limit(p.Limit)
+		}
 		if p.Order == OrderDesc {
 			query = query.Where("sequence < ?", sequence)
 		} else {
@@ -298,7 +360,11 @@ func (p *Pagination) ApplyToTx(query *gorm.DB) *gorm.DB {
 func (p *Pagination) ApplyToEvmTx(query *gorm.DB) *gorm.DB {
 	switch p.CursorType {
 	case CursorTypeSequence:
-		sequence := int64(p.CursorValue["sequence"].(float64))
+		sequence, err := p.safeGetInt64("sequence")
+		if err != nil {
+			// Fallback to offset-based pagination on error
+			return query.Order(p.OrderBy("sequence")).Offset(p.Offset).Limit(p.Limit)
+		}
 		if p.Order == OrderDesc {
 			query = query.Where("sequence < ?", sequence)
 		} else {
@@ -316,7 +382,11 @@ func (p *Pagination) ApplyToEvmTx(query *gorm.DB) *gorm.DB {
 func (p *Pagination) ApplyToBlock(query *gorm.DB) *gorm.DB {
 	switch p.CursorType {
 	case CursorTypeHeight:
-		height := int64(p.CursorValue["height"].(float64))
+		height, err := p.safeGetInt64("height")
+		if err != nil {
+			// Fallback to offset-based pagination on error
+			return query.Order(p.OrderBy("height")).Offset(p.Offset).Limit(p.Limit)
+		}
 		if p.Order == OrderDesc {
 			query = query.Where("height < ?", height)
 		} else {
@@ -336,7 +406,11 @@ func (p *Pagination) ApplyToEvmInternalTxWithFilter(query *gorm.DB) *gorm.DB {
 	// Maintains existing filter conditions and adds cursor
 	switch p.CursorType {
 	case CursorTypeSequence:
-		sequence := int64(p.CursorValue["sequence"].(float64))
+		sequence, err := p.safeGetInt64("sequence")
+		if err != nil {
+			// Fallback to offset-based pagination on error
+			return query.Order(p.OrderBy("sequence")).Offset(p.Offset).Limit(p.Limit)
+		}
 		if p.Order == OrderDesc {
 			query = query.Where("sequence < ?", sequence)
 		} else {
@@ -354,7 +428,11 @@ func (p *Pagination) ApplyToEvmInternalTxWithFilter(query *gorm.DB) *gorm.DB {
 func (p *Pagination) ApplyToTxWithFilter(query *gorm.DB) *gorm.DB {
 	switch p.CursorType {
 	case CursorTypeSequence:
-		sequence := int64(p.CursorValue["sequence"].(float64))
+		sequence, err := p.safeGetInt64("sequence")
+		if err != nil {
+			// Fallback to offset-based pagination on error
+			return query.Order(p.OrderBy("sequence")).Offset(p.Offset).Limit(p.Limit)
+		}
 		if p.Order == OrderDesc {
 			query = query.Where("sequence < ?", sequence)
 		} else {
@@ -372,7 +450,11 @@ func (p *Pagination) ApplyToTxWithFilter(query *gorm.DB) *gorm.DB {
 func (p *Pagination) ApplyToEvmTxWithFilter(query *gorm.DB) *gorm.DB {
 	switch p.CursorType {
 	case CursorTypeSequence:
-		sequence := int64(p.CursorValue["sequence"].(float64))
+		sequence, err := p.safeGetInt64("sequence")
+		if err != nil {
+			// Fallback to offset-based pagination on error
+			return query.Order(p.OrderBy("sequence")).Offset(p.Offset).Limit(p.Limit)
+		}
 		if p.Order == OrderDesc {
 			query = query.Where("sequence < ?", sequence)
 		} else {
