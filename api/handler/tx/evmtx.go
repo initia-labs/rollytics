@@ -1,6 +1,7 @@
 package tx
 
 import (
+	"database/sql"
 	"errors"
 
 	"github.com/gofiber/fiber/v2"
@@ -29,8 +30,12 @@ func (h *TxHandler) GetEvmTxs(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
+	// Use read-only transaction for better performance
+	tx := h.GetDatabase().Begin(&sql.TxOptions{ReadOnly: true})
+	defer tx.Rollback()
+
 	var lastTx types.CollectedEvmTx
-	if err := h.buildBaseEvmTxQuery().
+	if err := tx.Model(&types.CollectedEvmTx{}).
 		Order("sequence DESC").
 		Limit(1).
 		First(&lastTx).Error; err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -39,7 +44,7 @@ func (h *TxHandler) GetEvmTxs(c *fiber.Ctx) error {
 	total := lastTx.Sequence
 
 	var txs []types.CollectedEvmTx
-	if err := h.buildBaseEvmTxQuery().
+	if err := tx.Model(&types.CollectedEvmTx{}).
 		Order(pagination.OrderBy("sequence")).
 		Offset(pagination.Offset).
 		Limit(pagination.Limit).
@@ -82,6 +87,10 @@ func (h *TxHandler) GetEvmTxsByAccount(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
+	// Use read-only transaction for better performance
+	tx := h.GetDatabase().Begin(&sql.TxOptions{ReadOnly: true})
+	defer tx.Rollback()
+
 	accountIds, err := h.GetAccountIds([]string{account})
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
@@ -93,7 +102,7 @@ func (h *TxHandler) GetEvmTxsByAccount(c *fiber.Ctx) error {
 			Pagination: pagination.ToResponse(0),
 		})
 	}
-	query := h.buildBaseEvmTxQuery().Where("account_ids && ?", pq.Array(accountIds))
+	query := tx.Model(&types.CollectedEvmTx{}).Where("account_ids && ?", pq.Array(accountIds))
 
 	if isSigner {
 		query = query.Where("signer_id = ?", accountIds[0])
@@ -146,7 +155,11 @@ func (h *TxHandler) GetEvmTxsByHeight(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
-	query := h.buildBaseEvmTxQuery().Where("height = ?", height)
+	// Use read-only transaction for better performance
+	tx := h.GetDatabase().Begin(&sql.TxOptions{ReadOnly: true})
+	defer tx.Rollback()
+
+	query := tx.Model(&types.CollectedEvmTx{}).Where("height = ?", height)
 
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
@@ -192,8 +205,12 @@ func (h *TxHandler) GetEvmTxByHash(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid hash format")
 	}
 
+	// Use read-only transaction for better performance
+	dbTx := h.GetDatabase().Begin(&sql.TxOptions{ReadOnly: true})
+	defer dbTx.Rollback()
+
 	var tx types.CollectedEvmTx
-	if err := h.buildBaseEvmTxQuery().
+	if err := dbTx.Model(&types.CollectedEvmTx{}).
 		Where("hash = ?", hashBytes).
 		First(&tx).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -210,10 +227,6 @@ func (h *TxHandler) GetEvmTxByHash(c *fiber.Ctx) error {
 	return c.JSON(EvmTxResponse{
 		Tx: txRes,
 	})
-}
-
-func (h *TxHandler) buildBaseEvmTxQuery() *gorm.DB {
-	return h.GetDatabase().Model(&types.CollectedEvmTx{})
 }
 
 func (h *TxHandler) NotFound(c *fiber.Ctx) error {

@@ -1,6 +1,7 @@
 package tx
 
 import (
+	"database/sql"
 	"errors"
 
 	"github.com/gofiber/fiber/v2"
@@ -30,8 +31,12 @@ func (h *TxHandler) GetEvmInternalTxs(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
+	// Use read-only transaction for better performance
+	tx := h.GetDatabase().Begin(&sql.TxOptions{ReadOnly: true})
+	defer tx.Rollback()
+
 	var lastTx types.CollectedEvmInternalTx
-	if err := h.buildBaseEvmInternalTxQuery().
+	if err := tx.Model(&types.CollectedEvmInternalTx{}).
 		Order("sequence DESC").
 		Limit(1).
 		First(&lastTx).Error; err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -40,7 +45,7 @@ func (h *TxHandler) GetEvmInternalTxs(c *fiber.Ctx) error {
 	total := lastTx.Sequence
 
 	var txs []types.CollectedEvmInternalTx
-	if err := h.buildBaseEvmInternalTxQuery().
+	if err := tx.Model(&types.CollectedEvmInternalTx{}).
 		Order(pagination.OrderBy("sequence")).
 		Offset(pagination.Offset).
 		Limit(pagination.Limit).
@@ -49,12 +54,12 @@ func (h *TxHandler) GetEvmInternalTxs(c *fiber.Ctx) error {
 	}
 
 	// Get accounts for internal txs
-	accounts, err := h.getAccounts(txs)
+	accounts, err := h.getAccounts(tx, txs)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	hashes, err := h.getHashes(txs)
+	hashes, err := h.getHashes(tx, txs)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
@@ -90,11 +95,15 @@ func (h *TxHandler) GetEvmInternalTxsByAccount(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
+	// Use read-only transaction for better performance
+	tx := h.GetDatabase().Begin(&sql.TxOptions{ReadOnly: true})
+	defer tx.Rollback()
+
 	accountIds, err := h.GetAccountIds([]string{account})
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
-	query := h.buildBaseEvmInternalTxQuery().Where("account_ids && ?", pq.Array(accountIds))
+	query := tx.Model(&types.CollectedEvmInternalTx{}).Where("account_ids && ?", pq.Array(accountIds))
 
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
@@ -111,12 +120,12 @@ func (h *TxHandler) GetEvmInternalTxsByAccount(c *fiber.Ctx) error {
 	}
 
 	// Get accounts for internal txs
-	accounts, err := h.getAccounts(txs)
+	accounts, err := h.getAccounts(tx, txs)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	hashes, err := h.getHashes(txs)
+	hashes, err := h.getHashes(tx, txs)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
@@ -152,7 +161,11 @@ func (h *TxHandler) GetEvmInternalTxsByHeight(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
-	query := h.buildBaseEvmInternalTxQuery().Where("height = ?", height)
+	// Use read-only transaction for better performance
+	tx := h.GetDatabase().Begin(&sql.TxOptions{ReadOnly: true})
+	defer tx.Rollback()
+
+	query := tx.Model(&types.CollectedEvmInternalTx{}).Where("height = ?", height)
 
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
@@ -169,12 +182,12 @@ func (h *TxHandler) GetEvmInternalTxsByHeight(c *fiber.Ctx) error {
 	}
 
 	// Get accounts for internal txs
-	accounts, err := h.getAccounts(txs)
+	accounts, err := h.getAccounts(tx, txs)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	hashes, err := h.getHashes(txs)
+	hashes, err := h.getHashes(tx, txs)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
@@ -211,19 +224,23 @@ func (h *TxHandler) GetEvmInternalTxsByHash(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
+	// Use read-only transaction for better performance
+	tx := h.GetDatabase().Begin(&sql.TxOptions{ReadOnly: true})
+	defer tx.Rollback()
+
 	hashBytes, err := util.HexToBytes(hash)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid hash format")
 	}
 	var hashDict types.CollectedEvmTxHashDict
-	if err := h.GetDatabase().Where("hash = ?", hashBytes).First(&hashDict).Error; err != nil {
+	if err := tx.Where("hash = ?", hashBytes).First(&hashDict).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return fiber.NewError(fiber.StatusNotFound, "transaction not found")
 		}
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	query := h.buildBaseEvmInternalTxQuery().Where("hash_id = ?", hashDict.Id)
+	query := tx.Model(&types.CollectedEvmInternalTx{}).Where("hash_id = ?", hashDict.Id)
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
@@ -241,12 +258,12 @@ func (h *TxHandler) GetEvmInternalTxsByHash(c *fiber.Ctx) error {
 	}
 
 	// Get accounts and hashes for internal txs
-	accounts, err := h.getAccounts(txs)
+	accounts, err := h.getAccounts(tx, txs)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	hashes, err := h.getHashes(txs)
+	hashes, err := h.getHashes(tx, txs)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
@@ -259,6 +276,3 @@ func (h *TxHandler) GetEvmInternalTxsByHash(c *fiber.Ctx) error {
 	})
 }
 
-func (h *TxHandler) buildBaseEvmInternalTxQuery() *gorm.DB {
-	return h.GetDatabase().Model(&types.CollectedEvmInternalTx{})
-}

@@ -1,6 +1,8 @@
 package nft
 
 import (
+	"database/sql"
+	
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
 
@@ -38,6 +40,10 @@ func (h *NftHandler) GetTokensByAccount(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
+	// Use read-only transaction for better performance
+	tx := h.GetDatabase().Begin(&sql.TxOptions{ReadOnly: true})
+	defer tx.Rollback()
+
 	// Get account ID from account_dict
 	accountIds, err := h.GetAccountIds([]string{account})
 	if err != nil {
@@ -50,7 +56,7 @@ func (h *NftHandler) GetTokensByAccount(c *fiber.Ctx) error {
 			Pagination: pagination.ToResponse(0),
 		})
 	}
-	query := h.buildBaseNftQuery().Where("owner_id = ?", accountIds[0])
+	query := tx.Model(&types.CollectedNft{}).Where("owner_id = ?", accountIds[0])
 
 	if collectionAddr != nil {
 		query = query.Where("collection_addr = ?", collectionAddr)
@@ -73,7 +79,7 @@ func (h *NftHandler) GetTokensByAccount(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	ownerAccounts, err := h.getNftOwnerIdMap(nfts)
+	ownerAccounts, err := h.getNftOwnerIdMap(tx, nfts)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
@@ -114,7 +120,11 @@ func (h *NftHandler) GetTokensByCollectionAddr(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
-	query := h.buildBaseNftQuery().Where("collection_addr = ?", collectionAddr)
+	// Use read-only transaction for better performance
+	tx := h.GetDatabase().Begin(&sql.TxOptions{ReadOnly: true})
+	defer tx.Rollback()
+
+	query := tx.Model(&types.CollectedNft{}).Where("collection_addr = ?", collectionAddr)
 
 	if tokenId != "" {
 		query = query.Where("token_id = ?", tokenId)
@@ -134,7 +144,7 @@ func (h *NftHandler) GetTokensByCollectionAddr(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	ownerAccounts, err := h.getNftOwnerIdMap(nfts)
+	ownerAccounts, err := h.getNftOwnerIdMap(tx, nfts)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
@@ -150,6 +160,3 @@ func (h *NftHandler) GetTokensByCollectionAddr(c *fiber.Ctx) error {
 	})
 }
 
-func (h *NftHandler) buildBaseNftQuery() *gorm.DB {
-	return h.GetDatabase().Model(&types.CollectedNft{})
-}

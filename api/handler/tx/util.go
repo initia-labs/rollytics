@@ -1,15 +1,18 @@
 package tx
 
-import "github.com/initia-labs/rollytics/types"
+import (
+	"github.com/initia-labs/rollytics/types"
+	"gorm.io/gorm"
+)
 
-func (h *TxHandler) getAccounts(txs []types.CollectedEvmInternalTx) (map[int64][]byte, error) {
+func (h *TxHandler) getAccounts(tx *gorm.DB, txs []types.CollectedEvmInternalTx) (map[int64][]byte, error) {
 	accountIds := make([]int64, 0)
-	for _, tx := range txs {
-		accountIds = append(accountIds, tx.FromId, tx.ToId)
+	for _, t := range txs {
+		accountIds = append(accountIds, t.FromId, t.ToId)
 	}
 
 	var accounts []types.CollectedAccountDict
-	if err := h.GetDatabase().
+	if err := tx.
 		Where("id IN ?", accountIds).
 		Find(&accounts).Error; err != nil {
 		return nil, err
@@ -22,14 +25,14 @@ func (h *TxHandler) getAccounts(txs []types.CollectedEvmInternalTx) (map[int64][
 	return result, nil
 }
 
-func (h *TxHandler) getHashes(txs []types.CollectedEvmInternalTx) (map[int64][]byte, error) {
+func (h *TxHandler) getHashes(tx *gorm.DB, txs []types.CollectedEvmInternalTx) (map[int64][]byte, error) {
 	hashIds := make([]int64, 0)
-	for _, tx := range txs {
-		hashIds = append(hashIds, tx.HashId)
+	for _, t := range txs {
+		hashIds = append(hashIds, t.HashId)
 	}
 
 	var hashes []types.CollectedEvmTxHashDict
-	if err := h.GetDatabase().
+	if err := tx.
 		Where("id IN ?", hashIds).
 		Find(&hashes).Error; err != nil {
 		return nil, err
