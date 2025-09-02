@@ -1,6 +1,7 @@
 package tx
 
 import (
+	"database/sql"
 	"errors"
 
 	"github.com/gofiber/fiber/v2"
@@ -29,21 +30,23 @@ func (h *TxHandler) GetEvmTxs(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
-	var lastTx types.CollectedEvmTx
-	if err := h.buildBaseEvmTxQuery().
-		Order("sequence DESC").
-		Limit(1).
-		First(&lastTx).Error; err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+	// Use read-only transaction for better performance
+	tx := h.GetDatabase().Begin(&sql.TxOptions{ReadOnly: true})
+	defer tx.Rollback()
+
+	// Use optimized COUNT - no filters
+	query := tx.Model(&types.CollectedEvmTx{})
+	var strategy types.CollectedEvmTx
+	hasFilters := false // no filters in basic GetEvmTxs
+	var total int64
+	total, err = common.GetOptimizedCount(query, strategy, hasFilters)
+	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
-	total := lastTx.Sequence
 
 	var txs []types.CollectedEvmTx
-	if err := h.buildBaseEvmTxQuery().
-		Order(pagination.OrderBy("sequence")).
-		Offset(pagination.Offset).
-		Limit(pagination.Limit).
-		Find(&txs).Error; err != nil {
+	findQuery := pagination.ApplyToEvmTx(tx.Model(&types.CollectedEvmTx{}))
+	if err := findQuery.Find(&txs).Error; err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
@@ -52,9 +55,14 @@ func (h *TxHandler) GetEvmTxs(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
+	var lastRecord any
+	if len(txs) > 0 {
+		lastRecord = txs[len(txs)-1]
+	}
+
 	return c.JSON(EvmTxsResponse{
 		Txs:        txsRes,
-		Pagination: pagination.ToResponse(total),
+		Pagination: pagination.ToResponseWithLastRecord(total, lastRecord),
 	})
 }
 
@@ -82,6 +90,10 @@ func (h *TxHandler) GetEvmTxsByAccount(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
+	// Use read-only transaction for better performance
+	tx := h.GetDatabase().Begin(&sql.TxOptions{ReadOnly: true})
+	defer tx.Rollback()
+
 	accountIds, err := h.GetAccountIds([]string{account})
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
@@ -93,23 +105,24 @@ func (h *TxHandler) GetEvmTxsByAccount(c *fiber.Ctx) error {
 			Pagination: pagination.ToResponse(0),
 		})
 	}
-	query := h.buildBaseEvmTxQuery().Where("account_ids && ?", pq.Array(accountIds))
+	query := tx.Model(&types.CollectedEvmTx{}).Where("account_ids && ?", pq.Array(accountIds))
 
 	if isSigner {
 		query = query.Where("signer_id = ?", accountIds[0])
 	}
 
+	// Use optimized COUNT - always has filters (account_ids + optional signer)
+	var strategy types.CollectedEvmTx
+	hasFilters := true // always has account_ids filter
 	var total int64
-	if err := query.Count(&total).Error; err != nil {
+	total, err = common.GetOptimizedCount(query, strategy, hasFilters)
+	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	var txs []types.CollectedEvmTx
-	if err := query.
-		Order(pagination.OrderBy("sequence")).
-		Offset(pagination.Offset).
-		Limit(pagination.Limit).
-		Find(&txs).Error; err != nil {
+	finalQuery := pagination.ApplyToEvmTxWithFilter(query)
+	if err := finalQuery.Find(&txs).Error; err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
@@ -118,9 +131,14 @@ func (h *TxHandler) GetEvmTxsByAccount(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
+	var lastRecord any
+	if len(txs) > 0 {
+		lastRecord = txs[len(txs)-1]
+	}
+
 	return c.JSON(EvmTxsResponse{
 		Txs:        txsRes,
-		Pagination: pagination.ToResponse(total),
+		Pagination: pagination.ToResponseWithLastRecord(total, lastRecord),
 	})
 }
 
@@ -146,19 +164,24 @@ func (h *TxHandler) GetEvmTxsByHeight(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
-	query := h.buildBaseEvmTxQuery().Where("height = ?", height)
+	// Use read-only transaction for better performance
+	tx := h.GetDatabase().Begin(&sql.TxOptions{ReadOnly: true})
+	defer tx.Rollback()
 
+	query := tx.Model(&types.CollectedEvmTx{}).Where("height = ?", height)
+
+	// Use optimized COUNT - always has filters (height)
+	var strategy types.CollectedEvmTx
+	hasFilters := true // always has height filter
 	var total int64
-	if err := query.Count(&total).Error; err != nil {
+	total, err = common.GetOptimizedCount(query, strategy, hasFilters)
+	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	var txs []types.CollectedEvmTx
-	if err := query.
-		Order(pagination.OrderBy("sequence")).
-		Offset(pagination.Offset).
-		Limit(pagination.Limit).
-		Find(&txs).Error; err != nil {
+	finalQuery := pagination.ApplyToEvmTxWithFilter(query)
+	if err := finalQuery.Find(&txs).Error; err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
@@ -167,9 +190,14 @@ func (h *TxHandler) GetEvmTxsByHeight(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
+	var lastRecord any
+	if len(txs) > 0 {
+		lastRecord = txs[len(txs)-1]
+	}
+
 	return c.JSON(EvmTxsResponse{
 		Txs:        txsRes,
-		Pagination: pagination.ToResponse(total),
+		Pagination: pagination.ToResponseWithLastRecord(total, lastRecord),
 	})
 }
 
@@ -192,8 +220,12 @@ func (h *TxHandler) GetEvmTxByHash(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid hash format")
 	}
 
+	// Use read-only transaction for better performance
+	dbTx := h.GetDatabase().Begin(&sql.TxOptions{ReadOnly: true})
+	defer dbTx.Rollback()
+
 	var tx types.CollectedEvmTx
-	if err := h.buildBaseEvmTxQuery().
+	if err := dbTx.Model(&types.CollectedEvmTx{}).
 		Where("hash = ?", hashBytes).
 		First(&tx).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -210,10 +242,6 @@ func (h *TxHandler) GetEvmTxByHash(c *fiber.Ctx) error {
 	return c.JSON(EvmTxResponse{
 		Tx: txRes,
 	})
-}
-
-func (h *TxHandler) buildBaseEvmTxQuery() *gorm.DB {
-	return h.GetDatabase().Model(&types.CollectedEvmTx{})
 }
 
 func (h *TxHandler) NotFound(c *fiber.Ctx) error {

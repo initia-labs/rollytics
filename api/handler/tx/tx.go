@@ -1,6 +1,7 @@
 package tx
 
 import (
+	"database/sql"
 	"errors"
 
 	"github.com/gofiber/fiber/v2"
@@ -31,35 +32,41 @@ func (h *TxHandler) GetTxs(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
-	query := h.buildBaseTxQuery()
+	// Use read-only transaction for better performance
+	tx := h.GetDatabase().Begin(&sql.TxOptions{ReadOnly: true})
+	defer tx.Rollback()
+
+	query := tx.Model(&types.CollectedTx{})
 
 	var total int64
-	if len(msgs) > 0 {
+	hasFilters := len(msgs) > 0
+
+	if hasFilters {
 		msgTypeIds, err := h.GetMsgTypeIds(msgs)
 		if err != nil {
 			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 		}
 		query = query.Where("msg_type_ids && ?", pq.Array(msgTypeIds))
-		if err := query.Count(&total).Error; err != nil {
-			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
-		}
-	} else {
-		var lastTx types.CollectedTx
-		if err := h.buildBaseTxQuery().
-			Order("sequence DESC").
-			Limit(1).
-			First(&lastTx).Error; err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
-		}
-		total = lastTx.Sequence
+	}
+
+	// Use optimized COUNT with CollectedTx strategy
+	var strategy types.CollectedTx
+	total, err = common.GetOptimizedCount(query, strategy, hasFilters)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	var txs []types.CollectedTx
-	if err := query.
-		Order(pagination.OrderBy("sequence")).
-		Offset(pagination.Offset).
-		Limit(pagination.Limit).
-		Find(&txs).Error; err != nil {
+	var finalQuery *gorm.DB
+	if len(msgs) > 0 {
+		// With filters
+		finalQuery = pagination.ApplyToTxWithFilter(query)
+	} else {
+		// Without filters
+		finalQuery = pagination.ApplyToTx(query)
+	}
+
+	if err := finalQuery.Find(&txs).Error; err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
@@ -68,9 +75,14 @@ func (h *TxHandler) GetTxs(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
+	var lastRecord any
+	if len(txs) > 0 {
+		lastRecord = txs[len(txs)-1]
+	}
+
 	return c.JSON(TxsResponse{
 		Txs:        txsRes,
-		Pagination: pagination.ToResponse(total),
+		Pagination: pagination.ToResponseWithLastRecord(total, lastRecord),
 	})
 }
 
@@ -100,6 +112,10 @@ func (h *TxHandler) GetTxsByAccount(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
+	// Use read-only transaction for better performance
+	tx := h.GetDatabase().Begin(&sql.TxOptions{ReadOnly: true})
+	defer tx.Rollback()
+
 	accountIds, err := h.GetAccountIds([]string{account})
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
@@ -110,7 +126,7 @@ func (h *TxHandler) GetTxsByAccount(c *fiber.Ctx) error {
 			Pagination: pagination.ToResponse(0),
 		})
 	}
-	query := h.buildBaseTxQuery().Where("account_ids && ?", pq.Array(accountIds))
+	query := tx.Model(&types.CollectedTx{}).Where("account_ids && ?", pq.Array(accountIds))
 
 	if len(msgs) > 0 {
 		msgTypeIds, err := h.GetMsgTypeIds(msgs)
@@ -124,17 +140,18 @@ func (h *TxHandler) GetTxsByAccount(c *fiber.Ctx) error {
 		query = query.Where("signer_id = ?", accountIds[0])
 	}
 
+	// Use optimized COUNT - always has filters (account_ids)
+	var strategy types.CollectedTx
+	hasFilters := true // always has account_ids filter
 	var total int64
-	if err := query.Count(&total).Error; err != nil {
+	total, err = common.GetOptimizedCount(query, strategy, hasFilters)
+	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	var txs []types.CollectedTx
-	if err := query.
-		Order(pagination.OrderBy("sequence")).
-		Offset(pagination.Offset).
-		Limit(pagination.Limit).
-		Find(&txs).Error; err != nil {
+	finalQuery := pagination.ApplyToTxWithFilter(query)
+	if err := finalQuery.Find(&txs).Error; err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
@@ -143,9 +160,14 @@ func (h *TxHandler) GetTxsByAccount(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
+	var lastRecord any
+	if len(txs) > 0 {
+		lastRecord = txs[len(txs)-1]
+	}
+
 	return c.JSON(TxsResponse{
 		Txs:        txsRes,
-		Pagination: pagination.ToResponse(total),
+		Pagination: pagination.ToResponseWithLastRecord(total, lastRecord),
 	})
 }
 
@@ -173,8 +195,13 @@ func (h *TxHandler) GetTxsByHeight(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
-	query := h.buildBaseTxQuery().Where("height = ?", height)
+	// Use read-only transaction for better performance
+	tx := h.GetDatabase().Begin(&sql.TxOptions{ReadOnly: true})
+	defer tx.Rollback()
 
+	query := tx.Model(&types.CollectedTx{}).Where("height = ?", height)
+
+	hasFilters := true // always has height filter
 	if len(msgs) > 0 {
 		msgTypeIds, err := h.GetMsgTypeIds(msgs)
 		if err != nil {
@@ -183,17 +210,17 @@ func (h *TxHandler) GetTxsByHeight(c *fiber.Ctx) error {
 		query = query.Where("msg_type_ids && ?", pq.Array(msgTypeIds))
 	}
 
+	// Use optimized COUNT - always has filters (height + optional msgs)
+	var strategy types.CollectedTx
 	var total int64
-	if err := query.Count(&total).Error; err != nil {
+	total, err = common.GetOptimizedCount(query, strategy, hasFilters)
+	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	var txs []types.CollectedTx
-	if err := query.
-		Order(pagination.OrderBy("sequence")).
-		Offset(pagination.Offset).
-		Limit(pagination.Limit).
-		Find(&txs).Error; err != nil {
+	finalQuery := pagination.ApplyToTxWithFilter(query)
+	if err := finalQuery.Find(&txs).Error; err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
@@ -202,9 +229,14 @@ func (h *TxHandler) GetTxsByHeight(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
+	var lastRecord any
+	if len(txs) > 0 {
+		lastRecord = txs[len(txs)-1]
+	}
+
 	return c.JSON(TxsResponse{
 		Txs:        txsRes,
-		Pagination: pagination.ToResponse(total),
+		Pagination: pagination.ToResponseWithLastRecord(total, lastRecord),
 	})
 }
 
@@ -227,8 +259,12 @@ func (h *TxHandler) GetTxByHash(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid hash format")
 	}
 
+	// Use read-only transaction for better performance
+	dbTx := h.GetDatabase().Begin(&sql.TxOptions{ReadOnly: true})
+	defer dbTx.Rollback()
+
 	var tx types.CollectedTx
-	if err := h.buildBaseTxQuery().
+	if err := dbTx.Model(&types.CollectedTx{}).
 		Where("hash = ?", hashBytes).
 		First(&tx).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -245,8 +281,4 @@ func (h *TxHandler) GetTxByHash(c *fiber.Ctx) error {
 	return c.JSON(TxResponse{
 		Tx: txRes,
 	})
-}
-
-func (h *TxHandler) buildBaseTxQuery() *gorm.DB {
-	return h.GetDatabase().Model(&types.CollectedTx{})
 }

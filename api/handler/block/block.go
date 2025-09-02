@@ -125,5 +125,5 @@ func (h *BlockHandler) GetAvgBlockTime(c *fiber.Ctx) error {
 func (h *BlockHandler) buildBaseBlockQuery() *gorm.DB {
 	return h.GetDatabase().
 		Model(&types.CollectedBlock{}).
-		Where("block.chain_id = ?", h.GetChainId())
+		Where("chain_id = ?", h.GetChainId())
 }

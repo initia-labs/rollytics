@@ -37,7 +37,7 @@ func CheckNodeVersion(cfg *config.Config) error {
 	client := fiber.AcquireClient()
 	defer fiber.ReleaseClient(client)
 
-	path := fmt.Sprintf("/cosmos/base/tendermint/v1beta1/node_info")
+	path := "/cosmos/base/tendermint/v1beta1/node_info"
 	ctx, cancel := context.WithTimeout(context.Background(), cfg.GetQueryTimeout())
 	defer cancel()
 	body, err := util.Get(ctx, cfg.GetChainConfig().RestUrl, path, nil, nil)
@@ -55,21 +55,21 @@ func CheckNodeVersion(cfg *config.Config) error {
 	if !semver.IsValid(nodeVersion) {
 		nodeVersion = "v" + nodeVersion
 	}
-	
+
 	if semver.Compare(nodeVersion, EnableNodeVersion) < 0 {
 		return fmt.Errorf("node version %s is lower than required version %s", response.AppVersion.Version, EnableNodeVersion)
 	}
-	
+
 	return nil
 }
 
 func TraceCallByBlock(cfg *config.Config, client *fiber.Client, height int64) (*DebugCallTraceBlockResponse, error) {
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"jsonrpc": "2.0",
 		"method":  "debug_traceBlockByNumber",
-		"params": []interface{}{
+		"params": []any{
 			fmt.Sprintf("0x%x", height),
-			map[string]interface{}{
+			map[string]any{
 				"tracer": "callTracer",
 			},
 		},

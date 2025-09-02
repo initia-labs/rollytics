@@ -1,12 +1,15 @@
 package nft
 
 import (
+	"database/sql"
 	"regexp"
 	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"gorm.io/gorm"
 
 	"github.com/initia-labs/rollytics/api/handler/common"
 	"github.com/initia-labs/rollytics/cache"
@@ -42,7 +45,7 @@ func initCollectionCache(database *orm.Database, cfg *config.Config) {
 		cacheSize := cfg.GetCacheSize()
 		ttl := cfg.GetCacheTTL()
 		collectionCacheByAddr = cache.NewTTL[string, *types.CollectedNftCollection](cacheSize, ttl)
-		tryUpdateCollectionCache(database, cfg)
+		tryUpdateCollectionCache(database.DB, cfg)
 	})
 }
 
@@ -67,8 +70,8 @@ func getCollectionByAddr(database *orm.Database, collectionAddr string) (*types.
 	return &collection, nil
 }
 
-func getCollectionByName(db *orm.Database, cfg *config.Config, name string, pagination *common.Pagination) ([]types.CollectedNftCollection, int64) {
-	tryUpdateCollectionCache(db, cfg)
+func getCollectionByNameFromCache(tx *gorm.DB, cfg *config.Config, name string, pagination *common.Pagination) ([]types.CollectedNftCollection, int64) {
+	tryUpdateCollectionCache(tx, cfg)
 
 	name = strings.ToLower(sanitizer.ReplaceAllString(name, ""))
 	var results []types.CollectedNftCollection
@@ -98,7 +101,13 @@ func getCollectionByName(db *orm.Database, cfg *config.Config, name string, pagi
 	return results, int64(total)
 }
 
-func tryUpdateCollectionCache(db *orm.Database, cfg *config.Config) {
+// getCollectionByName is a wrapper that accepts a transaction but delegates to the cache-based implementation
+func getCollectionByName(tx *gorm.DB, cfg *config.Config, name string, pagination *common.Pagination) ([]types.CollectedNftCollection, int64) {
+	// The cache implementation works with cached data and uses readonly transaction for updates
+	return getCollectionByNameFromCache(tx, cfg, name, pagination)
+}
+
+func tryUpdateCollectionCache(db *gorm.DB, cfg *config.Config) {
 	if time.Since(time.Unix(0, lastUpdatedTime.Load())) < cfg.GetPollingInterval() {
 		return
 	}
@@ -107,14 +116,18 @@ func tryUpdateCollectionCache(db *orm.Database, cfg *config.Config) {
 		return
 	}
 
-	updateCollectionCache(db)
+	// Start our own ReadOnly transaction for cache update
+	updateTx := db.Begin(&sql.TxOptions{ReadOnly: true})
+	defer updateTx.Rollback()
+
+	updateCollectionCache(updateTx)
 }
 
-func updateCollectionCache(db *orm.Database) {
+func updateCollectionCache(tx *gorm.DB) {
 	defer updating.Store(false)
 
 	var cols []cachedCol
-	err := db.Model(&types.CollectedNftCollection{}).
+	err := tx.Model(&types.CollectedNftCollection{}).
 		Where("height > ?", lastUpdatedHeight).
 		Order("height ASC").
 		Find(&cols).Error

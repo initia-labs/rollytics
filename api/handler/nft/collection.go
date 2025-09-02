@@ -1,6 +1,7 @@
 package nft
 
 import (
+	"database/sql"
 	"errors"
 
 	"github.com/gofiber/fiber/v2"
@@ -28,30 +29,40 @@ func (h *NftHandler) GetCollections(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
-	query := h.buildBaseCollectionQuery()
+	// Use read-only transaction for better performance
+	tx := h.GetDatabase().Begin(&sql.TxOptions{ReadOnly: true})
+	defer tx.Rollback()
 
+	query := tx.Model(&types.CollectedNftCollection{})
+
+	// Use optimized COUNT - no filters for basic GetCollections
+	var strategy types.CollectedNftCollection
+	hasFilters := false // no filters in basic collection listing
 	var total int64
-	if err := query.Count(&total).Error; err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
-	}
-
-	var collections []types.CollectedNftCollection
-	if err := query.
-		Order(pagination.OrderBy("height")).
-		Offset(pagination.Offset).
-		Limit(pagination.Limit).
-		Find(&collections).Error; err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
-	}
-
-	creatorAccounts, err := h.getCollectionCreatorIdMap(collections)
+	total, err = common.GetOptimizedCount(query, strategy, hasFilters)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
+	var collections []types.CollectedNftCollection
+	finalQuery := pagination.ApplyToNftCollection(query)
+	if err := finalQuery.Find(&collections).Error; err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	creatorAccounts, err := h.getCollectionCreatorIdMap(tx, collections)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	var lastRecord any
+	if len(collections) > 0 {
+		lastRecord = collections[len(collections)-1]
+	}
+
 	return c.JSON(CollectionsResponse{
 		Collections: ToCollectionsResponse(collections, creatorAccounts),
-		Pagination:  pagination.ToResponse(total),
+		Pagination:  pagination.ToResponseWithLastRecord(total, lastRecord),
 	})
 }
 
@@ -78,6 +89,10 @@ func (h *NftHandler) GetCollectionsByAccount(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
+	// Use read-only transaction for better performance
+	tx := h.GetDatabase().Begin(&sql.TxOptions{ReadOnly: true})
+	defer tx.Rollback()
+
 	accountIds, err := h.GetAccountIds([]string{account})
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
@@ -90,13 +105,13 @@ func (h *NftHandler) GetCollectionsByAccount(c *fiber.Ctx) error {
 		})
 	}
 
-	query := h.buildBaseCollectionQuery().
+	query := tx.Model(&types.CollectedNftCollection{}).
 		Distinct().
 		Joins("INNER JOIN nft ON nft_collection.addr = nft.collection_addr").
 		Where("nft.owner_id = ?", accountIds[0])
 
 	var total int64
-	if err := h.GetDatabase().Raw(`
+	if err := tx.Raw(`
 		SELECT COUNT(DISTINCT nft_collection.addr) 
 		FROM nft_collection 
 		INNER JOIN nft ON nft_collection.addr = nft.collection_addr 
@@ -105,22 +120,41 @@ func (h *NftHandler) GetCollectionsByAccount(c *fiber.Ctx) error {
 	}
 
 	var collections []types.CollectedNftCollection
-	if err := query.
-		Order(pagination.OrderBy("height")).
-		Offset(pagination.Offset).
-		Limit(pagination.Limit).
-		Find(&collections).Error; err != nil {
+	// Complex queries with JOIN have limited cursor application but still attempt to use it
+	switch pagination.CursorType {
+	case common.CursorTypeHeight:
+		if pagination.UseCursor() {
+			height := int64(pagination.CursorValue["height"].(float64))
+			if pagination.Order == common.OrderDesc {
+				query = query.Where("nft_collection.height < ?", height)
+			} else {
+				query = query.Where("nft_collection.height > ?", height)
+			}
+			query = query.Order(pagination.OrderBy("nft_collection.height")).Limit(pagination.Limit)
+		} else {
+			query = query.Order(pagination.OrderBy("nft_collection.height")).Offset(pagination.Offset).Limit(pagination.Limit)
+		}
+	default:
+		query = query.Order(pagination.OrderBy("nft_collection.height")).Offset(pagination.Offset).Limit(pagination.Limit)
+	}
+
+	if err := query.Find(&collections).Error; err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	creatorAccounts, err := h.getCollectionCreatorIdMap(collections)
+	creatorAccounts, err := h.getCollectionCreatorIdMap(tx, collections)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
+	var lastRecord any
+	if len(collections) > 0 {
+		lastRecord = collections[len(collections)-1]
+	}
+
 	return c.JSON(CollectionsResponse{
 		Collections: ToCollectionsResponse(collections, creatorAccounts),
-		Pagination:  pagination.ToResponse(total),
+		Pagination:  pagination.ToResponseWithLastRecord(total, lastRecord),
 	})
 }
 
@@ -147,15 +181,24 @@ func (h *NftHandler) GetCollectionsByName(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
-	collections, total := getCollectionByName(h.GetDatabase(), h.GetConfig(), name, pagination)
-	creatorAccounts, err := h.getCollectionCreatorIdMap(collections)
+	// Use read-only transaction for better performance
+	tx := h.GetDatabase().Begin(&sql.TxOptions{ReadOnly: true})
+	defer tx.Rollback()
+
+	collections, total := getCollectionByName(h.GetDatabase().DB, h.GetConfig(), name, pagination)
+	creatorAccounts, err := h.getCollectionCreatorIdMap(tx, collections)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
+	var lastRecord any
+	if len(collections) > 0 {
+		lastRecord = collections[len(collections)-1]
+	}
+
 	return c.JSON(CollectionsResponse{
 		Collections: ToCollectionsResponse(collections, creatorAccounts),
-		Pagination:  pagination.ToResponse(total),
+		Pagination:  pagination.ToResponseWithLastRecord(total, lastRecord),
 	})
 }
 
@@ -174,8 +217,12 @@ func (h *NftHandler) GetCollectionByCollectionAddr(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
+	// Use read-only transaction for better performance
+	tx := h.GetDatabase().Begin(&sql.TxOptions{ReadOnly: true})
+	defer tx.Rollback()
+
 	var collection types.CollectedNftCollection
-	if err := h.buildBaseCollectionQuery().
+	if err := tx.Model(&types.CollectedNftCollection{}).
 		Where("addr = ?", collectionAddr).
 		First(&collection).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -185,7 +232,7 @@ func (h *NftHandler) GetCollectionByCollectionAddr(c *fiber.Ctx) error {
 	}
 
 	var creatorAccount types.CollectedAccountDict
-	if err := h.GetDatabase().
+	if err := tx.
 		Where("id = ?", collection.CreatorId).
 		First(&creatorAccount).Error; err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
@@ -194,8 +241,4 @@ func (h *NftHandler) GetCollectionByCollectionAddr(c *fiber.Ctx) error {
 	return c.JSON(CollectionResponse{
 		Collection: ToCollectionResponse(collection, creatorAccount.Account),
 	})
-}
-
-func (h *NftHandler) buildBaseCollectionQuery() *gorm.DB {
-	return h.GetDatabase().Model(&types.CollectedNftCollection{})
 }
