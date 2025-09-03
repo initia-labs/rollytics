@@ -2,6 +2,7 @@ package common
 
 import (
 	"database/sql"
+	"fmt"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -191,6 +192,20 @@ func TestGetCountByMax_DirectCall(t *testing.T) {
 	db, mock, cleanup := setupMockDB(t)
 	defer cleanup()
 
+	t.Run("With nil Statement - should handle gracefully", func(t *testing.T) {
+		// Create a query without Statement initialized
+		mock.ExpectQuery(`SELECT COALESCE\(MAX\(test_field\), 0\)`).
+			WillReturnRows(sqlmock.NewRows([]string{"max"}).AddRow(333))
+
+		// Create a new DB instance without Statement
+		query := db.Session(&gorm.Session{})
+		result, err := getCountByMax(query, "test_field")
+
+		assert.NoError(t, err)
+		assert.Equal(t, int64(333), result)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
 	t.Run("With Model applied - should use Session and Table", func(t *testing.T) {
 		// Expect clean SQL without Model fields
 		mock.ExpectQuery(`SELECT COALESCE\(MAX\(sequence\), 0\) FROM "tx"`).
@@ -220,6 +235,21 @@ func TestGetCountByMax_DirectCall(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.Equal(t, int64(444), result)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("Invalid field name - should return error", func(t *testing.T) {
+		// Test SQL injection prevention with regex validation
+		query := db.Model(&types.CollectedTx{})
+
+		// Try with invalid field name containing SQL injection attempt
+		result, err := getCountByMax(query, "sequence; DROP TABLE users")
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid field name")
+		assert.Equal(t, int64(0), result)
+
+		// No SQL query should be executed
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 }
@@ -532,6 +562,83 @@ func TestTableNameConsistency(t *testing.T) {
 			assert.NotEmpty(t, tableName, "Table name should not be empty")
 		})
 	}
+}
+
+// TestFieldValidationCaching tests that sync.Map caching works for field validation
+func TestFieldValidationCaching(t *testing.T) {
+	// Clear the cache before testing
+	fieldValidationCache.Range(func(key, value interface{}) bool {
+		fieldValidationCache.Delete(key)
+		return true
+	})
+
+	// Test valid field names
+	validFields := []string{"sequence", "height", "id", "created_at"}
+	for _, field := range validFields {
+		// First call should compute and cache
+		result1 := isValidFieldName(field)
+		assert.True(t, result1, "Field %s should be valid", field)
+
+		// Second call should use cache
+		result2 := isValidFieldName(field)
+		assert.True(t, result2, "Field %s should be valid on second call", field)
+		assert.Equal(t, result1, result2, "Results should be consistent")
+
+		// Verify it's in cache
+		cached, found := fieldValidationCache.Load(field)
+		assert.True(t, found, "Field %s should be in cache", field)
+		assert.True(t, cached.(bool), "Cached value should be true for valid field %s", field)
+	}
+
+	// Test invalid field names
+	invalidFields := []string{"DROP TABLE", "1invalid", "field;DROP", "field--comment"}
+	for _, field := range invalidFields {
+		// First call should compute and cache
+		result1 := isValidFieldName(field)
+		assert.False(t, result1, "Field %s should be invalid", field)
+
+		// Second call should use cache
+		result2 := isValidFieldName(field)
+		assert.False(t, result2, "Field %s should be invalid on second call", field)
+		assert.Equal(t, result1, result2, "Results should be consistent")
+
+		// Verify it's in cache
+		cached, found := fieldValidationCache.Load(field)
+		assert.True(t, found, "Field %s should be in cache", field)
+		assert.False(t, cached.(bool), "Cached value should be false for invalid field %s", field)
+	}
+
+	// Test that cache persists values
+	assert.True(t, isValidFieldName("sequence"), "sequence should still be valid")
+	assert.False(t, isValidFieldName("DROP TABLE"), "DROP TABLE should still be invalid")
+}
+
+// BenchmarkFieldValidation benchmarks field validation with and without caching
+func BenchmarkFieldValidation(b *testing.B) {
+	// Clear cache before benchmarking
+	fieldValidationCache.Range(func(key, value interface{}) bool {
+		fieldValidationCache.Delete(key)
+		return true
+	})
+
+	// Benchmark with repeated field names (cache should help)
+	b.Run("RepeatedFields", func(b *testing.B) {
+		fields := []string{"sequence", "height", "id", "created_at"}
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			field := fields[i%len(fields)]
+			isValidFieldName(field)
+		}
+	})
+
+	// Benchmark with unique field names (no cache benefit)
+	b.Run("UniqueFields", func(b *testing.B) {
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			field := fmt.Sprintf("field_%d", i)
+			isValidFieldName(field)
+		}
+	})
 }
 
 // Benchmark tests for optimization strategies
