@@ -127,7 +127,7 @@ func TestGetOptimizedCount_ModelWithMaxOptimization(t *testing.T) {
 
 	t.Run("CollectedTx with Model - GROUP BY fix", func(t *testing.T) {
 		strategy := types.CollectedTx{}
-		
+
 		// The fix should extract table name and use Session + Table
 		// This should generate clean SQL without Model fields
 		mock.ExpectQuery(`SELECT COALESCE\(MAX\(sequence\), 0\) FROM "tx"`).
@@ -144,7 +144,7 @@ func TestGetOptimizedCount_ModelWithMaxOptimization(t *testing.T) {
 
 	t.Run("CollectedEvmTx with Model - GROUP BY fix", func(t *testing.T) {
 		strategy := types.CollectedEvmTx{}
-		
+
 		mock.ExpectQuery(`SELECT COALESCE\(MAX\(sequence\), 0\) FROM "evm_tx"`).
 			WillReturnRows(sqlmock.NewRows([]string{"max"}).AddRow(888))
 
@@ -158,7 +158,7 @@ func TestGetOptimizedCount_ModelWithMaxOptimization(t *testing.T) {
 
 	t.Run("CollectedEvmInternalTx with Model - GROUP BY fix", func(t *testing.T) {
 		strategy := types.CollectedEvmInternalTx{}
-		
+
 		mock.ExpectQuery(`SELECT COALESCE\(MAX\(sequence\), 0\) FROM "evm_internal_tx"`).
 			WillReturnRows(sqlmock.NewRows([]string{"max"}).AddRow(777))
 
@@ -172,7 +172,7 @@ func TestGetOptimizedCount_ModelWithMaxOptimization(t *testing.T) {
 
 	t.Run("CollectedBlock with Model - GROUP BY fix", func(t *testing.T) {
 		strategy := types.CollectedBlock{}
-		
+
 		// Block uses height field instead of sequence
 		mock.ExpectQuery(`SELECT COALESCE\(MAX\(height\), 0\) FROM "block"`).
 			WillReturnRows(sqlmock.NewRows([]string{"max"}).AddRow(666))
@@ -198,10 +198,10 @@ func TestGetCountByMax_DirectCall(t *testing.T) {
 
 		// Apply Model to simulate the problematic scenario
 		query := db.Model(&types.CollectedTx{})
-		
+
 		// Statement.Table should be set when Model is used
 		_ = query.Statement.Parse(&types.CollectedTx{})
-		
+
 		result, err := getCountByMax(query, "sequence")
 
 		assert.NoError(t, err)
