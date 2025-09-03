@@ -2,6 +2,7 @@ package common
 
 import (
 	"database/sql"
+	"fmt"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -116,6 +117,141 @@ func TestGetOptimizedCount_NoFilters_MaxOptimization(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, int64(12345), result)
 	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// TestGetOptimizedCount_ModelWithMaxOptimization tests the GROUP BY issue fix
+// This test ensures that when a query with Model() is passed to getCountByMax,
+// it properly handles the query without causing GROUP BY errors
+func TestGetOptimizedCount_ModelWithMaxOptimization(t *testing.T) {
+	db, mock, cleanup := setupMockDB(t)
+	defer cleanup()
+
+	t.Run("CollectedTx with Model - GROUP BY fix", func(t *testing.T) {
+		strategy := types.CollectedTx{}
+
+		// The fix should extract table name and use Session + Table
+		// This should generate clean SQL without Model fields
+		mock.ExpectQuery(`SELECT COALESCE\(MAX\(sequence\), 0\) FROM "tx"`).
+			WillReturnRows(sqlmock.NewRows([]string{"max"}).AddRow(999))
+
+		// Simulate what happens in GetTxs: Model is applied to the query
+		query := db.Model(&types.CollectedTx{})
+		result, err := GetOptimizedCount(query, strategy, false)
+
+		assert.NoError(t, err)
+		assert.Equal(t, int64(999), result)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("CollectedEvmTx with Model - GROUP BY fix", func(t *testing.T) {
+		strategy := types.CollectedEvmTx{}
+
+		mock.ExpectQuery(`SELECT COALESCE\(MAX\(sequence\), 0\) FROM "evm_tx"`).
+			WillReturnRows(sqlmock.NewRows([]string{"max"}).AddRow(888))
+
+		query := db.Model(&types.CollectedEvmTx{})
+		result, err := GetOptimizedCount(query, strategy, false)
+
+		assert.NoError(t, err)
+		assert.Equal(t, int64(888), result)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("CollectedEvmInternalTx with Model - GROUP BY fix", func(t *testing.T) {
+		strategy := types.CollectedEvmInternalTx{}
+
+		mock.ExpectQuery(`SELECT COALESCE\(MAX\(sequence\), 0\) FROM "evm_internal_tx"`).
+			WillReturnRows(sqlmock.NewRows([]string{"max"}).AddRow(777))
+
+		query := db.Model(&types.CollectedEvmInternalTx{})
+		result, err := GetOptimizedCount(query, strategy, false)
+
+		assert.NoError(t, err)
+		assert.Equal(t, int64(777), result)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("CollectedBlock with Model - GROUP BY fix", func(t *testing.T) {
+		strategy := types.CollectedBlock{}
+
+		// Block uses height field instead of sequence
+		mock.ExpectQuery(`SELECT COALESCE\(MAX\(height\), 0\) FROM "block"`).
+			WillReturnRows(sqlmock.NewRows([]string{"max"}).AddRow(666))
+
+		query := db.Model(&types.CollectedBlock{})
+		result, err := GetOptimizedCount(query, strategy, false)
+
+		assert.NoError(t, err)
+		assert.Equal(t, int64(666), result)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+}
+
+// TestGetCountByMax_DirectCall tests getCountByMax function directly
+func TestGetCountByMax_DirectCall(t *testing.T) {
+	db, mock, cleanup := setupMockDB(t)
+	defer cleanup()
+
+	t.Run("With nil Statement - should handle gracefully", func(t *testing.T) {
+		// Create a query without Statement initialized
+		mock.ExpectQuery(`SELECT COALESCE\(MAX\(test_field\), 0\)`).
+			WillReturnRows(sqlmock.NewRows([]string{"max"}).AddRow(333))
+
+		// Create a new DB instance without Statement
+		query := db.Session(&gorm.Session{})
+		result, err := getCountByMax(query, "test_field")
+
+		assert.NoError(t, err)
+		assert.Equal(t, int64(333), result)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("With Model applied - should use Session and Table", func(t *testing.T) {
+		// Expect clean SQL without Model fields
+		mock.ExpectQuery(`SELECT COALESCE\(MAX\(sequence\), 0\) FROM "tx"`).
+			WillReturnRows(sqlmock.NewRows([]string{"max"}).AddRow(555))
+
+		// Apply Model to simulate the problematic scenario
+		query := db.Model(&types.CollectedTx{})
+
+		// Statement.Table should be set when Model is used
+		_ = query.Statement.Parse(&types.CollectedTx{})
+
+		result, err := getCountByMax(query, "sequence")
+
+		assert.NoError(t, err)
+		assert.Equal(t, int64(555), result)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("Without Model - fallback path", func(t *testing.T) {
+		// When no Model is applied, should use Session as fallback
+		mock.ExpectQuery(`SELECT COALESCE\(MAX\(id\), 0\)`).
+			WillReturnRows(sqlmock.NewRows([]string{"max"}).AddRow(444))
+
+		// Query without Model
+		query := db.Table("some_table")
+		result, err := getCountByMax(query, "id")
+
+		assert.NoError(t, err)
+		assert.Equal(t, int64(444), result)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("Invalid field name - should return error", func(t *testing.T) {
+		// Test SQL injection prevention with regex validation
+		query := db.Model(&types.CollectedTx{})
+
+		// Try with invalid field name containing SQL injection attempt
+		result, err := getCountByMax(query, "sequence; DROP TABLE users")
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid field name")
+		assert.Equal(t, int64(0), result)
+
+		// No SQL query should be executed
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
 }
 
 func TestGetOptimizedCount_NoFilters_PgClassOptimization(t *testing.T) {
@@ -426,6 +562,83 @@ func TestTableNameConsistency(t *testing.T) {
 			assert.NotEmpty(t, tableName, "Table name should not be empty")
 		})
 	}
+}
+
+// TestFieldValidationCaching tests that sync.Map caching works for field validation
+func TestFieldValidationCaching(t *testing.T) {
+	// Clear the cache before testing
+	fieldValidationCache.Range(func(key, value interface{}) bool {
+		fieldValidationCache.Delete(key)
+		return true
+	})
+
+	// Test valid field names
+	validFields := []string{"sequence", "height", "id", "created_at"}
+	for _, field := range validFields {
+		// First call should compute and cache
+		result1 := isValidFieldName(field)
+		assert.True(t, result1, "Field %s should be valid", field)
+
+		// Second call should use cache
+		result2 := isValidFieldName(field)
+		assert.True(t, result2, "Field %s should be valid on second call", field)
+		assert.Equal(t, result1, result2, "Results should be consistent")
+
+		// Verify it's in cache
+		cached, found := fieldValidationCache.Load(field)
+		assert.True(t, found, "Field %s should be in cache", field)
+		assert.True(t, cached.(bool), "Cached value should be true for valid field %s", field)
+	}
+
+	// Test invalid field names
+	invalidFields := []string{"DROP TABLE", "1invalid", "field;DROP", "field--comment"}
+	for _, field := range invalidFields {
+		// First call should compute and cache
+		result1 := isValidFieldName(field)
+		assert.False(t, result1, "Field %s should be invalid", field)
+
+		// Second call should use cache
+		result2 := isValidFieldName(field)
+		assert.False(t, result2, "Field %s should be invalid on second call", field)
+		assert.Equal(t, result1, result2, "Results should be consistent")
+
+		// Verify it's in cache
+		cached, found := fieldValidationCache.Load(field)
+		assert.True(t, found, "Field %s should be in cache", field)
+		assert.False(t, cached.(bool), "Cached value should be false for invalid field %s", field)
+	}
+
+	// Test that cache persists values
+	assert.True(t, isValidFieldName("sequence"), "sequence should still be valid")
+	assert.False(t, isValidFieldName("DROP TABLE"), "DROP TABLE should still be invalid")
+}
+
+// BenchmarkFieldValidation benchmarks field validation with and without caching
+func BenchmarkFieldValidation(b *testing.B) {
+	// Clear cache before benchmarking
+	fieldValidationCache.Range(func(key, value interface{}) bool {
+		fieldValidationCache.Delete(key)
+		return true
+	})
+
+	// Benchmark with repeated field names (cache should help)
+	b.Run("RepeatedFields", func(b *testing.B) {
+		fields := []string{"sequence", "height", "id", "created_at"}
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			field := fields[i%len(fields)]
+			isValidFieldName(field)
+		}
+	})
+
+	// Benchmark with unique field names (no cache benefit)
+	b.Run("UniqueFields", func(b *testing.B) {
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			field := fmt.Sprintf("field_%d", i)
+			isValidFieldName(field)
+		}
+	})
 }
 
 // Benchmark tests for optimization strategies

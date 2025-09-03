@@ -2,6 +2,8 @@ package common
 
 import (
 	"fmt"
+	"regexp"
+	"sync"
 
 	"gorm.io/gorm"
 
@@ -36,11 +38,49 @@ func GetOptimizedCount(db *gorm.DB, strategy types.FastCountStrategy, hasFilters
 	}
 }
 
+// validFieldName validates that field name only contains safe characters
+var validFieldName = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
+
+// fieldValidationCache caches field validation results to avoid repeated regex evaluation
+var fieldValidationCache sync.Map
+
+// isValidFieldName checks if field name is valid, using cache to avoid repeated regex evaluation
+func isValidFieldName(field string) bool {
+	// Check cache first
+	if cached, found := fieldValidationCache.Load(field); found {
+		return cached.(bool)
+	}
+
+	// Validate and cache the result
+	isValid := validFieldName.MatchString(field)
+	fieldValidationCache.Store(field, isValid)
+	return isValid
+}
+
 // Helper: Get count using MAX(field) for sequential fields
 func getCountByMax(db *gorm.DB, field string) (int64, error) {
+	// Validate field name to prevent SQL injection
+	if !isValidFieldName(field) {
+		return 0, fmt.Errorf("invalid field name: %s", field)
+	}
+
 	var maxValue int64
 	query := fmt.Sprintf("COALESCE(MAX(%s), 0)", field)
-	err := db.Select(query).Scan(&maxValue).Error
+
+	// Safely extract table name from the statement
+	var tableName string
+	if db != nil && db.Statement != nil {
+		tableName = db.Statement.Table
+	}
+
+	if tableName == "" {
+		// When no table name is available, use Session to create clean query
+		err := db.Session(&gorm.Session{}).Select(query).Scan(&maxValue).Error
+		return maxValue, err
+	}
+
+	// Use Session with explicit Table to ensure clean query without Model fields
+	err := db.Session(&gorm.Session{}).Table(tableName).Select(query).Scan(&maxValue).Error
 	return maxValue, err
 }
 
