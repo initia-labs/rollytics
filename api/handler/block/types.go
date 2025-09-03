@@ -74,7 +74,7 @@ func ToBlockResponse(cb types.CollectedBlock, cfg *config.Config) (block Block, 
 	return Block{
 		ChainID:   cb.ChainId,
 		Height:    fmt.Sprintf("%d", cb.Height),
-		Hash:      util.BytesToHexWithPrefix(cb.Hash),
+		Hash:      util.BytesToHex(cb.Hash),
 		BlockTime: fmt.Sprintf("%d", cb.BlockTime),
 		Timestamp: cb.Timestamp.Format(time.RFC3339),
 		GasUsed:   fmt.Sprintf("%d", cb.GasUsed),
