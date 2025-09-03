@@ -192,17 +192,15 @@ func TestGetCountByMax_DirectCall(t *testing.T) {
 	db, mock, cleanup := setupMockDB(t)
 	defer cleanup()
 
-	t.Run("With nil Statement - should handle gracefully", func(t *testing.T) {
-		// Create a query without Statement initialized
+	t.Run("With nil Statement - should use fallback path", func(t *testing.T) {
+		// Expect fallback query when no table name is available
 		mock.ExpectQuery(`SELECT COALESCE\(MAX\(test_field\), 0\)`).
-			WillReturnRows(sqlmock.NewRows([]string{"max"}).AddRow(333))
+			WillReturnRows(sqlmock.NewRows([]string{"max"}).AddRow(9184))
 
-		// Create a new DB instance without Statement
 		query := db.Session(&gorm.Session{})
 		result, err := getCountByMax(query, "test_field")
-
 		assert.NoError(t, err)
-		assert.Equal(t, int64(333), result)
+		assert.Equal(t, int64(9184), result)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
