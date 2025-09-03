@@ -40,7 +40,14 @@ func GetOptimizedCount(db *gorm.DB, strategy types.FastCountStrategy, hasFilters
 func getCountByMax(db *gorm.DB, field string) (int64, error) {
 	var maxValue int64
 	query := fmt.Sprintf("COALESCE(MAX(%s), 0)", field)
-	err := db.Select(query).Scan(&maxValue).Error
+	// Extract table name from the statement and use Table() to avoid GROUP BY issues
+	tableName := db.Statement.Table
+	if tableName == "" {
+		// Fallback: use Session to create clean query without model fields
+		err := db.Session(&gorm.Session{}).Select(query).Scan(&maxValue).Error
+		return maxValue, err
+	}
+	err := db.Session(&gorm.Session{}).Table(tableName).Select(query).Scan(&maxValue).Error
 	return maxValue, err
 }
 
