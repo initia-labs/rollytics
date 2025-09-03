@@ -118,6 +118,112 @@ func TestGetOptimizedCount_NoFilters_MaxOptimization(t *testing.T) {
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
+// TestGetOptimizedCount_ModelWithMaxOptimization tests the GROUP BY issue fix
+// This test ensures that when a query with Model() is passed to getCountByMax,
+// it properly handles the query without causing GROUP BY errors
+func TestGetOptimizedCount_ModelWithMaxOptimization(t *testing.T) {
+	db, mock, cleanup := setupMockDB(t)
+	defer cleanup()
+
+	t.Run("CollectedTx with Model - GROUP BY fix", func(t *testing.T) {
+		strategy := types.CollectedTx{}
+		
+		// The fix should extract table name and use Session + Table
+		// This should generate clean SQL without Model fields
+		mock.ExpectQuery(`SELECT COALESCE\(MAX\(sequence\), 0\) FROM "tx"`).
+			WillReturnRows(sqlmock.NewRows([]string{"max"}).AddRow(999))
+
+		// Simulate what happens in GetTxs: Model is applied to the query
+		query := db.Model(&types.CollectedTx{})
+		result, err := GetOptimizedCount(query, strategy, false)
+
+		assert.NoError(t, err)
+		assert.Equal(t, int64(999), result)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("CollectedEvmTx with Model - GROUP BY fix", func(t *testing.T) {
+		strategy := types.CollectedEvmTx{}
+		
+		mock.ExpectQuery(`SELECT COALESCE\(MAX\(sequence\), 0\) FROM "evm_tx"`).
+			WillReturnRows(sqlmock.NewRows([]string{"max"}).AddRow(888))
+
+		query := db.Model(&types.CollectedEvmTx{})
+		result, err := GetOptimizedCount(query, strategy, false)
+
+		assert.NoError(t, err)
+		assert.Equal(t, int64(888), result)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("CollectedEvmInternalTx with Model - GROUP BY fix", func(t *testing.T) {
+		strategy := types.CollectedEvmInternalTx{}
+		
+		mock.ExpectQuery(`SELECT COALESCE\(MAX\(sequence\), 0\) FROM "evm_internal_tx"`).
+			WillReturnRows(sqlmock.NewRows([]string{"max"}).AddRow(777))
+
+		query := db.Model(&types.CollectedEvmInternalTx{})
+		result, err := GetOptimizedCount(query, strategy, false)
+
+		assert.NoError(t, err)
+		assert.Equal(t, int64(777), result)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("CollectedBlock with Model - GROUP BY fix", func(t *testing.T) {
+		strategy := types.CollectedBlock{}
+		
+		// Block uses height field instead of sequence
+		mock.ExpectQuery(`SELECT COALESCE\(MAX\(height\), 0\) FROM "block"`).
+			WillReturnRows(sqlmock.NewRows([]string{"max"}).AddRow(666))
+
+		query := db.Model(&types.CollectedBlock{})
+		result, err := GetOptimizedCount(query, strategy, false)
+
+		assert.NoError(t, err)
+		assert.Equal(t, int64(666), result)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+}
+
+// TestGetCountByMax_DirectCall tests getCountByMax function directly
+func TestGetCountByMax_DirectCall(t *testing.T) {
+	db, mock, cleanup := setupMockDB(t)
+	defer cleanup()
+
+	t.Run("With Model applied - should use Session and Table", func(t *testing.T) {
+		// Expect clean SQL without Model fields
+		mock.ExpectQuery(`SELECT COALESCE\(MAX\(sequence\), 0\) FROM "tx"`).
+			WillReturnRows(sqlmock.NewRows([]string{"max"}).AddRow(555))
+
+		// Apply Model to simulate the problematic scenario
+		query := db.Model(&types.CollectedTx{})
+		
+		// Statement.Table should be set when Model is used
+		_ = query.Statement.Parse(&types.CollectedTx{})
+		
+		result, err := getCountByMax(query, "sequence")
+
+		assert.NoError(t, err)
+		assert.Equal(t, int64(555), result)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("Without Model - fallback path", func(t *testing.T) {
+		// When no Model is applied, should use Session as fallback
+		mock.ExpectQuery(`SELECT COALESCE\(MAX\(id\), 0\)`).
+			WillReturnRows(sqlmock.NewRows([]string{"max"}).AddRow(444))
+
+		// Query without Model
+		query := db.Table("some_table")
+		result, err := getCountByMax(query, "id")
+
+		assert.NoError(t, err)
+		assert.Equal(t, int64(444), result)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+}
+
 func TestGetOptimizedCount_NoFilters_PgClassOptimization(t *testing.T) {
 	db, mock, cleanup := setupMockDB(t)
 	defer cleanup()
