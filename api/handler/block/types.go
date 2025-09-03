@@ -3,6 +3,7 @@ package block
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/initia-labs/rollytics/api/handler/common"
@@ -74,7 +75,7 @@ func ToBlockResponse(cb types.CollectedBlock, cfg *config.Config) (block Block, 
 	return Block{
 		ChainID:   cb.ChainId,
 		Height:    fmt.Sprintf("%d", cb.Height),
-		Hash:      util.BytesToHex(cb.Hash),
+		Hash:      strings.ToUpper(util.BytesToHex(cb.Hash)),
 		BlockTime: fmt.Sprintf("%d", cb.BlockTime),
 		Timestamp: cb.Timestamp.Format(time.RFC3339),
 		GasUsed:   fmt.Sprintf("%d", cb.GasUsed),
