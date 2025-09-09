@@ -15,6 +15,10 @@ import (
 // normalizeOrderBy validates and returns a normalized (lowercased, trimmed) order_by.
 func normalizeOrderBy(orderBy string) (string, error) {
 	v := strings.ToLower(strings.TrimSpace(orderBy))
+	// default to token_id
+	if v == "" {
+		return "token_id", nil
+	}
 	switch v {
 	case "token_id", "timestamp":
 		return v, nil
