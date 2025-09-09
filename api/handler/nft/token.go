@@ -2,8 +2,10 @@ package nft
 
 import (
 	"database/sql"
+	"fmt"
 
 	"github.com/gofiber/fiber/v2"
+	"gorm.io/gorm"
 
 	"github.com/initia-labs/rollytics/api/handler/common"
 	"github.com/initia-labs/rollytics/types"
@@ -18,6 +20,7 @@ import (
 // @Param account path string true "Account address"
 // @Param collection_addr query string false "Collection address to filter by (optional)"
 // @Param token_id query string false "Token ID to filter by (optional)"
+// @Param order_by query string false "Order by field (token_id, timestamp)"
 // @Param pagination.key query string false "Pagination key"
 // @Param pagination.offset query int false "Pagination offset"
 // @Param pagination.limit query int false "Pagination limit, default is 100" default is 100
@@ -74,7 +77,15 @@ func (h *NftHandler) GetTokensByAccount(c *fiber.Ctx) error {
 	}
 
 	var nfts []types.CollectedNft
-	finalQuery := pagination.ApplyToNft(query)
+	var finalQuery *gorm.DB
+	orderBy := c.Query("order_by")
+	if orderBy != "" {
+		orderClause := fmt.Sprintf("%s %s", orderBy, pagination.Order)
+		finalQuery = query.Order(orderClause).Offset(pagination.Offset).Limit(pagination.Limit)
+	} else {
+		finalQuery = pagination.ApplyToNft(query)
+	}
+
 	if err := finalQuery.Find(&nfts).Error; err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
@@ -108,6 +119,7 @@ func (h *NftHandler) GetTokensByAccount(c *fiber.Ctx) error {
 // @Produce json
 // @Param collection_addr path string true "Collection address"
 // @Param token_id query string false "Token ID to filter by (optional)"
+// @Param order_by query string false "Order by field (token_id, timestamp)"
 // @Param pagination.key query string false "Pagination key"
 // @Param pagination.offset query int false "Pagination offset"
 // @Param pagination.limit query int false "Pagination limit, default is 100" default is 100
@@ -145,7 +157,14 @@ func (h *NftHandler) GetTokensByCollectionAddr(c *fiber.Ctx) error {
 	}
 
 	var nfts []types.CollectedNft
-	finalQuery := pagination.ApplyToNft(query)
+	var finalQuery *gorm.DB
+	orderBy := c.Query("order_by")
+	if orderBy != "" {
+		orderClause := fmt.Sprintf("%s %s", orderBy, pagination.Order)
+		finalQuery = query.Order(orderClause).Offset(pagination.Offset).Limit(pagination.Limit)
+	} else {
+		finalQuery = pagination.ApplyToNft(query)
+	}
 	if err := finalQuery.Find(&nfts).Error; err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
