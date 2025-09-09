@@ -311,13 +311,14 @@ func (p *Pagination) ApplyToNft(query *gorm.DB, orderBy string) *gorm.DB {
 			return query.Order(p.OrderBy("height", "token_id")).Offset(p.Offset).Limit(p.Limit)
 		}
 
-		if p.Order == OrderDesc && orderBy == "height" {
+		switch {
+		case p.Order == OrderDesc && orderBy == "height":
 			query = query.Where("(height, token_id) < (?, ?)", height, tokenId)
-		} else if p.Order == OrderDesc && orderBy == "token_id" {
+		case p.Order == OrderDesc && orderBy == "token_id":
 			query = query.Where("(token_id, height) < (?, ?)", tokenId, height)
-		} else if p.Order == OrderAsc && orderBy == "height" {
+		case p.Order == OrderAsc && orderBy == "height":
 			query = query.Where("(height, token_id) > (?, ?)", height, tokenId)
-		} else if p.Order == OrderAsc && orderBy == "token_id" {
+		case p.Order == OrderAsc && orderBy == "token_id":
 			query = query.Where("(token_id, height) > (?, ?)", tokenId, height)
 		}
 
