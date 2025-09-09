@@ -20,10 +20,10 @@ func normalizeOrderBy(orderBy string) (string, error) {
 		return "token_id", nil
 	}
 	switch v {
-	case "token_id", "timestamp":
+	case "token_id", "height":
 		return v, nil
 	default:
-		return "", fmt.Errorf("invalid order_by value '%s', must be one of: token_id, timestamp", orderBy)
+		return "", fmt.Errorf("invalid order_by value '%s', must be one of: token_id, height", orderBy)
 	}
 
 }
@@ -50,7 +50,7 @@ func (h *NftHandler) getTokensWithFilters(
 		orderClause := fmt.Sprintf("%s %s", orderBy, pagination.Order)
 		finalQuery = baseQuery.Order(orderClause).Offset(pagination.Offset).Limit(pagination.Limit)
 	} else {
-		finalQuery = pagination.ApplyToNft(baseQuery)
+		finalQuery = pagination.ApplyToNft(baseQuery, orderBy)
 	}
 
 	if err := finalQuery.Find(&nfts).Error; err != nil {

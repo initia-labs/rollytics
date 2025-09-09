@@ -293,44 +293,36 @@ func (p *Pagination) ApplyToNftCollection(query *gorm.DB) *gorm.DB {
 	}
 }
 
-func (p *Pagination) ApplyToNft(query *gorm.DB) *gorm.DB {
+func (p *Pagination) ApplyToNft(query *gorm.DB, orderBy string) *gorm.DB {
 	switch p.CursorType {
 	case CursorTypeComposite:
 		height, err := p.safeGetInt64("height")
 		if err != nil {
 			// Fallback to offset-based pagination on error
-			return query.Order(p.OrderBy("height", "token_id")).Offset(p.Offset).Limit(p.Limit)
+			return query.Order(p.OrderBy("token_id", "height")).Offset(p.Offset).Limit(p.Limit)
 		}
 		tokenId, err := p.safeGetString("token_id")
 		if err != nil {
 			// Fallback to offset-based pagination on error
-			return query.Order(p.OrderBy("height", "token_id")).Offset(p.Offset).Limit(p.Limit)
+			return query.Order(p.OrderBy("token_id", "height")).Offset(p.Offset).Limit(p.Limit)
 		}
 
-		if p.Order == OrderDesc {
+		if p.Order == OrderDesc && orderBy == "height" {
 			query = query.Where("(height, token_id) < (?, ?)", height, tokenId)
-		} else {
+		} else if p.Order == OrderDesc && orderBy == "token_id" {
+			query = query.Where("(token_id, height) < (?, ?)", tokenId, height)
+		} else if p.Order == OrderAsc && orderBy == "height" {
 			query = query.Where("(height, token_id) > (?, ?)", height, tokenId)
+		} else if p.Order == OrderAsc && orderBy == "token_id" {
+			query = query.Where("(token_id, height) > (?, ?)", tokenId, height)
 		}
-		return query.Order(p.OrderBy("height", "token_id")).Limit(p.Limit)
 
-	case CursorTypeHeight:
-		height, err := p.safeGetInt64("height")
-		if err != nil {
-			// Fallback to offset-based pagination on error
-			return query.Order(p.OrderBy("height", "token_id")).Offset(p.Offset).Limit(p.Limit)
-		}
-		if p.Order == OrderDesc {
-			query = query.Where("height < ?", height)
-		} else {
-			query = query.Where("height > ?", height)
-		}
-		return query.Order(p.OrderBy("height", "token_id")).Limit(p.Limit)
+		return query.Order(p.OrderBy("token_id", "height")).Limit(p.Limit)
 
-	case CursorTypeOffset:
+	case CursorTypeHeight, CursorTypeOffset:
 		fallthrough
 	default:
-		return query.Order(p.OrderBy("height", "token_id")).Offset(p.Offset).Limit(p.Limit)
+		return query.Order(p.OrderBy("token_id", "height")).Offset(p.Offset).Limit(p.Limit)
 	}
 }
 

@@ -314,18 +314,13 @@ func TestValidateOrderBy(t *testing.T) {
 			expectErr: false,
 		},
 		{
-			name:      "Valid timestamp order_by",
-			orderBy:   "timestamp",
+			name:      "Valid height order_by",
+			orderBy:   "height",
 			expectErr: false,
 		},
 		{
 			name:      "Case insensitive token_id",
 			orderBy:   "TOKEN_ID",
-			expectErr: false,
-		},
-		{
-			name:      "Case insensitive timestamp",
-			orderBy:   "TIMESTAMP",
 			expectErr: false,
 		},
 		{
@@ -342,25 +337,19 @@ func TestValidateOrderBy(t *testing.T) {
 			name:      "Invalid order_by value",
 			orderBy:   "invalid_field",
 			expectErr: true,
-			errMsg:    "invalid order_by value 'invalid_field', must be one of: token_id, timestamp",
-		},
-		{
-			name:      "Empty string with spaces",
-			orderBy:   "   ",
-			expectErr: true,
-			errMsg:    "invalid order_by value '   ', must be one of: token_id, timestamp",
+			errMsg:    "invalid order_by value 'invalid_field', must be one of: token_id, height",
 		},
 		{
 			name:      "Partial match should fail",
 			orderBy:   "token",
 			expectErr: true,
-			errMsg:    "invalid order_by value 'token', must be one of: token_id, timestamp",
+			errMsg:    "invalid order_by value 'token', must be one of: token_id, height",
 		},
 		{
 			name:      "Numeric value should fail",
 			orderBy:   "123",
 			expectErr: true,
-			errMsg:    "invalid order_by value '123', must be one of: token_id, timestamp",
+			errMsg:    "invalid order_by value '123', must be one of: token_id, height",
 		},
 	}
 
@@ -410,14 +399,14 @@ func TestGetTokensWithFilters_OrderByHandling(t *testing.T) {
 			description:   "Should construct proper ORDER BY clause",
 		},
 		{
-			name:    "timestamp order_by with ASC",
-			orderBy: "timestamp",
+			name:    "height order_by with ASC",
+			orderBy: "height",
 			pagination: &common.Pagination{
 				Limit:  10,
 				Offset: 0,
 				Order:  "ASC",
 			},
-			expectedOrder: "timestamp ASC",
+			expectedOrder: "height ASC",
 			description:   "Should construct proper ORDER BY clause with ASC",
 		},
 		{
@@ -471,15 +460,15 @@ func TestPaginationWithOrderBy(t *testing.T) {
 			description: "Should handle valid pagination with custom order",
 		},
 		{
-			name:    "Valid pagination with timestamp order",
-			orderBy: "timestamp",
+			name:    "Valid pagination with height order",
+			orderBy: "height",
 			pagination: &common.Pagination{
 				Limit:  50,
 				Offset: 25,
 				Order:  "ASC",
 			},
 			expectError: false,
-			description: "Should handle valid pagination with timestamp order",
+			description: "Should handle valid pagination with height order",
 		},
 		{
 			name:    "Empty order_by with pagination",
@@ -583,14 +572,14 @@ func TestOrderByWithPaginationScenarios(t *testing.T) {
 			expectedResult: "token_id DESC",
 		},
 		{
-			name:    "Second page with timestamp order",
-			orderBy: "timestamp",
+			name:    "Second page with height order",
+			orderBy: "height",
 			pagination: &common.Pagination{
 				Limit:  10,
 				Offset: 10,
 				Order:  "ASC",
 			},
-			expectedResult: "timestamp ASC",
+			expectedResult: "height ASC",
 		},
 		{
 			name:    "Large offset with token_id order",
@@ -654,7 +643,7 @@ func TestOrderByVsDefaultPagination(t *testing.T) {
 // Test that the allowed values are correctly defined
 func TestAllowedOrderByValues(t *testing.T) {
 	// Test that the allowed values in validateOrderBy match expected fields
-	allowedValues := []string{"token_id", "timestamp"}
+	allowedValues := []string{"token_id", "height"}
 
 	// These should be the only valid values
 	for _, value := range allowedValues {
@@ -669,7 +658,7 @@ func TestAllowedOrderByValues(t *testing.T) {
 	}
 
 	// Test that other common field names are not allowed
-	invalidValues := []string{"id", "height", "owner_id", "collection_addr", "uri", "created_at", "updated_at"}
+	invalidValues := []string{"id", "owner_id", "collection_addr", "uri", "created_at", "updated_at"}
 	for _, value := range invalidValues {
 		_, err := normalizeOrderBy(value)
 		assert.Error(t, err, "Value %s should not be valid", value)
@@ -689,7 +678,7 @@ func TestOrderByErrorMessage(t *testing.T) {
 
 	// Check that the error message contains the allowed values
 	assert.Contains(t, errorMsg, "token_id")
-	assert.Contains(t, errorMsg, "timestamp")
+	assert.Contains(t, errorMsg, "height")
 
 	// Check the format of the error message
 	expectedPrefix := fmt.Sprintf("invalid order_by value '%s', must be one of:", invalidValue)
