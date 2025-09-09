@@ -3,6 +3,7 @@ package nft
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
@@ -10,6 +11,74 @@ import (
 	"github.com/initia-labs/rollytics/api/handler/common"
 	"github.com/initia-labs/rollytics/types"
 )
+
+// validateOrderBy validates that the order_by parameter is one of the allowed values
+func validateOrderBy(orderBy string) error {
+	if orderBy == "" {
+		return nil // empty is allowed
+	}
+
+	allowedValues := []string{"token_id", "timestamp"}
+	orderByLower := strings.ToLower(strings.TrimSpace(orderBy))
+
+	for _, allowed := range allowedValues {
+		if orderByLower == allowed {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("invalid order_by value '%s', must be one of: %s", orderBy, strings.Join(allowedValues, ", "))
+}
+
+// getTokensWithFilters is a shared function that handles the common logic for fetching NFTs
+// with various filters and pagination
+func (h *NftHandler) getTokensWithFilters(
+	tx *gorm.DB,
+	baseQuery *gorm.DB,
+	pagination *common.Pagination,
+	orderBy string,
+) (*NftsResponse, error) {
+	// Use optimized COUNT
+	var strategy types.CollectedNft
+	hasFilters := true // always has base filters
+	total, err := common.GetOptimizedCount(baseQuery, strategy, hasFilters)
+	if err != nil {
+		return nil, err
+	}
+
+	var nfts []types.CollectedNft
+	var finalQuery *gorm.DB
+	if orderBy != "" {
+		orderClause := fmt.Sprintf("%s %s", orderBy, pagination.Order)
+		finalQuery = baseQuery.Order(orderClause).Offset(pagination.Offset).Limit(pagination.Limit)
+	} else {
+		finalQuery = pagination.ApplyToNft(baseQuery)
+	}
+
+	if err := finalQuery.Find(&nfts).Error; err != nil {
+		return nil, err
+	}
+
+	ownerAccounts, err := h.getNftOwnerIdMap(tx, nfts)
+	if err != nil {
+		return nil, err
+	}
+
+	nftsRes, err := ToNftsResponse(h.GetDatabase(), nfts, ownerAccounts)
+	if err != nil {
+		return nil, err
+	}
+
+	var lastRecord any
+	if len(nfts) > 0 {
+		lastRecord = nfts[len(nfts)-1]
+	}
+
+	return &NftsResponse{
+		Tokens:     nftsRes,
+		Pagination: pagination.ToResponseWithLastRecord(total, lastRecord),
+	}, nil
+}
 
 // GetTokensByAccount handles GET /nft/v1/tokens/by_account/{account}
 // @Summary Get NFT tokens by account
@@ -42,6 +111,12 @@ func (h *NftHandler) GetTokensByAccount(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
+	// Validate order_by parameter
+	orderBy := c.Query("order_by")
+	if err := validateOrderBy(orderBy); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+
 	// Use read-only transaction for better performance
 	tx := h.GetDatabase().Begin(&sql.TxOptions{ReadOnly: true})
 	defer tx.Rollback()
@@ -58,6 +133,7 @@ func (h *NftHandler) GetTokensByAccount(c *fiber.Ctx) error {
 			Pagination: pagination.ToResponse(0),
 		})
 	}
+
 	query := tx.Model(&types.CollectedNft{}).Where("owner_id = ?", accountIds[0])
 
 	if collectionAddr != nil {
@@ -67,48 +143,12 @@ func (h *NftHandler) GetTokensByAccount(c *fiber.Ctx) error {
 		query = query.Where("token_id = ?", tokenId)
 	}
 
-	// Use optimized COUNT - always has filters (owner_id + optional collection/token)
-	var strategy types.CollectedNft
-	hasFilters := true // always has owner_id filter
-	var total int64
-	total, err = common.GetOptimizedCount(query, strategy, hasFilters)
+	response, err := h.getTokensWithFilters(tx, query, pagination, orderBy)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	var nfts []types.CollectedNft
-	var finalQuery *gorm.DB
-	orderBy := c.Query("order_by")
-	if orderBy != "" {
-		orderClause := fmt.Sprintf("%s %s", orderBy, pagination.Order)
-		finalQuery = query.Order(orderClause).Offset(pagination.Offset).Limit(pagination.Limit)
-	} else {
-		finalQuery = pagination.ApplyToNft(query)
-	}
-
-	if err := finalQuery.Find(&nfts).Error; err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
-	}
-
-	ownerAccounts, err := h.getNftOwnerIdMap(tx, nfts)
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
-	}
-
-	nftsRes, err := ToNftsResponse(h.GetDatabase(), nfts, ownerAccounts)
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
-	}
-
-	var lastRecord any
-	if len(nfts) > 0 {
-		lastRecord = nfts[len(nfts)-1]
-	}
-
-	return c.JSON(NftsResponse{
-		Tokens:     nftsRes,
-		Pagination: pagination.ToResponseWithLastRecord(total, lastRecord),
-	})
+	return c.JSON(response)
 }
 
 // GetTokensByCollectionAddr handles GET /nft/v1/tokens/by_collection/{collection_addr}
@@ -137,6 +177,12 @@ func (h *NftHandler) GetTokensByCollectionAddr(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
+	// Validate order_by parameter
+	orderBy := c.Query("order_by")
+	if err := validateOrderBy(orderBy); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+
 	// Use read-only transaction for better performance
 	tx := h.GetDatabase().Begin(&sql.TxOptions{ReadOnly: true})
 	defer tx.Rollback()
@@ -147,45 +193,10 @@ func (h *NftHandler) GetTokensByCollectionAddr(c *fiber.Ctx) error {
 		query = query.Where("token_id = ?", tokenId)
 	}
 
-	// Use optimized COUNT - always has filters (collection_addr + optional token_id)
-	var strategy types.CollectedNft
-	hasFilters := true // always has collection_addr filter
-	var total int64
-	total, err = common.GetOptimizedCount(query, strategy, hasFilters)
+	response, err := h.getTokensWithFilters(tx, query, pagination, orderBy)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	var nfts []types.CollectedNft
-	var finalQuery *gorm.DB
-	orderBy := c.Query("order_by")
-	if orderBy != "" {
-		orderClause := fmt.Sprintf("%s %s", orderBy, pagination.Order)
-		finalQuery = query.Order(orderClause).Offset(pagination.Offset).Limit(pagination.Limit)
-	} else {
-		finalQuery = pagination.ApplyToNft(query)
-	}
-	if err := finalQuery.Find(&nfts).Error; err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
-	}
-
-	ownerAccounts, err := h.getNftOwnerIdMap(tx, nfts)
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
-	}
-
-	nftsRes, err := ToNftsResponse(h.GetDatabase(), nfts, ownerAccounts)
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
-	}
-
-	var lastRecord any
-	if len(nfts) > 0 {
-		lastRecord = nfts[len(nfts)-1]
-	}
-
-	return c.JSON(NftsResponse{
-		Tokens:     nftsRes,
-		Pagination: pagination.ToResponseWithLastRecord(total, lastRecord),
-	})
+	return c.JSON(response)
 }
