@@ -45,15 +45,7 @@ func (h *NftHandler) getTokensWithFilters(
 	}
 
 	var nfts []types.CollectedNft
-	var finalQuery *gorm.DB
-	if orderBy != "" {
-		orderClause := fmt.Sprintf("%s %s", orderBy, pagination.Order)
-		finalQuery = baseQuery.Order(orderClause).Offset(pagination.Offset).Limit(pagination.Limit)
-	} else {
-		finalQuery = pagination.ApplyToNft(baseQuery, orderBy)
-	}
-
-	if err := finalQuery.Find(&nfts).Error; err != nil {
+	if err := pagination.ApplyToNft(baseQuery, orderBy).Find(&nfts).Error; err != nil {
 		return nil, err
 	}
 
@@ -87,7 +79,7 @@ func (h *NftHandler) getTokensWithFilters(
 // @Param account path string true "Account address"
 // @Param collection_addr query string false "Collection address to filter by (optional)"
 // @Param token_id query string false "Token ID to filter by (optional)"
-// @Param order_by query string false "Order by field (token_id, timestamp)"
+// @Param order_by query string false "Order by field (token_id, height)"
 // @Param pagination.key query string false "Pagination key"
 // @Param pagination.offset query int false "Pagination offset"
 // @Param pagination.limit query int false "Pagination limit, default is 100" default is 100
@@ -156,7 +148,7 @@ func (h *NftHandler) GetTokensByAccount(c *fiber.Ctx) error {
 // @Produce json
 // @Param collection_addr path string true "Collection address"
 // @Param token_id query string false "Token ID to filter by (optional)"
-// @Param order_by query string false "Order by field (token_id, timestamp)"
+// @Param order_by query string false "Order by field (token_id, height)"
 // @Param pagination.key query string false "Pagination key"
 // @Param pagination.offset query int false "Pagination offset"
 // @Param pagination.limit query int false "Pagination limit, default is 100" default is 100

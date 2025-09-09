@@ -298,13 +298,17 @@ func (p *Pagination) ApplyToNft(query *gorm.DB, orderBy string) *gorm.DB {
 	case CursorTypeComposite:
 		height, err := p.safeGetInt64("height")
 		if err != nil {
-			// Fallback to offset-based pagination on error
+			if orderBy == "height" {
+				return query.Order(p.OrderBy("height", "token_id")).Offset(p.Offset).Limit(p.Limit)
+			}
 			return query.Order(p.OrderBy("token_id", "height")).Offset(p.Offset).Limit(p.Limit)
 		}
 		tokenId, err := p.safeGetString("token_id")
 		if err != nil {
-			// Fallback to offset-based pagination on error
-			return query.Order(p.OrderBy("token_id", "height")).Offset(p.Offset).Limit(p.Limit)
+			if orderBy == "token_id" {
+				return query.Order(p.OrderBy("token_id", "height")).Offset(p.Offset).Limit(p.Limit)
+			}
+			return query.Order(p.OrderBy("height", "token_id")).Offset(p.Offset).Limit(p.Limit)
 		}
 
 		if p.Order == OrderDesc && orderBy == "height" {
@@ -322,7 +326,10 @@ func (p *Pagination) ApplyToNft(query *gorm.DB, orderBy string) *gorm.DB {
 	case CursorTypeHeight, CursorTypeOffset:
 		fallthrough
 	default:
-		return query.Order(p.OrderBy("token_id", "height")).Offset(p.Offset).Limit(p.Limit)
+		if orderBy == "token_id" {
+			return query.Order(p.OrderBy("token_id", "height")).Offset(p.Offset).Limit(p.Limit)
+		}
+		return query.Order(p.OrderBy("height", "token_id")).Offset(p.Offset).Limit(p.Limit)
 	}
 }
 

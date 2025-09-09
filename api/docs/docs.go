@@ -326,7 +326,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Order by field (token_id, timestamp)",
+                        "description": "Order by field (token_id, height)",
                         "name": "order_by",
                         "in": "query"
                     },
@@ -394,7 +394,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Order by field (token_id, timestamp)",
+                        "description": "Order by field (token_id, height)",
                         "name": "order_by",
                         "in": "query"
                     },
