@@ -12,22 +12,16 @@ import (
 	"github.com/initia-labs/rollytics/types"
 )
 
-// validateOrderBy validates that the order_by parameter is one of the allowed values
-func validateOrderBy(orderBy string) error {
-	if orderBy == "" {
-		return nil // empty is allowed
+// normalizeOrderBy validates and returns a normalized (lowercased, trimmed) order_by.
+func normalizeOrderBy(orderBy string) (string, error) {
+	v := strings.ToLower(strings.TrimSpace(orderBy))
+	switch v {
+	case "token_id", "timestamp":
+		return v, nil
+	default:
+		return "", fmt.Errorf("invalid order_by value '%s', must be one of: token_id, timestamp", orderBy)
 	}
 
-	allowedValues := []string{"token_id", "timestamp"}
-	orderByLower := strings.ToLower(strings.TrimSpace(orderBy))
-
-	for _, allowed := range allowedValues {
-		if orderByLower == allowed {
-			return nil
-		}
-	}
-
-	return fmt.Errorf("invalid order_by value '%s', must be one of: %s", orderBy, strings.Join(allowedValues, ", "))
 }
 
 // getTokensWithFilters is a shared function that handles the common logic for fetching NFTs
@@ -111,9 +105,8 @@ func (h *NftHandler) GetTokensByAccount(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
-	// Validate order_by parameter
-	orderBy := c.Query("order_by")
-	if err := validateOrderBy(orderBy); err != nil {
+	orderBy, err := normalizeOrderBy(c.Query("order_by"))
+	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
@@ -177,9 +170,8 @@ func (h *NftHandler) GetTokensByCollectionAddr(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
-	// Validate order_by parameter
-	orderBy := c.Query("order_by")
-	if err := validateOrderBy(orderBy); err != nil {
+	orderBy, err := normalizeOrderBy(c.Query("order_by"))
+	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 

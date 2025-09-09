@@ -366,7 +366,7 @@ func TestValidateOrderBy(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateOrderBy(tt.orderBy)
+			_, err := normalizeOrderBy(tt.orderBy)
 			if tt.expectErr {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errMsg)
@@ -497,7 +497,7 @@ func TestPaginationWithOrderBy(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Validate order_by parameter
-			err := validateOrderBy(tt.orderBy)
+			_, err := normalizeOrderBy(tt.orderBy)
 			if tt.expectError {
 				assert.Error(t, err, tt.description)
 			} else {
@@ -554,7 +554,7 @@ func TestOrderByEdgeCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateOrderBy(tt.orderBy)
+			_, err := normalizeOrderBy(tt.orderBy)
 			if tt.expectErr {
 				assert.Error(t, err)
 			} else {
@@ -607,7 +607,7 @@ func TestOrderByWithPaginationScenarios(t *testing.T) {
 	for _, scenario := range scenarios {
 		t.Run(scenario.name, func(t *testing.T) {
 			// Validate order_by
-			err := validateOrderBy(scenario.orderBy)
+			_, err := normalizeOrderBy(scenario.orderBy)
 			assert.NoError(t, err)
 
 			// Test order clause construction
@@ -631,7 +631,7 @@ func TestOrderByVsDefaultPagination(t *testing.T) {
 
 	t.Run("With order_by uses custom ORDER BY clause", func(t *testing.T) {
 		orderBy := "token_id"
-		err := validateOrderBy(orderBy)
+		_, err := normalizeOrderBy(orderBy)
 		assert.NoError(t, err)
 
 		// Simulate the logic from getTokensWithFilters
@@ -642,7 +642,7 @@ func TestOrderByVsDefaultPagination(t *testing.T) {
 
 	t.Run("Without order_by uses pagination.ApplyToNft", func(t *testing.T) {
 		orderBy := ""
-		err := validateOrderBy(orderBy)
+		_, err := normalizeOrderBy(orderBy)
 		assert.NoError(t, err)
 
 		// When orderBy is empty, the function should use pagination.ApplyToNft
@@ -658,20 +658,20 @@ func TestAllowedOrderByValues(t *testing.T) {
 
 	// These should be the only valid values
 	for _, value := range allowedValues {
-		err := validateOrderBy(value)
+		_, err := normalizeOrderBy(value)
 		assert.NoError(t, err, "Value %s should be valid", value)
 	}
 
 	// Test case insensitive versions
 	for _, value := range allowedValues {
-		err := validateOrderBy(strings.ToUpper(value))
+		_, err := normalizeOrderBy(strings.ToUpper(value))
 		assert.NoError(t, err, "Value %s should be valid (case insensitive)", strings.ToUpper(value))
 	}
 
 	// Test that other common field names are not allowed
 	invalidValues := []string{"id", "height", "owner_id", "collection_addr", "uri", "created_at", "updated_at"}
 	for _, value := range invalidValues {
-		err := validateOrderBy(value)
+		_, err := normalizeOrderBy(value)
 		assert.Error(t, err, "Value %s should not be valid", value)
 	}
 }
@@ -679,7 +679,7 @@ func TestAllowedOrderByValues(t *testing.T) {
 // Test the error message format
 func TestOrderByErrorMessage(t *testing.T) {
 	invalidValue := "invalid_field"
-	err := validateOrderBy(invalidValue)
+	_, err := normalizeOrderBy(invalidValue)
 
 	assert.Error(t, err)
 	errorMsg := err.Error()
