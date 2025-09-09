@@ -326,6 +326,12 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
+                        "description": "Order by field (token_id, timestamp)",
+                        "name": "order_by",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
                         "description": "Pagination key",
                         "name": "pagination.key",
                         "in": "query"
@@ -384,6 +390,12 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Token ID to filter by (optional)",
                         "name": "token_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Order by field (token_id, timestamp)",
+                        "name": "order_by",
                         "in": "query"
                     },
                     {

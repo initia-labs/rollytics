@@ -346,6 +346,10 @@ paths:
         in: query
         name: token_id
         type: string
+      - description: Order by field (token_id, timestamp)
+        in: query
+        name: order_by
+        type: string
       - description: Pagination key
         in: query
         name: pagination.key
@@ -387,6 +391,10 @@ paths:
       - description: Token ID to filter by (optional)
         in: query
         name: token_id
+        type: string
+      - description: Order by field (token_id, timestamp)
+        in: query
+        name: order_by
         type: string
       - description: Pagination key
         in: query
