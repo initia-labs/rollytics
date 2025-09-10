@@ -25,7 +25,6 @@ func normalizeOrderBy(orderBy string) (string, error) {
 	default:
 		return "", fmt.Errorf("invalid order_by value '%s', must be one of: token_id, height", orderBy)
 	}
-
 }
 
 // getTokensWithFilters is a shared function that handles the common logic for fetching NFTs
