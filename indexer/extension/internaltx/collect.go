@@ -33,6 +33,8 @@ func (i *InternalTxExtension) collect(heights []int64) error {
 	)
 	average := time.Duration(0)
 	max := time.Duration(0)
+	overall := time.Duration(0)
+	a := time.Now()
 	// 1. Scrape internal transactions
 	for _, height := range heights {
 		h := height
@@ -62,8 +64,9 @@ func (i *InternalTxExtension) collect(heights []int64) error {
 		return err
 	}
 
+	overall = time.Since(a)
 	average /= time.Duration(len(heights))
-	i.logger.Info("average time to scrape internal txs", slog.Duration("average", average), slog.Duration("max", max))
+	i.logger.Info("average time to scrape internal txs", slog.Duration("average", average), slog.Duration("max", max), slog.Duration("overall", overall))
 
 	// 2. Collect internal transactions
 	for _, height := range heights {
