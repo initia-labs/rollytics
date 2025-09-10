@@ -32,6 +32,7 @@ func (i *InternalTxExtension) collect(heights []int64) error {
 		mu      sync.Mutex
 	)
 	average := time.Duration(0)
+	max := time.Duration(0)
 	// 1. Scrape internal transactions
 	for _, height := range heights {
 		h := height
@@ -49,17 +50,20 @@ func (i *InternalTxExtension) collect(heights []int64) error {
 			mu.Lock()
 			scraped[internalTx.Height] = internalTx
 			average += time.Since(start)
+			if time.Since(start) > max {
+				max = time.Since(start)
+			}
 			mu.Unlock()
 			return nil
 		})
 	}
 
-	average /= time.Duration(len(heights))
-	i.logger.Info("average time to scrape internal txs", slog.Duration("average", average))
-
 	if err := g.Wait(); err != nil {
 		return err
 	}
+
+	average /= time.Duration(len(heights))
+	i.logger.Info("average time to scrape internal txs", slog.Duration("average", average), slog.Duration("max", max))
 
 	// 2. Collect internal transactions
 	for _, height := range heights {
