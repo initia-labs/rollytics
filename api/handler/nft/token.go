@@ -78,7 +78,7 @@ func (h *NftHandler) getTokensWithFilters(
 // @Param account path string true "Account address"
 // @Param collection_addr query string false "Collection address to filter by (optional)"
 // @Param token_id query string false "Token ID to filter by (optional)"
-// @Param order_by query string false "Order by field (token_id, height)"
+// @Param order_by query string false "Order by field" Enums(token_id, height) default(token_id)
 // @Param pagination.key query string false "Pagination key"
 // @Param pagination.offset query int false "Pagination offset"
 // @Param pagination.limit query int false "Pagination limit, default is 100" default is 100
@@ -147,7 +147,7 @@ func (h *NftHandler) GetTokensByAccount(c *fiber.Ctx) error {
 // @Produce json
 // @Param collection_addr path string true "Collection address"
 // @Param token_id query string false "Token ID to filter by (optional)"
-// @Param order_by query string false "Order by field (token_id, height)"
+// @Param order_by query string false "Order by field" Enums(token_id, height) default(token_id)
 // @Param pagination.key query string false "Pagination key"
 // @Param pagination.offset query int false "Pagination offset"
 // @Param pagination.limit query int false "Pagination limit, default is 100" default is 100

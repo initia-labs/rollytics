@@ -313,17 +313,15 @@ func (p *Pagination) ApplyToNft(query *gorm.DB, orderBy string) *gorm.DB {
 
 		switch {
 		case p.Order == OrderDesc && orderBy == "height":
-			query = query.Where("(height, token_id) < (?, ?)", height, tokenId)
+			return query.Where("(height, token_id) < (?, ?)", height, tokenId)
 		case p.Order == OrderDesc && orderBy == "token_id":
-			query = query.Where("(token_id, height) < (?, ?)", tokenId, height)
+			return query.Where("(token_id, height) < (?, ?)", tokenId, height)
 		case p.Order == OrderAsc && orderBy == "height":
-			query = query.Where("(height, token_id) > (?, ?)", height, tokenId)
+			return query.Where("(height, token_id) > (?, ?)", height, tokenId)
 		case p.Order == OrderAsc && orderBy == "token_id":
-			query = query.Where("(token_id, height) > (?, ?)", tokenId, height)
+			return query.Where("(token_id, height) > (?, ?)", tokenId, height)
 		}
-
 		return query.Order(p.OrderBy("token_id", "height")).Limit(p.Limit)
-
 	case CursorTypeHeight, CursorTypeOffset:
 		fallthrough
 	default:

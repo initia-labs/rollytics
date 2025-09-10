@@ -325,8 +325,13 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "enum": [
+                            "token_id",
+                            "height"
+                        ],
                         "type": "string",
-                        "description": "Order by field (token_id, height)",
+                        "default": "token_id",
+                        "description": "Order by field",
                         "name": "order_by",
                         "in": "query"
                     },
@@ -393,8 +398,13 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "enum": [
+                            "token_id",
+                            "height"
+                        ],
                         "type": "string",
-                        "description": "Order by field (token_id, height)",
+                        "default": "token_id",
+                        "description": "Order by field",
                         "name": "order_by",
                         "in": "query"
                     },

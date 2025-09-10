@@ -346,7 +346,11 @@ paths:
         in: query
         name: token_id
         type: string
-      - description: Order by field (token_id, height)
+      - default: token_id
+        description: Order by field
+        enum:
+        - token_id
+        - height
         in: query
         name: order_by
         type: string
@@ -392,7 +396,11 @@ paths:
         in: query
         name: token_id
         type: string
-      - description: Order by field (token_id, height)
+      - default: token_id
+        description: Order by field
+        enum:
+        - token_id
+        - height
         in: query
         name: order_by
         type: string
