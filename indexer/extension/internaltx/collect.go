@@ -69,13 +69,15 @@ func (i *InternalTxExtension) collect(heights []int64) error {
 	i.logger.Info("average time to scrape internal txs", slog.Duration("average", average), slog.Duration("max", max), slog.Duration("overall", overall))
 
 	// 2. Collect internal transactions
+	start := time.Now()
 	for _, height := range heights {
 		if err := i.CollectInternalTxs(i.db, scraped[height]); err != nil {
 			i.logger.Error("failed to collect internal txs", slog.Int64("height", height), slog.Any("error", err))
 			return err
 		}
 	}
-
+	overall = time.Since(start)
+	i.logger.Info("time to collect internal txs", slog.Duration("overall", overall))
 	return nil
 }
 
