@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -30,11 +31,12 @@ func (i *InternalTxExtension) collect(heights []int64) error {
 		scraped = make(map[int64]*InternalTxResult)
 		mu      sync.Mutex
 	)
-
+	average := time.Duration(0)
 	// 1. Scrape internal transactions
 	for _, height := range heights {
 		h := height
 		g.Go(func() error {
+			start := time.Now()
 			client := fiber.AcquireClient()
 			defer fiber.ReleaseClient(client)
 			internalTx, err := i.scrapeInternalTx(client, h)
@@ -46,10 +48,14 @@ func (i *InternalTxExtension) collect(heights []int64) error {
 			i.logger.Info("scraped internal txs", slog.Int64("height", h))
 			mu.Lock()
 			scraped[internalTx.Height] = internalTx
+			average += time.Since(start)
 			mu.Unlock()
 			return nil
 		})
 	}
+
+	average /= time.Duration(len(heights))
+	i.logger.Info("average time to scrape internal txs", slog.Duration("average", average))
 
 	if err := g.Wait(); err != nil {
 		return err

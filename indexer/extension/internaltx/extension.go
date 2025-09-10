@@ -2,7 +2,6 @@ package internaltx
 
 import (
 	"errors"
-	"fmt"
 	"log/slog"
 	"time"
 
@@ -52,7 +51,6 @@ func (i *InternalTxExtension) Run() error {
 	i.lastHeight = lastItx.Height
 
 	for {
-		queryStart := time.Now()
 		var heights []int64
 		// Check the diff between the last indexed height and the current height
 		if err := i.db.Model(&types.CollectedBlock{}).
@@ -64,14 +62,6 @@ func (i *InternalTxExtension) Run() error {
 			i.logger.Error("failed to get blocks to process", slog.Any("error", err))
 			panic(err)
 		}
-		queryDuration := time.Since(queryStart)
-		i.logger.Info("queried heights for processing",
-			slog.Int("count", len(heights)),
-			slog.Int64("from_height", heights[0]),
-			slog.Int64("to_height", heights[len(heights)-1]),
-			slog.Int64("last_height", i.lastHeight),
-			slog.Duration("query_duration", queryDuration))
-		fmt.Println("queried heights for processing", len(heights), heights[0], heights[len(heights)-1], i.lastHeight, queryDuration)
 		if len(heights) > 0 {
 			if err := i.collect(heights); err != nil {
 				return err
