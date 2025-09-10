@@ -2,6 +2,7 @@ package internaltx
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -70,7 +71,7 @@ func (i *InternalTxExtension) Run() error {
 			slog.Int64("to_height", heights[len(heights)-1]),
 			slog.Int64("last_height", i.lastHeight),
 			slog.Duration("query_duration", queryDuration))
-
+		fmt.Println("queried heights for processing", len(heights), heights[0], heights[len(heights)-1], i.lastHeight, queryDuration)
 		if len(heights) > 0 {
 			if err := i.collect(heights); err != nil {
 				return err
