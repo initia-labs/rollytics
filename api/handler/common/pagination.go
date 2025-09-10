@@ -293,22 +293,24 @@ func (p *Pagination) ApplyToNftCollection(query *gorm.DB) *gorm.DB {
 	}
 }
 
+// getNftFallbackOrder returns the appropriate fallback ordering for NFT queries
+func (p *Pagination) getNftFallbackOrder(query *gorm.DB, orderBy string) *gorm.DB {
+	if orderBy == "token_id" {
+		return query.Order(p.OrderBy("token_id", "height")).Offset(p.Offset).Limit(p.Limit)
+	}
+	return query.Order(p.OrderBy("height", "token_id")).Offset(p.Offset).Limit(p.Limit)
+}
+
 func (p *Pagination) ApplyToNft(query *gorm.DB, orderBy string) *gorm.DB {
 	switch p.CursorType {
 	case CursorTypeComposite:
 		height, err := p.safeGetInt64("height")
 		if err != nil {
-			if orderBy == "height" {
-				return query.Order(p.OrderBy("height", "token_id")).Offset(p.Offset).Limit(p.Limit)
-			}
-			return query.Order(p.OrderBy("token_id", "height")).Offset(p.Offset).Limit(p.Limit)
+			return p.getNftFallbackOrder(query, orderBy)
 		}
 		tokenId, err := p.safeGetString("token_id")
 		if err != nil {
-			if orderBy == "token_id" {
-				return query.Order(p.OrderBy("token_id", "height")).Offset(p.Offset).Limit(p.Limit)
-			}
-			return query.Order(p.OrderBy("height", "token_id")).Offset(p.Offset).Limit(p.Limit)
+			return p.getNftFallbackOrder(query, orderBy)
 		}
 
 		switch {
@@ -325,10 +327,7 @@ func (p *Pagination) ApplyToNft(query *gorm.DB, orderBy string) *gorm.DB {
 	case CursorTypeHeight, CursorTypeOffset:
 		fallthrough
 	default:
-		if orderBy == "token_id" {
-			return query.Order(p.OrderBy("token_id", "height")).Offset(p.Offset).Limit(p.Limit)
-		}
-		return query.Order(p.OrderBy("height", "token_id")).Offset(p.Offset).Limit(p.Limit)
+		return p.getNftFallbackOrder(query, orderBy)
 	}
 }
 
