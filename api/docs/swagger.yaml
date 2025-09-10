@@ -346,6 +346,14 @@ paths:
         in: query
         name: token_id
         type: string
+      - default: token_id
+        description: Order by field
+        enum:
+        - token_id
+        - height
+        in: query
+        name: order_by
+        type: string
       - description: Pagination key
         in: query
         name: pagination.key
@@ -387,6 +395,14 @@ paths:
       - description: Token ID to filter by (optional)
         in: query
         name: token_id
+        type: string
+      - default: token_id
+        description: Order by field
+        enum:
+        - token_id
+        - height
+        in: query
+        name: order_by
         type: string
       - description: Pagination key
         in: query

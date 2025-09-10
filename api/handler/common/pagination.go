@@ -293,44 +293,41 @@ func (p *Pagination) ApplyToNftCollection(query *gorm.DB) *gorm.DB {
 	}
 }
 
-func (p *Pagination) ApplyToNft(query *gorm.DB) *gorm.DB {
+// getNftFallbackOrder returns the appropriate fallback ordering for NFT queries
+func (p *Pagination) getNftFallbackOrder(query *gorm.DB, orderBy string) *gorm.DB {
+	if orderBy == "token_id" {
+		return query.Order(p.OrderBy("token_id", "height")).Offset(p.Offset).Limit(p.Limit)
+	}
+	return query.Order(p.OrderBy("height", "token_id")).Offset(p.Offset).Limit(p.Limit)
+}
+
+func (p *Pagination) ApplyToNft(query *gorm.DB, orderBy string) *gorm.DB {
 	switch p.CursorType {
 	case CursorTypeComposite:
 		height, err := p.safeGetInt64("height")
 		if err != nil {
-			// Fallback to offset-based pagination on error
-			return query.Order(p.OrderBy("height", "token_id")).Offset(p.Offset).Limit(p.Limit)
+			return p.getNftFallbackOrder(query, orderBy)
 		}
 		tokenId, err := p.safeGetString("token_id")
 		if err != nil {
-			// Fallback to offset-based pagination on error
-			return query.Order(p.OrderBy("height", "token_id")).Offset(p.Offset).Limit(p.Limit)
+			return p.getNftFallbackOrder(query, orderBy)
 		}
 
-		if p.Order == OrderDesc {
-			query = query.Where("(height, token_id) < (?, ?)", height, tokenId)
-		} else {
-			query = query.Where("(height, token_id) > (?, ?)", height, tokenId)
+		switch {
+		case p.Order == OrderDesc && orderBy == "height":
+			return query.Where("(height, token_id) < (?, ?)", height, tokenId)
+		case p.Order == OrderDesc && orderBy == "token_id":
+			return query.Where("(token_id, height) < (?, ?)", tokenId, height)
+		case p.Order == OrderAsc && orderBy == "height":
+			return query.Where("(height, token_id) > (?, ?)", height, tokenId)
+		case p.Order == OrderAsc && orderBy == "token_id":
+			return query.Where("(token_id, height) > (?, ?)", tokenId, height)
 		}
-		return query.Order(p.OrderBy("height", "token_id")).Limit(p.Limit)
-
-	case CursorTypeHeight:
-		height, err := p.safeGetInt64("height")
-		if err != nil {
-			// Fallback to offset-based pagination on error
-			return query.Order(p.OrderBy("height", "token_id")).Offset(p.Offset).Limit(p.Limit)
-		}
-		if p.Order == OrderDesc {
-			query = query.Where("height < ?", height)
-		} else {
-			query = query.Where("height > ?", height)
-		}
-		return query.Order(p.OrderBy("height", "token_id")).Limit(p.Limit)
-
-	case CursorTypeOffset:
+		return query.Order(p.OrderBy("token_id", "height")).Limit(p.Limit)
+	case CursorTypeHeight, CursorTypeOffset:
 		fallthrough
 	default:
-		return query.Order(p.OrderBy("height", "token_id")).Offset(p.Offset).Limit(p.Limit)
+		return p.getNftFallbackOrder(query, orderBy)
 	}
 }
 

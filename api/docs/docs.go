@@ -325,6 +325,17 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "enum": [
+                            "token_id",
+                            "height"
+                        ],
+                        "type": "string",
+                        "default": "token_id",
+                        "description": "Order by field",
+                        "name": "order_by",
+                        "in": "query"
+                    },
+                    {
                         "type": "string",
                         "description": "Pagination key",
                         "name": "pagination.key",
@@ -384,6 +395,17 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Token ID to filter by (optional)",
                         "name": "token_id",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "token_id",
+                            "height"
+                        ],
+                        "type": "string",
+                        "default": "token_id",
+                        "description": "Order by field",
+                        "name": "order_by",
                         "in": "query"
                     },
                     {

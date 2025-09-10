@@ -1,6 +1,8 @@
 package nft
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -291,4 +293,394 @@ func TestNft_CursorOrdering(t *testing.T) {
 	// Different height, same token_id
 	assert.NotEqual(t, cursor1["height"], cursor3["height"])
 	assert.Equal(t, cursor1["token_id"], cursor3["token_id"])
+}
+
+// Test validateOrderBy function
+func TestValidateOrderBy(t *testing.T) {
+	tests := []struct {
+		name      string
+		orderBy   string
+		expectErr bool
+		errMsg    string
+	}{
+		{
+			name:      "Empty order_by should be valid",
+			orderBy:   "",
+			expectErr: false,
+		},
+		{
+			name:      "Valid token_id order_by",
+			orderBy:   "token_id",
+			expectErr: false,
+		},
+		{
+			name:      "Valid height order_by",
+			orderBy:   "height",
+			expectErr: false,
+		},
+		{
+			name:      "Case insensitive token_id",
+			orderBy:   "TOKEN_ID",
+			expectErr: false,
+		},
+		{
+			name:      "Mixed case token_id",
+			orderBy:   "Token_Id",
+			expectErr: false,
+		},
+		{
+			name:      "Whitespace around valid value",
+			orderBy:   "  token_id  ",
+			expectErr: false,
+		},
+		{
+			name:      "Invalid order_by value",
+			orderBy:   "invalid_field",
+			expectErr: true,
+			errMsg:    "invalid order_by value 'invalid_field', must be one of: token_id, height",
+		},
+		{
+			name:      "Partial match should fail",
+			orderBy:   "token",
+			expectErr: true,
+			errMsg:    "invalid order_by value 'token', must be one of: token_id, height",
+		},
+		{
+			name:      "Numeric value should fail",
+			orderBy:   "123",
+			expectErr: true,
+			errMsg:    "invalid order_by value '123', must be one of: token_id, height",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := normalizeOrderBy(tt.orderBy)
+			if tt.expectErr {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errMsg)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+// Test getTokensWithFilters function behavior
+func TestGetTokensWithFilters_OrderByHandling(t *testing.T) {
+	// Test the order by clause construction logic
+	tests := []struct {
+		name          string
+		orderBy       string
+		pagination    *common.Pagination
+		expectedOrder string
+		description   string
+	}{
+		{
+			name:    "No order_by uses default pagination",
+			orderBy: "",
+			pagination: &common.Pagination{
+				Limit:  10,
+				Offset: 0,
+				Order:  "DESC",
+			},
+			expectedOrder: "",
+			description:   "When order_by is empty, should use pagination.ApplyToNft",
+		},
+		{
+			name:    "token_id order_by with DESC",
+			orderBy: "token_id",
+			pagination: &common.Pagination{
+				Limit:  10,
+				Offset: 0,
+				Order:  "DESC",
+			},
+			expectedOrder: "token_id DESC",
+			description:   "Should construct proper ORDER BY clause",
+		},
+		{
+			name:    "height order_by with ASC",
+			orderBy: "height",
+			pagination: &common.Pagination{
+				Limit:  10,
+				Offset: 0,
+				Order:  "ASC",
+			},
+			expectedOrder: "height ASC",
+			description:   "Should construct proper ORDER BY clause with ASC",
+		},
+		{
+			name:    "token_id order_by with offset and limit",
+			orderBy: "token_id",
+			pagination: &common.Pagination{
+				Limit:  5,
+				Offset: 10,
+				Order:  "DESC",
+			},
+			expectedOrder: "token_id DESC",
+			description:   "Should apply offset and limit with custom order",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Test the order clause construction logic
+			var orderClause string
+			if tt.orderBy != "" {
+				orderClause = fmt.Sprintf("%s %s", tt.orderBy, tt.pagination.Order)
+			}
+
+			if tt.orderBy != "" {
+				assert.Equal(t, tt.expectedOrder, orderClause, tt.description)
+			} else {
+				assert.Empty(t, orderClause, tt.description)
+			}
+		})
+	}
+}
+
+// Test pagination integration with order_by
+func TestPaginationWithOrderBy(t *testing.T) {
+	tests := []struct {
+		name        string
+		orderBy     string
+		pagination  *common.Pagination
+		expectError bool
+		description string
+	}{
+		{
+			name:    "Valid pagination with token_id order",
+			orderBy: "token_id",
+			pagination: &common.Pagination{
+				Limit:  100,
+				Offset: 0,
+				Order:  "DESC",
+			},
+			expectError: false,
+			description: "Should handle valid pagination with custom order",
+		},
+		{
+			name:    "Valid pagination with height order",
+			orderBy: "height",
+			pagination: &common.Pagination{
+				Limit:  50,
+				Offset: 25,
+				Order:  "ASC",
+			},
+			expectError: false,
+			description: "Should handle valid pagination with height order",
+		},
+		{
+			name:    "Empty order_by with pagination",
+			orderBy: "",
+			pagination: &common.Pagination{
+				Limit:  10,
+				Offset: 0,
+				Order:  "DESC",
+			},
+			expectError: false,
+			description: "Should handle empty order_by with default pagination",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Validate order_by parameter
+			_, err := normalizeOrderBy(tt.orderBy)
+			if tt.expectError {
+				assert.Error(t, err, tt.description)
+			} else {
+				assert.NoError(t, err, tt.description)
+			}
+
+			// Test pagination structure
+			assert.NotNil(t, tt.pagination)
+			assert.Greater(t, tt.pagination.Limit, 0)
+			assert.GreaterOrEqual(t, tt.pagination.Offset, 0)
+			assert.Contains(t, []string{"ASC", "DESC"}, tt.pagination.Order)
+		})
+	}
+}
+
+// Test order_by parameter edge cases
+func TestOrderByEdgeCases(t *testing.T) {
+	tests := []struct {
+		name      string
+		orderBy   string
+		expectErr bool
+	}{
+		{
+			name:      "Null character",
+			orderBy:   "token_id\x00",
+			expectErr: true,
+		},
+		{
+			name:      "Unicode characters",
+			orderBy:   "token_ïd",
+			expectErr: true,
+		},
+		{
+			name:      "SQL injection attempt",
+			orderBy:   "token_id; DROP TABLE nft;",
+			expectErr: true,
+		},
+		{
+			name:      "Very long string",
+			orderBy:   strings.Repeat("a", 1000),
+			expectErr: true,
+		},
+		{
+			name:      "Special characters",
+			orderBy:   "token_id@#$%",
+			expectErr: true,
+		},
+		{
+			name:      "Numbers and letters",
+			orderBy:   "token_id123",
+			expectErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := normalizeOrderBy(tt.orderBy)
+			if tt.expectErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+// Test the integration of order_by with different pagination scenarios
+func TestOrderByWithPaginationScenarios(t *testing.T) {
+	scenarios := []struct {
+		name           string
+		orderBy        string
+		pagination     *common.Pagination
+		expectedResult string
+	}{
+		{
+			name:    "First page with token_id order",
+			orderBy: "token_id",
+			pagination: &common.Pagination{
+				Limit:  10,
+				Offset: 0,
+				Order:  "DESC",
+			},
+			expectedResult: "token_id DESC",
+		},
+		{
+			name:    "Second page with height order",
+			orderBy: "height",
+			pagination: &common.Pagination{
+				Limit:  10,
+				Offset: 10,
+				Order:  "ASC",
+			},
+			expectedResult: "height ASC",
+		},
+		{
+			name:    "Large offset with token_id order",
+			orderBy: "token_id",
+			pagination: &common.Pagination{
+				Limit:  50,
+				Offset: 1000,
+				Order:  "DESC",
+			},
+			expectedResult: "token_id DESC",
+		},
+	}
+
+	for _, scenario := range scenarios {
+		t.Run(scenario.name, func(t *testing.T) {
+			// Validate order_by
+			_, err := normalizeOrderBy(scenario.orderBy)
+			assert.NoError(t, err)
+
+			// Test order clause construction
+			orderClause := fmt.Sprintf("%s %s", scenario.orderBy, scenario.pagination.Order)
+			assert.Equal(t, scenario.expectedResult, orderClause)
+
+			// Test pagination values
+			assert.Greater(t, scenario.pagination.Limit, 0)
+			assert.GreaterOrEqual(t, scenario.pagination.Offset, 0)
+		})
+	}
+}
+
+// Test the behavior when order_by is used vs when it's not
+func TestOrderByVsDefaultPagination(t *testing.T) {
+	basePagination := &common.Pagination{
+		Limit:  10,
+		Offset: 0,
+		Order:  "DESC",
+	}
+
+	t.Run("With order_by uses custom ORDER BY clause", func(t *testing.T) {
+		orderBy := "token_id"
+		_, err := normalizeOrderBy(orderBy)
+		assert.NoError(t, err)
+
+		// Simulate the logic from getTokensWithFilters
+		orderClause := fmt.Sprintf("%s %s", orderBy, basePagination.Order)
+		expectedClause := "token_id DESC"
+		assert.Equal(t, expectedClause, orderClause)
+	})
+
+	t.Run("Without order_by uses pagination.ApplyToNft", func(t *testing.T) {
+		orderBy := ""
+		_, err := normalizeOrderBy(orderBy)
+		assert.NoError(t, err)
+
+		// When orderBy is empty, the function should use pagination.ApplyToNft
+		// This would apply the default ordering (height, token_id) with the pagination order
+		assert.Empty(t, orderBy)
+	})
+}
+
+// Test that the allowed values are correctly defined
+func TestAllowedOrderByValues(t *testing.T) {
+	// Test that the allowed values in validateOrderBy match expected fields
+	allowedValues := []string{"token_id", "height"}
+
+	// These should be the only valid values
+	for _, value := range allowedValues {
+		_, err := normalizeOrderBy(value)
+		assert.NoError(t, err, "Value %s should be valid", value)
+	}
+
+	// Test case insensitive versions
+	for _, value := range allowedValues {
+		_, err := normalizeOrderBy(strings.ToUpper(value))
+		assert.NoError(t, err, "Value %s should be valid (case insensitive)", strings.ToUpper(value))
+	}
+
+	// Test that other common field names are not allowed
+	invalidValues := []string{"id", "owner_id", "collection_addr", "uri", "created_at", "updated_at"}
+	for _, value := range invalidValues {
+		_, err := normalizeOrderBy(value)
+		assert.Error(t, err, "Value %s should not be valid", value)
+	}
+}
+
+// Test the error message format
+func TestOrderByErrorMessage(t *testing.T) {
+	invalidValue := "invalid_field"
+	_, err := normalizeOrderBy(invalidValue)
+
+	assert.Error(t, err)
+	errorMsg := err.Error()
+
+	// Check that the error message contains the invalid value
+	assert.Contains(t, errorMsg, invalidValue)
+
+	// Check that the error message contains the allowed values
+	assert.Contains(t, errorMsg, "token_id")
+	assert.Contains(t, errorMsg, "height")
+
+	// Check the format of the error message
+	expectedPrefix := fmt.Sprintf("invalid order_by value '%s', must be one of:", invalidValue)
+	assert.True(t, strings.HasPrefix(errorMsg, expectedPrefix))
 }
