@@ -51,7 +51,6 @@ func (i *InternalTxExtension) Run() error {
 	i.lastHeight = lastItx.Height
 
 	for {
-		start := time.Now()
 		var heights []int64
 
 		// Check the diff between the last indexed height and the current height
@@ -65,15 +64,17 @@ func (i *InternalTxExtension) Run() error {
 			panic(err)
 		}
 		if len(heights) > 0 {
+			start := time.Now()
 			if err := i.collect(heights); err != nil {
 				return err
 			}
+			overall := time.Since(start)
+			i.logger.Info("time to get blocks to process", slog.Float64("overall_sec", overall.Seconds()), slog.Int("count", len(heights)))
 			i.lastHeight = heights[len(heights)-1]
 		}
 
 		time.Sleep(i.cfg.GetInternalTxConfig().GetPollInterval())
-		overall := time.Since(start)
-		i.logger.Info("time to get blocks to process", slog.Float64("overall_sec", overall.Seconds()), slog.Int("count", len(heights)))
+
 	}
 }
 
