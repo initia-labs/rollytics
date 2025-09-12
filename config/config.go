@@ -198,6 +198,10 @@ func loadConfig() (*Config, error) {
 		AccountAddressPrefix: viper.GetString("ACCOUNT_ADDRESS_PREFIX"),
 	}
 
+	fmt.Println("RPC_URL", viper.GetString("RPC_URL"))
+	fmt.Println("REST_URL", viper.GetString("REST_URL"))
+	fmt.Println("JSON_RPC_URL", viper.GetString("JSON_RPC_URL"))
+
 	config := &Config{
 		listenPort:            viper.GetString("PORT"),
 		dbConfig:              dc,
