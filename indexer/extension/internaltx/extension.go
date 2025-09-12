@@ -53,6 +53,7 @@ func (i *InternalTxExtension) Run() error {
 	for {
 		start := time.Now()
 		var heights []int64
+
 		// Check the diff between the last indexed height and the current height
 		if err := i.db.Model(&types.CollectedBlock{}).
 			Where("chain_id = ?", i.cfg.GetChainId()).
@@ -72,7 +73,7 @@ func (i *InternalTxExtension) Run() error {
 
 		time.Sleep(i.cfg.GetInternalTxConfig().GetPollInterval())
 		overall := time.Since(start)
-		i.logger.Info("time to get blocks to process", slog.Duration("overall", overall), slog.Int("count", len(heights)))
+		i.logger.Info("time to get blocks to process", slog.Float64("overall_sec", overall.Seconds()), slog.Int("count", len(heights)))
 	}
 }
 
