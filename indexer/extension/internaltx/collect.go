@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"encoding/json"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/jackc/pgx/v5/pgconn"
 	"golang.org/x/sync/errgroup"
@@ -56,8 +58,11 @@ func (i *InternalTxExtension) collect(heights []int64) error {
 			if time.Since(start) > max {
 				max = time.Since(start)
 			}
-			if len(internalTx.CallTrace.Result) > maxSize {
-				maxSize = len(internalTx.CallTrace.Result)
+			// Calculate actual payload size in bytes for the entire CallTrace
+			payloadBytes, _ := json.Marshal(internalTx)
+			payloadSize := len(payloadBytes)
+			if payloadSize > maxSize {
+				maxSize = payloadSize
 			}
 			mu.Unlock()
 			return nil
@@ -70,7 +75,12 @@ func (i *InternalTxExtension) collect(heights []int64) error {
 
 	overall = time.Since(a)
 	average /= time.Duration(len(heights))
-	i.logger.Info("average time to scrape internal txs", slog.Duration("average", average), slog.Duration("max", max), slog.Duration("overall", overall), slog.Int("maxSize", maxSize), slog.Int("count", len(heights)))
+	i.logger.Info("average time to scrape internal txs",
+		slog.Float64("average_sec", average.Seconds()),
+		slog.Float64("max_sec", max.Seconds()),
+		slog.Float64("overall_sec", overall.Seconds()),
+		slog.Int("max payload size", maxSize),
+		slog.Int("count", len(heights)))
 
 	// 2. Collect internal transactions
 	start := time.Now()
