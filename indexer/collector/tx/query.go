@@ -73,10 +73,14 @@ func getCosmosTxs(cfg *config.Config, height int64, txCount int) (txs []RestTx, 
 func fetchAllTxsWithPagination(cfg *config.Config, path string) ([]RestTx, error) {
 	var allTxs []RestTx
 	var nextKey []byte
+	useOffset := false
+	offset := 0
 
 	for {
 		params := map[string]string{"pagination.limit": paginationLimit}
-		if len(nextKey) > 0 {
+		if useOffset {
+			params["pagination.offset"] = strconv.Itoa(offset)
+		} else if len(nextKey) > 0 {
 			params["pagination.key"] = base64.StdEncoding.EncodeToString(nextKey)
 		}
 
@@ -94,9 +98,22 @@ func fetchAllTxsWithPagination(cfg *config.Config, path string) ([]RestTx, error
 		}
 
 		allTxs = append(allTxs, response.Txs...)
+		offset = len(allTxs)
 
-		if len(response.Pagination.NextKey) == 0 || len(response.Txs) < paginationLimitInt {
-			break
+		if len(response.Pagination.NextKey) == 0 {
+			// Workaround for broken API that returns null next_key prematurely.
+			if response.Pagination.Total != "" {
+				total, err := strconv.Atoi(response.Pagination.Total)
+				if err != nil {
+					return allTxs, fmt.Errorf("failed to parse pagination.total: %w", err)
+				}
+
+				if len(allTxs) < total && len(response.Txs) == paginationLimitInt {
+					useOffset = true
+					continue // try next page with offset
+				}
+			}
+			break // No more pages
 		}
 
 		nextKey = response.Pagination.NextKey
