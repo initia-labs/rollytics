@@ -304,27 +304,44 @@ func (p *Pagination) getNftFallbackOrder(query *gorm.DB, orderBy string) *gorm.D
 func (p *Pagination) ApplyToNft(query *gorm.DB, orderBy string) *gorm.DB {
 	switch p.CursorType {
 	case CursorTypeComposite:
+		height, errHeight := p.safeGetInt64("height")
+		tokenId, errTokenId := p.safeGetString("token_id")
+		if errHeight != nil || errTokenId != nil {
+			return p.getNftFallbackOrder(query, orderBy)
+		}
+
+		// The order of fields in WHERE and ORDER BY must match.
+		if orderBy == "token_id" {
+			if p.Order == OrderDesc {
+				query = query.Where("(token_id, height) < (?, ?)", tokenId, height)
+			} else {
+				query = query.Where("(token_id, height) > (?, ?)", tokenId, height)
+			}
+			return query.Order(p.OrderBy("token_id", "height")).Limit(p.Limit)
+		}
+
+		// Default to ordering by height
+		if p.Order == OrderDesc {
+			query = query.Where("(height, token_id) < (?, ?)", height, tokenId)
+		} else {
+			query = query.Where("(height, token_id) > (?, ?)", height, tokenId)
+		}
+		return query.Order(p.OrderBy("height", "token_id")).Limit(p.Limit)
+
+	case CursorTypeHeight: // Fallback for incomplete composite cursor
 		height, err := p.safeGetInt64("height")
 		if err != nil {
 			return p.getNftFallbackOrder(query, orderBy)
 		}
-		tokenId, err := p.safeGetString("token_id")
-		if err != nil {
-			return p.getNftFallbackOrder(query, orderBy)
+		if p.Order == OrderDesc {
+			query = query.Where("height < ?", height)
+		} else {
+			query = query.Where("height > ?", height)
 		}
+		// Use the default fallback order to ensure consistent secondary sort
+		return p.getNftFallbackOrder(query, orderBy)
 
-		switch {
-		case p.Order == OrderDesc && orderBy == "height":
-			return query.Where("(height, token_id) < (?, ?)", height, tokenId)
-		case p.Order == OrderDesc && orderBy == "token_id":
-			return query.Where("(token_id, height) < (?, ?)", tokenId, height)
-		case p.Order == OrderAsc && orderBy == "height":
-			return query.Where("(height, token_id) > (?, ?)", height, tokenId)
-		case p.Order == OrderAsc && orderBy == "token_id":
-			return query.Where("(token_id, height) > (?, ?)", tokenId, height)
-		}
-		return query.Order(p.OrderBy("token_id", "height")).Limit(p.Limit)
-	case CursorTypeHeight, CursorTypeOffset:
+	case CursorTypeOffset:
 		fallthrough
 	default:
 		return p.getNftFallbackOrder(query, orderBy)
