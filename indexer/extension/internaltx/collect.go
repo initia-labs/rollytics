@@ -1,6 +1,7 @@
 package internaltx
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -24,22 +25,36 @@ type InternalTxResult struct {
 	CallTrace *DebugCallTraceBlockResponse
 }
 
-func (i *InternalTxExtension) collect(heights []int64) error {
-	var (
-		g       errgroup.Group
-		scraped = make(map[int64]*InternalTxResult)
-		mu      sync.Mutex
-	)
+func (i *InternalTxExtension) collect(ctx context.Context, heights []int64) error {
+	// Use context-aware errgroup for cancellation support
+	g, gCtx := errgroup.WithContext(ctx)
+	scraped := make(map[int64]*InternalTxResult)
+	mu := sync.Mutex{}
 
-	// 1. Scrape internal transactions
+	// 1. Scrape internal transactions with context
 	for _, height := range heights {
 		h := height
 		g.Go(func() error {
+			// Check context before starting
+			select {
+			case <-gCtx.Done():
+				return gCtx.Err()
+			default:
+			}
+
 			client := fiber.AcquireClient()
 			defer fiber.ReleaseClient(client)
+
+			// TODO: Update scrapeInternalTx to support context for HTTP timeouts
 			internalTx, err := i.scrapeInternalTx(client, h)
 			if err != nil {
-				i.logger.Error("failed to scrape internal tx", slog.Int64("height", h), slog.Any("error", err))
+				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+					i.logger.Info("scraping cancelled", slog.Int64("height", h))
+					return err
+				}
+				i.logger.Error("failed to scrape internal tx",
+					slog.Int64("height", h),
+					slog.Any("error", err))
 				return err
 			}
 
@@ -55,10 +70,24 @@ func (i *InternalTxExtension) collect(heights []int64) error {
 		return err
 	}
 
-	// 2. Collect internal transactions
+	// 2. Collect internal transactions with context check
 	for _, height := range heights {
+		// Check context before each DB operation
+		select {
+		case <-ctx.Done():
+			i.logger.Info("collection cancelled during DB save", slog.Int64("height", height))
+			return ctx.Err()
+		default:
+		}
+
+		// TODO: Update CollectInternalTxs to use context for DB operations
 		if err := i.CollectInternalTxs(i.db, scraped[height]); err != nil {
-			i.logger.Error("failed to collect internal txs", slog.Int64("height", height), slog.Any("error", err))
+			if errors.Is(err, context.Canceled) {
+				return err
+			}
+			i.logger.Error("failed to collect internal txs",
+				slog.Int64("height", height),
+				slog.Any("error", err))
 			return err
 		}
 	}
