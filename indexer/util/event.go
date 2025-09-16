@@ -3,6 +3,7 @@ package util
 import (
 	"encoding/base64"
 	"fmt"
+	"strings"
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/crypto/tmhash"
@@ -10,7 +11,27 @@ import (
 	"github.com/initia-labs/rollytics/indexer/types"
 )
 
+// EventMatcher defines how to match events
+type EventMatcher func(eventType, targetType string) bool
+
+func ExactMatch(eventType, targetType string) bool {
+	return eventType == targetType
+}
+
+func PrefixMatch(eventType, targetType string) bool {
+	return strings.HasPrefix(eventType, targetType)
+}
+
 func ExtractEvents(block types.ScrapedBlock, eventType string) (events []types.ParsedEvent, err error) {
+	return extractEventsWithMatcher(block, eventType, ExactMatch)
+}
+
+func ExtractEventsWithMatcher(block types.ScrapedBlock, eventType string, matcher EventMatcher) (events []types.ParsedEvent, err error) {
+	return extractEventsWithMatcher(block, eventType, matcher)
+}
+
+// extractEventsWithMatcher is the shared implementation for extracting events
+func extractEventsWithMatcher(block types.ScrapedBlock, eventType string, matcher EventMatcher) (events []types.ParsedEvent, err error) {
 	events = parseEvents(block.PreBlock, "", eventType)
 	events = append(events, parseEvents(block.BeginBlock, "", eventType)...)
 
@@ -21,7 +42,7 @@ func ExtractEvents(block types.ScrapedBlock, eventType string) (events []types.P
 		}
 		txHash := fmt.Sprintf("%X", tmhash.Sum(txByte))
 		txRes := block.TxResults[txIndex]
-		events = append(events, parseEvents(txRes.Events, txHash, eventType)...)
+		events = append(events, parseEventsWithMatcher(txRes.Events, txHash, eventType, matcher)...)
 	}
 
 	events = append(events, parseEvents(block.EndBlock, "", eventType)...)
@@ -29,16 +50,17 @@ func ExtractEvents(block types.ScrapedBlock, eventType string) (events []types.P
 	return events, nil
 }
 
-func parseEvents(events []abci.Event, txHash string, eventType string) (parsed []types.ParsedEvent) {
+func parseEventsWithMatcher(events []abci.Event, txHash string, eventType string, matcher EventMatcher) (parsed []types.ParsedEvent) {
 	for _, event := range events {
-		if event.Type != eventType {
-			continue
+		if matcher(event.Type, eventType) {
+			parsed = append(parsed, parseEvent(event, txHash))
 		}
-
-		parsed = append(parsed, parseEvent(event, txHash))
 	}
-
 	return
+}
+
+func parseEvents(events []abci.Event, txHash string, eventType string) (parsed []types.ParsedEvent) {
+	return parseEventsWithMatcher(events, txHash, eventType, ExactMatch)
 }
 
 func parseEvent(event abci.Event, txHash string) types.ParsedEvent {

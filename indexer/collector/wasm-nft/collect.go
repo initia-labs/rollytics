@@ -33,7 +33,7 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 	updateCountMap := make(map[string]interface{})
 	nftTxMap := make(map[string]map[string]map[string]interface{})
 
-	events, err := indexerutil.ExtractEvents(block, "wasm")
+	events, err := indexerutil.ExtractEventsWithMatcher(block, CustomContractEventPrefix, WasmEventMatcher)
 	if err != nil {
 		return err
 	}
@@ -55,7 +55,7 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 		}
 
 		switch action {
-		case "mint":
+		case EventAttrNftMint:
 			tokenId, found := event.AttrMap["token_id"]
 			if !found {
 				continue
@@ -84,7 +84,7 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 				nftTxMap[event.TxHash][collectionAddr] = make(map[string]interface{})
 			}
 			nftTxMap[event.TxHash][collectionAddr][tokenId] = nil
-		case "transfer_nft", "send_nft":
+		case EventAttrNftTransfer, EventAttrNftSend:
 			tokenId, found := event.AttrMap["token_id"]
 			if !found {
 				continue
@@ -107,7 +107,7 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 				nftTxMap[event.TxHash][collectionAddr] = make(map[string]interface{})
 			}
 			nftTxMap[event.TxHash][collectionAddr][tokenId] = nil
-		case "burn":
+		case EventAttrNftBurn:
 			tokenId, found := event.AttrMap["token_id"]
 			if !found {
 				continue
