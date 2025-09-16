@@ -123,8 +123,7 @@ func (p *WasmNFTPatcher) processTxBatch(txs []types.CollectedTx) error {
 		// Process each event
 		for _, event := range events {
 			eventType, _ := event["type"].(string)
-			if !(indexerutil.PrefixMatch(eventType, wasm_nft.CustomContractEventPrefix) ||
-				indexerutil.ExactMatch(eventType, wasm_nft.EventTypeWasm)) {
+			if !indexerutil.PrefixMatch(eventType, wasm_nft.CustomContractEventPrefix) && !indexerutil.ExactMatch(eventType, wasm_nft.EventTypeWasm) {
 				continue
 			}
 
