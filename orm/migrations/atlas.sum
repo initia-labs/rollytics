@@ -1,4 +1,5 @@
-h1:aJTGpdJmPt3KMXYCBaSE0F8ir0D7UivCKqYvA471ATs=
+h1:h4wh56OqnZlzkrSyV+5kLe4pF51c+8y7Bo7JV77vDms=
 20250806084521_migration.sql h1:Qdn42AgebdtLQoc+aUfautynU10/oHxL8wjXusSqQaE=
 20250822034114_migration.sql h1:ybJSC6AlidSpXS+oup6aYHchZFaOEkJU9C8lOnF0S68=
 20250902111542_add_partial_indices.sql h1:Qc5PA4bCNP5tjhZrHFhscgc/Ap/Ee/mnmoPixefeRtw=
+20250916055020_add_nft_composite_indices.sql h1:XwaesC5iQvDxiVyf/VkCK6SGPqtYedQnT7HYcE8gAqk=
