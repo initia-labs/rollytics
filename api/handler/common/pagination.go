@@ -83,6 +83,11 @@ func ParsePagination(c *fiber.Ctx) (*Pagination, error) {
 	key := c.Query("pagination.key")
 	offset := c.QueryInt("pagination.offset", DefaultOffset)
 
+	// Validate offset is not negative
+	if offset < 0 {
+		return nil, errors.New("pagination.offset cannot be negative")
+	}
+
 	pagination := &Pagination{
 		Limit:      limit,
 		Offset:     offset,
