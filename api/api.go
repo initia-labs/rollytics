@@ -3,7 +3,6 @@ package api
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"html/template"
 	"log/slog"
 	"strings"
@@ -245,8 +244,10 @@ func (a *Api) Start() error {
 	docs.SwaggerInfo.Title = "Rollytics API"
 	docs.SwaggerInfo.Description = "Rollytics API"
 
-	a.logger.Info("starting API server", slog.String("addr", fmt.Sprintf("http://localhost:%s", port)))
-	return a.app.Listen(":" + port)
+	listenAddr := ":" + port
+
+	a.logger.Info("starting API server", slog.String("addr", listenAddr))
+	return a.app.Listen(listenAddr)
 }
 
 func (a *Api) Shutdown() error {
