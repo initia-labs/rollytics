@@ -85,9 +85,9 @@ type CollectedNftCollection struct {
 
 type CollectedNft struct {
 	CollectionAddr []byte    `gorm:"type:bytea;primaryKey"`
-	TokenId        string    `gorm:"type:text;primaryKey;index:nft_token_id"`
+	TokenId        string    `gorm:"type:text;primaryKey;index:nft_token_id;index:nft_token_id_height;idx:nft_height_token_id"`
 	Addr           []byte    `gorm:"type:bytea;index:nft_addr,type:hash"` // only used in move // hex address
-	Height         int64     `gorm:"type:bigint;index:nft_height"`
+	Height         int64     `gorm:"type:bigint;index:nft_height;index:nft_token_id_height;index:nft_height_token_id"`
 	Timestamp      time.Time `gorm:"type:timestamptz"`
 	OwnerId        int64     `gorm:"type:bigint;index:nft_owner_id"`
 	Uri            string    `gorm:"type:text"`
