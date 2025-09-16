@@ -25,6 +25,12 @@ func DefaultConfig() Config {
 
 // New creates a new cache middleware with the given configuration
 func New(cfg Config) fiber.Handler {
+
+	// fallback to default
+	if cfg.Expiration <= 0 {
+		cfg.Expiration = time.Second
+	}
+
 	cacheConfig := cache.Config{
 		Expiration: cfg.Expiration,
 	}
@@ -34,6 +40,9 @@ func New(cfg Config) fiber.Handler {
 		cacheConfig.KeyGenerator = func(c *fiber.Ctx) string {
 			// Include method, path and query string in cache key
 			// Method is important to differentiate GET, POST, etc.
+			// Note: This uses the raw query string, so ?page=1&limit=10 and ?limit=10&page=1
+			// will have different cache keys. This is a performance trade-off to avoid
+			// parsing and sorting query parameters on every request.
 			queryString := string(c.Request().URI().QueryString())
 			if queryString != "" {
 				return c.Method() + ":" + c.Path() + "?" + queryString
