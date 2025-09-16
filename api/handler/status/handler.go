@@ -4,8 +4,8 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/cache"
 
+	"github.com/initia-labs/rollytics/api/cache"
 	"github.com/initia-labs/rollytics/api/handler/common"
 )
 
@@ -22,5 +22,5 @@ func NewStatusHandler(base *common.BaseHandler) *StatusHandler {
 func (h *StatusHandler) Register(router fiber.Router) {
 	status := router.Group("/status")
 
-	status.Get("/", cache.New(cache.Config{Expiration: 250 * time.Millisecond}), h.GetStatus)
+	status.Get("/", cache.WithExpiration(250*time.Millisecond), h.GetStatus)
 }
