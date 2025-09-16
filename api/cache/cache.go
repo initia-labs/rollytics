@@ -25,7 +25,6 @@ func DefaultConfig() Config {
 
 // New creates a new cache middleware with the given configuration
 func New(cfg Config) fiber.Handler {
-
 	// fallback to default
 	if cfg.Expiration <= 0 {
 		cfg.Expiration = time.Second
