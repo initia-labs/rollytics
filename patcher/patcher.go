@@ -10,6 +10,7 @@ import (
 
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/orm"
+	"github.com/initia-labs/rollytics/patcher/v1_0_12"
 	"github.com/initia-labs/rollytics/patcher/v1_0_2"
 	"github.com/initia-labs/rollytics/types"
 )
@@ -22,6 +23,7 @@ type PatchHandler struct {
 var patches = []PatchHandler{
 	// Patches must be ordered by version in ascending order (oldest to newest).
 	// Each patch builds on the previous ones, so the order is critical.
+	{"v1.0.12", v1_0_12.Patch},
 	{"v1.0.2", v1_0_2.Patch},
 }
 
