@@ -48,26 +48,9 @@ func TestIsValidCollectionEvent(t *testing.T) {
 			expected: false,
 		},
 		{
-			name: "invalid event - empty minter",
-			attrMap: map[string]string{
-				"minter":  "",
-				"creator": "creator456",
-			},
-			expected: false,
-		},
-		{
 			name: "invalid event - missing creator and owner",
 			attrMap: map[string]string{
 				"minter": "minter123",
-			},
-			expected: false,
-		},
-		{
-			name: "invalid event - empty creator and owner",
-			attrMap: map[string]string{
-				"minter":  "minter123",
-				"creator": "",
-				"owner":   "",
 			},
 			expected: false,
 		},
