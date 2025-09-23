@@ -555,3 +555,81 @@ func TestRunProcessesEvmBackfillToCompletion(t *testing.T) {
 	require.NoError(t, ext.Run(context.Background()))
 	require.NoError(t, mock.ExpectationsWereMet())
 }
+
+func TestRunPropagatesEvmInternalBackfillError(t *testing.T) {
+	logger := newTestLogger()
+	db, mock, err := testutil.NewMockDB(logger)
+	require.NoError(t, err)
+
+	ext := &Extension{
+		logger:             logger,
+		db:                 db,
+		batchSize:          defaultBatchSize,
+		idleDelay:          time.Millisecond,
+		hasEvmInternalData: true,
+		cfg:                &config.Config{},
+	}
+
+	boom := fmt.Errorf("evm internal failure")
+	expectSeqInfoLookup(mock, types.SeqInfoEvmInternalTxEdgeBackfill, 0)
+	mock.ExpectBegin()
+	mock.ExpectQuery(`WITH pending AS \(`).
+		WithArgs(int64(0), defaultBatchSize).
+		WillReturnError(boom)
+	mock.ExpectRollback()
+
+	err = ext.Run(context.Background())
+	require.Error(t, err)
+	require.ErrorIs(t, err, boom)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestRunProcessesEvmInternalBackfillToCompletion(t *testing.T) {
+	logger := newTestLogger()
+	db, mock, err := testutil.NewMockDB(logger)
+	require.NoError(t, err)
+
+	ext := &Extension{
+		logger:             logger,
+		db:                 db,
+		batchSize:          defaultBatchSize,
+		idleDelay:          time.Millisecond,
+		hasEvmInternalData: true,
+		hasTxTables:        false,
+		hasEvmTables:       false,
+		cfg:                &config.Config{},
+	}
+
+	expectSeqInfoLookup(mock, types.SeqInfoEvmInternalTxEdgeBackfill, 0)
+	mock.ExpectBegin()
+	firstStats := sqlmock.NewRows([]string{
+		"pending_count",
+		"max_sequence",
+		"accounts_inserted",
+	}).AddRow(int64(3), int64(77), int64(3))
+	mock.ExpectQuery(`WITH pending AS \(`).
+		WithArgs(int64(0), defaultBatchSize).
+		WillReturnRows(firstStats)
+	mock.ExpectExec(`INSERT INTO "seq_info" \("name","sequence"\) VALUES \(\$1,\$2\) ON CONFLICT \("name"\) DO UPDATE SET`).
+		WithArgs(string(types.SeqInfoEvmInternalTxEdgeBackfill), int64(77)).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
+
+	expectSeqInfoLookup(mock, types.SeqInfoEvmInternalTxEdgeBackfill, 77)
+	mock.ExpectBegin()
+	secondStats := sqlmock.NewRows([]string{
+		"pending_count",
+		"max_sequence",
+		"accounts_inserted",
+	}).AddRow(int64(0), nil, int64(0))
+	mock.ExpectQuery(`WITH pending AS \(`).
+		WithArgs(int64(77), defaultBatchSize).
+		WillReturnRows(secondStats)
+	mock.ExpectExec(`INSERT INTO "seq_info" \("name","sequence"\) VALUES \(\$1,\$2\) ON CONFLICT \("name"\) DO UPDATE SET`).
+		WithArgs(string(types.SeqInfoEvmInternalTxEdgeBackfill), int64(-1)).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
+
+	require.NoError(t, ext.Run(context.Background()))
+	require.NoError(t, mock.ExpectationsWereMet())
+}
