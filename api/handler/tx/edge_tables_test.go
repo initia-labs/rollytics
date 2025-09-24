@@ -5,6 +5,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -48,152 +49,143 @@ func newTxHandlerWithMockDB(tb testing.TB) (*TxHandler, sqlmock.Sqlmock) {
 	return handler, mock
 }
 
-func TestGetTxsByAccountUsesLegacyArrayWhenBackfillIncomplete(t *testing.T) {
-	handler, mock := newTxHandlerWithMockDB(t)
-
-	accountHex := "0x1"
-	accBytes, err := util.AccAddressFromString(accountHex)
-	require.NoError(t, err)
-
-	mock.ExpectBegin()
-	mock.ExpectQuery(`SELECT \* FROM "account_dict" WHERE account IN`).
-		WithArgs(sqlmock.AnyArg()).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "account"}).AddRow(int64(1), accBytes))
-	mock.ExpectQuery(`SELECT \* FROM "seq_info" WHERE name = \$1 ORDER BY`).
-		WithArgs(string(types.SeqInfoTxEdgeBackfill), 1).
-		WillReturnRows(sqlmock.NewRows([]string{"name", "sequence"}).AddRow(string(types.SeqInfoTxEdgeBackfill), int64(5)))
-	mock.ExpectQuery(`SELECT count\(\*\) FROM "tx" WHERE account_ids &&`).
-		WithArgs(sqlmock.AnyArg()).
-		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
-
-	txRows := sqlmock.NewRows([]string{"hash", "height", "sequence", "signer_id", "data"}).
-		AddRow([]byte{0xAA}, int64(100), int64(10), int64(1), legacyTxPayload("0xAA"))
-
-	mock.ExpectQuery(`SELECT \* FROM "tx" WHERE account_ids &&`).
-		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg()).
-		WillReturnRows(txRows)
-	mock.ExpectRollback()
-
-	app := fiber.New()
-	app.Get("/indexer/tx/v1/txs/by_account/:account", handler.GetTxsByAccount)
-
-	req := httptest.NewRequest(fiber.MethodGet, "/indexer/tx/v1/txs/by_account/"+accountHex, nil)
-	resp, err := app.Test(req, -1)
-	require.NoError(t, err)
-	require.Equal(t, fiber.StatusOK, resp.StatusCode)
-
-	require.NoError(t, mock.ExpectationsWereMet())
+type byAccountTestCase struct {
+	name       string
+	route      string
+	handler    func(*TxHandler) fiber.Handler
+	seqInfo    types.SeqInfoName
+	seqValue   int64
+	useEdges   bool
+	table      string
+	payload    func(string) []byte
+	hash       string
+	accountHex string
+	accountID  int64
+	height     int64
+	sequence   int64
 }
 
-func TestGetTxsByAccountUsesEdgeTablesWhenBackfillComplete(t *testing.T) {
-	handler, mock := newTxHandlerWithMockDB(t)
+func TestAccountHandlersByAccount(t *testing.T) {
+	cases := []byAccountTestCase{
+		{
+			name:       "tx legacy path",
+			route:      "/indexer/tx/v1/txs/by_account/:account",
+			handler:    func(th *TxHandler) fiber.Handler { return th.GetTxsByAccount },
+			seqInfo:    types.SeqInfoTxEdgeBackfill,
+			seqValue:   5,
+			useEdges:   false,
+			table:      "tx",
+			payload:    legacyTxPayload,
+			hash:       "0xAA",
+			accountHex: "0x1",
+			accountID:  1,
+			height:     100,
+			sequence:   10,
+		},
+		{
+			name:       "tx edge path",
+			route:      "/indexer/tx/v1/txs/by_account/:account",
+			handler:    func(th *TxHandler) fiber.Handler { return th.GetTxsByAccount },
+			seqInfo:    types.SeqInfoTxEdgeBackfill,
+			seqValue:   -1,
+			useEdges:   true,
+			table:      "tx",
+			payload:    legacyTxPayload,
+			hash:       "0xBB",
+			accountHex: "0x2",
+			accountID:  2,
+			height:     110,
+			sequence:   20,
+		},
+		{
+			name:       "evm tx edge path",
+			route:      "/indexer/tx/v1/evm-txs/by_account/:account",
+			handler:    func(th *TxHandler) fiber.Handler { return th.GetEvmTxsByAccount },
+			seqInfo:    types.SeqInfoEvmTxEdgeBackfill,
+			seqValue:   -1,
+			useEdges:   true,
+			table:      "evm_tx",
+			payload:    evmTxPayload,
+			hash:       "0xCC",
+			accountHex: "0x3",
+			accountID:  3,
+			height:     120,
+			sequence:   30,
+		},
+		{
+			name:       "evm tx legacy path",
+			route:      "/indexer/tx/v1/evm-txs/by_account/:account",
+			handler:    func(th *TxHandler) fiber.Handler { return th.GetEvmTxsByAccount },
+			seqInfo:    types.SeqInfoEvmTxEdgeBackfill,
+			seqValue:   10,
+			useEdges:   false,
+			table:      "evm_tx",
+			payload:    evmTxPayload,
+			hash:       "0xDD",
+			accountHex: "0x4",
+			accountID:  4,
+			height:     130,
+			sequence:   40,
+		},
+	}
 
-	accountHex := "0x2"
-	accBytes, err := util.AccAddressFromString(accountHex)
-	require.NoError(t, err)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			handler, mock := newTxHandlerWithMockDB(t)
+			accBytes, err := util.AccAddressFromString(tc.accountHex)
+			require.NoError(t, err)
 
-	mock.ExpectBegin()
-	mock.ExpectQuery(`SELECT \* FROM "account_dict" WHERE account IN`).
-		WithArgs(sqlmock.AnyArg()).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "account"}).AddRow(int64(2), accBytes))
-	mock.ExpectQuery(`SELECT \* FROM "seq_info" WHERE name = \$1 ORDER BY`).
-		WithArgs(string(types.SeqInfoTxEdgeBackfill), 1).
-		WillReturnRows(sqlmock.NewRows([]string{"name", "sequence"}).AddRow(string(types.SeqInfoTxEdgeBackfill), int64(-1)))
-	mock.ExpectQuery(`SELECT count\(\*\) FROM "tx" WHERE sequence IN \(SELECT`).
-		WithArgs(int64(2)).
-		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+			setupAccountExpectations(t, mock, tc, accBytes)
 
-	txRows := sqlmock.NewRows([]string{"hash", "height", "sequence", "signer_id", "data"}).
-		AddRow([]byte{0xBB}, int64(110), int64(20), int64(2), legacyTxPayload("0xBB"))
+			app := fiber.New()
+			app.Get(tc.route, tc.handler(handler))
 
-	mock.ExpectQuery(`SELECT \* FROM "tx" WHERE sequence IN \(SELECT`).
-		WithArgs(int64(2), sqlmock.AnyArg()).
-		WillReturnRows(txRows)
-	mock.ExpectRollback()
+			req := httptest.NewRequest(fiber.MethodGet, tc.requestPath(), nil)
+			resp, err := app.Test(req, -1)
+			require.NoError(t, err)
+			require.Equal(t, fiber.StatusOK, resp.StatusCode)
 
-	app := fiber.New()
-	app.Get("/indexer/tx/v1/txs/by_account/:account", handler.GetTxsByAccount)
-
-	req := httptest.NewRequest(fiber.MethodGet, "/indexer/tx/v1/txs/by_account/"+accountHex, nil)
-	resp, err := app.Test(req, -1)
-	require.NoError(t, err)
-	require.Equal(t, fiber.StatusOK, resp.StatusCode)
-
-	require.NoError(t, mock.ExpectationsWereMet())
+			require.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
 }
 
-func TestGetEvmTxsByAccountUsesEdgeTablesWhenComplete(t *testing.T) {
-	handler, mock := newTxHandlerWithMockDB(t)
-
-	accountHex := "0x3"
-	accBytes, err := util.AccAddressFromString(accountHex)
-	require.NoError(t, err)
-
-	mock.ExpectBegin()
-	mock.ExpectQuery(`SELECT \* FROM "account_dict" WHERE account IN`).
-		WithArgs(sqlmock.AnyArg()).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "account"}).AddRow(int64(3), accBytes))
-	mock.ExpectQuery(`SELECT \* FROM "seq_info" WHERE name = \$1 ORDER BY`).
-		WithArgs(string(types.SeqInfoEvmTxEdgeBackfill), 1).
-		WillReturnRows(sqlmock.NewRows([]string{"name", "sequence"}).AddRow(string(types.SeqInfoEvmTxEdgeBackfill), int64(-1)))
-	mock.ExpectQuery(`SELECT count\(\*\) FROM "evm_tx" WHERE sequence IN \(SELECT`).
-		WithArgs(int64(3)).
-		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
-
-	txRows := sqlmock.NewRows([]string{"hash", "height", "sequence", "signer_id", "data"}).
-		AddRow([]byte{0xCC}, int64(120), int64(30), int64(3), evmTxPayload("0xCC"))
-
-	mock.ExpectQuery(`SELECT \* FROM "evm_tx" WHERE sequence IN \(SELECT`).
-		WithArgs(int64(3), sqlmock.AnyArg()).
-		WillReturnRows(txRows)
-	mock.ExpectRollback()
-
-	app := fiber.New()
-	app.Get("/indexer/tx/v1/evm-txs/by_account/:account", handler.GetEvmTxsByAccount)
-
-	req := httptest.NewRequest(fiber.MethodGet, "/indexer/tx/v1/evm-txs/by_account/"+accountHex, nil)
-	resp, err := app.Test(req, -1)
-	require.NoError(t, err)
-	require.Equal(t, fiber.StatusOK, resp.StatusCode)
-
-	require.NoError(t, mock.ExpectationsWereMet())
+func (tc byAccountTestCase) requestPath() string {
+	return strings.Replace(tc.route, ":account", tc.accountHex, 1)
 }
 
-func TestGetEvmTxsByAccountUsesLegacyArraysWhenIncomplete(t *testing.T) {
-	handler, mock := newTxHandlerWithMockDB(t)
-
-	accountHex := "0x4"
-	accBytes, err := util.AccAddressFromString(accountHex)
-	require.NoError(t, err)
+func setupAccountExpectations(t *testing.T, mock sqlmock.Sqlmock, tc byAccountTestCase, accBytes []byte) {
+	t.Helper()
 
 	mock.ExpectBegin()
 	mock.ExpectQuery(`SELECT \* FROM "account_dict" WHERE account IN`).
 		WithArgs(sqlmock.AnyArg()).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "account"}).AddRow(int64(4), accBytes))
+		WillReturnRows(sqlmock.NewRows([]string{"id", "account"}).AddRow(tc.accountID, accBytes))
+
 	mock.ExpectQuery(`SELECT \* FROM "seq_info" WHERE name = \$1 ORDER BY`).
-		WithArgs(string(types.SeqInfoEvmTxEdgeBackfill), 1).
-		WillReturnRows(sqlmock.NewRows([]string{"name", "sequence"}).AddRow(string(types.SeqInfoEvmTxEdgeBackfill), int64(10)))
-	mock.ExpectQuery(`SELECT count\(\*\) FROM "evm_tx" WHERE account_ids &&`).
-		WithArgs(sqlmock.AnyArg()).
-		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+		WithArgs(string(tc.seqInfo), 1).
+		WillReturnRows(sqlmock.NewRows([]string{"name", "sequence"}).AddRow(string(tc.seqInfo), tc.seqValue))
 
-	txRows := sqlmock.NewRows([]string{"hash", "height", "sequence", "signer_id", "data"}).
-		AddRow([]byte{0xDD}, int64(130), int64(40), int64(4), evmTxPayload("0xDD"))
+	row := sqlmock.NewRows([]string{"hash", "height", "sequence", "signer_id", "data"}).
+		AddRow([]byte(tc.hash), tc.height, tc.sequence, tc.accountID, tc.payload(tc.hash))
 
-	mock.ExpectQuery(`SELECT \* FROM "evm_tx" WHERE account_ids &&`).
-		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg()).
-		WillReturnRows(txRows)
+	if tc.useEdges {
+		mock.ExpectQuery(`SELECT count\(\*\) FROM "` + tc.table + `" WHERE sequence IN \(SELECT`).
+			WithArgs(tc.accountID).
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+		mock.ExpectQuery(`SELECT \* FROM "`+tc.table+`" WHERE sequence IN \(SELECT`).
+			WithArgs(tc.accountID, sqlmock.AnyArg()).
+			WillReturnRows(row)
+	} else {
+		mock.ExpectQuery(`SELECT count\(\*\) FROM "` + tc.table + `" WHERE account_ids &&`).
+			WithArgs(sqlmock.AnyArg()).
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+		mock.ExpectQuery(`SELECT \* FROM "`+tc.table+`" WHERE account_ids &&`).
+			WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg()).
+			WillReturnRows(row)
+	}
+
 	mock.ExpectRollback()
-
-	app := fiber.New()
-	app.Get("/indexer/tx/v1/evm-txs/by_account/:account", handler.GetEvmTxsByAccount)
-
-	req := httptest.NewRequest(fiber.MethodGet, "/indexer/tx/v1/evm-txs/by_account/"+accountHex, nil)
-	resp, err := app.Test(req, -1)
-	require.NoError(t, err)
-	require.Equal(t, fiber.StatusOK, resp.StatusCode)
-
-	require.NoError(t, mock.ExpectationsWereMet())
 }
 
 func legacyTxPayload(hash string) []byte {

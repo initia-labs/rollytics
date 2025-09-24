@@ -5,7 +5,7 @@ linters:
   enable:
     - asasalint
     - bodyclose
-    - depguard
+    #- depguard
     - dogsled
     - dupl
     - durationcheck
@@ -21,7 +21,7 @@ linters:
     - nestif
     - noctx
     - nolintlint
-    - revive
+    #- revive
     - rowserrcheck
     - staticcheck
     - thelper

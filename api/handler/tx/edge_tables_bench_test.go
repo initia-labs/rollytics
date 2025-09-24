@@ -47,6 +47,7 @@ func BenchmarkGetTxsByAccount(b *testing.B) {
 }
 
 func runTxsByAccountBenchmark(b *testing.B, handler *TxHandler, accountHex string) {
+	b.Helper()
 	app := fiber.New()
 	app.Get("/indexer/tx/v1/txs/by_account/:account", handler.GetTxsByAccount)
 
