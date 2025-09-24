@@ -105,10 +105,33 @@ func (h *TxHandler) GetEvmTxsByAccount(c *fiber.Ctx) error {
 			Pagination: pagination.ToResponse(0),
 		})
 	}
-	query := tx.Model(&types.CollectedEvmTx{}).Where("account_ids && ?", pq.Array(accountIds))
 
-	if isSigner {
-		query = query.Where("signer_id = ?", accountIds[0])
+	// Check if we can use edges for this query
+	useEdges, err := common.IsEdgeBackfillReady(tx, types.SeqInfoEvmTxEdgeBackfill)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	var query *gorm.DB
+	if useEdges {
+		sequenceSubQuery := tx.
+			Model(&types.CollectedEvmTxAccount{}).
+			Select("sequence").
+			Where("account_id = ?", accountIds[0])
+
+		if isSigner {
+			sequenceSubQuery = sequenceSubQuery.Where("signer")
+		}
+
+		query = tx.Model(&types.CollectedEvmTx{}).
+			Where("sequence IN (?)", sequenceSubQuery)
+	} else {
+		query = tx.Model(&types.CollectedEvmTx{}).
+			Where("account_ids && ?", pq.Array(accountIds))
+
+		if isSigner {
+			query = query.Where("signer_id = ?", accountIds[0])
+		}
 	}
 
 	// Use optimized COUNT - always has filters (account_ids + optional signer)
