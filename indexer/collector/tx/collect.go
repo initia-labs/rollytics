@@ -63,8 +63,6 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) er
 		txTypeTags []types.CollectedTxTypeTag
 	)
 
-	var evmTxAccounts []types.CollectedEvmTxAccount
-	isEvm := sub.cfg.GetVmType() == types.EVM
 	for txIndex, txRaw := range block.Txs {
 		txByte, err := base64.StdEncoding.DecodeString(txRaw)
 		if err != nil {
@@ -243,13 +241,6 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) er
 					Sequence:  currentSeq,
 					Signer:    id == signerId,
 				})
-				if isEvm {
-					evmTxAccounts = append(evmTxAccounts, types.CollectedEvmTxAccount{
-						AccountId: id,
-						Sequence:  currentSeq,
-						Signer:    id == signerId,
-					})
-				}
 			}
 		}
 
@@ -289,12 +280,6 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) er
 
 	if len(txAccounts) > 0 {
 		if err := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(txAccounts, batchSize).Error; err != nil {
-			return err
-		}
-	}
-
-	if len(evmTxAccounts) > 0 {
-		if err := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(evmTxAccounts, batchSize).Error; err != nil {
 			return err
 		}
 	}

@@ -41,8 +41,8 @@ CREATE TABLE
 CREATE INDEX "tx_type_tags_sequence_idx" ON "public"."tx_type_tags" ("sequence");
 CREATE INDEX "tx_type_tags_sequence_desc" ON "public"."tx_type_tags" ("type_tag_id", "sequence" DESC);
 
--- Ensure the sequence column on tx is strictly unique to support joins from edge tables
-ALTER TABLE "public"."tx" ADD CONSTRAINT "tx_sequence_unique" UNIQUE ("sequence");
+-- NOTE: This is not strictly necessary, but added for symmetry and potential future-proofing
+-- ALTER TABLE "public"."tx" ADD CONSTRAINT "tx_sequence_unique" UNIQUE ("sequence");
 
 -- Edge tables for evm tx account relationships
 CREATE TABLE
@@ -57,7 +57,8 @@ CREATE INDEX "evm_tx_accounts_sequence_idx" ON "public"."evm_tx_accounts" ("sequ
 CREATE INDEX "evm_tx_accounts_account_sequence_desc" ON "public"."evm_tx_accounts" ("account_id", "sequence" DESC);
 CREATE INDEX "evm_tx_accounts_signer_sequence_desc" ON "public"."evm_tx_accounts" ("account_id", "signer", "sequence" DESC);
 
-ALTER TABLE "public"."evm_tx" ADD CONSTRAINT "evm_tx_sequence_unique" UNIQUE ("sequence");
+-- NOTE: This is not strictly necessary, but added for symmetry and potential future-proofing
+-- ALTER TABLE "public"."evm_tx" ADD CONSTRAINT "evm_tx_sequence_unique" UNIQUE ("sequence");
 
 CREATE TABLE
   "public"."evm_internal_tx_accounts" (
@@ -69,4 +70,5 @@ CREATE TABLE
 CREATE INDEX "evm_internal_tx_accounts_sequence_idx" ON "public"."evm_internal_tx_accounts" ("sequence");
 CREATE INDEX "evm_internal_tx_accounts_account_sequence_desc" ON "public"."evm_internal_tx_accounts" ("account_id", "sequence" DESC);
 
-ALTER TABLE "public"."evm_internal_tx" ADD CONSTRAINT "evm_internal_tx_sequence_unique" UNIQUE ("sequence");
+-- NOTE: This is not strictly necessary, but added for symmetry and potential future-proofing
+-- ALTER TABLE "public"."evm_internal_tx" ADD CONSTRAINT "evm_internal_tx_sequence_unique" UNIQUE ("sequence");
