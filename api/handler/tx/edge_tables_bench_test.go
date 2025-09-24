@@ -7,12 +7,13 @@ import (
 	"testing"
 	"time"
 
+	"log/slog"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
-	"log/slog"
 
 	"github.com/initia-labs/rollytics/api/handler/common"
 	"github.com/initia-labs/rollytics/config"

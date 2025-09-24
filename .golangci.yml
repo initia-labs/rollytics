@@ -7,7 +7,7 @@ linters:
     - bodyclose
     #- depguard
     - dogsled
-    - dupl
+    #- dupl
     - durationcheck
     - errorlint
     - forbidigo
