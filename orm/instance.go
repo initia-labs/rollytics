@@ -74,7 +74,7 @@ func (d Database) Migrate() error {
 	if err != nil {
 		return err
 	}
-	defer workDir.Close()
+	defer func() { _ = workDir.Close() }()
 
 	client, err := atlasexec.NewClient(workDir.Path(), "atlas")
 	if err != nil {

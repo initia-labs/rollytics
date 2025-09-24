@@ -57,7 +57,7 @@ You can configure database, chain, logging, and server options via environment v
 			if err != nil {
 				return err
 			}
-			defer db.Close()
+			defer func() { _ = db.Close() }()
 
 			// Start DB stats collection
 			metrics.StartDBStatsUpdater(db, logger)

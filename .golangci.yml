@@ -23,6 +23,7 @@ linters:
     - nolintlint
     #- revive
     - rowserrcheck
+    - errcheck
     - staticcheck
     - thelper
     - tparallel
