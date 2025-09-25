@@ -2,6 +2,7 @@ package wasm_nft
 
 import (
 	"errors"
+	"fmt"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -296,19 +297,18 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 			continue
 		}
 
-		if err := tx.Model(&types.CollectedTx{}).
-			Where("hash = ?", txHashBytes).
-			Update("nft_ids", pq.Array(nftIds)).Error; err != nil {
-			return err
+		var seqRow struct{ Sequence int64 }
+		res := tx.Model(&types.CollectedTx{}).
+			Where("hash = ? AND height = ?", txHashBytes, block.Height).
+			Clauses(clause.Returning{Columns: []clause.Column{{Name: "sequence"}}}).
+			Updates(map[string]any{"nft_ids": pq.Array(nftIds)})
+		if res.Error != nil {
+			return res.Error
 		}
-
-		var seqRow struct {
-			Sequence int64
+		if res.RowsAffected == 0 {
+			return fmt.Errorf("collected tx not found for hash %x", txHashBytes)
 		}
-		if err := tx.Model(&types.CollectedTx{}).
-			Select("sequence").
-			Where("hash = ?", txHashBytes).
-			Take(&seqRow).Error; err != nil {
+		if err := res.Scan(&seqRow).Error; err != nil {
 			return err
 		}
 
