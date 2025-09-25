@@ -92,7 +92,7 @@ func processInternalCall(
 	internalTx := types.CollectedEvmInternalTx{
 		Height:      tx.Height,
 		HashId:      tx.HashId,
-		Sequence:    int64(seqInfo.Sequence),
+		Sequence:    seqInfo.Sequence,
 		Index:       tx.Index,
 		ParentIndex: tx.ParentIndex,
 		Type:        call.Type,
@@ -117,7 +117,7 @@ func processInternalCall(
 			seen[id] = struct{}{}
 			*edges = append(*edges, types.CollectedEvmInternalTxAccount{
 				AccountId: id,
-				Sequence:  int64(seqInfo.Sequence),
+				Sequence:  seqInfo.Sequence,
 			})
 		}
 	}
