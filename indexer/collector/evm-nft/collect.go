@@ -307,7 +307,7 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB
 		}
 
 		if err := tx.Model(&types.CollectedTx{}).
-			Where("hash = ?", txHashBytes).
+			Where("hash = ? AND height = ?", txHashBytes, block.Height).
 			Update("nft_ids", pq.Array(nftIds)).Error; err != nil {
 			return err
 		}
@@ -317,7 +317,7 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB
 		}
 		if err := tx.Model(&types.CollectedTx{}).
 			Select("sequence").
-			Where("hash = ?", txHashBytes).
+			Where("hash = ? AND height = ?", txHashBytes, block.Height).
 			Take(&seqRow).Error; err != nil {
 			return err
 		}
