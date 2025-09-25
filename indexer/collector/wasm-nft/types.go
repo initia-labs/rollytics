@@ -14,3 +14,9 @@ type QueryContractInfoResponse struct {
 		Name string `json:"name"`
 	} `json:"data"`
 }
+
+type QueryWasmContractResponse struct {
+	ContractInfo struct {
+		Creator string `json:"creator"`
+	} `json:"contract_info"`
+}
