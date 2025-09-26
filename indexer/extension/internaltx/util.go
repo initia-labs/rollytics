@@ -19,6 +19,7 @@ func processInternalCall(
 	tx *InternalTxInfo,
 	call *InternalTransaction,
 	seqInfo *types.CollectedSeqInfo,
+	edges *[]types.CollectedEvmInternalTxAccount,
 ) ([]types.CollectedEvmInternalTx, error) {
 	evmInternalTx := EvmInternalTx{
 		Type:    call.Type,
@@ -91,7 +92,7 @@ func processInternalCall(
 	internalTx := types.CollectedEvmInternalTx{
 		Height:      tx.Height,
 		HashId:      tx.HashId,
-		Sequence:    int64(seqInfo.Sequence),
+		Sequence:    seqInfo.Sequence,
 		Index:       tx.Index,
 		ParentIndex: tx.ParentIndex,
 		Type:        call.Type,
@@ -107,6 +108,20 @@ func processInternalCall(
 
 	results := []types.CollectedEvmInternalTx{internalTx}
 
+	if len(accIds) > 0 {
+		seen := make(map[int64]struct{}, len(accIds))
+		for _, id := range accIds {
+			if _, ok := seen[id]; ok {
+				continue
+			}
+			seen[id] = struct{}{}
+			*edges = append(*edges, types.CollectedEvmInternalTxAccount{
+				AccountId: id,
+				Sequence:  seqInfo.Sequence,
+			})
+		}
+	}
+
 	// Process nested calls recursively
 	nextIndex := tx.Index + 1
 	for _, nestedCall := range call.Calls {
@@ -116,7 +131,7 @@ func processInternalCall(
 			Index:       nextIndex,
 			ParentIndex: tx.Index,
 		}
-		nestedResults, err := processInternalCall(db, nestedTxInfo, &nestedCall, seqInfo)
+		nestedResults, err := processInternalCall(db, nestedTxInfo, &nestedCall, seqInfo, edges)
 		if err != nil {
 			return nil, err
 		}

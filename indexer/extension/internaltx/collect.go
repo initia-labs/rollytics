@@ -129,7 +129,10 @@ func (i *InternalTxExtension) CollectInternalTxs(db *orm.Database, internalTx *I
 			return fmt.Errorf("failed to create hash dictionary entries: %w", err)
 		}
 
-		var allInternalTxs []types.CollectedEvmInternalTx
+		var (
+			allInternalTxs []types.CollectedEvmInternalTx
+			allEdges       []types.CollectedEvmInternalTxAccount
+		)
 		for _, trace := range internalTx.CallTrace.Result {
 			if trace.Error != "" {
 				i.logger.Info("skip indexing in failed transaction",
@@ -164,7 +167,7 @@ func (i *InternalTxExtension) CollectInternalTxs(db *orm.Database, internalTx *I
 				ParentIndex: -1, // Top-level has no parent
 			}
 
-			txResults, err := processInternalCall(tx, txInfo, &topLevelCall, &seqInfo)
+			txResults, err := processInternalCall(tx, txInfo, &topLevelCall, &seqInfo, &allEdges)
 			if err != nil {
 				return err
 			}
@@ -174,6 +177,13 @@ func (i *InternalTxExtension) CollectInternalTxs(db *orm.Database, internalTx *I
 		if err := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(allInternalTxs, batchSize).Error; err != nil {
 			i.logger.Error("failed to create internal txs batch", slog.Int64("height", internalTx.Height), slog.Any("error", err))
 			return err
+		}
+
+		if len(allEdges) > 0 {
+			if err := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(allEdges, batchSize).Error; err != nil {
+				i.logger.Error("failed to create internal tx account edges", slog.Int64("height", internalTx.Height), slog.Any("error", err))
+				return err
+			}
 		}
 
 		// Update the sequence info

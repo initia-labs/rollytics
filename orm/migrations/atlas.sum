@@ -1,5 +1,6 @@
-h1:33V5nEpf1OmluHR7KfcyaMv4O/DZe9tLGaAkHDMniEE=
+h1:XmBNRlitPfLVH09DCJTa+SYWy/TrKr8MmhNUaA1yHX0=
 20250806084521_migration.sql h1:Qdn42AgebdtLQoc+aUfautynU10/oHxL8wjXusSqQaE=
 20250822034114_migration.sql h1:ybJSC6AlidSpXS+oup6aYHchZFaOEkJU9C8lOnF0S68=
 20250902111542_add_partial_indices.sql h1:Qc5PA4bCNP5tjhZrHFhscgc/Ap/Ee/mnmoPixefeRtw=
 20250916112051_add_nft_indices.sql h1:CDtNH9rxcFQpR9uRQD1AdFxoTxWiYXsCTCgoLJ4E1c0=
+20250922153000_add_tx_edge_tables.sql h1:FYpcfM5R7+3B7ImYApXdc345dWUEqb2leRThaVF1SK0=

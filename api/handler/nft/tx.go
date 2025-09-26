@@ -56,6 +56,12 @@ func (h *NftHandler) GetNftTxs(c *fiber.Ctx) error {
 
 	query := h.GetDatabase().Model(&types.CollectedTx{}).Order(pagination.OrderBy("sequence"))
 
+	// Check if we can use edges for this query
+	edgeStatus, err := common.GetEdgeBackfillStatus(h.GetDatabase().DB, types.SeqInfoTxEdgeBackfill)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
 	switch h.GetVmType() {
 	case types.MoveVM:
 		accAddr := sdk.AccAddress(nft.Addr)
@@ -69,7 +75,16 @@ func (h *NftHandler) GetNftTxs(c *fiber.Ctx) error {
 				Pagination: pagination.ToResponse(0),
 			})
 		}
-		query = query.Where("account_ids && ?", pq.Array(accountIds))
+
+		if edgeStatus.Completed {
+			sequenceSubQuery := h.GetDatabase().
+				Model(&types.CollectedTxAccount{}).
+				Select("sequence").
+				Where("account_id = ?", accountIds[0])
+			query = query.Where("sequence IN (?)", sequenceSubQuery)
+		} else {
+			query = query.Where("account_ids && ?", pq.Array(accountIds))
+		}
 
 	case types.WasmVM, types.EVM:
 		nftKey := util.NftKey{
@@ -86,7 +101,16 @@ func (h *NftHandler) GetNftTxs(c *fiber.Ctx) error {
 				Pagination: pagination.ToResponse(0),
 			})
 		}
-		query = query.Where("nft_ids && ?", pq.Array(nftIds))
+
+		if edgeStatus.Completed {
+			sequenceSubQuery := h.GetDatabase().
+				Model(&types.CollectedTxNft{}).
+				Select("sequence").
+				Where("nft_id IN ?", nftIds)
+			query = query.Where("sequence IN (?)", sequenceSubQuery)
+		} else {
+			query = query.Where("nft_ids && ?", pq.Array(nftIds))
+		}
 	}
 
 	// Use optimized COUNT - always has filters (account_ids or nft_ids)
