@@ -287,6 +287,9 @@ func TestIndexer_CollectInternalTxs(t *testing.T) {
 		).
 		WillReturnResult(sqlmock.NewResult(1, 4))
 
+	mock.ExpectExec(`INSERT INTO "evm_internal_tx_accounts"`).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
 	mock.ExpectExec(`INSERT INTO "seq_info" \("name","sequence"\) VALUES \(\$1,\$2\) ON CONFLICT \("name"\) DO UPDATE SET "sequence"="excluded"\."sequence"`).
 		WithArgs("evm_internal_tx", int64(4)).
 		WillReturnResult(sqlmock.NewResult(1, 1))
@@ -352,10 +355,13 @@ func TestIndexer_CollectInternalTxs_EmptyInternalTxs(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).
 			AddRow(int64(10)). // ID for fromAddr
 			AddRow(int64(11))) // ID for toAddr
-	// Step 2 & 3: GetOrCreateAccountIds for From and To addresses are now cached, so no DB queries
+		// Step 2 & 3: GetOrCreateAccountIds for From and To addresses are now cached, so no DB queries
 
 	mock.ExpectExec(`INSERT INTO "evm_internal_tx"`).
 		WillReturnResult(sqlmock.NewResult(1, 1))
+
+	mock.ExpectExec(`INSERT INTO "evm_internal_tx_accounts"`).
+		WillReturnResult(sqlmock.NewResult(0, 1))
 
 	mock.ExpectExec(`INSERT INTO "seq_info" \("name","sequence"\) VALUES \(\$1,\$2\) ON CONFLICT \("name"\) DO UPDATE SET "sequence"="excluded"\."sequence"`).
 		WithArgs("evm_internal_tx", int64(1)).

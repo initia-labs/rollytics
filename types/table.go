@@ -64,6 +64,38 @@ type CollectedTx struct {
 	TypeTagIds pq.Int64Array   `gorm:"type:bigint[];index:tx_type_tag_ids,type:gin"`
 }
 
+type CollectedTxAccount struct {
+	AccountId int64 `gorm:"type:bigint;primaryKey"`
+	Sequence  int64 `gorm:"type:bigint;primaryKey"`
+	Signer    bool  `gorm:"type:boolean"`
+}
+
+type CollectedTxNft struct {
+	NftId    int64 `gorm:"type:bigint;primaryKey"`
+	Sequence int64 `gorm:"type:bigint;primaryKey"`
+}
+
+type CollectedTxMsgType struct {
+	MsgTypeId int64 `gorm:"type:bigint;primaryKey"`
+	Sequence  int64 `gorm:"type:bigint;primaryKey"`
+}
+
+type CollectedTxTypeTag struct {
+	TypeTagId int64 `gorm:"type:bigint;primaryKey"`
+	Sequence  int64 `gorm:"type:bigint;primaryKey"`
+}
+
+type CollectedEvmTxAccount struct {
+	AccountId int64 `gorm:"type:bigint;primaryKey"`
+	Sequence  int64 `gorm:"type:bigint;primaryKey"`
+	Signer    bool  `gorm:"type:boolean"`
+}
+
+type CollectedEvmInternalTxAccount struct {
+	AccountId int64 `gorm:"type:bigint;primaryKey"`
+	Sequence  int64 `gorm:"type:bigint;primaryKey"`
+}
+
 type CollectedEvmTx struct {
 	Hash       []byte          `gorm:"type:bytea;primaryKey"`
 	Height     int64           `gorm:"type:bigint;primaryKey;autoIncrement:false;index:evm_tx_height"`
@@ -157,6 +189,30 @@ func (CollectedBlock) TableName() string {
 
 func (CollectedTx) TableName() string {
 	return "tx"
+}
+
+func (CollectedTxAccount) TableName() string {
+	return "tx_accounts"
+}
+
+func (CollectedTxNft) TableName() string {
+	return "tx_nfts"
+}
+
+func (CollectedTxMsgType) TableName() string {
+	return "tx_msg_types"
+}
+
+func (CollectedTxTypeTag) TableName() string {
+	return "tx_type_tags"
+}
+
+func (CollectedEvmTxAccount) TableName() string {
+	return "evm_tx_accounts"
+}
+
+func (CollectedEvmInternalTxAccount) TableName() string {
+	return "evm_internal_tx_accounts"
 }
 
 func (CollectedEvmTx) TableName() string {

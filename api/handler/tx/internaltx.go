@@ -106,7 +106,32 @@ func (h *TxHandler) GetEvmInternalTxsByAccount(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
-	query := tx.Model(&types.CollectedEvmInternalTx{}).Where("account_ids && ?", pq.Array(accountIds))
+	if len(accountIds) == 0 {
+		return c.JSON(EvmInternalTxsResponse{
+			Txs:        []EvmInternalTxResponse{},
+			Pagination: pagination.ToResponse(0),
+		})
+	}
+
+	// Check if we can use edges for this query
+	useEdges, err := common.IsEdgeBackfillReady(tx, types.SeqInfoEvmInternalTxEdgeBackfill)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	var query *gorm.DB
+	if useEdges {
+		sequenceSubQuery := tx.
+			Model(&types.CollectedEvmInternalTxAccount{}).
+			Select("sequence").
+			Where("account_id = ?", accountIds[0])
+
+		query = tx.Model(&types.CollectedEvmInternalTx{}).
+			Where("sequence IN (?)", sequenceSubQuery)
+	} else {
+		query = tx.Model(&types.CollectedEvmInternalTx{}).
+			Where("account_ids && ?", pq.Array(accountIds))
+	}
 
 	// Use optimized COUNT - always has filters (account_ids)
 	var strategy types.CollectedEvmInternalTx

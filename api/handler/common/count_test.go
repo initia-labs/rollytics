@@ -641,7 +641,7 @@ func BenchmarkFieldValidation(b *testing.B) {
 
 // Benchmark tests for optimization strategies
 //
-//nolint:dupl
+
 func BenchmarkGetOptimizedCount_WithFilters(b *testing.B) {
 	db, mock, cleanup := setupMockDB(&testing.T{})
 	defer cleanup()
@@ -661,7 +661,6 @@ func BenchmarkGetOptimizedCount_WithFilters(b *testing.B) {
 	}
 }
 
-//nolint:dupl
 func BenchmarkGetOptimizedCount_WithoutFilters(b *testing.B) {
 	db, mock, cleanup := setupMockDB(&testing.T{})
 	defer cleanup()

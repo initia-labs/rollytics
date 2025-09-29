@@ -126,7 +126,34 @@ func (h *TxHandler) GetTxsByAccount(c *fiber.Ctx) error {
 			Pagination: pagination.ToResponse(0),
 		})
 	}
-	query := tx.Model(&types.CollectedTx{}).Where("account_ids && ?", pq.Array(accountIds))
+
+	// Check if we can use edges for this query
+	useEdges, err := common.IsEdgeBackfillReady(tx, types.SeqInfoTxEdgeBackfill)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	var query *gorm.DB
+	if useEdges {
+		sequenceSubQuery := tx.
+			Model(&types.CollectedTxAccount{}).
+			Select("sequence").
+			Where("account_id = ?", accountIds[0])
+
+		if isSigner {
+			sequenceSubQuery = sequenceSubQuery.Where("signer")
+		}
+
+		query = tx.Model(&types.CollectedTx{}).
+			Where("sequence IN (?)", sequenceSubQuery)
+	} else {
+		query = tx.Model(&types.CollectedTx{}).
+			Where("account_ids && ?", pq.Array(accountIds))
+
+		if isSigner {
+			query = query.Where("signer_id = ?", accountIds[0])
+		}
+	}
 
 	if len(msgs) > 0 {
 		msgTypeIds, err := h.GetMsgTypeIds(msgs)
@@ -134,10 +161,6 @@ func (h *TxHandler) GetTxsByAccount(c *fiber.Ctx) error {
 			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 		}
 		query = query.Where("msg_type_ids && ?", pq.Array(msgTypeIds))
-	}
-
-	if isSigner {
-		query = query.Where("signer_id = ?", accountIds[0])
 	}
 
 	// Use optimized COUNT - always has filters (account_ids)

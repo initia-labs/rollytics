@@ -273,6 +273,8 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB
 		}
 	}
 
+	var txNftEdges []types.CollectedTxNft
+
 	for txHash, collectionMap := range nftTxMap {
 		if txHash == "" {
 			continue
@@ -305,8 +307,36 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB
 		}
 
 		if err := tx.Model(&types.CollectedTx{}).
-			Where("hash = ?", txHashBytes).
+			Where("hash = ? AND height = ?", txHashBytes, block.Height).
 			Update("nft_ids", pq.Array(nftIds)).Error; err != nil {
+			return err
+		}
+
+		var seqRow struct {
+			Sequence int64
+		}
+		if err := tx.Model(&types.CollectedTx{}).
+			Select("sequence").
+			Where("hash = ? AND height = ?", txHashBytes, block.Height).
+			Take(&seqRow).Error; err != nil {
+			return err
+		}
+
+		nftSeen := make(map[int64]struct{}, len(nftIds))
+		for _, id := range nftIds {
+			if _, ok := nftSeen[id]; ok {
+				continue
+			}
+			nftSeen[id] = struct{}{}
+			txNftEdges = append(txNftEdges, types.CollectedTxNft{
+				NftId:    id,
+				Sequence: seqRow.Sequence,
+			})
+		}
+	}
+
+	if len(txNftEdges) > 0 {
+		if err := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(txNftEdges, batchSize).Error; err != nil {
 			return err
 		}
 	}

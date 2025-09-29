@@ -56,7 +56,13 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) er
 		}
 	}
 
-	var ctxs []types.CollectedTx
+	var (
+		ctxs       []types.CollectedTx
+		txAccounts []types.CollectedTxAccount
+		txMsgTypes []types.CollectedTxMsgType
+		txTypeTags []types.CollectedTxTypeTag
+	)
+
 	for txIndex, txRaw := range block.Txs {
 		txByte, err := base64.StdEncoding.DecodeString(txRaw)
 		if err != nil {
@@ -211,21 +217,83 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) er
 		}
 
 		seqInfo.Sequence++
+		currentSeq := seqInfo.Sequence
 		ctxs = append(ctxs, types.CollectedTx{
 			Hash:       hashBytes,
 			Height:     height,
-			Sequence:   seqInfo.Sequence,
+			Sequence:   currentSeq,
 			SignerId:   signerId,
 			Data:       json.RawMessage(txResJSON),
 			MsgTypeIds: msgTypeIds,
 			TypeTagIds: typeTagIds,
 			AccountIds: accountIds,
 		})
+
+		if len(accountIds) > 0 {
+			accountSeen := make(map[int64]struct{}, len(accountIds))
+			for _, id := range accountIds {
+				if _, ok := accountSeen[id]; ok {
+					continue
+				}
+				accountSeen[id] = struct{}{}
+				txAccounts = append(txAccounts, types.CollectedTxAccount{
+					AccountId: id,
+					Sequence:  currentSeq,
+					Signer:    id == signerId,
+				})
+			}
+		}
+
+		if len(msgTypeIds) > 0 {
+			msgSeen := make(map[int64]struct{}, len(msgTypeIds))
+			for _, id := range msgTypeIds {
+				if _, ok := msgSeen[id]; ok {
+					continue
+				}
+				msgSeen[id] = struct{}{}
+				txMsgTypes = append(txMsgTypes, types.CollectedTxMsgType{
+					MsgTypeId: id,
+					Sequence:  currentSeq,
+				})
+			}
+		}
+
+		if len(typeTagIds) > 0 {
+			tagSeen := make(map[int64]struct{}, len(typeTagIds))
+			for _, id := range typeTagIds {
+				if _, ok := tagSeen[id]; ok {
+					continue
+				}
+				tagSeen[id] = struct{}{}
+				txTypeTags = append(txTypeTags, types.CollectedTxTypeTag{
+					TypeTagId: id,
+					Sequence:  currentSeq,
+				})
+			}
+		}
 	}
 
 	// insert txs
 	if err := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(ctxs, batchSize).Error; err != nil {
 		return err
+	}
+
+	if len(txAccounts) > 0 {
+		if err := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(txAccounts, batchSize).Error; err != nil {
+			return err
+		}
+	}
+
+	if len(txMsgTypes) > 0 {
+		if err := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(txMsgTypes, batchSize).Error; err != nil {
+			return err
+		}
+	}
+
+	if len(txTypeTags) > 0 {
+		if err := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(txTypeTags, batchSize).Error; err != nil {
+			return err
+		}
 	}
 
 	// update seq info
@@ -250,7 +318,10 @@ func (sub *TxSubmodule) collectEvm(block indexertypes.ScrapedBlock, evmTxs []typ
 		return err
 	}
 
-	var cetxs []types.CollectedEvmTx
+	var (
+		cetxs         []types.CollectedEvmTx
+		evmTxAccounts []types.CollectedEvmTxAccount
+	)
 	for _, evmTx := range evmTxs {
 		txJSON, err := json.Marshal(evmTx)
 		if err != nil {
@@ -300,19 +371,41 @@ func (sub *TxSubmodule) collectEvm(block indexertypes.ScrapedBlock, evmTxs []typ
 		}
 
 		seqInfo.Sequence++
+		currentSeq := seqInfo.Sequence
 		cetxs = append(cetxs, types.CollectedEvmTx{
 			Hash:       hashBytes,
 			Height:     height,
-			Sequence:   seqInfo.Sequence,
+			Sequence:   currentSeq,
 			SignerId:   signerId,
 			Data:       json.RawMessage(txJSON),
 			AccountIds: accountIds,
 		})
+
+		if len(accountIds) > 0 {
+			accountSeen := make(map[int64]struct{}, len(accountIds))
+			for _, id := range accountIds {
+				if _, ok := accountSeen[id]; ok {
+					continue
+				}
+				accountSeen[id] = struct{}{}
+				evmTxAccounts = append(evmTxAccounts, types.CollectedEvmTxAccount{
+					AccountId: id,
+					Sequence:  currentSeq,
+					Signer:    id == signerId,
+				})
+			}
+		}
 	}
 
 	// insert evm txs
 	if err := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(cetxs, batchSize).Error; err != nil {
 		return err
+	}
+
+	if len(evmTxAccounts) > 0 {
+		if err := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(evmTxAccounts, batchSize).Error; err != nil {
+			return err
+		}
 	}
 
 	// update seq info
