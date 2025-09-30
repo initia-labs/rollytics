@@ -113,18 +113,25 @@ func (h *TxHandler) GetEvmTxsByAccount(c *fiber.Ctx) error {
 	}
 
 	var query *gorm.DB
+	var total int64
 	if useEdges {
-		sequenceSubQuery := tx.
+		sequenceQuery := tx.
 			Model(&types.CollectedEvmTxAccount{}).
 			Select("sequence").
 			Where("account_id = ?", accountIds[0])
 
 		if isSigner {
-			sequenceSubQuery = sequenceSubQuery.Where("signer")
+			sequenceQuery = sequenceQuery.Where("signer")
+		}
+
+		sequenceQuery = sequenceQuery.Distinct("sequence")
+		countQuery := sequenceQuery.Session(&gorm.Session{})
+		if err := countQuery.Count(&total).Error; err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 		}
 
 		query = tx.Model(&types.CollectedEvmTx{}).
-			Where("sequence IN (?)", sequenceSubQuery)
+			Where("sequence IN (?)", sequenceQuery)
 	} else {
 		query = tx.Model(&types.CollectedEvmTx{}).
 			Where("account_ids && ?", pq.Array(accountIds))
@@ -132,15 +139,13 @@ func (h *TxHandler) GetEvmTxsByAccount(c *fiber.Ctx) error {
 		if isSigner {
 			query = query.Where("signer_id = ?", accountIds[0])
 		}
-	}
 
-	// Use optimized COUNT - always has filters (account_ids + optional signer)
-	var strategy types.CollectedEvmTx
-	hasFilters := true // always has account_ids filter
-	var total int64
-	total, err = common.GetOptimizedCount(query, strategy, hasFilters)
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		var strategy types.CollectedEvmTx
+		hasFilters := true // always has account_ids filter
+		total, err = common.GetOptimizedCount(query, strategy, hasFilters)
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
 	}
 
 	var txs []types.CollectedEvmTx

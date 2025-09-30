@@ -120,26 +120,31 @@ func (h *TxHandler) GetEvmInternalTxsByAccount(c *fiber.Ctx) error {
 	}
 
 	var query *gorm.DB
+	var total int64
 	if useEdges {
-		sequenceSubQuery := tx.
+		sequenceQuery := tx.
 			Model(&types.CollectedEvmInternalTxAccount{}).
 			Select("sequence").
 			Where("account_id = ?", accountIds[0])
 
+		sequenceQuery = sequenceQuery.Distinct("sequence")
+		countQuery := sequenceQuery.Session(&gorm.Session{})
+		if err := countQuery.Count(&total).Error; err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
+
 		query = tx.Model(&types.CollectedEvmInternalTx{}).
-			Where("sequence IN (?)", sequenceSubQuery)
+			Where("sequence IN (?)", sequenceQuery)
 	} else {
 		query = tx.Model(&types.CollectedEvmInternalTx{}).
 			Where("account_ids && ?", pq.Array(accountIds))
-	}
 
-	// Use optimized COUNT - always has filters (account_ids)
-	var strategy types.CollectedEvmInternalTx
-	hasFilters := true // always has account_ids filter
-	var total int64
-	total, err = common.GetOptimizedCount(query, strategy, hasFilters)
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		var strategy types.CollectedEvmInternalTx
+		hasFilters := true // always has account_ids filter
+		total, err = common.GetOptimizedCount(query, strategy, hasFilters)
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
 	}
 
 	var txs []types.CollectedEvmInternalTx
