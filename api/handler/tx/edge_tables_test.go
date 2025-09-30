@@ -2,6 +2,7 @@ package tx
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http/httptest"
@@ -179,7 +180,50 @@ func TestGetTxs_EdgePathWithMsgFilter(t *testing.T) {
 		WithArgs(sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 	mock.ExpectQuery(`SELECT \* FROM "tx" WHERE sequence IN \(SELECT DISTINCT`).
-		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg()).
+		WithArgs(sqlmock.AnyArg(), int64(common.DefaultLimit)).
+		WillReturnRows(row)
+	mock.ExpectRollback()
+
+	app := fiber.New()
+	app.Get("/indexer/tx/v1/txs", handler.GetTxs)
+
+	req := httptest.NewRequest(fiber.MethodGet, route, nil)
+	resp, err := app.Test(req, -1)
+	require.NoError(t, err)
+	require.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestGetTxs_EdgePathWithMsgFilter_CustomLimit(t *testing.T) {
+	handler, mock := newTxHandlerWithMockDB(t)
+
+	const (
+		limit       = 25
+		msgType     = "cosmos.bank.v1beta1.MsgCustom"
+		msgTypeID   = int64(43)
+		expectedSeq = int64(99)
+		height      = int64(321)
+		hash        = "0xEDGE_CUSTOM"
+	)
+
+	route := fmt.Sprintf("/indexer/tx/v1/txs?msgs=%s&pagination.limit=%d", msgType, limit)
+
+	row := sqlmock.NewRows([]string{"hash", "height", "sequence", "signer_id", "data"}).
+		AddRow([]byte(hash), height, expectedSeq, int64(0), legacyTxPayload(hash))
+
+	mock.ExpectBegin()
+	mock.ExpectQuery(`SELECT \* FROM "msg_type_dict" WHERE msg_type IN`).
+		WithArgs(sqlmock.AnyArg()).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "msg_type"}).AddRow(msgTypeID, msgType))
+	mock.ExpectQuery(`SELECT \* FROM "seq_info" WHERE name = \$1 ORDER BY`).
+		WithArgs(string(types.SeqInfoTxEdgeBackfill), 1).
+		WillReturnRows(sqlmock.NewRows([]string{"name", "sequence"}).AddRow(string(types.SeqInfoTxEdgeBackfill), int64(-1)))
+	mock.ExpectQuery(`SELECT COUNT\(DISTINCT\("sequence"\)\) FROM "` + types.CollectedTxMsgType{}.TableName() + `" WHERE msg_type_id = ANY`).
+		WithArgs(sqlmock.AnyArg()).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+	mock.ExpectQuery(`SELECT \* FROM "tx" WHERE sequence IN \(SELECT DISTINCT`).
+		WithArgs(sqlmock.AnyArg(), int64(limit)).
 		WillReturnRows(row)
 	mock.ExpectRollback()
 
@@ -221,7 +265,51 @@ func TestGetTxsByHeight_EdgePathWithMsgFilter(t *testing.T) {
 		WithArgs(sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 	mock.ExpectQuery(`SELECT \* FROM "tx" WHERE height = \$1 AND sequence IN \(SELECT DISTINCT`).
-		WithArgs(height, sqlmock.AnyArg(), sqlmock.AnyArg()).
+		WithArgs(height, sqlmock.AnyArg(), int64(common.DefaultLimit)).
+		WillReturnRows(row)
+	mock.ExpectRollback()
+
+	app := fiber.New()
+	app.Get("/indexer/tx/v1/txs/by_height/:height", handler.GetTxsByHeight)
+
+	req := httptest.NewRequest(fiber.MethodGet, route, nil)
+	resp, err := app.Test(req, -1)
+	require.NoError(t, err)
+	require.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestGetTxsByHeight_EdgePathWithMsgFilter_CustomLimit(t *testing.T) {
+	handler, mock := newTxHandlerWithMockDB(t)
+
+	const (
+		heightParam = "456"
+		limit       = 30
+		msgType     = "cosmos.gov.v1.MsgTally"
+		msgTypeID   = int64(88)
+		height      = int64(456)
+		sequence    = int64(77)
+		hash        = "0xHEIGHT_LIMIT"
+	)
+
+	route := fmt.Sprintf("/indexer/tx/v1/txs/by_height/%s?msgs=%s&pagination.limit=%d", heightParam, msgType, limit)
+
+	row := sqlmock.NewRows([]string{"hash", "height", "sequence", "signer_id", "data"}).
+		AddRow([]byte(hash), height, sequence, int64(0), legacyTxPayload(hash))
+
+	mock.ExpectBegin()
+	mock.ExpectQuery(`SELECT \* FROM "msg_type_dict" WHERE msg_type IN`).
+		WithArgs(sqlmock.AnyArg()).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "msg_type"}).AddRow(msgTypeID, msgType))
+	mock.ExpectQuery(`SELECT \* FROM "seq_info" WHERE name = \$1 ORDER BY`).
+		WithArgs(string(types.SeqInfoTxEdgeBackfill), 1).
+		WillReturnRows(sqlmock.NewRows([]string{"name", "sequence"}).AddRow(string(types.SeqInfoTxEdgeBackfill), int64(-1)))
+	mock.ExpectQuery(`SELECT COUNT\(DISTINCT\("sequence"\)\) FROM "` + types.CollectedTxMsgType{}.TableName() + `" WHERE msg_type_id = ANY`).
+		WithArgs(sqlmock.AnyArg()).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+	mock.ExpectQuery(`SELECT \* FROM "tx" WHERE height = \$1 AND sequence IN \(SELECT DISTINCT`).
+		WithArgs(height, sqlmock.AnyArg(), int64(limit)).
 		WillReturnRows(row)
 	mock.ExpectRollback()
 
