@@ -128,14 +128,10 @@ func (h *TxHandler) GetEvmInternalTxsByAccount(c *fiber.Ctx) error {
 			return fiber.NewError(fiber.StatusInternalServerError, edgeErr.Error())
 		}
 	} else {
-		query = tx.Model(&types.CollectedEvmInternalTx{}).
-			Where("account_ids && ?", pq.Array(accountIds))
-
-		var strategy types.CollectedEvmInternalTx
-		hasFilters := true // always has account_ids filter
-		total, err = common.GetOptimizedCount(query, strategy, hasFilters)
-		if err != nil {
-			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		var legacyErr error
+		query, total, legacyErr = buildEvmInternalTxLegacyQuery(tx, accountIds)
+		if legacyErr != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, legacyErr.Error())
 		}
 	}
 
@@ -183,6 +179,21 @@ func buildEvmInternalTxEdgeQuery(tx *gorm.DB, accountID int64) (*gorm.DB, int64,
 
 	query := tx.Model(&types.CollectedEvmInternalTx{}).
 		Where("sequence IN (?)", sequenceQuery)
+
+	return query, total, nil
+}
+
+func buildEvmInternalTxLegacyQuery(tx *gorm.DB, accountIds []int64) (*gorm.DB, int64, error) {
+	query := tx.Model(&types.CollectedEvmInternalTx{}).
+		Where("account_ids && ?", pq.Array(accountIds))
+
+	var strategy types.CollectedEvmInternalTx
+	const hasFilters = true
+
+	total, err := common.GetOptimizedCount(query, strategy, hasFilters)
+	if err != nil {
+		return nil, 0, err
+	}
 
 	return query, total, nil
 }

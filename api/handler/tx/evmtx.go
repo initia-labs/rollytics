@@ -121,18 +121,10 @@ func (h *TxHandler) GetEvmTxsByAccount(c *fiber.Ctx) error {
 			return fiber.NewError(fiber.StatusInternalServerError, edgeErr.Error())
 		}
 	} else {
-		query = tx.Model(&types.CollectedEvmTx{}).
-			Where("account_ids && ?", pq.Array(accountIds))
-
-		if isSigner {
-			query = query.Where("signer_id = ?", accountIds[0])
-		}
-
-		var strategy types.CollectedEvmTx
-		hasFilters := true // always has account_ids filter
-		total, err = common.GetOptimizedCount(query, strategy, hasFilters)
-		if err != nil {
-			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		var legacyErr error
+		query, total, legacyErr = buildEvmTxLegacyQuery(tx, accountIds, isSigner)
+		if legacyErr != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, legacyErr.Error())
 		}
 	}
 
@@ -178,6 +170,25 @@ func buildEvmTxEdgeQuery(tx *gorm.DB, accountID int64, isSigner bool) (*gorm.DB,
 
 	query := tx.Model(&types.CollectedEvmTx{}).
 		Where("sequence IN (?)", sequenceQuery)
+
+	return query, total, nil
+}
+
+func buildEvmTxLegacyQuery(tx *gorm.DB, accountIds []int64, isSigner bool) (*gorm.DB, int64, error) {
+	query := tx.Model(&types.CollectedEvmTx{}).
+		Where("account_ids && ?", pq.Array(accountIds))
+
+	if isSigner {
+		query = query.Where("signer_id = ?", accountIds[0])
+	}
+
+	var strategy types.CollectedEvmTx
+	const hasFilters = true
+
+	total, err := common.GetOptimizedCount(query, strategy, hasFilters)
+	if err != nil {
+		return nil, 0, err
+	}
 
 	return query, total, nil
 }
