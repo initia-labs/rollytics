@@ -115,23 +115,11 @@ func (h *TxHandler) GetEvmTxsByAccount(c *fiber.Ctx) error {
 	var query *gorm.DB
 	var total int64
 	if useEdges {
-		sequenceQuery := tx.
-			Model(&types.CollectedEvmTxAccount{}).
-			Select("sequence").
-			Where("account_id = ?", accountIds[0])
-
-		if isSigner {
-			sequenceQuery = sequenceQuery.Where("signer")
+		var edgeErr error
+		query, total, edgeErr = buildEvmTxEdgeQuery(tx, accountIds[0], isSigner)
+		if edgeErr != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, edgeErr.Error())
 		}
-
-		sequenceQuery = sequenceQuery.Distinct("sequence")
-		countQuery := sequenceQuery.Session(&gorm.Session{})
-		if err := countQuery.Count(&total).Error; err != nil {
-			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
-		}
-
-		query = tx.Model(&types.CollectedEvmTx{}).
-			Where("sequence IN (?)", sequenceQuery)
 	} else {
 		query = tx.Model(&types.CollectedEvmTx{}).
 			Where("account_ids && ?", pq.Array(accountIds))
@@ -168,6 +156,30 @@ func (h *TxHandler) GetEvmTxsByAccount(c *fiber.Ctx) error {
 		Txs:        txsRes,
 		Pagination: pagination.ToResponseWithLastRecord(total, lastRecord),
 	})
+}
+
+func buildEvmTxEdgeQuery(tx *gorm.DB, accountID int64, isSigner bool) (*gorm.DB, int64, error) {
+	sequenceQuery := tx.
+		Model(&types.CollectedEvmTxAccount{}).
+		Select("sequence").
+		Where("account_id = ?", accountID)
+
+	if isSigner {
+		sequenceQuery = sequenceQuery.Where("signer")
+	}
+
+	sequenceQuery = sequenceQuery.Distinct("sequence")
+	countQuery := sequenceQuery.Session(&gorm.Session{})
+
+	var total int64
+	if err := countQuery.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	query := tx.Model(&types.CollectedEvmTx{}).
+		Where("sequence IN (?)", sequenceQuery)
+
+	return query, total, nil
 }
 
 // GetEvmTxsByHeight handles GET /tx/v1/evm-txs/by_height/{height}

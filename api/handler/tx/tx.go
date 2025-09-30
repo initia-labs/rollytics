@@ -147,48 +147,16 @@ func (h *TxHandler) GetTxsByAccount(c *fiber.Ctx) error {
 
 	var total int64
 	if useEdges {
-		sequenceQuery := tx.
-			Model(&types.CollectedTxAccount{}).
-			Select("sequence").
-			Where("account_id = ?", accountIds[0])
-
-		if isSigner {
-			sequenceQuery = sequenceQuery.Where("signer")
+		var edgeErr error
+		query, total, edgeErr = buildTxEdgeQuery(tx, accountIds[0], isSigner, msgTypeIds)
+		if edgeErr != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, edgeErr.Error())
 		}
-
-		if len(msgTypeIds) > 0 {
-			at := types.CollectedTxAccount{}.TableName()
-			mtt := types.CollectedTxMsgType{}.TableName()
-			sequenceQuery = sequenceQuery.
-				Joins("JOIN "+mtt+" ON "+mtt+".sequence = "+at+".sequence").
-				Where(mtt+".msg_type_id = ANY(?)", pq.Array(msgTypeIds))
-		}
-
-		sequenceQuery = sequenceQuery.Distinct("sequence")
-		countQuery := sequenceQuery.Session(&gorm.Session{})
-		if err := countQuery.Count(&total).Error; err != nil {
-			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
-		}
-
-		query = tx.Model(&types.CollectedTx{}).
-			Where("sequence IN (?)", sequenceQuery)
 	} else {
-		query = tx.Model(&types.CollectedTx{}).
-			Where("account_ids && ?", pq.Array(accountIds))
-
-		if isSigner {
-			query = query.Where("signer_id = ?", accountIds[0])
-		}
-
-		if len(msgTypeIds) > 0 {
-			query = query.Where("msg_type_ids && ?", pq.Array(msgTypeIds))
-		}
-
-		var strategy types.CollectedTx
-		hasFilters := true // always has account_ids filter
-		total, err = common.GetOptimizedCount(query, strategy, hasFilters)
-		if err != nil {
-			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		var legacyErr error
+		query, total, legacyErr = buildTxLegacyQuery(tx, accountIds, isSigner, msgTypeIds)
+		if legacyErr != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, legacyErr.Error())
 		}
 	}
 
@@ -212,6 +180,61 @@ func (h *TxHandler) GetTxsByAccount(c *fiber.Ctx) error {
 		Txs:        txsRes,
 		Pagination: pagination.ToResponseWithLastRecord(total, lastRecord),
 	})
+}
+
+func buildTxEdgeQuery(tx *gorm.DB, accountID int64, isSigner bool, msgTypeIds []int64) (*gorm.DB, int64, error) {
+	sequenceQuery := tx.
+		Model(&types.CollectedTxAccount{}).
+		Select("sequence").
+		Where("account_id = ?", accountID)
+
+	if isSigner {
+		sequenceQuery = sequenceQuery.Where("signer")
+	}
+
+	if len(msgTypeIds) > 0 {
+		at := types.CollectedTxAccount{}.TableName()
+		mtt := types.CollectedTxMsgType{}.TableName()
+		sequenceQuery = sequenceQuery.
+			Joins("JOIN "+mtt+" ON "+mtt+".sequence = "+at+".sequence").
+			Where(mtt+".msg_type_id = ANY(?)", pq.Array(msgTypeIds))
+	}
+
+	sequenceQuery = sequenceQuery.Distinct("sequence")
+	countQuery := sequenceQuery.Session(&gorm.Session{})
+
+	var total int64
+	if err := countQuery.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	query := tx.Model(&types.CollectedTx{}).
+		Where("sequence IN (?)", sequenceQuery)
+
+	return query, total, nil
+}
+
+func buildTxLegacyQuery(tx *gorm.DB, accountIds []int64, isSigner bool, msgTypeIds []int64) (*gorm.DB, int64, error) {
+	query := tx.Model(&types.CollectedTx{}).
+		Where("account_ids && ?", pq.Array(accountIds))
+
+	if isSigner {
+		query = query.Where("signer_id = ?", accountIds[0])
+	}
+
+	if len(msgTypeIds) > 0 {
+		query = query.Where("msg_type_ids && ?", pq.Array(msgTypeIds))
+	}
+
+	var strategy types.CollectedTx
+	const hasFilters = true // always filtering by account_ids
+
+	total, err := common.GetOptimizedCount(query, strategy, hasFilters)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return query, total, nil
 }
 
 // GetTxsByHeight handles GET /tx/v1/txs/by_height/{height}
