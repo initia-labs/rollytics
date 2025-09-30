@@ -57,6 +57,7 @@ type byAccountTestCase struct {
 	seqValue   int64
 	useEdges   bool
 	table      string
+	edgeTable  string
 	payload    func(string) []byte
 	hash       string
 	accountHex string
@@ -90,6 +91,7 @@ func TestAccountHandlersByAccount(t *testing.T) {
 			seqValue:   -1,
 			useEdges:   true,
 			table:      "tx",
+			edgeTable:  types.CollectedTxAccount{}.TableName(),
 			payload:    legacyTxPayload,
 			hash:       "0xBB",
 			accountHex: "0x2",
@@ -105,6 +107,7 @@ func TestAccountHandlersByAccount(t *testing.T) {
 			seqValue:   -1,
 			useEdges:   true,
 			table:      "evm_tx",
+			edgeTable:  types.CollectedEvmTxAccount{}.TableName(),
 			payload:    evmTxPayload,
 			hash:       "0xCC",
 			accountHex: "0x3",
@@ -170,7 +173,8 @@ func setupAccountExpectations(t *testing.T, mock sqlmock.Sqlmock, tc byAccountTe
 		AddRow([]byte(tc.hash), tc.height, tc.sequence, tc.accountID, tc.payload(tc.hash))
 
 	if tc.useEdges {
-		mock.ExpectQuery(`SELECT count\(\*\) FROM "` + tc.table + `" WHERE sequence IN \(SELECT`).
+		edgeTable := tc.edgeTable
+		mock.ExpectQuery(`SELECT COUNT\(DISTINCT\("sequence"\)\) FROM "` + edgeTable + `" WHERE account_id = \$1`).
 			WithArgs(tc.accountID).
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 		mock.ExpectQuery(`SELECT \* FROM "`+tc.table+`" WHERE sequence IN \(SELECT`).
