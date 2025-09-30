@@ -173,7 +173,8 @@ func buildEvmTxEdgeQuery(tx *gorm.DB, accountID int64, isSigner bool, pagination
 	sequenceQuery = pagination.ApplySequence(sequenceQuery)
 
 	query := tx.Model(&types.CollectedEvmTx{}).
-		Where("sequence IN (?)", sequenceQuery)
+		Where("sequence IN (?)", sequenceQuery).
+		Order(pagination.OrderBy("sequence"))
 
 	return query, total, nil
 }

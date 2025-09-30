@@ -179,7 +179,8 @@ func buildEvmInternalTxEdgeQuery(tx *gorm.DB, accountID int64, pagination *commo
 	sequenceQuery = pagination.ApplySequence(sequenceQuery)
 
 	query := tx.Model(&types.CollectedEvmInternalTx{}).
-		Where("sequence IN (?)", sequenceQuery)
+		Where("sequence IN (?)", sequenceQuery).
+		Order(pagination.OrderBy("sequence"))
 
 	return query, total, nil
 }
