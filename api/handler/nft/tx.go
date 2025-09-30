@@ -88,7 +88,7 @@ func (h *NftHandler) GetNftTxs(c *fiber.Ctx) error {
 
 	case types.WasmVM, types.EVM:
 		nftKey := util.NftKey{
-			CollectionAddr: util.BytesToHexWithPrefix(nft.CollectionAddr),
+			CollectionAddr: util.BytesToHexWithPrefixIfPresent(nft.CollectionAddr),
 			TokenId:        nft.TokenId,
 		}
 		nftIds, err := h.GetNftIds([]util.NftKey{nftKey})
