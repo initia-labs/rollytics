@@ -194,6 +194,128 @@ func TestGetTxs_EdgePathWithMsgFilter(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestGetTxsByHeight_EdgePathWithMsgFilter(t *testing.T) {
+	handler, mock := newTxHandlerWithMockDB(t)
+
+	const (
+		heightParam = "123"
+		route       = "/indexer/tx/v1/txs/by_height/" + heightParam + "?msgs=cosmos.gov.v1.MsgVote"
+		msgType     = "cosmos.gov.v1.MsgVote"
+		msgTypeID   = int64(77)
+		height      = int64(123)
+		sequence    = int64(55)
+		hash        = "0xHEIGHT"
+	)
+
+	row := sqlmock.NewRows([]string{"hash", "height", "sequence", "signer_id", "data"}).
+		AddRow([]byte(hash), height, sequence, int64(0), legacyTxPayload(hash))
+
+	mock.ExpectBegin()
+	mock.ExpectQuery(`SELECT \* FROM "msg_type_dict" WHERE msg_type IN`).
+		WithArgs(sqlmock.AnyArg()).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "msg_type"}).AddRow(msgTypeID, msgType))
+	mock.ExpectQuery(`SELECT \* FROM "seq_info" WHERE name = \$1 ORDER BY`).
+		WithArgs(string(types.SeqInfoTxEdgeBackfill), 1).
+		WillReturnRows(sqlmock.NewRows([]string{"name", "sequence"}).AddRow(string(types.SeqInfoTxEdgeBackfill), int64(-1)))
+	mock.ExpectQuery(`SELECT count\(\*\) FROM "tx" WHERE height = \$1 AND sequence IN \(SELECT DISTINCT`).
+		WithArgs(height, sqlmock.AnyArg()).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+	mock.ExpectQuery(`SELECT \* FROM "tx" WHERE height = \$1 AND sequence IN \(SELECT DISTINCT`).
+		WithArgs(height, sqlmock.AnyArg(), 100).
+		WillReturnRows(row)
+	mock.ExpectRollback()
+
+	app := fiber.New()
+	app.Get("/indexer/tx/v1/txs/by_height/:height", handler.GetTxsByHeight)
+
+	req := httptest.NewRequest(fiber.MethodGet, route, nil)
+	resp, err := app.Test(req, -1)
+	require.NoError(t, err)
+	require.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestGetTxs_LegacyPathWithMsgFilter(t *testing.T) {
+	handler, mock := newTxHandlerWithMockDB(t)
+
+	const (
+		route     = "/indexer/tx/v1/txs?msgs=cosmos.bank.v1beta1.MsgLegacy"
+		msgType   = "cosmos.bank.v1beta1.MsgLegacy"
+		msgTypeID = int64(101)
+		height    = int64(222)
+		sequence  = int64(12)
+		hash      = "0xLEGACY"
+	)
+
+	row := sqlmock.NewRows([]string{"hash", "height", "sequence", "signer_id", "data"}).
+		AddRow([]byte(hash), height, sequence, int64(0), legacyTxPayload(hash))
+
+	mock.ExpectBegin()
+	mock.ExpectQuery(`SELECT \* FROM "msg_type_dict" WHERE msg_type IN`).
+		WithArgs(sqlmock.AnyArg()).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "msg_type"}).AddRow(msgTypeID, msgType))
+
+	mock.ExpectQuery(`SELECT \* FROM "seq_info" WHERE name = \$1 ORDER BY`).
+		WithArgs(string(types.SeqInfoTxEdgeBackfill), 1).
+		WillReturnRows(sqlmock.NewRows([]string{"name", "sequence"}).AddRow(string(types.SeqInfoTxEdgeBackfill), int64(5)))
+
+	mock.ExpectQuery(`SELECT count\(\*\) FROM "tx" WHERE msg_type_ids &&`).
+		WithArgs(sqlmock.AnyArg()).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+
+	mock.ExpectQuery(`SELECT \* FROM "tx" WHERE msg_type_ids &&`).
+		WithArgs(sqlmock.AnyArg(), 100).
+		WillReturnRows(row)
+
+	mock.ExpectRollback()
+
+	app := fiber.New()
+	app.Get("/indexer/tx/v1/txs", handler.GetTxs)
+
+	req := httptest.NewRequest(fiber.MethodGet, route, nil)
+	resp, err := app.Test(req, -1)
+	require.NoError(t, err)
+	require.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestGetTxs_NoFilterLegacyPath(t *testing.T) {
+	handler, mock := newTxHandlerWithMockDB(t)
+
+	const (
+		route    = "/indexer/tx/v1/txs"
+		height   = int64(333)
+		sequence = int64(44)
+		hash     = "0xNOFILTER"
+	)
+
+	row := sqlmock.NewRows([]string{"hash", "height", "sequence", "signer_id", "data"}).
+		AddRow([]byte(hash), height, sequence, int64(0), legacyTxPayload(hash))
+
+	mock.ExpectBegin()
+
+	mock.ExpectQuery(`SELECT COALESCE\(MAX\(sequence\), 0\) FROM "tx"`).
+		WillReturnRows(sqlmock.NewRows([]string{"coalesce"}).AddRow(sequence))
+
+	mock.ExpectQuery(`SELECT \* FROM "tx" ORDER BY sequence DESC LIMIT`).
+		WithArgs(100).
+		WillReturnRows(row)
+
+	mock.ExpectRollback()
+
+	app := fiber.New()
+	app.Get("/indexer/tx/v1/txs", handler.GetTxs)
+
+	req := httptest.NewRequest(fiber.MethodGet, route, nil)
+	resp, err := app.Test(req, -1)
+	require.NoError(t, err)
+	require.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
 func (tc byAccountTestCase) requestPath() string {
 	return strings.Replace(tc.route, ":account", tc.accountHex, 1)
 }
