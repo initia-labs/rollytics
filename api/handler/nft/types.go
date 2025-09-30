@@ -90,10 +90,10 @@ type NftsResponse struct {
 
 func ToNftResponse(name, originName string, nft types.CollectedNft, ownerAccount []byte) Nft {
 	return Nft{
-		CollectionAddr:       util.BytesToHexWithPrefix(nft.CollectionAddr),
+		CollectionAddr:       util.BytesToHexWithPrefixIfPresent(nft.CollectionAddr),
 		CollectionName:       name,
 		CollectionOriginName: originName,
-		ObjectAddr:           util.BytesToHexWithPrefix(nft.Addr), // only used in Move
+		ObjectAddr:           util.BytesToHexWithPrefixIfPresent(nft.Addr), // only used in Move
 		Owner:                sdk.AccAddress(ownerAccount).String(),
 		Nft: NftDetails{
 			TokenId: nft.TokenId,

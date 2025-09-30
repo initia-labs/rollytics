@@ -49,3 +49,10 @@ func BytesToHex(b []byte) string {
 func BytesToHexWithPrefix(b []byte) string {
 	return "0x" + hex.EncodeToString(b)
 }
+
+func BytesToHexWithPrefixIfPresent(b []byte) string {
+	if len(b) == 0 {
+		return ""
+	}
+	return "0x" + hex.EncodeToString(b)
+}
