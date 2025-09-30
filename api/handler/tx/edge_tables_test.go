@@ -217,11 +217,11 @@ func TestGetTxsByHeight_EdgePathWithMsgFilter(t *testing.T) {
 	mock.ExpectQuery(`SELECT \* FROM "seq_info" WHERE name = \$1 ORDER BY`).
 		WithArgs(string(types.SeqInfoTxEdgeBackfill), 1).
 		WillReturnRows(sqlmock.NewRows([]string{"name", "sequence"}).AddRow(string(types.SeqInfoTxEdgeBackfill), int64(-1)))
-	mock.ExpectQuery(`SELECT count\(\*\) FROM "tx" WHERE height = \$1 AND sequence IN \(SELECT DISTINCT`).
-		WithArgs(height, sqlmock.AnyArg()).
+	mock.ExpectQuery(`SELECT COUNT\(DISTINCT\("sequence"\)\) FROM "` + types.CollectedTxMsgType{}.TableName() + `" WHERE msg_type_id = ANY`).
+		WithArgs(sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 	mock.ExpectQuery(`SELECT \* FROM "tx" WHERE height = \$1 AND sequence IN \(SELECT DISTINCT`).
-		WithArgs(height, sqlmock.AnyArg(), 100).
+		WithArgs(height, sqlmock.AnyArg(), sqlmock.AnyArg()).
 		WillReturnRows(row)
 	mock.ExpectRollback()
 

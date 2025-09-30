@@ -45,7 +45,7 @@ func (h *TxHandler) GetEvmTxs(c *fiber.Ctx) error {
 	}
 
 	var txs []types.CollectedEvmTx
-	findQuery := pagination.ApplyToEvmTx(tx.Model(&types.CollectedEvmTx{}))
+	findQuery := pagination.ApplySequence(tx.Model(&types.CollectedEvmTx{}))
 	if err := findQuery.Find(&txs).Error; err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
@@ -112,25 +112,26 @@ func (h *TxHandler) GetEvmTxsByAccount(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	var query *gorm.DB
-	var total int64
+	var (
+		query *gorm.DB
+		total int64
+	)
 	if useEdges {
 		var edgeErr error
-		query, total, edgeErr = buildEvmTxEdgeQuery(tx, accountIds[0], isSigner)
+		query, total, edgeErr = buildEvmTxEdgeQuery(tx, accountIds[0], isSigner, pagination)
 		if edgeErr != nil {
 			return fiber.NewError(fiber.StatusInternalServerError, edgeErr.Error())
 		}
 	} else {
 		var legacyErr error
-		query, total, legacyErr = buildEvmTxLegacyQuery(tx, accountIds, isSigner)
+		query, total, legacyErr = buildEvmTxLegacyQuery(tx, accountIds, isSigner, pagination)
 		if legacyErr != nil {
 			return fiber.NewError(fiber.StatusInternalServerError, legacyErr.Error())
 		}
 	}
 
 	var txs []types.CollectedEvmTx
-	finalQuery := pagination.ApplyToEvmTxWithFilter(query)
-	if err := finalQuery.Find(&txs).Error; err != nil {
+	if err := query.Find(&txs).Error; err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
@@ -150,7 +151,7 @@ func (h *TxHandler) GetEvmTxsByAccount(c *fiber.Ctx) error {
 	})
 }
 
-func buildEvmTxEdgeQuery(tx *gorm.DB, accountID int64, isSigner bool) (*gorm.DB, int64, error) {
+func buildEvmTxEdgeQuery(tx *gorm.DB, accountID int64, isSigner bool, pagination *common.Pagination) (*gorm.DB, int64, error) {
 	sequenceQuery := tx.
 		Model(&types.CollectedEvmTxAccount{}).
 		Select("sequence").
@@ -168,13 +169,16 @@ func buildEvmTxEdgeQuery(tx *gorm.DB, accountID int64, isSigner bool) (*gorm.DB,
 		return nil, 0, err
 	}
 
+	// apply pagination to the sequence query
+	sequenceQuery = pagination.ApplySequence(sequenceQuery)
+
 	query := tx.Model(&types.CollectedEvmTx{}).
 		Where("sequence IN (?)", sequenceQuery)
 
 	return query, total, nil
 }
 
-func buildEvmTxLegacyQuery(tx *gorm.DB, accountIds []int64, isSigner bool) (*gorm.DB, int64, error) {
+func buildEvmTxLegacyQuery(tx *gorm.DB, accountIds []int64, isSigner bool, pagination *common.Pagination) (*gorm.DB, int64, error) {
 	query := tx.Model(&types.CollectedEvmTx{}).
 		Where("account_ids && ?", pq.Array(accountIds))
 
@@ -189,6 +193,8 @@ func buildEvmTxLegacyQuery(tx *gorm.DB, accountIds []int64, isSigner bool) (*gor
 	if err != nil {
 		return nil, 0, err
 	}
+
+	query = pagination.ApplySequence(query)
 
 	return query, total, nil
 }
@@ -231,7 +237,7 @@ func (h *TxHandler) GetEvmTxsByHeight(c *fiber.Ctx) error {
 	}
 
 	var txs []types.CollectedEvmTx
-	finalQuery := pagination.ApplyToEvmTxWithFilter(query)
+	finalQuery := pagination.ApplySequence(query)
 	if err := finalQuery.Find(&txs).Error; err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
