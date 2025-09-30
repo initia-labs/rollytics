@@ -153,6 +153,47 @@ func TestAccountHandlersByAccount(t *testing.T) {
 	}
 }
 
+func TestGetTxs_EdgePathWithMsgFilter(t *testing.T) {
+	handler, mock := newTxHandlerWithMockDB(t)
+
+	const (
+		route       = "/indexer/tx/v1/txs?msgs=cosmos.bank.v1beta1.MsgSend"
+		msgType     = "cosmos.bank.v1beta1.MsgSend"
+		msgTypeID   = int64(42)
+		expectedSeq = int64(15)
+		height      = int64(120)
+		hash        = "0xEDGE"
+	)
+
+	row := sqlmock.NewRows([]string{"hash", "height", "sequence", "signer_id", "data"}).
+		AddRow([]byte(hash), height, expectedSeq, int64(0), legacyTxPayload(hash))
+
+	mock.ExpectBegin()
+	mock.ExpectQuery(`SELECT \* FROM "msg_type_dict" WHERE msg_type IN`).
+		WithArgs(sqlmock.AnyArg()).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "msg_type"}).AddRow(msgTypeID, msgType))
+	mock.ExpectQuery(`SELECT \* FROM "seq_info" WHERE name = \$1 ORDER BY`).
+		WithArgs(string(types.SeqInfoTxEdgeBackfill), 1).
+		WillReturnRows(sqlmock.NewRows([]string{"name", "sequence"}).AddRow(string(types.SeqInfoTxEdgeBackfill), int64(-1)))
+	mock.ExpectQuery(`SELECT COUNT\(DISTINCT\("sequence"\)\) FROM "` + types.CollectedTxMsgType{}.TableName() + `" WHERE msg_type_id = ANY`).
+		WithArgs(sqlmock.AnyArg()).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+	mock.ExpectQuery(`SELECT \* FROM "tx" WHERE sequence IN \(SELECT DISTINCT`).
+		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg()).
+		WillReturnRows(row)
+	mock.ExpectRollback()
+
+	app := fiber.New()
+	app.Get("/indexer/tx/v1/txs", handler.GetTxs)
+
+	req := httptest.NewRequest(fiber.MethodGet, route, nil)
+	resp, err := app.Test(req, -1)
+	require.NoError(t, err)
+	require.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
 func (tc byAccountTestCase) requestPath() string {
 	return strings.Replace(tc.route, ":account", tc.accountHex, 1)
 }

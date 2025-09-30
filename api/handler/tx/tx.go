@@ -36,30 +36,52 @@ func (h *TxHandler) GetTxs(c *fiber.Ctx) error {
 	tx := h.GetDatabase().Begin(&sql.TxOptions{ReadOnly: true})
 	defer tx.Rollback()
 
-	query := tx.Model(&types.CollectedTx{})
+	var (
+		query      *gorm.DB
+		total      int64
+		msgTypeIds []int64
+	)
 
-	var total int64
 	hasFilters := len(msgs) > 0
-
 	if hasFilters {
-		msgTypeIds, err := h.GetMsgTypeIds(msgs)
+		msgTypeIds, err = h.GetMsgTypeIds(msgs)
 		if err != nil {
 			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 		}
-		query = query.Where("msg_type_ids && ?", pq.Array(msgTypeIds))
 	}
 
-	// Use optimized COUNT with CollectedTx strategy
-	var strategy types.CollectedTx
-	total, err = common.GetOptimizedCount(query, strategy, hasFilters)
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	useEdges := false
+	if hasFilters {
+		useEdges, err = common.IsEdgeBackfillReady(tx, types.SeqInfoTxEdgeBackfill)
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
+	}
+
+	if useEdges {
+		var edgeErr error
+		query, total, edgeErr = buildEdgeQueryForGetTxs(tx, msgTypeIds)
+		if edgeErr != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, edgeErr.Error())
+		}
+	} else {
+		query = tx.Model(&types.CollectedTx{})
+		if hasFilters {
+			query = query.Where("msg_type_ids && ?", pq.Array(msgTypeIds))
+		}
+
+		// Use optimized COUNT with CollectedTx strategy
+		var strategy types.CollectedTx
+		total, err = common.GetOptimizedCount(query, strategy, hasFilters)
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
 	}
 
 	var txs []types.CollectedTx
 	var finalQuery *gorm.DB
-	if len(msgs) > 0 {
-		// With filters
+	if hasFilters {
+		// With filters (including edge-based filters)
 		finalQuery = pagination.ApplyToTxWithFilter(query)
 	} else {
 		// Without filters
@@ -180,6 +202,29 @@ func (h *TxHandler) GetTxsByAccount(c *fiber.Ctx) error {
 		Txs:        txsRes,
 		Pagination: pagination.ToResponseWithLastRecord(total, lastRecord),
 	})
+}
+
+func buildEdgeQueryForGetTxs(tx *gorm.DB, msgTypeIds []int64) (*gorm.DB, int64, error) {
+	sequenceQuery := tx.
+		Model(&types.CollectedTxMsgType{}).
+		Select("sequence")
+
+	if len(msgTypeIds) > 0 {
+		sequenceQuery = sequenceQuery.Where("msg_type_id = ANY(?)", pq.Array(msgTypeIds))
+	}
+
+	sequenceQuery = sequenceQuery.Distinct("sequence")
+	countQuery := sequenceQuery.Session(&gorm.Session{})
+
+	var total int64
+	if err := countQuery.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	query := tx.Model(&types.CollectedTx{}).
+		Where("sequence IN (?)", sequenceQuery)
+
+	return query, total, nil
 }
 
 func buildTxEdgeQuery(tx *gorm.DB, accountID int64, isSigner bool, msgTypeIds []int64) (*gorm.DB, int64, error) {
