@@ -81,18 +81,19 @@ func buildEdgeQueryForGetTxsByHeight(tx *gorm.DB, height int64, msgTypeIds []int
 	}
 
 	sequenceQuery = sequenceQuery.Distinct("sequence")
-	countQuery := sequenceQuery.Session(&gorm.Session{})
-
-	var total int64
-	if err := countQuery.Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
 
 	query := tx.Model(&types.CollectedTx{}).
 		Where("height = ?", height).
 		Where("sequence IN (?)", sequenceQuery)
 
-	// apply pagination to the outer query to apply pagination after filtering by height
+	var strategy types.CollectedTx
+	const hasFilters = true // always filtering by msg_type_ids and height
+
+	total, err := common.GetOptimizedCount(query, strategy, hasFilters)
+	if err != nil {
+		return nil, 0, err
+	}
+
 	query = pagination.ApplySequence(query)
 
 	return query, total, nil

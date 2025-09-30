@@ -261,8 +261,8 @@ func TestGetTxsByHeight_EdgePathWithMsgFilter(t *testing.T) {
 	mock.ExpectQuery(`SELECT \* FROM "seq_info" WHERE name = \$1 ORDER BY`).
 		WithArgs(string(types.SeqInfoTxEdgeBackfill), 1).
 		WillReturnRows(sqlmock.NewRows([]string{"name", "sequence"}).AddRow(string(types.SeqInfoTxEdgeBackfill), int64(-1)))
-	mock.ExpectQuery(`SELECT COUNT\(DISTINCT\("sequence"\)\) FROM "` + types.CollectedTxMsgType{}.TableName() + `" WHERE msg_type_id = ANY`).
-		WithArgs(sqlmock.AnyArg()).
+	mock.ExpectQuery(`SELECT count\(\*\) FROM "tx" WHERE height = \$1 AND sequence IN \(SELECT DISTINCT "sequence" FROM "`+types.CollectedTxMsgType{}.TableName()+`" WHERE msg_type_id = ANY\(\$2\)\)`).
+		WithArgs(height, sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 	mock.ExpectQuery(`SELECT \* FROM "tx" WHERE height = \$1 AND sequence IN \(SELECT DISTINCT \"sequence\" FROM \"tx_msg_types\" WHERE msg_type_id = ANY\(\$2\)\) ORDER BY sequence DESC LIMIT \$3`).
 		WithArgs(height, sqlmock.AnyArg(), int64(common.DefaultLimit)).
@@ -305,8 +305,8 @@ func TestGetTxsByHeight_EdgePathWithMsgFilter_CustomLimit(t *testing.T) {
 	mock.ExpectQuery(`SELECT \* FROM "seq_info" WHERE name = \$1 ORDER BY`).
 		WithArgs(string(types.SeqInfoTxEdgeBackfill), 1).
 		WillReturnRows(sqlmock.NewRows([]string{"name", "sequence"}).AddRow(string(types.SeqInfoTxEdgeBackfill), int64(-1)))
-	mock.ExpectQuery(`SELECT COUNT\(DISTINCT\("sequence"\)\) FROM "` + types.CollectedTxMsgType{}.TableName() + `" WHERE msg_type_id = ANY`).
-		WithArgs(sqlmock.AnyArg()).
+	mock.ExpectQuery(`SELECT count\(\*\) FROM "tx" WHERE height = \$1 AND sequence IN \(SELECT DISTINCT "sequence" FROM "`+types.CollectedTxMsgType{}.TableName()+`" WHERE msg_type_id = ANY\(\$2\)\)`).
+		WithArgs(height, sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 	mock.ExpectQuery(`SELECT \* FROM "tx" WHERE height = \$1 AND sequence IN \(SELECT DISTINCT \"sequence\" FROM \"tx_msg_types\" WHERE msg_type_id = ANY\(\$2\)\) ORDER BY sequence DESC LIMIT \$3`).
 		WithArgs(height, sqlmock.AnyArg(), int64(limit)).
@@ -386,7 +386,6 @@ func TestGetTxs_NoFilterLegacyPath(t *testing.T) {
 
 	mock.ExpectQuery(`SELECT COALESCE\(MAX\(sequence\), 0\) FROM "tx"`).
 		WillReturnRows(sqlmock.NewRows([]string{"coalesce"}).AddRow(sequence))
-
 	mock.ExpectQuery(`SELECT \* FROM "tx" ORDER BY sequence DESC LIMIT`).
 		WithArgs(100).
 		WillReturnRows(row)
