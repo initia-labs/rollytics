@@ -252,29 +252,6 @@ func (p *Pagination) ToResponseWithLastRecord(total int64, lastRecord any) Pagin
 	return p.ToResponse(total)
 }
 
-// Query application methods for each table type
-func (p *Pagination) ApplyToEvmInternalTx(query *gorm.DB) *gorm.DB {
-	switch p.CursorType {
-	case CursorTypeSequence:
-		sequence, err := p.safeGetInt64("sequence")
-		if err != nil {
-			// Fallback to offset-based pagination on error
-			return query.Order(p.OrderBy("sequence")).Offset(p.Offset).Limit(p.Limit)
-		}
-		if p.Order == OrderDesc {
-			query = query.Where("sequence < ?", sequence)
-		} else {
-			query = query.Where("sequence > ?", sequence)
-		}
-		return query.Order(p.OrderBy("sequence")).Limit(p.Limit)
-
-	case CursorTypeOffset:
-		fallthrough
-	default:
-		return query.Order(p.OrderBy("sequence")).Offset(p.Offset).Limit(p.Limit)
-	}
-}
-
 func (p *Pagination) ApplyToNftCollection(query *gorm.DB) *gorm.DB {
 	switch p.CursorType {
 	case CursorTypeHeight:
@@ -352,51 +329,6 @@ func (p *Pagination) ApplyToNft(query *gorm.DB, orderBy string) *gorm.DB {
 	}
 }
 
-// Additional Apply methods for other table types
-func (p *Pagination) ApplyToTx(query *gorm.DB) *gorm.DB {
-	switch p.CursorType {
-	case CursorTypeSequence:
-		sequence, err := p.safeGetInt64("sequence")
-		if err != nil {
-			// Fallback to offset-based pagination on error
-			return query.Order(p.OrderBy("sequence")).Offset(p.Offset).Limit(p.Limit)
-		}
-		if p.Order == OrderDesc {
-			query = query.Where("sequence < ?", sequence)
-		} else {
-			query = query.Where("sequence > ?", sequence)
-		}
-		return query.Order(p.OrderBy("sequence")).Limit(p.Limit)
-
-	case CursorTypeOffset:
-		fallthrough
-	default:
-		return query.Order(p.OrderBy("sequence")).Offset(p.Offset).Limit(p.Limit)
-	}
-}
-
-func (p *Pagination) ApplyToEvmTx(query *gorm.DB) *gorm.DB {
-	switch p.CursorType {
-	case CursorTypeSequence:
-		sequence, err := p.safeGetInt64("sequence")
-		if err != nil {
-			// Fallback to offset-based pagination on error
-			return query.Order(p.OrderBy("sequence")).Offset(p.Offset).Limit(p.Limit)
-		}
-		if p.Order == OrderDesc {
-			query = query.Where("sequence < ?", sequence)
-		} else {
-			query = query.Where("sequence > ?", sequence)
-		}
-		return query.Order(p.OrderBy("sequence")).Limit(p.Limit)
-
-	case CursorTypeOffset:
-		fallthrough
-	default:
-		return query.Order(p.OrderBy("sequence")).Offset(p.Offset).Limit(p.Limit)
-	}
-}
-
 func (p *Pagination) ApplyToBlock(query *gorm.DB) *gorm.DB {
 	switch p.CursorType {
 	case CursorTypeHeight:
@@ -419,58 +351,12 @@ func (p *Pagination) ApplyToBlock(query *gorm.DB) *gorm.DB {
 	}
 }
 
-// Filtered Apply methods (with additional WHERE conditions)
-func (p *Pagination) ApplyToEvmInternalTxWithFilter(query *gorm.DB) *gorm.DB {
-	// Maintains existing filter conditions and adds cursor
+// ApplySequence applies sequence-based pagination to the given GORM query
+func (p *Pagination) ApplySequence(query *gorm.DB) *gorm.DB {
 	switch p.CursorType {
 	case CursorTypeSequence:
 		sequence, err := p.safeGetInt64("sequence")
 		if err != nil {
-			// Fallback to offset-based pagination on error
-			return query.Order(p.OrderBy("sequence")).Offset(p.Offset).Limit(p.Limit)
-		}
-		if p.Order == OrderDesc {
-			query = query.Where("sequence < ?", sequence)
-		} else {
-			query = query.Where("sequence > ?", sequence)
-		}
-		return query.Order(p.OrderBy("sequence")).Limit(p.Limit)
-
-	case CursorTypeOffset:
-		fallthrough
-	default:
-		return query.Order(p.OrderBy("sequence")).Offset(p.Offset).Limit(p.Limit)
-	}
-}
-
-func (p *Pagination) ApplyToTxWithFilter(query *gorm.DB) *gorm.DB {
-	switch p.CursorType {
-	case CursorTypeSequence:
-		sequence, err := p.safeGetInt64("sequence")
-		if err != nil {
-			// Fallback to offset-based pagination on error
-			return query.Order(p.OrderBy("sequence")).Offset(p.Offset).Limit(p.Limit)
-		}
-		if p.Order == OrderDesc {
-			query = query.Where("sequence < ?", sequence)
-		} else {
-			query = query.Where("sequence > ?", sequence)
-		}
-		return query.Order(p.OrderBy("sequence")).Limit(p.Limit)
-
-	case CursorTypeOffset:
-		fallthrough
-	default:
-		return query.Order(p.OrderBy("sequence")).Offset(p.Offset).Limit(p.Limit)
-	}
-}
-
-func (p *Pagination) ApplyToEvmTxWithFilter(query *gorm.DB) *gorm.DB {
-	switch p.CursorType {
-	case CursorTypeSequence:
-		sequence, err := p.safeGetInt64("sequence")
-		if err != nil {
-			// Fallback to offset-based pagination on error
 			return query.Order(p.OrderBy("sequence")).Offset(p.Offset).Limit(p.Limit)
 		}
 		if p.Order == OrderDesc {

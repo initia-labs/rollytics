@@ -45,7 +45,7 @@ func (h *TxHandler) GetEvmTxs(c *fiber.Ctx) error {
 	}
 
 	var txs []types.CollectedEvmTx
-	findQuery := pagination.ApplyToEvmTx(tx.Model(&types.CollectedEvmTx{}))
+	findQuery := pagination.ApplySequence(tx.Model(&types.CollectedEvmTx{}))
 	if err := findQuery.Find(&txs).Error; err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
@@ -112,40 +112,26 @@ func (h *TxHandler) GetEvmTxsByAccount(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	var query *gorm.DB
+	var (
+		query *gorm.DB
+		total int64
+	)
 	if useEdges {
-		sequenceSubQuery := tx.
-			Model(&types.CollectedEvmTxAccount{}).
-			Select("sequence").
-			Where("account_id = ?", accountIds[0])
-
-		if isSigner {
-			sequenceSubQuery = sequenceSubQuery.Where("signer")
+		var edgeErr error
+		query, total, edgeErr = buildEvmTxEdgeQuery(tx, accountIds[0], isSigner, pagination)
+		if edgeErr != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, edgeErr.Error())
 		}
-
-		query = tx.Model(&types.CollectedEvmTx{}).
-			Where("sequence IN (?)", sequenceSubQuery)
 	} else {
-		query = tx.Model(&types.CollectedEvmTx{}).
-			Where("account_ids && ?", pq.Array(accountIds))
-
-		if isSigner {
-			query = query.Where("signer_id = ?", accountIds[0])
+		var legacyErr error
+		query, total, legacyErr = buildEvmTxLegacyQuery(tx, accountIds, isSigner, pagination)
+		if legacyErr != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, legacyErr.Error())
 		}
-	}
-
-	// Use optimized COUNT - always has filters (account_ids + optional signer)
-	var strategy types.CollectedEvmTx
-	hasFilters := true // always has account_ids filter
-	var total int64
-	total, err = common.GetOptimizedCount(query, strategy, hasFilters)
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	var txs []types.CollectedEvmTx
-	finalQuery := pagination.ApplyToEvmTxWithFilter(query)
-	if err := finalQuery.Find(&txs).Error; err != nil {
+	if err := query.Find(&txs).Error; err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
@@ -163,6 +149,55 @@ func (h *TxHandler) GetEvmTxsByAccount(c *fiber.Ctx) error {
 		Txs:        txsRes,
 		Pagination: pagination.ToResponseWithLastRecord(total, lastRecord),
 	})
+}
+
+func buildEvmTxEdgeQuery(tx *gorm.DB, accountID int64, isSigner bool, pagination *common.Pagination) (*gorm.DB, int64, error) {
+	sequenceQuery := tx.
+		Model(&types.CollectedEvmTxAccount{}).
+		Select("sequence").
+		Where("account_id = ?", accountID)
+
+	if isSigner {
+		sequenceQuery = sequenceQuery.Where("signer")
+	}
+
+	sequenceQuery = sequenceQuery.Distinct("sequence")
+	countQuery := sequenceQuery.Session(&gorm.Session{})
+
+	var total int64
+	if err := countQuery.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// apply pagination to the sequence query
+	sequenceQuery = pagination.ApplySequence(sequenceQuery)
+
+	query := tx.Model(&types.CollectedEvmTx{}).
+		Where("sequence IN (?)", sequenceQuery).
+		Order(pagination.OrderBy("sequence"))
+
+	return query, total, nil
+}
+
+func buildEvmTxLegacyQuery(tx *gorm.DB, accountIds []int64, isSigner bool, pagination *common.Pagination) (*gorm.DB, int64, error) {
+	query := tx.Model(&types.CollectedEvmTx{}).
+		Where("account_ids && ?", pq.Array(accountIds))
+
+	if isSigner {
+		query = query.Where("signer_id = ?", accountIds[0])
+	}
+
+	var strategy types.CollectedEvmTx
+	const hasFilters = true
+
+	total, err := common.GetOptimizedCount(query, strategy, hasFilters)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	query = pagination.ApplySequence(query)
+
+	return query, total, nil
 }
 
 // GetEvmTxsByHeight handles GET /tx/v1/evm-txs/by_height/{height}
@@ -203,7 +238,7 @@ func (h *TxHandler) GetEvmTxsByHeight(c *fiber.Ctx) error {
 	}
 
 	var txs []types.CollectedEvmTx
-	finalQuery := pagination.ApplyToEvmTxWithFilter(query)
+	finalQuery := pagination.ApplySequence(query)
 	if err := finalQuery.Find(&txs).Error; err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}

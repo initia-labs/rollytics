@@ -46,7 +46,7 @@ func (h *TxHandler) GetEvmInternalTxs(c *fiber.Ctx) error {
 	}
 
 	var txs []types.CollectedEvmInternalTx
-	findQuery := pagination.ApplyToEvmInternalTx(tx.Model(&types.CollectedEvmInternalTx{}))
+	findQuery := pagination.ApplySequence(tx.Model(&types.CollectedEvmInternalTx{}))
 	if err := findQuery.Find(&txs).Error; err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
@@ -119,35 +119,26 @@ func (h *TxHandler) GetEvmInternalTxsByAccount(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	var query *gorm.DB
+	var (
+		query *gorm.DB
+		total int64
+	)
 	if useEdges {
-		sequenceSubQuery := tx.
-			Model(&types.CollectedEvmInternalTxAccount{}).
-			Select("sequence").
-			Where("account_id = ?", accountIds[0])
-
-		query = tx.Model(&types.CollectedEvmInternalTx{}).
-			Where("sequence IN (?)", sequenceSubQuery)
+		var edgeErr error
+		query, total, edgeErr = buildEvmInternalTxEdgeQuery(tx, accountIds[0], pagination)
+		if edgeErr != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, edgeErr.Error())
+		}
 	} else {
-		query = tx.Model(&types.CollectedEvmInternalTx{}).
-			Where("account_ids && ?", pq.Array(accountIds))
-	}
-
-	// Use optimized COUNT - always has filters (account_ids)
-	var strategy types.CollectedEvmInternalTx
-	hasFilters := true // always has account_ids filter
-	var total int64
-	total, err = common.GetOptimizedCount(query, strategy, hasFilters)
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		var legacyErr error
+		query, total, legacyErr = buildEvmInternalTxLegacyQuery(tx, accountIds, pagination)
+		if legacyErr != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, legacyErr.Error())
+		}
 	}
 
 	var txs []types.CollectedEvmInternalTx
-	if err := query.
-		Order(pagination.OrderBy("sequence")).
-		Offset(pagination.Offset).
-		Limit(pagination.Limit).
-		Find(&txs).Error; err != nil {
+	if err := query.Find(&txs).Error; err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
@@ -168,6 +159,47 @@ func (h *TxHandler) GetEvmInternalTxsByAccount(c *fiber.Ctx) error {
 		Txs:        txsRes,
 		Pagination: pagination.ToResponse(total),
 	})
+}
+
+func buildEvmInternalTxEdgeQuery(tx *gorm.DB, accountID int64, pagination *common.Pagination) (*gorm.DB, int64, error) {
+	sequenceQuery := tx.
+		Model(&types.CollectedEvmInternalTxAccount{}).
+		Select("sequence").
+		Where("account_id = ?", accountID)
+
+	sequenceQuery = sequenceQuery.Distinct("sequence")
+	countQuery := sequenceQuery.Session(&gorm.Session{})
+
+	var total int64
+	if err := countQuery.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// apply pagination to the sequence query
+	sequenceQuery = pagination.ApplySequence(sequenceQuery)
+
+	query := tx.Model(&types.CollectedEvmInternalTx{}).
+		Where("sequence IN (?)", sequenceQuery).
+		Order(pagination.OrderBy("sequence"))
+
+	return query, total, nil
+}
+
+func buildEvmInternalTxLegacyQuery(tx *gorm.DB, accountIds []int64, pagination *common.Pagination) (*gorm.DB, int64, error) {
+	query := tx.Model(&types.CollectedEvmInternalTx{}).
+		Where("account_ids && ?", pq.Array(accountIds))
+
+	var strategy types.CollectedEvmInternalTx
+	const hasFilters = true
+
+	total, err := common.GetOptimizedCount(query, strategy, hasFilters)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	query = pagination.ApplySequence(query)
+
+	return query, total, nil
 }
 
 // GetEvmInternalTxsByHeight handles GET /tx/v1/evm-internal-txs/by_height/{height}

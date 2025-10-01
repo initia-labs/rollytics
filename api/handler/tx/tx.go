@@ -5,7 +5,6 @@ import (
 	"errors"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/lib/pq"
 	"gorm.io/gorm"
 
 	"github.com/initia-labs/rollytics/api/handler/common"
@@ -36,37 +35,44 @@ func (h *TxHandler) GetTxs(c *fiber.Ctx) error {
 	tx := h.GetDatabase().Begin(&sql.TxOptions{ReadOnly: true})
 	defer tx.Rollback()
 
-	query := tx.Model(&types.CollectedTx{})
+	var (
+		query      *gorm.DB
+		total      int64
+		msgTypeIds []int64
+	)
 
-	var total int64
 	hasFilters := len(msgs) > 0
-
 	if hasFilters {
-		msgTypeIds, err := h.GetMsgTypeIds(msgs)
+		msgTypeIds, err = h.GetMsgTypeIds(msgs)
 		if err != nil {
 			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 		}
-		query = query.Where("msg_type_ids && ?", pq.Array(msgTypeIds))
 	}
 
-	// Use optimized COUNT with CollectedTx strategy
-	var strategy types.CollectedTx
-	total, err = common.GetOptimizedCount(query, strategy, hasFilters)
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	useEdges := false
+	if hasFilters {
+		useEdges, err = common.IsEdgeBackfillReady(tx, types.SeqInfoTxEdgeBackfill)
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
+	}
+
+	if useEdges {
+		var edgeErr error
+		query, total, edgeErr = buildEdgeQueryForGetTxs(tx, msgTypeIds, pagination)
+		if edgeErr != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, edgeErr.Error())
+		}
+	} else {
+		var legacyErr error
+		query, total, legacyErr = buildTxLegacyQueryForGetTxs(tx, msgTypeIds, pagination)
+		if legacyErr != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, legacyErr.Error())
+		}
 	}
 
 	var txs []types.CollectedTx
-	var finalQuery *gorm.DB
-	if len(msgs) > 0 {
-		// With filters
-		finalQuery = pagination.ApplyToTxWithFilter(query)
-	} else {
-		// Without filters
-		finalQuery = pagination.ApplyToTx(query)
-	}
-
-	if err := finalQuery.Find(&txs).Error; err != nil {
+	if err := query.Find(&txs).Error; err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
@@ -133,48 +139,35 @@ func (h *TxHandler) GetTxsByAccount(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	var query *gorm.DB
-	if useEdges {
-		sequenceSubQuery := tx.
-			Model(&types.CollectedTxAccount{}).
-			Select("sequence").
-			Where("account_id = ?", accountIds[0])
-
-		if isSigner {
-			sequenceSubQuery = sequenceSubQuery.Where("signer")
-		}
-
-		query = tx.Model(&types.CollectedTx{}).
-			Where("sequence IN (?)", sequenceSubQuery)
-	} else {
-		query = tx.Model(&types.CollectedTx{}).
-			Where("account_ids && ?", pq.Array(accountIds))
-
-		if isSigner {
-			query = query.Where("signer_id = ?", accountIds[0])
-		}
-	}
+	var (
+		query      *gorm.DB
+		msgTypeIds []int64
+	)
 
 	if len(msgs) > 0 {
-		msgTypeIds, err := h.GetMsgTypeIds(msgs)
+		msgTypeIds, err = h.GetMsgTypeIds(msgs)
 		if err != nil {
 			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 		}
-		query = query.Where("msg_type_ids && ?", pq.Array(msgTypeIds))
 	}
 
-	// Use optimized COUNT - always has filters (account_ids)
-	var strategy types.CollectedTx
-	hasFilters := true // always has account_ids filter
 	var total int64
-	total, err = common.GetOptimizedCount(query, strategy, hasFilters)
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	if useEdges {
+		var edgeErr error
+		query, total, edgeErr = buildTxEdgeQuery(tx, accountIds[0], isSigner, msgTypeIds, pagination)
+		if edgeErr != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, edgeErr.Error())
+		}
+	} else {
+		var legacyErr error
+		query, total, legacyErr = buildTxLegacyQuery(tx, accountIds, isSigner, msgTypeIds, pagination)
+		if legacyErr != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, legacyErr.Error())
+		}
 	}
 
 	var txs []types.CollectedTx
-	finalQuery := pagination.ApplyToTxWithFilter(query)
-	if err := finalQuery.Find(&txs).Error; err != nil {
+	if err := query.Find(&txs).Error; err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
@@ -222,28 +215,41 @@ func (h *TxHandler) GetTxsByHeight(c *fiber.Ctx) error {
 	tx := h.GetDatabase().Begin(&sql.TxOptions{ReadOnly: true})
 	defer tx.Rollback()
 
-	query := tx.Model(&types.CollectedTx{}).Where("height = ?", height)
+	var (
+		query      *gorm.DB
+		msgTypeIds []int64
+		total      int64
+	)
 
-	hasFilters := true // always has height filter
+	useEdges := false
 	if len(msgs) > 0 {
-		msgTypeIds, err := h.GetMsgTypeIds(msgs)
+		msgTypeIds, err = h.GetMsgTypeIds(msgs)
 		if err != nil {
 			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 		}
-		query = query.Where("msg_type_ids && ?", pq.Array(msgTypeIds))
+
+		useEdges, err = common.IsEdgeBackfillReady(tx, types.SeqInfoTxEdgeBackfill)
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
 	}
 
-	// Use optimized COUNT - always has filters (height + optional msgs)
-	var strategy types.CollectedTx
-	var total int64
-	total, err = common.GetOptimizedCount(query, strategy, hasFilters)
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	if useEdges {
+		var edgeErr error
+		query, total, edgeErr = buildEdgeQueryForGetTxsByHeight(tx, height, msgTypeIds, pagination)
+		if edgeErr != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, edgeErr.Error())
+		}
+	} else {
+		var legacyErr error
+		query, total, legacyErr = buildTxLegacyQueryForGetTxsByHeight(tx, height, msgTypeIds, pagination)
+		if legacyErr != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, legacyErr.Error())
+		}
 	}
 
 	var txs []types.CollectedTx
-	finalQuery := pagination.ApplyToTxWithFilter(query)
-	if err := finalQuery.Find(&txs).Error; err != nil {
+	if err := query.Find(&txs).Error; err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
