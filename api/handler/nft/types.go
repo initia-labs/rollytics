@@ -42,7 +42,7 @@ type CollectionResponse struct {
 
 func ToCollectionResponse(col types.CollectedNftCollection, creatorAccount []byte) Collection {
 	return Collection{
-		Address: util.BytesToHexWithPrefix(col.Addr),
+		Address: util.BytesToHexWithPrefixIfPresent(col.Addr),
 		CollectionDetail: CollectionDetail{
 			Creator:    sdk.AccAddress(creatorAccount).String(),
 			Name:       col.Name,
@@ -90,10 +90,10 @@ type NftsResponse struct {
 
 func ToNftResponse(name, originName string, nft types.CollectedNft, ownerAccount []byte) Nft {
 	return Nft{
-		CollectionAddr:       util.BytesToHexWithPrefix(nft.CollectionAddr),
+		CollectionAddr:       util.BytesToHexWithPrefixIfPresent(nft.CollectionAddr),
 		CollectionName:       name,
 		CollectionOriginName: originName,
-		ObjectAddr:           util.BytesToHexWithPrefix(nft.Addr), // only used in Move
+		ObjectAddr:           util.BytesToHexWithPrefixIfPresent(nft.Addr), // only used in Move
 		Owner:                sdk.AccAddress(ownerAccount).String(),
 		Nft: NftDetails{
 			TokenId: nft.TokenId,
@@ -108,7 +108,7 @@ func ToNftsResponse(db *orm.Database, nfts []types.CollectedNft, ownerAccounts m
 	nftResponses := make([]Nft, 0, len(nfts))
 	for _, nft := range nfts {
 		// get collection names and origin names
-		collection, err := getCollectionByAddr(db, util.BytesToHexWithPrefix(nft.CollectionAddr))
+		collection, err := getCollectionByAddr(db, util.BytesToHexWithPrefixIfPresent(nft.CollectionAddr))
 		if err != nil {
 			return nil, err
 		}
