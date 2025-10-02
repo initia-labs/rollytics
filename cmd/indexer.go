@@ -6,6 +6,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/getsentry/sentry-go"
 	"github.com/spf13/cobra"
 
 	"github.com/initia-labs/rollytics/config"
@@ -85,6 +86,24 @@ You can configure database, chain, logging, and indexer options via environment 
 			// Start DB stats collection
 			metrics.StartDBStatsUpdater(db, logger)
 			defer metrics.StopDBStatsUpdater()
+
+			if sentryCfg := cfg.GetSentryConfig(); sentryCfg != nil {
+				sentryClientOptions := sentry.ClientOptions{
+					Dsn:                sentryCfg.DSN,
+					ServerName:         cfg.GetChainConfig().ChainId + "-rollytics-indexer",
+					EnableTracing:      true,
+					ProfilesSampleRate: sentryCfg.ProfilesSampleRate,
+					TracesSampleRate:   sentryCfg.TracesSampleRate,
+					Tags: map[string]string{
+						"chain":     cfg.GetChainConfig().ChainId,
+						"component": "rollytics-indexer",
+					},
+				}
+				if err := sentry.Init(sentryClientOptions); err != nil {
+					return err
+				}
+				logger.Info("Sentry initialized")
+			}
 
 			idxer := indexer.New(cfg, logger, db)
 			return idxer.Run(ctx)
