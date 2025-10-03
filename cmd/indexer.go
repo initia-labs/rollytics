@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/getsentry/sentry-go"
 	"github.com/spf13/cobra"
@@ -93,6 +94,7 @@ You can configure database, chain, logging, and indexer options via environment 
 					ServerName:         cfg.GetChainConfig().ChainId + "-rollytics-indexer",
 					EnableTracing:      true,
 					ProfilesSampleRate: sentryCfg.ProfilesSampleRate,
+					SampleRate:         sentryCfg.SampleRate,
 					TracesSampleRate:   sentryCfg.TracesSampleRate,
 					Tags: map[string]string{
 						"chain":     cfg.GetChainConfig().ChainId,
@@ -103,6 +105,7 @@ You can configure database, chain, logging, and indexer options via environment 
 					return err
 				}
 				logger.Info("Sentry initialized")
+				defer sentry.Flush(2 * time.Second)
 			}
 
 			idxer := indexer.New(cfg, logger, db)
