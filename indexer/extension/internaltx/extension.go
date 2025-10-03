@@ -12,6 +12,7 @@ import (
 	"github.com/initia-labs/rollytics/config"
 	exttypes "github.com/initia-labs/rollytics/indexer/extension/types"
 	"github.com/initia-labs/rollytics/orm"
+	"github.com/initia-labs/rollytics/sentry_integration"
 	"github.com/initia-labs/rollytics/types"
 )
 
@@ -88,6 +89,8 @@ func (i *InternalTxExtension) Run(ctx context.Context) error {
 
 // processBatch processes the next batch of blocks
 func (i *InternalTxExtension) processBatch(ctx context.Context) error {
+	transaction, ctx := sentry_integration.StartSentryTransaction(ctx, "processBatch", "Processing batch of internal transactions")
+	defer transaction.Finish()
 	var heights []int64
 
 	// Check context before DB operation

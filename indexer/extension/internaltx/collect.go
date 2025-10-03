@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -16,6 +17,7 @@ import (
 
 	indexerutil "github.com/initia-labs/rollytics/indexer/util"
 	"github.com/initia-labs/rollytics/orm"
+	"github.com/initia-labs/rollytics/sentry_integration"
 	"github.com/initia-labs/rollytics/types"
 	"github.com/initia-labs/rollytics/util"
 )
@@ -41,6 +43,9 @@ func (i *InternalTxExtension) collect(ctx context.Context, heights []int64) erro
 				return gCtx.Err()
 			default:
 			}
+
+			span, _ := sentry_integration.StartSentrySpan(gCtx, "scrapeInternalTx", "Scraping internal transactions for height "+strconv.FormatInt(h, 10))
+			defer span.Finish()
 
 			client := fiber.AcquireClient()
 			defer fiber.ReleaseClient(client)
@@ -80,14 +85,24 @@ func (i *InternalTxExtension) collect(ctx context.Context, heights []int64) erro
 		default:
 		}
 
-		// TODO: Update CollectInternalTxs to use context for DB operations
-		if err := i.CollectInternalTxs(i.db, scraped[height]); err != nil {
-			if errors.Is(err, context.Canceled) {
+		err := func() error {
+			span, _ := sentry_integration.StartSentrySpan(ctx, "collectInternalTxs", "Collecting internal transactions for height "+strconv.FormatInt(height, 10))
+			defer span.Finish()
+
+			// TODO: Update CollectInternalTxs to use context for DB operations
+			if err := i.CollectInternalTxs(i.db, scraped[height]); err != nil {
+				if errors.Is(err, context.Canceled) {
+					return err
+				}
+				i.logger.Error("failed to collect internal txs",
+					slog.Int64("height", height),
+					slog.Any("error", err))
 				return err
 			}
-			i.logger.Error("failed to collect internal txs",
-				slog.Int64("height", height),
-				slog.Any("error", err))
+			return nil
+		}()
+
+		if err != nil {
 			return err
 		}
 	}

@@ -83,6 +83,14 @@ type CacheConfig struct {
 	EvmTxHashCacheSize int `json:"evm_tx_hash_cache_size"`
 }
 
+// SentryConfig contains configuration for Sentry integration
+type SentryConfig struct {
+	DSN                string  `json:"dsn"`
+	SampleRate         float64 `json:"sample_rate"`          // General sample rate (fallback)
+	TracesSampleRate   float64 `json:"traces_sample_rate"`   // Traces sample rate
+	ProfilesSampleRate float64 `json:"profiles_sample_rate"` // Profiles sample rate
+}
+
 func SetBuildInfo(v, commit string) {
 	Version = v
 	CommitHash = commit
@@ -103,6 +111,7 @@ type Config struct {
 	internalTxConfig      *InternalTxConfig
 	metricsConfig         *MetricsConfig
 	cacheConfig           *CacheConfig
+	sentryConfig          *SentryConfig
 }
 
 func setDefaults() {
@@ -126,6 +135,12 @@ func setDefaults() {
 	viper.SetDefault("METRICS_ENABLED", false)
 	viper.SetDefault("METRICS_PATH", DefaultMetricsPath)
 	viper.SetDefault("METRICS_PORT", DefaultMetricsPort)
+
+	// Sentry defaults
+	viper.SetDefault("SENTRY_DSN", "")
+	viper.SetDefault("SENTRY_SAMPLE_RATE", 1.0)
+	viper.SetDefault("SENTRY_TRACES_SAMPLE_RATE", 1.0)
+	viper.SetDefault("SENTRY_PROFILES_SAMPLE_RATE", 1.0)
 
 	// Dictionary cache defaults
 	viper.SetDefault("ACCOUNT_CACHE_SIZE", DefaultAccountCacheSize)
@@ -227,6 +242,12 @@ func loadConfig() (*Config, error) {
 			TypeTagCacheSize:   viper.GetInt("TYPE_TAG_CACHE_SIZE"),
 			EvmTxHashCacheSize: viper.GetInt("EVM_TX_HASH_CACHE_SIZE"),
 		},
+		sentryConfig: &SentryConfig{
+			DSN:                viper.GetString("SENTRY_DSN"),
+			SampleRate:         viper.GetFloat64("SENTRY_SAMPLE_RATE"),
+			TracesSampleRate:   viper.GetFloat64("SENTRY_TRACES_SAMPLE_RATE"),
+			ProfilesSampleRate: viper.GetFloat64("SENTRY_PROFILES_SAMPLE_RATE"),
+		},
 	}
 
 	if err := config.Validate(); err != nil {
@@ -296,6 +317,13 @@ func (c Config) InternalTxEnabled() bool {
 
 func (c Config) GetInternalTxConfig() *InternalTxConfig {
 	return c.internalTxConfig
+}
+
+func (c Config) GetSentryConfig() *SentryConfig {
+	if c.sentryConfig == nil || c.sentryConfig.DSN == "" {
+		return nil
+	}
+	return c.sentryConfig
 }
 
 func (c Config) GetLogLevel() slog.Level {
