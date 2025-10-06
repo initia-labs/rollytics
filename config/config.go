@@ -60,6 +60,7 @@ const (
 	// Internal TX settings
 	DefaultInternalTxPollInterval = 5 * time.Second
 	DefaultInternalTxBatchSize    = 10
+	DefaultInternalTxQueueSize    = 100 // Default queue size
 
 	// Metrics settings
 	DefaultMetricsPath = "/metrics"
@@ -132,6 +133,7 @@ func setDefaults() {
 	viper.SetDefault("POLLING_INTERVAL", DefaultPollingInterval)
 	viper.SetDefault("INTERNAL_TX_POLL_INTERVAL", DefaultInternalTxPollInterval)
 	viper.SetDefault("INTERNAL_TX_BATCH_SIZE", DefaultInternalTxBatchSize)
+	viper.SetDefault("INTERNAL_TX_QUEUE_SIZE", DefaultInternalTxQueueSize)
 	viper.SetDefault("METRICS_ENABLED", false)
 	viper.SetDefault("METRICS_PATH", DefaultMetricsPath)
 	viper.SetDefault("METRICS_PORT", DefaultMetricsPort)
@@ -229,6 +231,7 @@ func loadConfig() (*Config, error) {
 			Enabled:      viper.GetBool("INTERNAL_TX"),
 			PollInterval: viper.GetDuration("INTERNAL_TX_POLL_INTERVAL"),
 			BatchSize:    viper.GetInt("INTERNAL_TX_BATCH_SIZE"),
+			QueueSize:    viper.GetInt("INTERNAL_TX_QUEUE_SIZE"),
 		},
 		metricsConfig: &MetricsConfig{
 			Enabled: viper.GetBool("METRICS_ENABLED"),
