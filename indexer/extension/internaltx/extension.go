@@ -248,7 +248,7 @@ func (i *InternalTxExtension) runConsumer(ctx context.Context) error {
 
 // produceWork finds new block heights, scrapes internal transaction data, and queues work items
 func (i *InternalTxExtension) produceWork(ctx context.Context) error {
-	transaction, ctx := sentry_integration.StartSentryTransaction(ctx, "produceWork", "Finding and scraping new heights")
+	transaction, ctx := sentry_integration.StartSentryTransaction(ctx, "produceWork", "Producing work items")
 	defer transaction.Finish()
 
 	// Check context before DB operation
@@ -278,14 +278,11 @@ func (i *InternalTxExtension) produceWork(ctx context.Context) error {
 
 // scrapeHeight scrapes internal transaction data for a single height
 func (i *InternalTxExtension) scrapeHeight(ctx context.Context, height int64) (*WorkItem, error) {
-	span, _ := sentry_integration.StartSentrySpan(ctx, "scrapeHeight", "Scraping internal transactions for height "+strconv.FormatInt(height, 10))
-	defer span.Finish()
-
 	client := fiber.AcquireClient()
 	defer fiber.ReleaseClient(client)
 
 	// Scrape internal transaction data
-	callTraceRes, err := TraceCallByBlock(i.cfg, client, height)
+	callTraceRes, err := TraceCallByBlock(ctx, i.cfg, client, height)
 	if err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			i.logger.Info("scraping cancelled", slog.Int64("height", height))
@@ -307,8 +304,8 @@ func (i *InternalTxExtension) scrapeHeight(ctx context.Context, height int64) (*
 
 // consumeWork processes a work item by saving it to the database
 func (i *InternalTxExtension) consumeWork(ctx context.Context, workItem *WorkItem) error {
-	span, _ := sentry_integration.StartSentrySpan(ctx, "consumeWork", "Processing internal transactions for height "+strconv.FormatInt(workItem.Height, 10))
-	defer span.Finish()
+	transaction, ctx := sentry_integration.StartSentryTransaction(ctx, "consumeWork", "Consuming work item for height "+strconv.FormatInt(workItem.Height, 10))
+	defer transaction.Finish()
 
 	// Convert WorkItem to InternalTxResult for compatibility with existing method
 	internalTxResult := &InternalTxResult{
@@ -317,7 +314,7 @@ func (i *InternalTxExtension) consumeWork(ctx context.Context, workItem *WorkIte
 	}
 
 	// Use existing CollectInternalTxs method to save to database
-	if err := i.CollectInternalTxs(i.db, internalTxResult); err != nil {
+	if err := i.CollectInternalTxs(ctx, i.db, internalTxResult); err != nil {
 		if errors.Is(err, context.Canceled) {
 			return err
 		}

@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 	"golang.org/x/mod/semver"
 
 	"github.com/initia-labs/rollytics/config"
+	"github.com/initia-labs/rollytics/sentry_integration"
 	"github.com/initia-labs/rollytics/util"
 )
 
@@ -63,7 +65,9 @@ func CheckNodeVersion(cfg *config.Config) error {
 	return nil
 }
 
-func TraceCallByBlock(cfg *config.Config, client *fiber.Client, height int64) (*DebugCallTraceBlockResponse, error) {
+func TraceCallByBlock(ctx context.Context, cfg *config.Config, client *fiber.Client, height int64) (*DebugCallTraceBlockResponse, error) {
+	span, _ := sentry_integration.StartSentrySpan(ctx, "TraceCallByBlock", "Tracing internal transactions for height "+strconv.FormatInt(height, 10))
+	defer span.Finish()
 	payload := map[string]any{
 		"jsonrpc": "2.0",
 		"method":  "debug_traceBlockByNumber",

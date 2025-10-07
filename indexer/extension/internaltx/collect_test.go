@@ -1,6 +1,7 @@
 package internaltx_test
 
 import (
+	"context"
 	"log/slog"
 	"os"
 	"testing"
@@ -297,7 +298,7 @@ func TestIndexer_CollectInternalTxs(t *testing.T) {
 	mock.ExpectCommit()
 
 	testRes := getTestResponse()
-	err := indexer.CollectInternalTxs(db, testRes)
+	err := indexer.CollectInternalTxs(context.Background(), db, testRes)
 	require.NoError(t, err)
 
 	require.NoError(t, mock.ExpectationsWereMet())
@@ -382,7 +383,7 @@ func TestIndexer_CollectInternalTxs_EmptyInternalTxs(t *testing.T) {
 	callTraceRes.Result[0].Result.GasUsed = "0x5208"
 	callTraceRes.Result[0].Result.Input = "0x"
 
-	err := indexer.CollectInternalTxs(db, &internal_tx.InternalTxResult{
+	err := indexer.CollectInternalTxs(context.Background(), db, &internal_tx.InternalTxResult{
 		Height:    100,
 		CallTrace: callTraceRes,
 	})

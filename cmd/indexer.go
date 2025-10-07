@@ -100,6 +100,7 @@ You can configure database, chain, logging, and indexer options via environment 
 						"chain":     cfg.GetChainConfig().ChainId,
 						"component": "rollytics-indexer",
 					},
+					Environment: sentryCfg.Environment,
 				}
 				if err := sentry.Init(sentryClientOptions); err != nil {
 					return err

@@ -67,6 +67,9 @@ const (
 
 	// Default address prefix
 	DefaultAccountAddressPrefix = "init"
+
+	// Default environment
+	DefaultEnvironment = "local"
 )
 
 type MetricsConfig struct {
@@ -90,6 +93,7 @@ type SentryConfig struct {
 	SampleRate         float64 `json:"sample_rate"`          // General sample rate (fallback)
 	TracesSampleRate   float64 `json:"traces_sample_rate"`   // Traces sample rate
 	ProfilesSampleRate float64 `json:"profiles_sample_rate"` // Profiles sample rate
+	Environment        string  `json:"environment"`
 }
 
 func SetBuildInfo(v, commit string) {
@@ -113,6 +117,7 @@ type Config struct {
 	metricsConfig         *MetricsConfig
 	cacheConfig           *CacheConfig
 	sentryConfig          *SentryConfig
+	environment           string
 }
 
 func setDefaults() {
@@ -137,6 +142,7 @@ func setDefaults() {
 	viper.SetDefault("METRICS_ENABLED", false)
 	viper.SetDefault("METRICS_PATH", DefaultMetricsPath)
 	viper.SetDefault("METRICS_PORT", DefaultMetricsPort)
+	viper.SetDefault("ENVIRONMENT", "local")
 
 	// Sentry defaults
 	viper.SetDefault("SENTRY_DSN", "")
@@ -250,6 +256,7 @@ func loadConfig() (*Config, error) {
 			SampleRate:         viper.GetFloat64("SENTRY_SAMPLE_RATE"),
 			TracesSampleRate:   viper.GetFloat64("SENTRY_TRACES_SAMPLE_RATE"),
 			ProfilesSampleRate: viper.GetFloat64("SENTRY_PROFILES_SAMPLE_RATE"),
+			Environment:        viper.GetString("ENVIRONMENT"),
 		},
 	}
 
@@ -283,6 +290,10 @@ func (c *Config) SetChainConfig(chainCfg *ChainConfig) {
 
 func (c Config) GetChainConfig() *ChainConfig {
 	return c.chainConfig
+}
+
+func (c Config) GetEnvironment() string {
+	return c.environment
 }
 
 // SetInternalTxConfig assigns the internal tx config for testing purposes.

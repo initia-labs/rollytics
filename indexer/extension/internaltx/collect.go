@@ -1,10 +1,12 @@
 package internaltx
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"strings"
 
 	"github.com/jackc/pgx/v5/pgconn"
@@ -12,6 +14,7 @@ import (
 
 	indexerutil "github.com/initia-labs/rollytics/indexer/util"
 	"github.com/initia-labs/rollytics/orm"
+	"github.com/initia-labs/rollytics/sentry_integration"
 	"github.com/initia-labs/rollytics/types"
 	"github.com/initia-labs/rollytics/util"
 )
@@ -21,7 +24,7 @@ type InternalTxResult struct {
 	CallTrace *DebugCallTraceBlockResponse
 }
 
-func (i *InternalTxExtension) CollectInternalTxs(db *orm.Database, internalTx *InternalTxResult) error {
+func (i *InternalTxExtension) CollectInternalTxs(ctx context.Context, db *orm.Database, internalTx *InternalTxResult) error {
 	err := db.Transaction(func(tx *gorm.DB) error {
 		seqInfo, err := indexerutil.GetSeqInfo(types.SeqInfoEvmInternalTx, tx)
 		if err != nil {
@@ -46,18 +49,23 @@ func (i *InternalTxExtension) CollectInternalTxs(db *orm.Database, internalTx *I
 			allInternalTxs []types.CollectedEvmInternalTx
 			allEdges       []types.CollectedEvmInternalTxAccount
 		)
-		for _, trace := range internalTx.CallTrace.Result {
+		for idx, trace := range internalTx.CallTrace.Result {
+			span, _ := sentry_integration.StartSentrySpan(ctx, "CollectInternalTxs", "Collecting internal transactions at index "+strconv.Itoa(idx))
+
 			if trace.Error != "" {
+				span.Finish() // Finish span before continue
 				i.logger.Info("skip indexing in failed transaction",
 					slog.Int64("height", internalTx.Height),
 					slog.String("tx_hash", trace.TxHash),
 					slog.String("error", trace.Error))
 				continue
 			}
+
 			height := internalTx.Height
 			hashHex := strings.ToLower(strings.TrimPrefix(trace.TxHash, "0x"))
 			hashId, ok := hashIdMap[hashHex]
 			if !ok {
+				span.Finish() // Finish span before return
 				return types.NewNotFoundError(fmt.Sprintf("hash ID for hash %s", hashHex))
 			}
 
@@ -82,18 +90,25 @@ func (i *InternalTxExtension) CollectInternalTxs(db *orm.Database, internalTx *I
 
 			txResults, err := processInternalCall(tx, txInfo, &topLevelCall, &seqInfo, &allEdges)
 			if err != nil {
+				span.Finish() // Finish span before return
 				return err
 			}
 			allInternalTxs = append(allInternalTxs, txResults...)
+
+			span.Finish() // Finish span at the end of successful iteration
 		}
+		span, _ := sentry_integration.StartSentrySpan(ctx, "InsertInternalTxs", "Inserting internal txs batch at height "+strconv.FormatInt(internalTx.Height, 10))
+
 		batchSize := i.cfg.GetDBBatchSize()
 		if err := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(allInternalTxs, batchSize).Error; err != nil {
+			span.Finish() // Finish span before return
 			i.logger.Error("failed to create internal txs batch", slog.Int64("height", internalTx.Height), slog.Any("error", err))
 			return err
 		}
 
 		if len(allEdges) > 0 {
 			if err := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(allEdges, batchSize).Error; err != nil {
+				span.Finish() // Finish span before return
 				i.logger.Error("failed to create internal tx account edges", slog.Int64("height", internalTx.Height), slog.Any("error", err))
 				return err
 			}
@@ -101,8 +116,10 @@ func (i *InternalTxExtension) CollectInternalTxs(db *orm.Database, internalTx *I
 
 		// Update the sequence info
 		if err := tx.Clauses(orm.UpdateAllWhenConflict).Create(&seqInfo).Error; err != nil {
+			span.Finish() // Finish span before return
 			return err
 		}
+		span.Finish() // Finish span at the end of successful iteration
 
 		return nil
 	}, &sql.TxOptions{
