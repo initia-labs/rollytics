@@ -97,15 +97,16 @@ You can configure database, chain, logging, and indexer options via environment 
 					SampleRate:         sentryCfg.SampleRate,
 					TracesSampleRate:   sentryCfg.TracesSampleRate,
 					Tags: map[string]string{
-						"chain":     cfg.GetChainConfig().ChainId,
-						"component": "rollytics-indexer",
+						"chain":       cfg.GetChainConfig().ChainId,
+						"component":   "rollytics-indexer",
+						"environment": sentryCfg.Environment,
 					},
 					Environment: sentryCfg.Environment,
 				}
 				if err := sentry.Init(sentryClientOptions); err != nil {
 					return err
 				}
-				logger.Info("Sentry initialized")
+				logger.Info("Sentry initialized", "chain", cfg.GetChainConfig().ChainId, "component", "rollytics-indexer", "environment", sentryCfg.Environment)
 				defer sentry.Flush(2 * time.Second)
 			}
 

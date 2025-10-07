@@ -117,7 +117,6 @@ type Config struct {
 	metricsConfig         *MetricsConfig
 	cacheConfig           *CacheConfig
 	sentryConfig          *SentryConfig
-	environment           string
 }
 
 func setDefaults() {
@@ -142,7 +141,7 @@ func setDefaults() {
 	viper.SetDefault("METRICS_ENABLED", false)
 	viper.SetDefault("METRICS_PATH", DefaultMetricsPath)
 	viper.SetDefault("METRICS_PORT", DefaultMetricsPort)
-	viper.SetDefault("ENVIRONMENT", "local")
+	viper.SetDefault("ENVIRONMENT", DefaultEnvironment)
 
 	// Sentry defaults
 	viper.SetDefault("SENTRY_DSN", "")
@@ -290,10 +289,6 @@ func (c *Config) SetChainConfig(chainCfg *ChainConfig) {
 
 func (c Config) GetChainConfig() *ChainConfig {
 	return c.chainConfig
-}
-
-func (c Config) GetEnvironment() string {
-	return c.environment
 }
 
 // SetInternalTxConfig assigns the internal tx config for testing purposes.
