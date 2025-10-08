@@ -161,14 +161,21 @@ func (i *InternalTxExtension) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to initialize internal transaction extension: %w", err)
 	}
 
-	go i.runProducer(ctx)
-	go i.runConsumer(ctx)
+	g, ctx := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		return i.runProducer(ctx)
+	})
 
-	// Wait for context cancellation
-	<-ctx.Done()
-	i.logger.Info("internal tx extension shutting down gracefully",
-		slog.String("reason", ctx.Err().Error()))
-	return ctx.Err()
+	g.Go(func() error {
+		return i.runConsumer(ctx)
+	})
+
+	if err := g.Wait(); err != nil && !errors.Is(err, context.Canceled) {
+		return err
+	}
+
+	i.logger.Info("internal tx extension shut down gracefully")
+	return nil
 }
 
 // runProducer finds new block heights, scrapes data, and adds work items to the queue
@@ -229,7 +236,7 @@ func (i *InternalTxExtension) runConsumer(ctx context.Context) error {
 	}
 }
 
-func (i *InternalTxExtension) addjustBatchSize() int {
+func (i *InternalTxExtension) adjustBatchSize() int {
 	batchSize := i.cfg.GetInternalTxConfig().GetBatchSize()
 	availableSpace := i.workQueue.maxSize - i.workQueue.Size()
 	if availableSpace <= 0 {
@@ -287,7 +294,7 @@ func (i *InternalTxExtension) produceBatchWork(ctx context.Context) error {
 	transaction, ctx := sentry_integration.StartSentryTransaction(ctx, "produceBatchWork", "Producing batch work items")
 	defer transaction.Finish()
 
-	batchSize := i.addjustBatchSize()
+	batchSize := i.adjustBatchSize()
 	if batchSize == 0 {
 		return nil
 	}
