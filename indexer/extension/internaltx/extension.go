@@ -17,6 +17,7 @@ import (
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/sentry_integration"
 	"github.com/initia-labs/rollytics/types"
+	"golang.org/x/sync/errgroup"
 )
 
 const ExtensionName = "internal-tx"
@@ -159,7 +160,6 @@ func (i *InternalTxExtension) Initialize(ctx context.Context) error {
 	if exists {
 		i.lastProducedHeight = nextHeight
 	} else {
-		// No next block available yet, stay at current height
 		i.lastProducedHeight = lastItx.Height
 	}
 
@@ -196,18 +196,16 @@ func (i *InternalTxExtension) runProducer(ctx context.Context) error {
 		default:
 			// Only produce work if queue is not full
 			if i.workQueue.IsNotFull() {
-				if err := i.produceWork(ctx); err != nil {
+				// Use batch processing instead of single height processing
+				if err := i.produceBatchWork(ctx); err != nil {
 					if errors.Is(err, context.Canceled) {
 						return err
 					}
-					i.logger.Error("failed to produce work",
+					i.logger.Error("failed to produce batch work",
 						slog.Any("error", err),
 						slog.Int64("last_height", i.lastProducedHeight))
 
-					// TODO: revisit wait logic
-					if i.lastProducedHeight%int64(i.cfg.GetInternalTxConfig().GetBatchSize()) == 0 {
-						time.Sleep(i.cfg.GetInternalTxConfig().GetPollInterval())
-					}
+					time.Sleep(i.cfg.GetInternalTxConfig().GetPollInterval())
 				}
 			} else {
 				// Queue is full, wait a bit before checking again
@@ -246,34 +244,129 @@ func (i *InternalTxExtension) runConsumer(ctx context.Context) error {
 	}
 }
 
-// produceWork finds new block heights, scrapes internal transaction data, and queues work items
-func (i *InternalTxExtension) produceWork(ctx context.Context) error {
-	transaction, ctx := sentry_integration.StartSentryTransaction(ctx, "produceWork", "Producing work items")
-	defer transaction.Finish()
+func (i *InternalTxExtension) addjustBatchSize() int {
+	batchSize := i.cfg.GetInternalTxConfig().GetBatchSize()
+	availableSpace := i.workQueue.maxSize - i.workQueue.Size()
+	if availableSpace <= 0 {
+		return 0
+	}
+	if batchSize > availableSpace {
+		batchSize = availableSpace
+	}
+
+	// Check how many collected blocks are available to process
+	var maxCollectedHeight int64
+	if err := i.db.Model(&types.CollectedBlock{}).
+		Where("chain_id = ?", i.cfg.GetChainId()).
+		Where("tx_count > 0").
+		Where("height > ?", i.lastProducedHeight).
+		Select("MAX(height)").
+		Scan(&maxCollectedHeight).Error; err != nil {
+		i.logger.Error("failed to get max collected height", slog.Any("error", err))
+		return 0
+	}
+
+	// Limit batch size to available collected blocks
+	availableBlocks := int(maxCollectedHeight - i.lastProducedHeight)
+	if batchSize > availableBlocks {
+		batchSize = availableBlocks
+	}
+
+	return batchSize
+}
+
+func (i *InternalTxExtension) getScrapeableHeights(ctx context.Context, batchSize int) ([]int64, error) {
+	var heights []int64
 
 	// Check context before DB operation
 	if ctx.Err() != nil {
-		return ctx.Err()
+		return nil, ctx.Err()
 	}
 
-	// Scrape internal transaction data
-	workItem, err := i.scrapeHeight(ctx, i.lastProducedHeight)
+	// Query blocks with context support
+	if err := i.db.WithContext(ctx).
+		Model(&types.CollectedBlock{}).
+		Where("chain_id = ?", i.cfg.GetChainId()).
+		Where("height > ?", i.lastProducedHeight).
+		Where("tx_count > 0").
+		Order("height ASC").
+		Limit(batchSize).
+		Pluck("height", &heights).Error; err != nil {
+		return nil, fmt.Errorf("failed to query blocks: %w", err)
+	}
+	return heights, nil
+}
+
+// produceBatchWork scrapes multiple heights concurrently in batches
+func (i *InternalTxExtension) produceBatchWork(ctx context.Context) error {
+	transaction, ctx := sentry_integration.StartSentryTransaction(ctx, "produceBatchWork", "Producing batch work items")
+	defer transaction.Finish()
+
+	batchSize := i.addjustBatchSize()
+	if batchSize == 0 {
+		return nil
+	}
+
+	heights, err := i.getScrapeableHeights(ctx, batchSize)
 	if err != nil {
-		return fmt.Errorf("failed to scrape height %d: %w", i.lastProducedHeight, err)
+		return fmt.Errorf("failed to get pending heights: %w", err)
 	}
 
-	// Add work item to queue
-	if err := i.workQueue.Push(ctx, workItem); err != nil {
-		return fmt.Errorf("failed to add work item to queue: %w", err)
+	// If no heights available, return early
+	if len(heights) == 0 {
+		return nil
 	}
 
-	i.logger.Debug("produced work item",
-		slog.Int64("height", i.lastProducedHeight),
-		slog.Int("queue_size", i.workQueue.Size()))
+	workItems, err := i.scrapeBatch(ctx, heights)
+	if err != nil {
+		return fmt.Errorf("failed to scrape batch starting at height %d: %w", heights[0], err)
+	}
 
-	// Update lastProducedHeight after successfully queuing
-	i.lastProducedHeight += 1
+	// Push all work items to queue
+	for _, workItem := range workItems {
+		if err := i.workQueue.Push(ctx, workItem); err != nil {
+			return fmt.Errorf("failed to add work item to queue: %w", err)
+		}
+	}
+
+	i.lastProducedHeight = heights[len(heights)-1]
 	return nil
+}
+
+// scrapeBatch scrapes multiple heights concurrently and waits for all to complete
+func (i *InternalTxExtension) scrapeBatch(ctx context.Context, heights []int64) ([]*WorkItem, error) {
+	g, ctx := errgroup.WithContext(ctx)
+
+	workItems := make([]*WorkItem, len(heights))
+
+	for idx, height := range heights {
+		idx, height := idx, height // Capture loop variables
+
+		g.Go(func() error {
+			return func(idx int, height int64) error {
+				workItem, err := i.scrapeHeight(ctx, height)
+				if err != nil {
+					return fmt.Errorf("failed to scrape height %d: %w", height, err)
+				}
+				workItems[idx] = workItem
+				return nil
+			}(idx, height)
+		})
+	}
+
+	// Wait for all goroutines to complete
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+
+	result := make([]*WorkItem, 0, len(workItems))
+	for _, item := range workItems {
+		if item != nil {
+			result = append(result, item)
+		}
+	}
+
+	return result, nil
 }
 
 // scrapeHeight scrapes internal transaction data for a single height
