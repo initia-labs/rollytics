@@ -78,12 +78,15 @@ func (wq *WorkQueue) Pop(ctx context.Context) (*WorkItem, error) {
 	defer wq.mu.Unlock()
 
 	for len(wq.items) == 0 {
+		wq.mu.Unlock()
 		select {
 		case <-ctx.Done():
+			wq.mu.Lock() // balance deferred unlock
 			return nil, ctx.Err()
-		default:
+		case <-time.After(10 * time.Millisecond):
+			// brief wait before rechecking
 		}
-		wq.notEmpty.Wait()
+		wq.mu.Lock()
 	}
 
 	item := wq.items[0]
