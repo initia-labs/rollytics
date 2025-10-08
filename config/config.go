@@ -145,9 +145,9 @@ func setDefaults() {
 
 	// Sentry defaults
 	viper.SetDefault("SENTRY_DSN", "")
-	viper.SetDefault("SENTRY_SAMPLE_RATE", 1.0)
-	viper.SetDefault("SENTRY_TRACES_SAMPLE_RATE", 1.0)
-	viper.SetDefault("SENTRY_PROFILES_SAMPLE_RATE", 1.0)
+	viper.SetDefault("SENTRY_SAMPLE_RATE", 0.01)
+	viper.SetDefault("SENTRY_TRACES_SAMPLE_RATE", 0.01)
+	viper.SetDefault("SENTRY_PROFILES_SAMPLE_RATE", 0.01)
 
 	// Dictionary cache defaults
 	viper.SetDefault("ACCOUNT_CACHE_SIZE", DefaultAccountCacheSize)
