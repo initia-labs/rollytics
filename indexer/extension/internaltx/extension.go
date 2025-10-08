@@ -144,25 +144,7 @@ func (i *InternalTxExtension) Initialize(ctx context.Context) error {
 		return err
 	}
 
-	// Check if the next height (lastItx.Height + 1) exists and has transactions
-	nextHeight := lastItx.Height + 1
-	var exists bool
-	if err := i.db.WithContext(ctx).
-		Model(&types.CollectedBlock{}).
-		Where("chain_id = ?", i.cfg.GetChainId()).
-		Where("height = ?", nextHeight).
-		Where("tx_count > 0").
-		Select("count(*) > 0").
-		Find(&exists).Error; err != nil {
-		return fmt.Errorf("failed to check if next block exists: %w", err)
-	}
-
-	if exists {
-		i.lastProducedHeight = nextHeight
-	} else {
-		i.lastProducedHeight = lastItx.Height
-	}
-
+	i.lastProducedHeight = lastItx.Height
 	return nil
 }
 
