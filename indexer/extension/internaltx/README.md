@@ -28,11 +28,10 @@ The Internal Transaction Extension is a high-performance, producer-consumer arch
 
 ### 1. Producer Pipeline
 
-```markdown
-┌─────────────────┐ ┌──────────────────┐ ┌─────────────────┐
-│ Find Heights │───▶│ Batch Scraping │───▶│ Queue Work │
-│ │ │ (Concurrent) │ │ Items │
-└─────────────────┘ └──────────────────┘ └─────────────────┘
+```mermaid
+graph LR
+    A[Find Heights] --> B[Batch Scraping<br/>Concurrent]
+    B --> C[Queue Work<br/>Items]
 ```
 
 **Process Flow:**
@@ -47,11 +46,10 @@ The Internal Transaction Extension is a high-performance, producer-consumer arch
 
 ### 2. Consumer Pipeline
 
-```markdown
-┌─────────────────┐ ┌──────────────────┐ ┌─────────────────┐
-│ Dequeue Work │───▶│ Process Traces │───▶│ Batch Insert │
-│ Items │ │ (Recursive) │ │ to Database │
-└─────────────────┘ └──────────────────┘ └─────────────────┘
+```mermaid
+graph LR
+    A[Dequeue Work<br/>Items] --> B[Process Traces<br/>Recursive]
+    B --> C[Batch Insert<br/>to Database]
 ```
 
 **Process Flow:**
