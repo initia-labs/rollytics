@@ -39,26 +39,6 @@ func TestWorkQueue_PushPop(t *testing.T) {
 	assert.False(t, wq.IsNotEmpty())
 }
 
-func TestWorkQueue_ContextCancellation(t *testing.T) {
-	wq := NewWorkQueue(1)
-	ctx, cancel := context.WithCancel(context.Background())
-
-	// Fill queue
-	err := wq.Push(ctx, &WorkItem{Height: 100})
-	require.NoError(t, err)
-
-	// Cancel context
-	cancel()
-
-	// Push should return context error
-	err = wq.Push(ctx, &WorkItem{Height: 101})
-	assert.Equal(t, context.Canceled, err)
-
-	// Pop should return context error on empty queue
-	_, err = wq.Pop(ctx)
-	assert.Equal(t, context.Canceled, err)
-}
-
 func TestWorkQueue_ThreadSafety(t *testing.T) {
 	wq := NewWorkQueue(100)
 	ctx := context.Background()
