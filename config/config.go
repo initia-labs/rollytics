@@ -60,12 +60,16 @@ const (
 	// Internal TX settings
 	DefaultInternalTxPollInterval = 5 * time.Second
 	DefaultInternalTxBatchSize    = 10
+	DefaultInternalTxQueueSize    = 100 // Default queue size
 
 	// Metrics settings
 	DefaultMetricsPath = "/metrics"
 
 	// Default address prefix
 	DefaultAccountAddressPrefix = "init"
+
+	// Default environment
+	DefaultEnvironment = "local"
 )
 
 type MetricsConfig struct {
@@ -89,6 +93,7 @@ type SentryConfig struct {
 	SampleRate         float64 `json:"sample_rate"`          // General sample rate (fallback)
 	TracesSampleRate   float64 `json:"traces_sample_rate"`   // Traces sample rate
 	ProfilesSampleRate float64 `json:"profiles_sample_rate"` // Profiles sample rate
+	Environment        string  `json:"environment"`
 }
 
 func SetBuildInfo(v, commit string) {
@@ -132,15 +137,17 @@ func setDefaults() {
 	viper.SetDefault("POLLING_INTERVAL", DefaultPollingInterval)
 	viper.SetDefault("INTERNAL_TX_POLL_INTERVAL", DefaultInternalTxPollInterval)
 	viper.SetDefault("INTERNAL_TX_BATCH_SIZE", DefaultInternalTxBatchSize)
+	viper.SetDefault("INTERNAL_TX_QUEUE_SIZE", DefaultInternalTxQueueSize)
 	viper.SetDefault("METRICS_ENABLED", false)
 	viper.SetDefault("METRICS_PATH", DefaultMetricsPath)
 	viper.SetDefault("METRICS_PORT", DefaultMetricsPort)
+	viper.SetDefault("ENVIRONMENT", DefaultEnvironment)
 
 	// Sentry defaults
 	viper.SetDefault("SENTRY_DSN", "")
-	viper.SetDefault("SENTRY_SAMPLE_RATE", 1.0)
-	viper.SetDefault("SENTRY_TRACES_SAMPLE_RATE", 1.0)
-	viper.SetDefault("SENTRY_PROFILES_SAMPLE_RATE", 1.0)
+	viper.SetDefault("SENTRY_SAMPLE_RATE", 0.01)
+	viper.SetDefault("SENTRY_TRACES_SAMPLE_RATE", 0.01)
+	viper.SetDefault("SENTRY_PROFILES_SAMPLE_RATE", 0.01)
 
 	// Dictionary cache defaults
 	viper.SetDefault("ACCOUNT_CACHE_SIZE", DefaultAccountCacheSize)
@@ -229,6 +236,7 @@ func loadConfig() (*Config, error) {
 			Enabled:      viper.GetBool("INTERNAL_TX"),
 			PollInterval: viper.GetDuration("INTERNAL_TX_POLL_INTERVAL"),
 			BatchSize:    viper.GetInt("INTERNAL_TX_BATCH_SIZE"),
+			QueueSize:    viper.GetInt("INTERNAL_TX_QUEUE_SIZE"),
 		},
 		metricsConfig: &MetricsConfig{
 			Enabled: viper.GetBool("METRICS_ENABLED"),
@@ -247,6 +255,7 @@ func loadConfig() (*Config, error) {
 			SampleRate:         viper.GetFloat64("SENTRY_SAMPLE_RATE"),
 			TracesSampleRate:   viper.GetFloat64("SENTRY_TRACES_SAMPLE_RATE"),
 			ProfilesSampleRate: viper.GetFloat64("SENTRY_PROFILES_SAMPLE_RATE"),
+			Environment:        viper.GetString("ENVIRONMENT"),
 		},
 	}
 
@@ -455,6 +464,9 @@ func (c Config) validateInternalTxConfig() error {
 		}
 		if err := c.validateInternalTxSettings(); err != nil {
 			return err
+		}
+		if c.internalTxConfig.QueueSize < 1 {
+			return types.NewValidationError("INTERNAL_TX_QUEUE_SIZE", "must be at least 1")
 		}
 	}
 	return nil

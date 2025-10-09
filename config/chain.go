@@ -14,6 +14,7 @@ type ChainConfig struct {
 	RestUrl              string
 	JsonRpcUrl           string
 	AccountAddressPrefix string
+	Environment          string
 }
 
 func (cc ChainConfig) Validate() error {

@@ -8,11 +8,8 @@ import (
 	"log/slog"
 	"strconv"
 	"strings"
-	"sync"
 
-	"github.com/gofiber/fiber/v2"
 	"github.com/jackc/pgx/v5/pgconn"
-	"golang.org/x/sync/errgroup"
 	"gorm.io/gorm"
 
 	indexerutil "github.com/initia-labs/rollytics/indexer/util"
@@ -27,103 +24,7 @@ type InternalTxResult struct {
 	CallTrace *DebugCallTraceBlockResponse
 }
 
-func (i *InternalTxExtension) collect(ctx context.Context, heights []int64) error {
-	// Use context-aware errgroup for cancellation support
-	g, gCtx := errgroup.WithContext(ctx)
-	scraped := make(map[int64]*InternalTxResult)
-	mu := sync.Mutex{}
-
-	// 1. Scrape internal transactions with context
-	for _, height := range heights {
-		h := height
-		g.Go(func() error {
-			// Check context before starting
-			select {
-			case <-gCtx.Done():
-				return gCtx.Err()
-			default:
-			}
-
-			span, _ := sentry_integration.StartSentrySpan(gCtx, "scrapeInternalTx", "Scraping internal transactions for height "+strconv.FormatInt(h, 10))
-			defer span.Finish()
-
-			client := fiber.AcquireClient()
-			defer fiber.ReleaseClient(client)
-
-			// TODO: Update scrapeInternalTx to support context for HTTP timeouts
-			internalTx, err := i.scrapeInternalTx(client, h)
-			if err != nil {
-				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-					i.logger.Info("scraping cancelled", slog.Int64("height", h))
-					return err
-				}
-				i.logger.Error("failed to scrape internal tx",
-					slog.Int64("height", h),
-					slog.Any("error", err))
-				return err
-			}
-
-			i.logger.Info("scraped internal txs", slog.Int64("height", h))
-			mu.Lock()
-			scraped[internalTx.Height] = internalTx
-			mu.Unlock()
-			return nil
-		})
-	}
-
-	if err := g.Wait(); err != nil {
-		return err
-	}
-
-	// 2. Collect internal transactions with context check
-	for _, height := range heights {
-		// Check context before each DB operation
-		select {
-		case <-ctx.Done():
-			i.logger.Info("collection cancelled during DB save", slog.Int64("height", height))
-			return ctx.Err()
-		default:
-		}
-
-		err := func() error {
-			span, _ := sentry_integration.StartSentrySpan(ctx, "collectInternalTxs", "Collecting internal transactions for height "+strconv.FormatInt(height, 10))
-			defer span.Finish()
-
-			// TODO: Update CollectInternalTxs to use context for DB operations
-			if err := i.CollectInternalTxs(i.db, scraped[height]); err != nil {
-				if errors.Is(err, context.Canceled) {
-					return err
-				}
-				i.logger.Error("failed to collect internal txs",
-					slog.Int64("height", height),
-					slog.Any("error", err))
-				return err
-			}
-			return nil
-		}()
-
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// Get EVM internal transactions for the debug_traceBlock
-func (i *InternalTxExtension) scrapeInternalTx(client *fiber.Client, height int64) (*InternalTxResult, error) {
-	callTraceRes, err := TraceCallByBlock(i.cfg, client, height)
-	if err != nil {
-		return nil, err
-	}
-
-	return &InternalTxResult{
-		Height:    height,
-		CallTrace: callTraceRes,
-	}, nil
-}
-
-func (i *InternalTxExtension) CollectInternalTxs(db *orm.Database, internalTx *InternalTxResult) error {
+func (i *InternalTxExtension) CollectInternalTxs(ctx context.Context, db *orm.Database, internalTx *InternalTxResult) error {
 	err := db.Transaction(func(tx *gorm.DB) error {
 		seqInfo, err := indexerutil.GetSeqInfo(types.SeqInfoEvmInternalTx, tx)
 		if err != nil {
@@ -148,18 +49,23 @@ func (i *InternalTxExtension) CollectInternalTxs(db *orm.Database, internalTx *I
 			allInternalTxs []types.CollectedEvmInternalTx
 			allEdges       []types.CollectedEvmInternalTxAccount
 		)
-		for _, trace := range internalTx.CallTrace.Result {
+		for idx, trace := range internalTx.CallTrace.Result {
+			span, _ := sentry_integration.StartSentrySpan(ctx, "CollectInternalTxs", "Collecting internal transactions at index "+strconv.Itoa(idx))
+
 			if trace.Error != "" {
+				span.Finish() // Finish span before continue
 				i.logger.Info("skip indexing in failed transaction",
 					slog.Int64("height", internalTx.Height),
 					slog.String("tx_hash", trace.TxHash),
 					slog.String("error", trace.Error))
 				continue
 			}
+
 			height := internalTx.Height
 			hashHex := strings.ToLower(strings.TrimPrefix(trace.TxHash, "0x"))
 			hashId, ok := hashIdMap[hashHex]
 			if !ok {
+				span.Finish() // Finish span before return
 				return types.NewNotFoundError(fmt.Sprintf("hash ID for hash %s", hashHex))
 			}
 
@@ -184,18 +90,25 @@ func (i *InternalTxExtension) CollectInternalTxs(db *orm.Database, internalTx *I
 
 			txResults, err := processInternalCall(tx, txInfo, &topLevelCall, &seqInfo, &allEdges)
 			if err != nil {
+				span.Finish() // Finish span before return
 				return err
 			}
 			allInternalTxs = append(allInternalTxs, txResults...)
+
+			span.Finish() // Finish span at the end of successful iteration
 		}
+		span, _ := sentry_integration.StartSentrySpan(ctx, "InsertInternalTxs", "Inserting internal txs batch at height "+strconv.FormatInt(internalTx.Height, 10))
+
 		batchSize := i.cfg.GetDBBatchSize()
 		if err := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(allInternalTxs, batchSize).Error; err != nil {
+			span.Finish() // Finish span before return
 			i.logger.Error("failed to create internal txs batch", slog.Int64("height", internalTx.Height), slog.Any("error", err))
 			return err
 		}
 
 		if len(allEdges) > 0 {
 			if err := tx.Clauses(orm.DoNothingWhenConflict).CreateInBatches(allEdges, batchSize).Error; err != nil {
+				span.Finish() // Finish span before return
 				i.logger.Error("failed to create internal tx account edges", slog.Int64("height", internalTx.Height), slog.Any("error", err))
 				return err
 			}
@@ -203,8 +116,10 @@ func (i *InternalTxExtension) CollectInternalTxs(db *orm.Database, internalTx *I
 
 		// Update the sequence info
 		if err := tx.Clauses(orm.UpdateAllWhenConflict).Create(&seqInfo).Error; err != nil {
+			span.Finish() // Finish span before return
 			return err
 		}
+		span.Finish() // Finish span at the end of successful iteration
 
 		return nil
 	}, &sql.TxOptions{
