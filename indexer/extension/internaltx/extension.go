@@ -23,6 +23,10 @@ const ExtensionName = "internal-tx"
 
 var _ exttypes.Extension = (*InternalTxExtension)(nil)
 
+var (
+	ErrNoHeightsAvailable = errors.New("no heights available")
+)
+
 // WorkItem represents a work item containing scraped internal transaction data
 type WorkItem struct {
 	Height    int64
@@ -237,18 +241,17 @@ func (i *InternalTxExtension) getBatchHeights(ctx context.Context) ([]int64, err
 
 // produceBatchWork scrapes multiple heights concurrently in batches
 func (i *InternalTxExtension) produceBatchWork(ctx context.Context) error {
+	transaction, ctx := sentry_integration.StartSentryTransaction(ctx, "(internal-tx) produceBatchWork", "Producing batch work items")
+	defer transaction.Finish()
 	heights, err := i.getBatchHeights(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to get batch heights: %w", err)
+		return ErrNoHeightsAvailable
 	}
 
 	// If no heights available, return early
 	if len(heights) == 0 {
-		return nil
+		return ErrNoHeightsAvailable
 	}
-
-	transaction, ctx := sentry_integration.StartSentryTransaction(ctx, "(internal-tx) produceBatchWork", "Producing batch work items")
-	defer transaction.Finish()
 
 	workItems, err := i.scrapeBatch(ctx, heights)
 	if err != nil {
