@@ -258,6 +258,10 @@ func (i *InternalTxExtension) adjustBatchSize(ctx context.Context) int {
 		return 0
 	}
 
+	if maxCollectedHeight <= i.lastProducedHeight {
+		return 0
+	}
+
 	// Limit batch size to available collected blocks
 	availableBlocks := int(maxCollectedHeight - i.lastProducedHeight)
 	if batchSize > availableBlocks {
