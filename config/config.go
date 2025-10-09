@@ -465,6 +465,9 @@ func (c Config) validateInternalTxConfig() error {
 		if err := c.validateInternalTxSettings(); err != nil {
 			return err
 		}
+		if c.internalTxConfig.QueueSize < 1 {
+			return types.NewValidationError("INTERNAL_TX_QUEUE_SIZE", "must be at least 1")
+		}
 	}
 	return nil
 }
