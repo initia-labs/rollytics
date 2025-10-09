@@ -175,7 +175,7 @@ func (i *InternalTxExtension) runProducer(ctx context.Context) error {
 				}
 			} else {
 				// Queue is full, wait a bit before checking again
-				time.Sleep(100 * time.Millisecond)
+				time.Sleep(time.Second)
 			}
 		}
 	}
@@ -250,7 +250,7 @@ func (i *InternalTxExtension) produceBatchWork(ctx context.Context) error {
 
 	// If no heights available, return early
 	if len(heights) == 0 {
-		return ErrNoHeightsAvailable
+		return nil
 	}
 
 	workItems, err := i.scrapeBatch(ctx, heights)
