@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -30,90 +29,58 @@ type WorkItem struct {
 	CallTrace *DebugCallTraceBlockResponse
 }
 
-// WorkQueue represents a thread-safe queue for work items
+// WorkQueue represents a thread-safe queue for work items using channels
 type WorkQueue struct {
-	items    []*WorkItem
-	maxSize  int
-	mu       sync.RWMutex
-	notEmpty *sync.Cond
-	notFull  *sync.Cond
+	ch      chan *WorkItem
+	maxSize int
 }
 
 // NewWorkQueue creates a new work queue with the specified maximum size
 func NewWorkQueue(maxSize int) *WorkQueue {
-	wq := &WorkQueue{
-		items:   make([]*WorkItem, 0),
+	return &WorkQueue{
+		ch:      make(chan *WorkItem, maxSize),
 		maxSize: maxSize,
 	}
-	wq.notEmpty = sync.NewCond(&wq.mu)
-	wq.notFull = sync.NewCond(&wq.mu)
-	return wq
 }
 
 // Push adds a work item to the queue, blocking if the queue is full
 func (wq *WorkQueue) Push(ctx context.Context, item *WorkItem) error {
-	wq.mu.Lock()
-	defer wq.mu.Unlock()
-
-	for len(wq.items) >= wq.maxSize {
-		wq.mu.Unlock()
-		select {
-		case <-ctx.Done():
-			wq.mu.Lock() // Re-acquire for defer
-			return ctx.Err()
-		case <-time.After(10 * time.Millisecond):
-			// Brief wait before retrying
-		}
-		wq.mu.Lock()
+	select {
+	case wq.ch <- item:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
 	}
-
-	wq.items = append(wq.items, item)
-	wq.notEmpty.Signal()
-	return nil
 }
 
 // Pop removes and returns a work item from the queue, blocking if the queue is empty
 func (wq *WorkQueue) Pop(ctx context.Context) (*WorkItem, error) {
-	wq.mu.Lock()
-	defer wq.mu.Unlock()
-
-	for len(wq.items) == 0 {
-		wq.mu.Unlock()
-		select {
-		case <-ctx.Done():
-			wq.mu.Lock() // balance deferred unlock
-			return nil, ctx.Err()
-		case <-time.After(10 * time.Millisecond):
-			// brief wait before rechecking
-		}
-		wq.mu.Lock()
+	select {
+	case item := <-wq.ch:
+		return item, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
 	}
-
-	item := wq.items[0]
-	wq.items = wq.items[1:]
-	wq.notFull.Signal()
-	return item, nil
 }
 
 // Size returns the current size of the queue
 func (wq *WorkQueue) Size() int {
-	wq.mu.RLock()
-	defer wq.mu.RUnlock()
-	return len(wq.items)
+	return len(wq.ch)
 }
 
 // IsNotFull returns true if the queue is not at maximum capacity
 func (wq *WorkQueue) IsNotFull() bool {
-	wq.mu.RLock()
-	defer wq.mu.RUnlock()
-	return len(wq.items) < wq.maxSize
+	return len(wq.ch) < wq.maxSize
 }
 
 // IsNotEmpty returns true if the queue has items
 func (wq *WorkQueue) IsNotEmpty() bool {
-	wq.mu.RLock()
-	defer wq.mu.RUnlock()
-	return len(wq.items) > 0
+	return len(wq.ch) > 0
+}
+
+// Close closes the underlying channel (call this when shutting down)
+func (wq *WorkQueue) Close() {
+	close(wq.ch)
 }
 
 // InternalTxExtension is responsible for collecting and indexing internal transactions.
@@ -160,6 +127,9 @@ func (i *InternalTxExtension) Run(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to initialize internal transaction extension: %w", err)
 	}
+
+	// Ensure work queue is closed when function exits
+	defer i.workQueue.Close()
 
 	g, ctx := errgroup.WithContext(ctx)
 	g.Go(func() error {
