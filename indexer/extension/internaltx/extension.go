@@ -236,50 +236,21 @@ func (i *InternalTxExtension) runConsumer(ctx context.Context) error {
 	}
 }
 
-func (i *InternalTxExtension) adjustBatchSize(ctx context.Context) int {
-	batchSize := i.cfg.GetInternalTxConfig().GetBatchSize()
-	availableSpace := i.workQueue.maxSize - i.workQueue.Size()
-	if availableSpace <= 0 {
-		return 0
-	}
-	if batchSize > availableSpace {
-		batchSize = availableSpace
-	}
-
-	// Check how many collected blocks are available to process
-	var maxCollectedHeight int64
-	if err := i.db.WithContext(ctx).Model(&types.CollectedBlock{}).
-		Where("chain_id = ?", i.cfg.GetChainId()).
-		Where("tx_count > 0").
-		Where("height > ?", i.lastProducedHeight).
-		Select("MAX(height)").
-		Scan(&maxCollectedHeight).Error; err != nil {
-		i.logger.Error("failed to get max collected height", slog.Any("error", err))
-		return 0
-	}
-
-	if maxCollectedHeight <= i.lastProducedHeight {
-		return 0
-	}
-
-	// Limit batch size to available collected blocks
-	availableBlocks := int(maxCollectedHeight - i.lastProducedHeight)
-	if batchSize > availableBlocks {
-		batchSize = availableBlocks
-	}
-
-	return batchSize
-}
-
-func (i *InternalTxExtension) getScrapeableHeights(ctx context.Context, batchSize int) ([]int64, error) {
+// Combined function that gets both batch size and heights in one query
+func (i *InternalTxExtension) getBatchHeights(ctx context.Context) ([]int64, error) {
 	var heights []int64
 
 	// Check context before DB operation
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
+	availableSpace := i.workQueue.maxSize - i.workQueue.Size()
+	if availableSpace <= 0 {
+		return heights, nil // No space in queue
+	}
+	batchSize := min(i.cfg.GetInternalTxConfig().GetBatchSize(), availableSpace)
 
-	// Query blocks with context support
+	// Single query to get heights - the database will naturally limit to available blocks
 	if err := i.db.WithContext(ctx).
 		Model(&types.CollectedBlock{}).
 		Where("chain_id = ?", i.cfg.GetChainId()).
@@ -290,6 +261,7 @@ func (i *InternalTxExtension) getScrapeableHeights(ctx context.Context, batchSiz
 		Pluck("height", &heights).Error; err != nil {
 		return nil, fmt.Errorf("failed to query blocks: %w", err)
 	}
+
 	return heights, nil
 }
 
@@ -298,14 +270,9 @@ func (i *InternalTxExtension) produceBatchWork(ctx context.Context) error {
 	transaction, ctx := sentry_integration.StartSentryTransaction(ctx, "(internal-tx) produceBatchWork", "Producing batch work items")
 	defer transaction.Finish()
 
-	batchSize := i.adjustBatchSize(ctx)
-	if batchSize == 0 {
-		return nil
-	}
-
-	heights, err := i.getScrapeableHeights(ctx, batchSize)
+	heights, err := i.getBatchHeights(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to get pending heights: %w", err)
+		return fmt.Errorf("failed to get batch heights: %w", err)
 	}
 
 	// If no heights available, return early
