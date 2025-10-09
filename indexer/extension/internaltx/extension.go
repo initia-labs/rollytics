@@ -236,7 +236,7 @@ func (i *InternalTxExtension) runConsumer(ctx context.Context) error {
 	}
 }
 
-func (i *InternalTxExtension) adjustBatchSize() int {
+func (i *InternalTxExtension) adjustBatchSize(ctx context.Context) int {
 	batchSize := i.cfg.GetInternalTxConfig().GetBatchSize()
 	availableSpace := i.workQueue.maxSize - i.workQueue.Size()
 	if availableSpace <= 0 {
@@ -248,7 +248,7 @@ func (i *InternalTxExtension) adjustBatchSize() int {
 
 	// Check how many collected blocks are available to process
 	var maxCollectedHeight int64
-	if err := i.db.Model(&types.CollectedBlock{}).
+	if err := i.db.WithContext(ctx).Model(&types.CollectedBlock{}).
 		Where("chain_id = ?", i.cfg.GetChainId()).
 		Where("tx_count > 0").
 		Where("height > ?", i.lastProducedHeight).
@@ -294,7 +294,7 @@ func (i *InternalTxExtension) produceBatchWork(ctx context.Context) error {
 	transaction, ctx := sentry_integration.StartSentryTransaction(ctx, "(internal-tx) produceBatchWork", "Producing batch work items")
 	defer transaction.Finish()
 
-	batchSize := i.adjustBatchSize()
+	batchSize := i.adjustBatchSize(ctx)
 	if batchSize == 0 {
 		return nil
 	}
