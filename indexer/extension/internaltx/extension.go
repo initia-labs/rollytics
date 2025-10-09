@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"golang.org/x/sync/errgroup"
 	"gorm.io/gorm"
 
 	"github.com/initia-labs/rollytics/config"
@@ -17,7 +18,6 @@ import (
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/sentry_integration"
 	"github.com/initia-labs/rollytics/types"
-	"golang.org/x/sync/errgroup"
 )
 
 const ExtensionName = "internal-tx"
