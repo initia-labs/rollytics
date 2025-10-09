@@ -237,8 +237,6 @@ func (i *InternalTxExtension) getBatchHeights(ctx context.Context) ([]int64, err
 
 // produceBatchWork scrapes multiple heights concurrently in batches
 func (i *InternalTxExtension) produceBatchWork(ctx context.Context) error {
-	transaction, ctx := sentry_integration.StartSentryTransaction(ctx, "(internal-tx) produceBatchWork", "Producing batch work items")
-	defer transaction.Finish()
 
 	heights, err := i.getBatchHeights(ctx)
 	if err != nil {
@@ -249,6 +247,9 @@ func (i *InternalTxExtension) produceBatchWork(ctx context.Context) error {
 	if len(heights) == 0 {
 		return nil
 	}
+
+	transaction, ctx := sentry_integration.StartSentryTransaction(ctx, "(internal-tx) produceBatchWork", "Producing batch work items")
+	defer transaction.Finish()
 
 	workItems, err := i.scrapeBatch(ctx, heights)
 	if err != nil {
