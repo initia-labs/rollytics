@@ -291,7 +291,7 @@ func (i *InternalTxExtension) getScrapeableHeights(ctx context.Context, batchSiz
 
 // produceBatchWork scrapes multiple heights concurrently in batches
 func (i *InternalTxExtension) produceBatchWork(ctx context.Context) error {
-	transaction, ctx := sentry_integration.StartSentryTransaction(ctx, "produceBatchWork", "Producing batch work items")
+	transaction, ctx := sentry_integration.StartSentryTransaction(ctx, "(internal-tx) produceBatchWork", "Producing batch work items")
 	defer transaction.Finish()
 
 	batchSize := i.adjustBatchSize()
@@ -389,7 +389,7 @@ func (i *InternalTxExtension) scrapeHeight(ctx context.Context, height int64) (*
 
 // consumeWork processes a work item by saving it to the database
 func (i *InternalTxExtension) consumeWork(ctx context.Context, workItem *WorkItem) error {
-	transaction, ctx := sentry_integration.StartSentryTransaction(ctx, "consumeWork", "Consuming work item for height "+strconv.FormatInt(workItem.Height, 10))
+	transaction, ctx := sentry_integration.StartSentryTransaction(ctx, "(internal-tx) consumeWork", "Consuming work item for height "+strconv.FormatInt(workItem.Height, 10))
 	defer transaction.Finish()
 
 	// Convert WorkItem to InternalTxResult for compatibility with existing method
