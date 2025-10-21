@@ -3,8 +3,6 @@ package types
 import (
 	"encoding/json"
 	"time"
-
-	"github.com/lib/pq"
 )
 
 // Fast count optimization types (duplicated to avoid circular import)
@@ -53,15 +51,11 @@ type CollectedBlock struct {
 }
 
 type CollectedTx struct {
-	Hash       []byte          `gorm:"type:bytea;primaryKey"`
-	Height     int64           `gorm:"type:bigint;primaryKey;autoIncrement:false;index:tx_height"`
-	Sequence   int64           `gorm:"type:bigint;index:tx_sequence_desc,sort:desc;index:tx_account_sequence_partial,sort:desc,where:account_ids IS NOT NULL;index:tx_nft_sequence_partial,sort:desc,where:nft_ids IS NOT NULL;index:tx_msg_type_sequence_partial,sort:desc,where:msg_type_ids IS NOT NULL"`
-	SignerId   int64           `gorm:"type:bigint;index:tx_signer_id"`
-	Data       json.RawMessage `gorm:"type:jsonb"`
-	AccountIds pq.Int64Array   `gorm:"type:bigint[];index:tx_account_ids,type:gin"`
-	NftIds     pq.Int64Array   `gorm:"type:bigint[];index:tx_nft_ids,type:gin"`
-	MsgTypeIds pq.Int64Array   `gorm:"type:bigint[];index:tx_msg_type_ids,type:gin"`
-	TypeTagIds pq.Int64Array   `gorm:"type:bigint[];index:tx_type_tag_ids,type:gin"`
+	Hash     []byte          `gorm:"type:bytea;primaryKey"`
+	Height   int64           `gorm:"type:bigint;primaryKey;autoIncrement:false;index:tx_height"`
+	Sequence int64           `gorm:"type:bigint;index:tx_sequence_desc,sort:desc;index:tx_account_sequence_partial,sort:desc;index:tx_nft_sequence_partial,sort:desc;index:tx_msg_type_sequence_partial,sort:desc"`
+	SignerId int64           `gorm:"type:bigint;index:tx_signer_id"`
+	Data     json.RawMessage `gorm:"type:jsonb"`
 }
 
 type CollectedTxAccount struct {
@@ -97,12 +91,11 @@ type CollectedEvmInternalTxAccount struct {
 }
 
 type CollectedEvmTx struct {
-	Hash       []byte          `gorm:"type:bytea;primaryKey"`
-	Height     int64           `gorm:"type:bigint;primaryKey;autoIncrement:false;index:evm_tx_height"`
-	Sequence   int64           `gorm:"type:bigint;index:evm_tx_sequence_desc,sort:desc;index:evm_tx_account_sequence_partial,sort:desc,where:account_ids IS NOT NULL"`
-	SignerId   int64           `gorm:"type:bigint;index:evm_tx_signer_id"`
-	Data       json.RawMessage `gorm:"type:jsonb"`
-	AccountIds pq.Int64Array   `gorm:"type:bigint[];index:evm_tx_account_ids,type:gin"`
+	Hash     []byte          `gorm:"type:bytea;primaryKey"`
+	Height   int64           `gorm:"type:bigint;primaryKey;autoIncrement:false;index:evm_tx_height"`
+	Sequence int64           `gorm:"type:bigint;index:evm_tx_sequence_desc,sort:desc;index:evm_tx_account_sequence_partial,sort:desc"`
+	SignerId int64           `gorm:"type:bigint;index:evm_tx_signer_id"`
+	Data     json.RawMessage `gorm:"type:jsonb"`
 }
 
 type CollectedNftCollection struct {
@@ -154,20 +147,19 @@ type CollectedTypeTagDict struct {
 
 // Extension: Table related to internal transaction
 type CollectedEvmInternalTx struct {
-	Height      int64         `gorm:"type:bigint;primaryKey"`
-	HashId      int64         `gorm:"type:bigint;primaryKey"` // use hash id from evm_tx_hash_dict
-	Index       int64         `gorm:"type:bigint;primaryKey;index:evm_internal_tx_index"`
-	ParentIndex int64         `gorm:"type:bigint;index:evm_internal_tx_parent_index"`
-	Sequence    int64         `gorm:"type:bigint;index:evm_internal_tx_sequence_desc,sort:desc;index:evm_internal_tx_account_sequence_partial,sort:desc,where:account_ids IS NOT NULL"`
-	Type        string        `gorm:"type:text;index:evm_internal_tx_type"`
-	FromId      int64         `gorm:"type:bigint;index:evm_internal_tx_from_id"`
-	ToId        int64         `gorm:"type:bigint;index:evm_internal_tx_to_id"`
-	Input       []byte        `gorm:"type:bytea"`
-	Output      []byte        `gorm:"type:bytea"`
-	Value       []byte        `gorm:"type:bytea"`
-	Gas         []byte        `gorm:"type:bytea"`
-	GasUsed     []byte        `gorm:"type:bytea"`
-	AccountIds  pq.Int64Array `gorm:"type:bigint[];index:evm_internal_tx_account_ids,type:gin"`
+	Height      int64  `gorm:"type:bigint;primaryKey"`
+	HashId      int64  `gorm:"type:bigint;primaryKey"` // use hash id from evm_tx_hash_dict
+	Index       int64  `gorm:"type:bigint;primaryKey;index:evm_internal_tx_index"`
+	ParentIndex int64  `gorm:"type:bigint;index:evm_internal_tx_parent_index"`
+	Sequence    int64  `gorm:"type:bigint;index:evm_internal_tx_sequence_desc,sort:desc;index:evm_internal_tx_account_sequence_partial,sort:desc"`
+	Type        string `gorm:"type:text;index:evm_internal_tx_type"`
+	FromId      int64  `gorm:"type:bigint;index:evm_internal_tx_from_id"`
+	ToId        int64  `gorm:"type:bigint;index:evm_internal_tx_to_id"`
+	Input       []byte `gorm:"type:bytea"`
+	Output      []byte `gorm:"type:bytea"`
+	Value       []byte `gorm:"type:bytea"`
+	Gas         []byte `gorm:"type:bytea"`
+	GasUsed     []byte `gorm:"type:bytea"`
 }
 
 type CollectedEvmTxHashDict struct {

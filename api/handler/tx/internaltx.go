@@ -5,7 +5,6 @@ import (
 	"errors"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/lib/pq"
 	"gorm.io/gorm"
 
 	"github.com/initia-labs/rollytics/api/handler/common"
@@ -113,28 +112,9 @@ func (h *TxHandler) GetEvmInternalTxsByAccount(c *fiber.Ctx) error {
 		})
 	}
 
-	// Check if we can use edges for this query
-	useEdges, err := common.IsEdgeBackfillReady(tx, types.SeqInfoEvmInternalTxEdgeBackfill)
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
-	}
-
-	var (
-		query *gorm.DB
-		total int64
-	)
-	if useEdges {
-		var edgeErr error
-		query, total, edgeErr = buildEvmInternalTxEdgeQuery(tx, accountIds[0], pagination)
-		if edgeErr != nil {
-			return fiber.NewError(fiber.StatusInternalServerError, edgeErr.Error())
-		}
-	} else {
-		var legacyErr error
-		query, total, legacyErr = buildEvmInternalTxLegacyQuery(tx, accountIds, pagination)
-		if legacyErr != nil {
-			return fiber.NewError(fiber.StatusInternalServerError, legacyErr.Error())
-		}
+	query, total, edgeErr := buildEvmInternalTxEdgeQuery(tx, accountIds[0], pagination)
+	if edgeErr != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, edgeErr.Error())
 	}
 
 	var txs []types.CollectedEvmInternalTx
@@ -170,8 +150,8 @@ func buildEvmInternalTxEdgeQuery(tx *gorm.DB, accountID int64, pagination *commo
 	sequenceQuery = sequenceQuery.Distinct("sequence")
 	countQuery := sequenceQuery.Session(&gorm.Session{})
 
-	var total int64
-	if err := countQuery.Count(&total).Error; err != nil {
+	total, err := buildCountQueryWithTimeout(countQuery)
+	if err != nil {
 		return nil, 0, err
 	}
 
@@ -181,23 +161,6 @@ func buildEvmInternalTxEdgeQuery(tx *gorm.DB, accountID int64, pagination *commo
 	query := tx.Model(&types.CollectedEvmInternalTx{}).
 		Where("sequence IN (?)", sequenceQuery).
 		Order(pagination.OrderBy("sequence"))
-
-	return query, total, nil
-}
-
-func buildEvmInternalTxLegacyQuery(tx *gorm.DB, accountIds []int64, pagination *common.Pagination) (*gorm.DB, int64, error) {
-	query := tx.Model(&types.CollectedEvmInternalTx{}).
-		Where("account_ids && ?", pq.Array(accountIds))
-
-	var strategy types.CollectedEvmInternalTx
-	const hasFilters = true
-
-	total, err := common.GetOptimizedCount(query, strategy, hasFilters)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	query = pagination.ApplySequence(query)
 
 	return query, total, nil
 }

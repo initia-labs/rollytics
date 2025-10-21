@@ -56,7 +56,6 @@ type byAccountTestCase struct {
 	handler    func(*TxHandler) fiber.Handler
 	seqInfo    types.SeqInfoName
 	seqValue   int64
-	useEdges   bool
 	table      string
 	edgeTable  string
 	payload    func(string) []byte
@@ -75,8 +74,8 @@ func TestAccountHandlersByAccount(t *testing.T) {
 			handler:    func(th *TxHandler) fiber.Handler { return th.GetTxsByAccount },
 			seqInfo:    types.SeqInfoTxEdgeBackfill,
 			seqValue:   5,
-			useEdges:   false,
 			table:      "tx",
+			edgeTable:  types.CollectedTxAccount{}.TableName(),
 			payload:    legacyTxPayload,
 			hash:       "0xAA",
 			accountHex: "0x1",
@@ -90,7 +89,6 @@ func TestAccountHandlersByAccount(t *testing.T) {
 			handler:    func(th *TxHandler) fiber.Handler { return th.GetTxsByAccount },
 			seqInfo:    types.SeqInfoTxEdgeBackfill,
 			seqValue:   -1,
-			useEdges:   true,
 			table:      "tx",
 			edgeTable:  types.CollectedTxAccount{}.TableName(),
 			payload:    legacyTxPayload,
@@ -106,7 +104,6 @@ func TestAccountHandlersByAccount(t *testing.T) {
 			handler:    func(th *TxHandler) fiber.Handler { return th.GetEvmTxsByAccount },
 			seqInfo:    types.SeqInfoEvmTxEdgeBackfill,
 			seqValue:   -1,
-			useEdges:   true,
 			table:      "evm_tx",
 			edgeTable:  types.CollectedEvmTxAccount{}.TableName(),
 			payload:    evmTxPayload,
@@ -122,8 +119,8 @@ func TestAccountHandlersByAccount(t *testing.T) {
 			handler:    func(th *TxHandler) fiber.Handler { return th.GetEvmTxsByAccount },
 			seqInfo:    types.SeqInfoEvmTxEdgeBackfill,
 			seqValue:   10,
-			useEdges:   false,
 			table:      "evm_tx",
+			edgeTable:  types.CollectedEvmTxAccount{}.TableName(),
 			payload:    evmTxPayload,
 			hash:       "0xDD",
 			accountHex: "0x4",
@@ -173,9 +170,6 @@ func TestGetTxs_EdgePathWithMsgFilter(t *testing.T) {
 	mock.ExpectQuery(`SELECT \* FROM "msg_type_dict" WHERE msg_type IN`).
 		WithArgs(sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "msg_type"}).AddRow(msgTypeID, msgType))
-	mock.ExpectQuery(`SELECT \* FROM "seq_info" WHERE name = \$1 ORDER BY`).
-		WithArgs(string(types.SeqInfoTxEdgeBackfill), 1).
-		WillReturnRows(sqlmock.NewRows([]string{"name", "sequence"}).AddRow(string(types.SeqInfoTxEdgeBackfill), int64(-1)))
 	mock.ExpectQuery(`SELECT COUNT\(DISTINCT\("sequence"\)\) FROM "` + types.CollectedTxMsgType{}.TableName() + `" WHERE msg_type_id = ANY`).
 		WithArgs(sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
@@ -216,9 +210,6 @@ func TestGetTxs_EdgePathWithMsgFilter_CustomLimit(t *testing.T) {
 	mock.ExpectQuery(`SELECT \* FROM "msg_type_dict" WHERE msg_type IN`).
 		WithArgs(sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "msg_type"}).AddRow(msgTypeID, msgType))
-	mock.ExpectQuery(`SELECT \* FROM "seq_info" WHERE name = \$1 ORDER BY`).
-		WithArgs(string(types.SeqInfoTxEdgeBackfill), 1).
-		WillReturnRows(sqlmock.NewRows([]string{"name", "sequence"}).AddRow(string(types.SeqInfoTxEdgeBackfill), int64(-1)))
 	mock.ExpectQuery(`SELECT COUNT\(DISTINCT\("sequence"\)\) FROM "` + types.CollectedTxMsgType{}.TableName() + `" WHERE msg_type_id = ANY`).
 		WithArgs(sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
@@ -258,9 +249,6 @@ func TestGetTxsByHeight_EdgePathWithMsgFilter(t *testing.T) {
 	mock.ExpectQuery(`SELECT \* FROM "msg_type_dict" WHERE msg_type IN`).
 		WithArgs(sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "msg_type"}).AddRow(msgTypeID, msgType))
-	mock.ExpectQuery(`SELECT \* FROM "seq_info" WHERE name = \$1 ORDER BY`).
-		WithArgs(string(types.SeqInfoTxEdgeBackfill), 1).
-		WillReturnRows(sqlmock.NewRows([]string{"name", "sequence"}).AddRow(string(types.SeqInfoTxEdgeBackfill), int64(-1)))
 	mock.ExpectQuery(`SELECT count\(\*\) FROM "tx" WHERE height = \$1 AND sequence IN \(SELECT DISTINCT "sequence" FROM "`+types.CollectedTxMsgType{}.TableName()+`" WHERE msg_type_id = ANY\(\$2\)\)`).
 		WithArgs(height, sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
@@ -302,9 +290,6 @@ func TestGetTxsByHeight_EdgePathWithMsgFilter_CustomLimit(t *testing.T) {
 	mock.ExpectQuery(`SELECT \* FROM "msg_type_dict" WHERE msg_type IN`).
 		WithArgs(sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "msg_type"}).AddRow(msgTypeID, msgType))
-	mock.ExpectQuery(`SELECT \* FROM "seq_info" WHERE name = \$1 ORDER BY`).
-		WithArgs(string(types.SeqInfoTxEdgeBackfill), 1).
-		WillReturnRows(sqlmock.NewRows([]string{"name", "sequence"}).AddRow(string(types.SeqInfoTxEdgeBackfill), int64(-1)))
 	mock.ExpectQuery(`SELECT count\(\*\) FROM "tx" WHERE height = \$1 AND sequence IN \(SELECT DISTINCT "sequence" FROM "`+types.CollectedTxMsgType{}.TableName()+`" WHERE msg_type_id = ANY\(\$2\)\)`).
 		WithArgs(height, sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
@@ -344,15 +329,11 @@ func TestGetTxs_LegacyPathWithMsgFilter(t *testing.T) {
 		WithArgs(sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "msg_type"}).AddRow(msgTypeID, msgType))
 
-	mock.ExpectQuery(`SELECT \* FROM "seq_info" WHERE name = \$1 ORDER BY`).
-		WithArgs(string(types.SeqInfoTxEdgeBackfill), 1).
-		WillReturnRows(sqlmock.NewRows([]string{"name", "sequence"}).AddRow(string(types.SeqInfoTxEdgeBackfill), int64(5)))
-
-	mock.ExpectQuery(`SELECT count\(\*\) FROM "tx" WHERE msg_type_ids &&`).
+	mock.ExpectQuery(`SELECT COUNT\(DISTINCT\("sequence"\)\) FROM "` + types.CollectedTxMsgType{}.TableName() + `" WHERE msg_type_id = ANY`).
 		WithArgs(sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 
-	mock.ExpectQuery(`SELECT \* FROM "tx" WHERE msg_type_ids &&`).
+	mock.ExpectQuery(`SELECT \* FROM "tx" WHERE sequence IN \(SELECT DISTINCT \"sequence\" FROM \"tx_msg_types\" WHERE msg_type_id = ANY\(\$1\) ORDER BY sequence DESC LIMIT \$2\)`).
 		WithArgs(sqlmock.AnyArg(), 100).
 		WillReturnRows(row)
 
@@ -384,9 +365,9 @@ func TestGetTxs_NoFilterLegacyPath(t *testing.T) {
 
 	mock.ExpectBegin()
 
-	mock.ExpectQuery(`SELECT COALESCE\(MAX\(sequence\), 0\) FROM "tx"`).
-		WillReturnRows(sqlmock.NewRows([]string{"coalesce"}).AddRow(sequence))
-	mock.ExpectQuery(`SELECT \* FROM "tx" ORDER BY sequence DESC LIMIT`).
+	mock.ExpectQuery(`SELECT COUNT\(DISTINCT\("sequence"\)\) FROM "` + types.CollectedTxMsgType{}.TableName() + `"`).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+	mock.ExpectQuery(`SELECT \* FROM "tx" WHERE sequence IN \(SELECT DISTINCT \"sequence\" FROM \"tx_msg_types\" ORDER BY sequence DESC LIMIT \$1\)`).
 		WithArgs(100).
 		WillReturnRows(row)
 
@@ -415,29 +396,15 @@ func setupAccountExpectations(t *testing.T, mock sqlmock.Sqlmock, tc byAccountTe
 		WithArgs(sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "account"}).AddRow(tc.accountID, accBytes))
 
-	mock.ExpectQuery(`SELECT \* FROM "seq_info" WHERE name = \$1 ORDER BY`).
-		WithArgs(string(tc.seqInfo), 1).
-		WillReturnRows(sqlmock.NewRows([]string{"name", "sequence"}).AddRow(string(tc.seqInfo), tc.seqValue))
-
 	row := sqlmock.NewRows([]string{"hash", "height", "sequence", "signer_id", "data"}).
 		AddRow([]byte(tc.hash), tc.height, tc.sequence, tc.accountID, tc.payload(tc.hash))
 
-	if tc.useEdges {
-		edgeTable := tc.edgeTable
-		mock.ExpectQuery(`SELECT COUNT\(DISTINCT\("sequence"\)\) FROM "` + edgeTable + `" WHERE account_id = \$1`).
-			WithArgs(tc.accountID).
-			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
-		mock.ExpectQuery(`SELECT \* FROM "`+tc.table+`" WHERE sequence IN \(SELECT`).
-			WithArgs(tc.accountID, sqlmock.AnyArg()).
-			WillReturnRows(row)
-	} else {
-		mock.ExpectQuery(`SELECT count\(\*\) FROM "` + tc.table + `" WHERE account_ids &&`).
-			WithArgs(sqlmock.AnyArg()).
-			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
-		mock.ExpectQuery(`SELECT \* FROM "`+tc.table+`" WHERE account_ids &&`).
-			WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg()).
-			WillReturnRows(row)
-	}
+	mock.ExpectQuery(`SELECT COUNT\(DISTINCT\("sequence"\)\) FROM "` + tc.edgeTable + `" WHERE account_id = \$1`).
+		WithArgs(tc.accountID).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+	mock.ExpectQuery(`SELECT \* FROM "`+tc.table+`" WHERE sequence IN \(SELECT`).
+		WithArgs(tc.accountID, sqlmock.AnyArg()).
+		WillReturnRows(row)
 
 	mock.ExpectRollback()
 }

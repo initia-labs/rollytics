@@ -219,14 +219,11 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) er
 		seqInfo.Sequence++
 		currentSeq := seqInfo.Sequence
 		ctxs = append(ctxs, types.CollectedTx{
-			Hash:       hashBytes,
-			Height:     height,
-			Sequence:   currentSeq,
-			SignerId:   signerId,
-			Data:       json.RawMessage(txResJSON),
-			MsgTypeIds: msgTypeIds,
-			TypeTagIds: typeTagIds,
-			AccountIds: accountIds,
+			Hash:     hashBytes,
+			Height:   height,
+			Sequence: currentSeq,
+			SignerId: signerId,
+			Data:     json.RawMessage(txResJSON),
 		})
 
 		if len(accountIds) > 0 {
@@ -373,12 +370,11 @@ func (sub *TxSubmodule) collectEvm(block indexertypes.ScrapedBlock, evmTxs []typ
 		seqInfo.Sequence++
 		currentSeq := seqInfo.Sequence
 		cetxs = append(cetxs, types.CollectedEvmTx{
-			Hash:       hashBytes,
-			Height:     height,
-			Sequence:   currentSeq,
-			SignerId:   signerId,
-			Data:       json.RawMessage(txJSON),
-			AccountIds: accountIds,
+			Hash:     hashBytes,
+			Height:   height,
+			Sequence: currentSeq,
+			SignerId: signerId,
+			Data:     json.RawMessage(txJSON),
 		})
 
 		if len(accountIds) > 0 {

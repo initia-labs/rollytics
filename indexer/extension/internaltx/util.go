@@ -103,7 +103,6 @@ func processInternalCall(
 		Value:       valueBytes,
 		Gas:         gasBytes,
 		GasUsed:     gasUsedBytes,
-		AccountIds:  accIds,
 	}
 
 	results := []types.CollectedEvmInternalTx{internalTx}
