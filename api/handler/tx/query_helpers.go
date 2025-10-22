@@ -1,8 +1,6 @@
 package tx
 
 import (
-	"strings"
-
 	"github.com/lib/pq"
 	"gorm.io/gorm"
 
@@ -31,7 +29,7 @@ func buildTxEdgeQuery(tx *gorm.DB, accountID int64, isSigner bool, msgTypeIds []
 	sequenceQuery = sequenceQuery.Distinct("sequence")
 	countQuery := sequenceQuery.Session(&gorm.Session{})
 
-	total, err := buildCountQueryWithTimeout(countQuery)
+	total, err := common.GetCountWithTimeout(countQuery)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -58,7 +56,7 @@ func buildEdgeQueryForGetTxs(tx *gorm.DB, msgTypeIds []int64, pagination *common
 	sequenceQuery = sequenceQuery.Distinct("sequence")
 	countQuery := sequenceQuery.Session(&gorm.Session{})
 
-	total, err := buildCountQueryWithTimeout(countQuery)
+	total, err := common.GetCountWithTimeout(countQuery)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -99,26 +97,4 @@ func buildEdgeQueryForGetTxsByHeight(tx *gorm.DB, height int64, msgTypeIds []int
 	query = pagination.ApplySequence(query)
 
 	return query, total, nil
-}
-
-func buildCountQueryWithTimeout(countQuery *gorm.DB) (int64, error) {
-	var total int64
-
-	// Use a transaction with statement_timeout to avoid connection corruption
-	if err := countQuery.Transaction(func(tx *gorm.DB) error {
-		// Set timeout only for this transaction
-		if err := tx.Exec("SET LOCAL statement_timeout = '5s'").Error; err != nil {
-			return err
-		}
-
-		return tx.Count(&total).Error
-	}); err != nil {
-		// Check for statement timeout
-		if strings.Contains(err.Error(), "statement timeout") {
-			return -1, nil
-		}
-		return 0, err
-	}
-
-	return total, nil
 }

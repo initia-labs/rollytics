@@ -150,7 +150,7 @@ func buildEvmInternalTxEdgeQuery(tx *gorm.DB, accountID int64, pagination *commo
 	sequenceQuery = sequenceQuery.Distinct("sequence")
 	countQuery := sequenceQuery.Session(&gorm.Session{})
 
-	total, err := buildCountQueryWithTimeout(countQuery)
+	total, err := common.GetCountWithTimeout(countQuery)
 	if err != nil {
 		return nil, 0, err
 	}

@@ -170,6 +170,10 @@ func TestGetTxs_EdgePathWithMsgFilter(t *testing.T) {
 	mock.ExpectQuery(`SELECT \* FROM "msg_type_dict" WHERE msg_type IN`).
 		WithArgs(sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "msg_type"}).AddRow(msgTypeID, msgType))
+
+	// Add transaction expectations for GetCountWithTimeout
+	mock.ExpectExec(`SAVEPOINT sp`).WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec(`SET LOCAL statement_timeout = '5s'`).WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectQuery(`SELECT COUNT\(DISTINCT\("sequence"\)\) FROM "` + types.CollectedTxMsgType{}.TableName() + `" WHERE msg_type_id = ANY`).
 		WithArgs(sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
@@ -210,6 +214,10 @@ func TestGetTxs_EdgePathWithMsgFilter_CustomLimit(t *testing.T) {
 	mock.ExpectQuery(`SELECT \* FROM "msg_type_dict" WHERE msg_type IN`).
 		WithArgs(sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "msg_type"}).AddRow(msgTypeID, msgType))
+
+	// Add transaction expectations for GetCountWithTimeout
+	mock.ExpectExec(`SAVEPOINT sp`).WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec(`SET LOCAL statement_timeout = '5s'`).WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectQuery(`SELECT COUNT\(DISTINCT\("sequence"\)\) FROM "` + types.CollectedTxMsgType{}.TableName() + `" WHERE msg_type_id = ANY`).
 		WithArgs(sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
@@ -249,6 +257,10 @@ func TestGetTxsByHeight_EdgePathWithMsgFilter(t *testing.T) {
 	mock.ExpectQuery(`SELECT \* FROM "msg_type_dict" WHERE msg_type IN`).
 		WithArgs(sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "msg_type"}).AddRow(msgTypeID, msgType))
+
+	// Add transaction expectations for GetCountWithTimeout
+	mock.ExpectExec(`SAVEPOINT sp`).WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec(`SET LOCAL statement_timeout = '5s'`).WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectQuery(`SELECT count\(\*\) FROM "tx" WHERE height = \$1 AND sequence IN \(SELECT DISTINCT "sequence" FROM "`+types.CollectedTxMsgType{}.TableName()+`" WHERE msg_type_id = ANY\(\$2\)\)`).
 		WithArgs(height, sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
@@ -290,6 +302,10 @@ func TestGetTxsByHeight_EdgePathWithMsgFilter_CustomLimit(t *testing.T) {
 	mock.ExpectQuery(`SELECT \* FROM "msg_type_dict" WHERE msg_type IN`).
 		WithArgs(sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "msg_type"}).AddRow(msgTypeID, msgType))
+
+	// Add transaction expectations for GetCountWithTimeout
+	mock.ExpectExec(`SAVEPOINT sp`).WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec(`SET LOCAL statement_timeout = '5s'`).WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectQuery(`SELECT count\(\*\) FROM "tx" WHERE height = \$1 AND sequence IN \(SELECT DISTINCT "sequence" FROM "`+types.CollectedTxMsgType{}.TableName()+`" WHERE msg_type_id = ANY\(\$2\)\)`).
 		WithArgs(height, sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
@@ -329,10 +345,12 @@ func TestGetTxs_LegacyPathWithMsgFilter(t *testing.T) {
 		WithArgs(sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "msg_type"}).AddRow(msgTypeID, msgType))
 
+	// Add transaction expectations for GetCountWithTimeout
+	mock.ExpectExec(`SAVEPOINT sp`).WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec(`SET LOCAL statement_timeout = '5s'`).WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectQuery(`SELECT COUNT\(DISTINCT\("sequence"\)\) FROM "` + types.CollectedTxMsgType{}.TableName() + `" WHERE msg_type_id = ANY`).
 		WithArgs(sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
-
 	mock.ExpectQuery(`SELECT \* FROM "tx" WHERE sequence IN \(SELECT DISTINCT \"sequence\" FROM \"tx_msg_types\" WHERE msg_type_id = ANY\(\$1\) ORDER BY sequence DESC LIMIT \$2\)`).
 		WithArgs(sqlmock.AnyArg(), 100).
 		WillReturnRows(row)
@@ -365,6 +383,9 @@ func TestGetTxs_NoFilterLegacyPath(t *testing.T) {
 
 	mock.ExpectBegin()
 
+	// Add transaction expectations for GetCountWithTimeout
+	mock.ExpectExec(`SAVEPOINT sp`).WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec(`SET LOCAL statement_timeout = '5s'`).WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectQuery(`SELECT COUNT\(DISTINCT\("sequence"\)\) FROM "` + types.CollectedTxMsgType{}.TableName() + `"`).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 	mock.ExpectQuery(`SELECT \* FROM "tx" WHERE sequence IN \(SELECT DISTINCT \"sequence\" FROM \"tx_msg_types\" ORDER BY sequence DESC LIMIT \$1\)`).
@@ -399,6 +420,9 @@ func setupAccountExpectations(t *testing.T, mock sqlmock.Sqlmock, tc byAccountTe
 	row := sqlmock.NewRows([]string{"hash", "height", "sequence", "signer_id", "data"}).
 		AddRow([]byte(tc.hash), tc.height, tc.sequence, tc.accountID, tc.payload(tc.hash))
 
+	// Add transaction expectations for GetCountWithTimeout
+	mock.ExpectExec(`SAVEPOINT sp`).WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec(`SET LOCAL statement_timeout = '5s'`).WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectQuery(`SELECT COUNT\(DISTINCT\("sequence"\)\) FROM "` + tc.edgeTable + `" WHERE account_id = \$1`).
 		WithArgs(tc.accountID).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
