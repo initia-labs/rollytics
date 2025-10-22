@@ -93,6 +93,7 @@ func TestGetOptimizedCount_WithFilters(t *testing.T) {
 		WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectQuery(`SELECT count\(\*\) FROM "tx"`).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(100))
+	mock.ExpectExec(`RESET statement_timeout`).WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectCommit()
 
 	// Create query with table context
@@ -295,6 +296,7 @@ func TestGetOptimizedCount_PgClassFallback(t *testing.T) {
 		WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectQuery(`SELECT count\(\*\) FROM "nft"`).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1000))
+	mock.ExpectExec(`RESET statement_timeout`).WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectCommit()
 
 	// Create query with table context
@@ -319,6 +321,7 @@ func TestGetOptimizedCount_UnsupportedStrategy(t *testing.T) {
 		WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectQuery(`SELECT count\(\*\)`).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(500))
+	mock.ExpectExec(`RESET statement_timeout`).WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectCommit()
 
 	// Create query with table context
@@ -709,6 +712,7 @@ func TestGetCountWithTimeout_Success(t *testing.T) {
 	// Expect COUNT query
 	mock.ExpectQuery(`SELECT count\(\*\) FROM "tx"`).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1500))
+	mock.ExpectExec(`RESET statement_timeout`).WillReturnResult(sqlmock.NewResult(0, 0))
 	// Expect transaction commit
 	mock.ExpectCommit()
 
@@ -798,6 +802,7 @@ func TestGetCountWithTimeout_EmptyResult(t *testing.T) {
 	// Expect COUNT query to return 0
 	mock.ExpectQuery(`SELECT count\(\*\) FROM "tx"`).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
+	mock.ExpectExec(`RESET statement_timeout`).WillReturnResult(sqlmock.NewResult(0, 0))
 	// Expect transaction commit
 	mock.ExpectCommit()
 
@@ -822,6 +827,7 @@ func TestGetCountWithTimeout_WithFilters(t *testing.T) {
 	mock.ExpectQuery(`SELECT count\(\*\) FROM "tx" WHERE sequence > \$1`).
 		WithArgs(1000).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(42))
+	mock.ExpectExec(`RESET statement_timeout`).WillReturnResult(sqlmock.NewResult(0, 0))
 	// Expect transaction commit
 	mock.ExpectCommit()
 

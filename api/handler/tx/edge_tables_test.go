@@ -177,6 +177,7 @@ func TestGetTxs_EdgePathWithMsgFilter(t *testing.T) {
 	mock.ExpectQuery(`SELECT COUNT\(DISTINCT\("sequence"\)\) FROM "` + types.CollectedTxMsgType{}.TableName() + `" WHERE msg_type_id = ANY`).
 		WithArgs(sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+	mock.ExpectExec(`RESET statement_timeout`).WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectQuery(`SELECT \* FROM "tx" WHERE sequence IN \(SELECT DISTINCT \"sequence\" FROM \"tx_msg_types\" WHERE msg_type_id = ANY\(\$1\) ORDER BY sequence DESC LIMIT \$2\)`).
 		WithArgs(sqlmock.AnyArg(), int64(common.DefaultLimit)).
 		WillReturnRows(row)
@@ -221,6 +222,7 @@ func TestGetTxs_EdgePathWithMsgFilter_CustomLimit(t *testing.T) {
 	mock.ExpectQuery(`SELECT COUNT\(DISTINCT\("sequence"\)\) FROM "` + types.CollectedTxMsgType{}.TableName() + `" WHERE msg_type_id = ANY`).
 		WithArgs(sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+	mock.ExpectExec(`RESET statement_timeout`).WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectQuery(`SELECT \* FROM "tx" WHERE sequence IN \(SELECT DISTINCT \"sequence\" FROM \"tx_msg_types\" WHERE msg_type_id = ANY\(\$1\) ORDER BY sequence DESC LIMIT \$2\)`).
 		WithArgs(sqlmock.AnyArg(), int64(limit)).
 		WillReturnRows(row)
@@ -264,6 +266,7 @@ func TestGetTxsByHeight_EdgePathWithMsgFilter(t *testing.T) {
 	mock.ExpectQuery(`SELECT count\(\*\) FROM "tx" WHERE height = \$1 AND sequence IN \(SELECT DISTINCT "sequence" FROM "`+types.CollectedTxMsgType{}.TableName()+`" WHERE msg_type_id = ANY\(\$2\)\)`).
 		WithArgs(height, sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+	mock.ExpectExec(`RESET statement_timeout`).WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectQuery(`SELECT \* FROM "tx" WHERE height = \$1 AND sequence IN \(SELECT DISTINCT \"sequence\" FROM \"tx_msg_types\" WHERE msg_type_id = ANY\(\$2\)\) ORDER BY sequence DESC LIMIT \$3`).
 		WithArgs(height, sqlmock.AnyArg(), int64(common.DefaultLimit)).
 		WillReturnRows(row)
@@ -309,6 +312,7 @@ func TestGetTxsByHeight_EdgePathWithMsgFilter_CustomLimit(t *testing.T) {
 	mock.ExpectQuery(`SELECT count\(\*\) FROM "tx" WHERE height = \$1 AND sequence IN \(SELECT DISTINCT "sequence" FROM "`+types.CollectedTxMsgType{}.TableName()+`" WHERE msg_type_id = ANY\(\$2\)\)`).
 		WithArgs(height, sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+	mock.ExpectExec(`RESET statement_timeout`).WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectQuery(`SELECT \* FROM "tx" WHERE height = \$1 AND sequence IN \(SELECT DISTINCT \"sequence\" FROM \"tx_msg_types\" WHERE msg_type_id = ANY\(\$2\)\) ORDER BY sequence DESC LIMIT \$3`).
 		WithArgs(height, sqlmock.AnyArg(), int64(limit)).
 		WillReturnRows(row)
@@ -351,6 +355,7 @@ func TestGetTxs_LegacyPathWithMsgFilter(t *testing.T) {
 	mock.ExpectQuery(`SELECT COUNT\(DISTINCT\("sequence"\)\) FROM "` + types.CollectedTxMsgType{}.TableName() + `" WHERE msg_type_id = ANY`).
 		WithArgs(sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+	mock.ExpectExec(`RESET statement_timeout`).WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectQuery(`SELECT \* FROM "tx" WHERE sequence IN \(SELECT DISTINCT \"sequence\" FROM \"tx_msg_types\" WHERE msg_type_id = ANY\(\$1\) ORDER BY sequence DESC LIMIT \$2\)`).
 		WithArgs(sqlmock.AnyArg(), 100).
 		WillReturnRows(row)
@@ -388,6 +393,7 @@ func TestGetTxs_NoFilterLegacyPath(t *testing.T) {
 	mock.ExpectExec(`SET LOCAL statement_timeout = '5s'`).WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectQuery(`SELECT COUNT\(DISTINCT\("sequence"\)\) FROM "` + types.CollectedTxMsgType{}.TableName() + `"`).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+	mock.ExpectExec(`RESET statement_timeout`).WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectQuery(`SELECT \* FROM "tx" WHERE sequence IN \(SELECT DISTINCT \"sequence\" FROM \"tx_msg_types\" ORDER BY sequence DESC LIMIT \$1\)`).
 		WithArgs(100).
 		WillReturnRows(row)
@@ -426,6 +432,7 @@ func setupAccountExpectations(t *testing.T, mock sqlmock.Sqlmock, tc byAccountTe
 	mock.ExpectQuery(`SELECT COUNT\(DISTINCT\("sequence"\)\) FROM "` + tc.edgeTable + `" WHERE account_id = \$1`).
 		WithArgs(tc.accountID).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+	mock.ExpectExec(`RESET statement_timeout`).WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectQuery(`SELECT \* FROM "`+tc.table+`" WHERE sequence IN \(SELECT`).
 		WithArgs(tc.accountID, sqlmock.AnyArg()).
 		WillReturnRows(row)
