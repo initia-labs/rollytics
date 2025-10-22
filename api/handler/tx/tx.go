@@ -119,7 +119,7 @@ func (h *TxHandler) GetTxsByAccount(c *fiber.Ctx) error {
 		}
 	}
 
-	query, total, err := buildTxEdgeQuery(c.UserContext(), tx, accountIds[0], isSigner, msgTypeIds, pagination)
+	query, total, err := buildTxEdgeQuery(tx, accountIds[0], isSigner, msgTypeIds, pagination)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}

@@ -1,7 +1,6 @@
 package tx
 
 import (
-	"context"
 	"strings"
 
 	"github.com/lib/pq"
@@ -11,7 +10,7 @@ import (
 	"github.com/initia-labs/rollytics/types"
 )
 
-func buildTxEdgeQuery(ctx context.Context, tx *gorm.DB, accountID int64, isSigner bool, msgTypeIds []int64, pagination *common.Pagination) (*gorm.DB, int64, error) {
+func buildTxEdgeQuery(tx *gorm.DB, accountID int64, isSigner bool, msgTypeIds []int64, pagination *common.Pagination) (*gorm.DB, int64, error) {
 	sequenceQuery := tx.
 		Model(&types.CollectedTxAccount{}).
 		Select("sequence").
@@ -108,7 +107,7 @@ func buildCountQueryWithTimeout(countQuery *gorm.DB) (int64, error) {
 	// Use a transaction with statement_timeout to avoid connection corruption
 	if err := countQuery.Transaction(func(tx *gorm.DB) error {
 		// Set timeout only for this transaction
-		if err := tx.Exec("SET LOCAL statement_timeout = '500ms'").Error; err != nil {
+		if err := tx.Exec("SET LOCAL statement_timeout = '5s'").Error; err != nil {
 			return err
 		}
 
