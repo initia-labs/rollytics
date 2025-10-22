@@ -1,6 +1,7 @@
 package tx
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 
@@ -105,9 +106,9 @@ func (h *TxHandler) GetEvmTxsByAccount(c *fiber.Ctx) error {
 		})
 	}
 
-	query, total, edgeErr := buildEvmTxEdgeQuery(tx, accountIds[0], isSigner, pagination)
-	if edgeErr != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, edgeErr.Error())
+	query, total, err := buildEvmTxEdgeQuery(c.UserContext(), tx, accountIds[0], isSigner, pagination)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	var txs []types.CollectedEvmTx
@@ -131,7 +132,7 @@ func (h *TxHandler) GetEvmTxsByAccount(c *fiber.Ctx) error {
 	})
 }
 
-func buildEvmTxEdgeQuery(tx *gorm.DB, accountID int64, isSigner bool, pagination *common.Pagination) (*gorm.DB, int64, error) {
+func buildEvmTxEdgeQuery(ctx context.Context, tx *gorm.DB, accountID int64, isSigner bool, pagination *common.Pagination) (*gorm.DB, int64, error) {
 	sequenceQuery := tx.
 		Model(&types.CollectedEvmTxAccount{}).
 		Select("sequence").
@@ -144,7 +145,7 @@ func buildEvmTxEdgeQuery(tx *gorm.DB, accountID int64, isSigner bool, pagination
 	sequenceQuery = sequenceQuery.Distinct("sequence")
 	countQuery := sequenceQuery.Session(&gorm.Session{})
 
-	total, err := buildCountQueryWithTimeout(countQuery)
+	total, err := buildCountQueryWithTimeout(ctx, countQuery)
 	if err != nil {
 		return nil, 0, err
 	}

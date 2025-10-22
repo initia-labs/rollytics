@@ -11,7 +11,7 @@ import (
 	"github.com/initia-labs/rollytics/types"
 )
 
-func buildTxEdgeQuery(tx *gorm.DB, accountID int64, isSigner bool, msgTypeIds []int64, pagination *common.Pagination) (*gorm.DB, int64, error) {
+func buildTxEdgeQuery(ctx context.Context, tx *gorm.DB, accountID int64, isSigner bool, msgTypeIds []int64, pagination *common.Pagination) (*gorm.DB, int64, error) {
 	sequenceQuery := tx.
 		Model(&types.CollectedTxAccount{}).
 		Select("sequence").
@@ -32,7 +32,7 @@ func buildTxEdgeQuery(tx *gorm.DB, accountID int64, isSigner bool, msgTypeIds []
 	sequenceQuery = sequenceQuery.Distinct("sequence")
 	countQuery := sequenceQuery.Session(&gorm.Session{})
 
-	total, err := buildCountQueryWithTimeout(countQuery)
+	total, err := buildCountQueryWithTimeout(ctx, countQuery)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -102,17 +102,18 @@ func buildEdgeQueryForGetTxsByHeight(tx *gorm.DB, height int64, msgTypeIds []int
 	return query, total, nil
 }
 
-func buildCountQueryWithTimeout(countQuery *gorm.DB) (int64, error) {
+func buildCountQueryWithTimeout(ctx context.Context, countQuery *gorm.DB) (int64, error) {
 	var total int64
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	err := countQuery.WithContext(ctx).Count(&total).Error
 	if err != nil {
-		if ctx.Err() != context.DeadlineExceeded {
-			total = -1
-		} else {
-			return 0, err
+		// For timeout, return -1 to indicate count unavailable
+		if ctx.Err() == context.DeadlineExceeded {
+			return -1, nil
 		}
+		// For other database errors, propagate them
+		return 0, err
 	}
 	return total, nil
 }

@@ -44,9 +44,9 @@ func (h *TxHandler) GetTxs(c *fiber.Ctx) error {
 		}
 	}
 
-	query, total, edgeErr := buildEdgeQueryForGetTxs(tx, msgTypeIds, pagination)
-	if edgeErr != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, edgeErr.Error())
+	query, total, err := buildEdgeQueryForGetTxs(tx, msgTypeIds, pagination)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	var txs []types.CollectedTx
@@ -119,9 +119,9 @@ func (h *TxHandler) GetTxsByAccount(c *fiber.Ctx) error {
 		}
 	}
 
-	query, total, edgeErr := buildTxEdgeQuery(tx, accountIds[0], isSigner, msgTypeIds, pagination)
-	if edgeErr != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, edgeErr.Error())
+	query, total, err := buildTxEdgeQuery(c.UserContext(), tx, accountIds[0], isSigner, msgTypeIds, pagination)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	var txs []types.CollectedTx
@@ -182,9 +182,9 @@ func (h *TxHandler) GetTxsByHeight(c *fiber.Ctx) error {
 		}
 	}
 
-	query, total, edgeErr := buildEdgeQueryForGetTxsByHeight(tx, height, msgTypeIds, pagination)
-	if edgeErr != nil {
-		return fiber.NewError(fiber.StatusBadRequest, edgeErr.Error())
+	query, total, err := buildEdgeQueryForGetTxsByHeight(tx, height, msgTypeIds, pagination)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	var txs []types.CollectedTx
