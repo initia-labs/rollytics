@@ -21,7 +21,17 @@ func GetCountWithTimeout(countQuery *gorm.DB) (int64, error) {
 			return err
 		}
 
-		return tx.Count(&total).Error
+		countErr := tx.Count(&total).Error
+
+		// Reset timeout before committing to prevent leakage to parent transaction
+		if resetErr := tx.Exec("RESET statement_timeout").Error; resetErr != nil {
+			// Log the reset error but don't override the count error
+			if countErr == nil {
+				return resetErr
+			}
+		}
+
+		return countErr
 	}); err != nil {
 		// Check for statement timeout
 		if strings.Contains(err.Error(), "statement timeout") {
