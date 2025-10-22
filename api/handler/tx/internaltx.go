@@ -1,7 +1,6 @@
 package tx
 
 import (
-	"context"
 	"database/sql"
 	"errors"
 
@@ -113,7 +112,7 @@ func (h *TxHandler) GetEvmInternalTxsByAccount(c *fiber.Ctx) error {
 		})
 	}
 
-	query, total, err := buildEvmInternalTxEdgeQuery(c.UserContext(), tx, accountIds[0], pagination)
+	query, total, err := buildEvmInternalTxEdgeQuery(tx, accountIds[0], pagination)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
@@ -142,7 +141,7 @@ func (h *TxHandler) GetEvmInternalTxsByAccount(c *fiber.Ctx) error {
 	})
 }
 
-func buildEvmInternalTxEdgeQuery(ctx context.Context, tx *gorm.DB, accountID int64, pagination *common.Pagination) (*gorm.DB, int64, error) {
+func buildEvmInternalTxEdgeQuery(tx *gorm.DB, accountID int64, pagination *common.Pagination) (*gorm.DB, int64, error) {
 	sequenceQuery := tx.
 		Model(&types.CollectedEvmInternalTxAccount{}).
 		Select("sequence").
@@ -151,7 +150,7 @@ func buildEvmInternalTxEdgeQuery(ctx context.Context, tx *gorm.DB, accountID int
 	sequenceQuery = sequenceQuery.Distinct("sequence")
 	countQuery := sequenceQuery.Session(&gorm.Session{})
 
-	total, err := buildCountQueryWithTimeout(ctx, countQuery)
+	total, err := buildCountQueryWithTimeout(countQuery)
 	if err != nil {
 		return nil, 0, err
 	}
