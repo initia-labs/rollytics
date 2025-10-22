@@ -2,7 +2,7 @@ package tx
 
 import (
 	"context"
-	"time"
+	"strings"
 
 	"github.com/lib/pq"
 	"gorm.io/gorm"
@@ -102,19 +102,24 @@ func buildEdgeQueryForGetTxsByHeight(tx *gorm.DB, height int64, msgTypeIds []int
 	return query, total, nil
 }
 
-func buildCountQueryWithTimeout(parentCtx context.Context, countQuery *gorm.DB) (int64, error) {
+func buildCountQueryWithTimeout(_ context.Context, countQuery *gorm.DB) (int64, error) {
 	var total int64
-	ctx, cancel := context.WithTimeout(parentCtx, 5*time.Millisecond)
-	defer cancel()
 
-	countQuery = countQuery.Session(&gorm.Session{Context: ctx, NewDB: true})
-	err := countQuery.WithContext(ctx).Count(&total).Error
+	// Use a transaction with statement_timeout to avoid connection corruption
+	err := countQuery.Transaction(func(tx *gorm.DB) error {
+		// Set timeout only for this transaction
+		if err := tx.Exec("SET LOCAL statement_timeout = '500ms'").Error; err != nil {
+			return err
+		}
+
+		return tx.Count(&total).Error
+	})
+
 	if err != nil {
-		// For timeout, return -1 to indicate count unavailable
-		if ctx.Err() == context.DeadlineExceeded {
+		// Check for statement timeout
+		if strings.Contains(err.Error(), "statement timeout") {
 			return -1, nil
 		}
-		// For other database errors, propagate them
 		return 0, err
 	}
 	return total, nil
