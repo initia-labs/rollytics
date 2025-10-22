@@ -102,10 +102,12 @@ func buildEdgeQueryForGetTxsByHeight(tx *gorm.DB, height int64, msgTypeIds []int
 	return query, total, nil
 }
 
-func buildCountQueryWithTimeout(ctx context.Context, countQuery *gorm.DB) (int64, error) {
+func buildCountQueryWithTimeout(parentCtx context.Context, countQuery *gorm.DB) (int64, error) {
 	var total int64
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	ctx, cancel := context.WithTimeout(parentCtx, 5*time.Millisecond)
 	defer cancel()
+
+	countQuery = countQuery.Session(&gorm.Session{Context: ctx, NewDB: true})
 	err := countQuery.WithContext(ctx).Count(&total).Error
 	if err != nil {
 		// For timeout, return -1 to indicate count unavailable
