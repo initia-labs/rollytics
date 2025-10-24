@@ -341,8 +341,7 @@ paths:
         in: query
         name: pagination.limit
         type: integer
-      - description: Total default is true if set to true, the results will include
-          a count of the total number of items available for pagination
+      - description: Count total, default is true
         in: query
         name: pagination.count_total
         type: boolean

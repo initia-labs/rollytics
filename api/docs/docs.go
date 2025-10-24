@@ -256,7 +256,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "boolean",
-                        "description": "Total default is true if set to true, the results will include a count of the total number of items available for pagination",
+                        "description": "Count total, default is true",
                         "name": "pagination.count_total",
                         "in": "query"
                     },
