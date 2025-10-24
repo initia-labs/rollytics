@@ -1356,31 +1356,6 @@
                 }
             }
         },
-        "status.EdgeBackfillDetails": {
-            "type": "object",
-            "properties": {
-                "completed": {
-                    "type": "boolean"
-                },
-                "sequence": {
-                    "type": "integer"
-                }
-            }
-        },
-        "status.EdgeBackfillSummary": {
-            "type": "object",
-            "properties": {
-                "evm_internal": {
-                    "$ref": "#/definitions/status.EdgeBackfillDetails"
-                },
-                "evm_tx": {
-                    "$ref": "#/definitions/status.EdgeBackfillDetails"
-                },
-                "tx": {
-                    "$ref": "#/definitions/status.EdgeBackfillDetails"
-                }
-            }
-        },
         "status.StatusResponse": {
             "type": "object",
             "properties": {
@@ -1391,15 +1366,6 @@
                 "commit_hash": {
                     "type": "string",
                     "x-order:1": true
-                },
-                "edge_backfill": {
-                    "description": "Edge backfill status",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/status.EdgeBackfillSummary"
-                        }
-                    ],
-                    "x-order:5": true
                 },
                 "height": {
                     "type": "integer",

@@ -119,22 +119,6 @@ definitions:
         type: array
         x-order:0: true
     type: object
-  status.EdgeBackfillDetails:
-    properties:
-      completed:
-        type: boolean
-      sequence:
-        type: integer
-    type: object
-  status.EdgeBackfillSummary:
-    properties:
-      evm_internal:
-        $ref: '#/definitions/status.EdgeBackfillDetails'
-      evm_tx:
-        $ref: '#/definitions/status.EdgeBackfillDetails'
-      tx:
-        $ref: '#/definitions/status.EdgeBackfillDetails'
-    type: object
   status.StatusResponse:
     properties:
       chain_id:
@@ -143,11 +127,6 @@ definitions:
       commit_hash:
         type: string
         x-order:1: true
-      edge_backfill:
-        allOf:
-        - $ref: '#/definitions/status.EdgeBackfillSummary'
-        description: Edge backfill status
-        x-order:5: true
       height:
         type: integer
         x-order:3: true
