@@ -6,8 +6,6 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
-	"github.com/lib/pq"
-
 	nft_pair "github.com/initia-labs/rollytics/indexer/collector/nft-pair"
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
 	indexerutil "github.com/initia-labs/rollytics/indexer/util"
@@ -294,12 +292,6 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 		if err != nil {
 			sub.logger.Error("Failed to decode tx hash", "txHash", txHash, "error", err)
 			continue
-		}
-
-		if err := tx.Model(&types.CollectedTx{}).
-			Where("hash = ? AND height = ?", txHashBytes, block.Height).
-			Update("nft_ids", pq.Array(nftIds)).Error; err != nil {
-			return err
 		}
 
 		var seqRow struct {
