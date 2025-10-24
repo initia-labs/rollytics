@@ -8,7 +8,6 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	evmtypes "github.com/initia-labs/minievm/x/evm/types"
-	"github.com/lib/pq"
 	"gorm.io/gorm"
 
 	"github.com/initia-labs/rollytics/types"
@@ -44,12 +43,20 @@ func getCollectionCreationInfo(chainId, addr string, tx *gorm.DB) (*CollectionCr
 		return nil, err
 	}
 
-	var ctx types.CollectedTx
+	var ctxa types.CollectedTxAccount
 	if err := tx.
-		Where("account_ids && ?", pq.Array([]int64{accountDict.Id})).
+		Where("account_id = ?", accountDict.Id).
 		Order("sequence ASC").
 		Limit(1).
-		First(&ctx).Error; err != nil {
+		First(&ctxa).Error; err != nil {
+		return nil, err
+	}
+
+	var ctx types.CollectedTx
+	if err := tx.
+		Where("sequence = ?", ctxa.Sequence).
+		Limit(1).
+		First(&ctxa).Error; err != nil {
 		return nil, err
 	}
 
