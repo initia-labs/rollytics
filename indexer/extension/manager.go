@@ -9,7 +9,6 @@ import (
 
 	"github.com/initia-labs/rollytics/config"
 	internaltx "github.com/initia-labs/rollytics/indexer/extension/internaltx"
-	txedgebackfill "github.com/initia-labs/rollytics/indexer/extension/txedgebackfill"
 	"github.com/initia-labs/rollytics/indexer/extension/types"
 	"github.com/initia-labs/rollytics/orm"
 )
@@ -26,9 +25,6 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *ExtensionMa
 	// Internal Transaction
 	if itxIndexer := internaltx.New(cfg, logger, db); itxIndexer != nil {
 		extensions = append(extensions, itxIndexer)
-	}
-	if edgeBackfill := txedgebackfill.New(cfg, logger, db); edgeBackfill != nil {
-		extensions = append(extensions, edgeBackfill)
 	}
 	return &ExtensionManager{
 		cfg:        cfg,
