@@ -56,7 +56,7 @@ func getCollectionCreationInfo(chainId, addr string, tx *gorm.DB) (*CollectionCr
 	if err := tx.
 		Where("sequence = ?", ctxa.Sequence).
 		Limit(1).
-		First(&ctxa).Error; err != nil {
+		First(&ctx).Error; err != nil {
 		return nil, err
 	}
 
