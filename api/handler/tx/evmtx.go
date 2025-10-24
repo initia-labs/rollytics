@@ -21,6 +21,7 @@ import (
 // @Param pagination.key query string false "Pagination key"
 // @Param pagination.offset query int false "Pagination offset"
 // @Param pagination.limit query int false "Pagination limit, default is 100" default is 100
+// @Param pagination.count_total query bool false "Count total, default is true" default is true
 // @Param pagination.reverse query bool false "Reverse order default is true if set to true, the results will be ordered in descending order"
 // @Router /indexer/tx/v1/evm-txs [get]
 func (h *TxHandler) GetEvmTxs(c *fiber.Ctx) error {
@@ -38,7 +39,7 @@ func (h *TxHandler) GetEvmTxs(c *fiber.Ctx) error {
 	var strategy types.CollectedEvmTx
 	hasFilters := false // no filters in basic GetEvmTxs
 	var total int64
-	total, err = common.GetOptimizedCount(query, strategy, hasFilters)
+	total, err = common.GetOptimizedCount(query, strategy, hasFilters, pagination.CountTotal)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
@@ -75,6 +76,7 @@ func (h *TxHandler) GetEvmTxs(c *fiber.Ctx) error {
 // @Param pagination.key query string false "Pagination key"
 // @Param pagination.offset query int false "Pagination offset"
 // @Param pagination.limit query int false "Pagination limit, default is 100" default is 100
+// @Param pagination.count_total query bool false "Count total, default is true" default is true
 // @Param pagination.reverse query bool false "Reverse order default is true if set to true, the results will be ordered in descending order"
 // @Param is_signer query bool false "Filter by signer accounts, default is false" default is false
 // @Router /indexer/tx/v1/evm-txs/by_account/{account} [get]
@@ -144,7 +146,7 @@ func buildEvmTxEdgeQuery(tx *gorm.DB, accountID int64, isSigner bool, pagination
 	sequenceQuery = sequenceQuery.Distinct("sequence")
 	countQuery := sequenceQuery.Session(&gorm.Session{})
 
-	total, err := common.GetCountWithTimeout(countQuery)
+	total, err := common.GetCountWithTimeout(countQuery, pagination.CountTotal)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -169,6 +171,7 @@ func buildEvmTxEdgeQuery(tx *gorm.DB, accountID int64, isSigner bool, pagination
 // @Param pagination.key query string false "Pagination key"
 // @Param pagination.offset query int false "Pagination offset"
 // @Param pagination.limit query int false "Pagination limit, default is 100" default is 100
+// @Param pagination.count_total query bool false "Count total, default is true" default is true
 // @Param pagination.reverse query bool false "Reverse order default is true if set to true, the results will be ordered in descending order"
 // @Router /indexer/tx/v1/evm-txs/by_height/{height} [get]
 func (h *TxHandler) GetEvmTxsByHeight(c *fiber.Ctx) error {
@@ -191,7 +194,7 @@ func (h *TxHandler) GetEvmTxsByHeight(c *fiber.Ctx) error {
 	var strategy types.CollectedEvmTx
 	hasFilters := true // always has height filter
 	var total int64
-	total, err = common.GetOptimizedCount(query, strategy, hasFilters)
+	total, err = common.GetOptimizedCount(query, strategy, hasFilters, pagination.CountTotal)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
