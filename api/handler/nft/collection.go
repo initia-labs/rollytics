@@ -20,6 +20,7 @@ import (
 // @Param pagination.key query string false "Pagination key"
 // @Param pagination.offset query int false "Pagination offset"
 // @Param pagination.limit query int false "Pagination limit, default is 100" default is 100
+// @Param pagination.count_total query bool false "Count total, default is true" default is true
 // @Param pagination.reverse query bool false "Reverse order default is true if set to true, the results will be ordered in descending order"
 // @Success 200 {object} CollectionsResponse
 // @Router /indexer/nft/v1/collections [get]
@@ -39,7 +40,7 @@ func (h *NftHandler) GetCollections(c *fiber.Ctx) error {
 	var strategy types.CollectedNftCollection
 	hasFilters := false // no filters in basic collection listing
 	var total int64
-	total, err = common.GetOptimizedCount(query, strategy, hasFilters)
+	total, err = common.GetOptimizedCount(query, strategy, hasFilters, pagination.CountTotal)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
@@ -76,6 +77,7 @@ func (h *NftHandler) GetCollections(c *fiber.Ctx) error {
 // @Param pagination.key query string false "Pagination key"
 // @Param pagination.offset query int false "Pagination offset"
 // @Param pagination.limit query int false "Pagination limit, default is 100" default is 100
+// @Param pagination.count_total query bool false "Count total, default is true" default is true
 // @Param pagination.reverse query bool false "Reverse order default is true if set to true, the results will be ordered in descending order"
 // @Success 200 {object} CollectionsResponse
 // @Router /indexer/nft/v1/collections/by_account/{account} [get]
@@ -111,7 +113,9 @@ func (h *NftHandler) GetCollectionsByAccount(c *fiber.Ctx) error {
 		Where("nft.owner_id = ?", accountIds[0])
 
 	var total int64
-	if err := tx.Raw(`
+	if !pagination.CountTotal {
+		total = 0
+	} else if err := tx.Raw(`
 		SELECT COUNT(DISTINCT nft_collection.addr) 
 		FROM nft_collection 
 		INNER JOIN nft ON nft_collection.addr = nft.collection_addr 
@@ -168,6 +172,7 @@ func (h *NftHandler) GetCollectionsByAccount(c *fiber.Ctx) error {
 // @Param pagination.key query string false "Pagination key"
 // @Param pagination.offset query int false "Pagination offset"
 // @Param pagination.limit query int false "Pagination limit, default is 100" default is 100
+// @Param pagination.count_total query bool false "Total default is true if set to true, the results will include a count of the total number of items available for pagination"
 // @Param pagination.reverse query bool false "Reverse order default is true if set to true, the results will be ordered in descending order"
 // @Success 200 {object} CollectionsResponse
 // @Router /indexer/nft/v1/collections/by_name/{name} [get]

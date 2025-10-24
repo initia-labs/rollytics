@@ -11,8 +11,12 @@ import (
 	"github.com/initia-labs/rollytics/types"
 )
 
-func GetCountWithTimeout(countQuery *gorm.DB) (int64, error) {
+func GetCountWithTimeout(countQuery *gorm.DB, countTotal bool) (int64, error) {
 	var total int64
+
+	if !countTotal {
+		return 0, nil
+	}
 
 	// Use a transaction with statement_timeout to avoid connection corruption
 	if err := countQuery.Transaction(func(tx *gorm.DB) error {
@@ -49,23 +53,23 @@ type CountOptimizer interface {
 }
 
 // Generic optimized COUNT implementation
-func GetOptimizedCount(db *gorm.DB, strategy types.FastCountStrategy, hasFilters bool) (int64, error) {
+func GetOptimizedCount(db *gorm.DB, strategy types.FastCountStrategy, hasFilters, countTotal bool) (int64, error) {
 	if hasFilters || !strategy.SupportsFastCount() {
 		// Use regular COUNT when filters exist or fast count not supported
-		return GetCountWithTimeout(db)
+		return GetCountWithTimeout(db, countTotal)
 	}
 
 	// Use optimization strategy
 	switch strategy.GetOptimizationType() {
 	case types.CountOptimizationTypeMax:
-		return getCountByMax(db, strategy.GetOptimizationField())
+		return getCountByMax(db, strategy.GetOptimizationField(), countTotal)
 
 	case types.CountOptimizationTypePgClass:
-		return getCountByPgClass(db, strategy.TableName())
+		return getCountByPgClass(db, strategy.TableName(), countTotal)
 
 	default:
 		// Fallback to regular COUNT
-		return GetCountWithTimeout(db)
+		return GetCountWithTimeout(db, countTotal)
 	}
 }
 
@@ -89,7 +93,11 @@ func isValidFieldName(field string) bool {
 }
 
 // Helper: Get count using MAX(field) for sequential fields
-func getCountByMax(db *gorm.DB, field string) (int64, error) {
+func getCountByMax(db *gorm.DB, field string, countTotal bool) (int64, error) {
+	if !countTotal {
+		return 0, nil
+	}
+
 	// Validate field name to prevent SQL injection
 	if !isValidFieldName(field) {
 		return 0, fmt.Errorf("invalid field name: %s", field)
@@ -116,7 +124,11 @@ func getCountByMax(db *gorm.DB, field string) (int64, error) {
 }
 
 // Helper: Get count using PostgreSQL statistics
-func getCountByPgClass(db *gorm.DB, tableName string) (int64, error) {
+func getCountByPgClass(db *gorm.DB, tableName string, countTotal bool) (int64, error) {
+	if !countTotal {
+		return 0, nil
+	}
+
 	var total int64
 	err := db.Raw(`
 		SELECT COALESCE(reltuples, 0)::BIGINT
@@ -126,7 +138,7 @@ func getCountByPgClass(db *gorm.DB, tableName string) (int64, error) {
 
 	if err != nil || total == 0 {
 		// Fallback to regular COUNT
-		return GetCountWithTimeout(db.Table(tableName))
+		return GetCountWithTimeout(db.Table(tableName), countTotal)
 	}
 
 	return total, err

@@ -58,6 +58,7 @@ type Pagination struct {
 	Limit       int
 	Offset      int
 	Order       string
+	CountTotal  bool
 	CursorType  CursorType
 	CursorValue map[string]any
 }
@@ -87,10 +88,13 @@ func ParsePagination(c *fiber.Ctx) (*Pagination, error) {
 		return nil, errors.New("pagination.offset cannot be negative")
 	}
 
+	countTotal := c.QueryBool("pagination.count_total", true)
+
 	pagination := &Pagination{
 		Limit:      limit,
 		Offset:     offset,
 		Order:      getOrder(c),
+		CountTotal: countTotal,
 		CursorType: CursorTypeOffset, // default to offset-based pagination
 	}
 

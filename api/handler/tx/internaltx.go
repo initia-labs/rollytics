@@ -39,7 +39,7 @@ func (h *TxHandler) GetEvmInternalTxs(c *fiber.Ctx) error {
 	var strategy types.CollectedEvmInternalTx
 	hasFilters := false // no filters in basic GetEvmInternalTxs
 	var total int64
-	total, err = common.GetOptimizedCount(query, strategy, hasFilters)
+	total, err = common.GetOptimizedCount(query, strategy, hasFilters, pagination.CountTotal)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
@@ -150,7 +150,7 @@ func buildEvmInternalTxEdgeQuery(tx *gorm.DB, accountID int64, pagination *commo
 	sequenceQuery = sequenceQuery.Distinct("sequence")
 	countQuery := sequenceQuery.Session(&gorm.Session{})
 
-	total, err := common.GetCountWithTimeout(countQuery)
+	total, err := common.GetCountWithTimeout(countQuery, pagination.CountTotal)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -198,7 +198,7 @@ func (h *TxHandler) GetEvmInternalTxsByHeight(c *fiber.Ctx) error {
 	var strategy types.CollectedEvmInternalTx
 	hasFilters := true // always has height filter
 	var total int64
-	total, err = common.GetOptimizedCount(query, strategy, hasFilters)
+	total, err = common.GetOptimizedCount(query, strategy, hasFilters, pagination.CountTotal)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
@@ -277,7 +277,7 @@ func (h *TxHandler) GetEvmInternalTxsByHash(c *fiber.Ctx) error {
 	var strategy types.CollectedEvmInternalTx
 	hasFilters := true // always has hash_id filter
 	var total int64
-	total, err = common.GetOptimizedCount(query, strategy, hasFilters)
+	total, err = common.GetOptimizedCount(query, strategy, hasFilters, pagination.CountTotal)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}

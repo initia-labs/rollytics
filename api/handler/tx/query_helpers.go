@@ -29,7 +29,7 @@ func buildTxEdgeQuery(tx *gorm.DB, accountID int64, isSigner bool, msgTypeIds []
 	sequenceQuery = sequenceQuery.Distinct("sequence")
 	countQuery := sequenceQuery.Session(&gorm.Session{})
 
-	total, err := common.GetCountWithTimeout(countQuery)
+	total, err := common.GetCountWithTimeout(countQuery, pagination.CountTotal)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -56,7 +56,7 @@ func buildEdgeQueryForGetTxs(tx *gorm.DB, msgTypeIds []int64, pagination *common
 	sequenceQuery = sequenceQuery.Distinct("sequence")
 	countQuery := sequenceQuery.Session(&gorm.Session{})
 
-	total, err := common.GetCountWithTimeout(countQuery)
+	total, err := common.GetCountWithTimeout(countQuery, pagination.CountTotal)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -89,7 +89,7 @@ func buildEdgeQueryForGetTxsByHeight(tx *gorm.DB, height int64, msgTypeIds []int
 	var strategy types.CollectedTx
 	const hasFilters = true // always filtering by msg_type_ids and height
 
-	total, err := common.GetOptimizedCount(query, strategy, hasFilters)
+	total, err := common.GetOptimizedCount(query, strategy, hasFilters, pagination.CountTotal)
 	if err != nil {
 		return nil, 0, err
 	}
