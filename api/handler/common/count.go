@@ -3,12 +3,45 @@ package common
 import (
 	"fmt"
 	"regexp"
+	"strings"
 	"sync"
 
 	"gorm.io/gorm"
 
 	"github.com/initia-labs/rollytics/types"
 )
+
+func GetCountWithTimeout(countQuery *gorm.DB) (int64, error) {
+	var total int64
+
+	// Use a transaction with statement_timeout to avoid connection corruption
+	if err := countQuery.Transaction(func(tx *gorm.DB) error {
+		// Set timeout only for this transaction
+		if err := tx.Exec("SET LOCAL statement_timeout = '5s'").Error; err != nil {
+			return err
+		}
+
+		countErr := tx.Count(&total).Error
+
+		// Reset timeout before committing to prevent leakage to parent transaction
+		if resetErr := tx.Exec("RESET statement_timeout").Error; resetErr != nil {
+			// Log the reset error but don't override the count error
+			if countErr == nil {
+				return resetErr
+			}
+		}
+
+		return countErr
+	}); err != nil {
+		// Check for statement timeout
+		if strings.Contains(err.Error(), "statement timeout") {
+			return -1, nil
+		}
+		return 0, err
+	}
+
+	return total, nil
+}
 
 // CountOptimizer provides optimized COUNT operations
 type CountOptimizer interface {
@@ -19,8 +52,7 @@ type CountOptimizer interface {
 func GetOptimizedCount(db *gorm.DB, strategy types.FastCountStrategy, hasFilters bool) (int64, error) {
 	if hasFilters || !strategy.SupportsFastCount() {
 		// Use regular COUNT when filters exist or fast count not supported
-		var total int64
-		return total, db.Count(&total).Error
+		return GetCountWithTimeout(db)
 	}
 
 	// Use optimization strategy
@@ -33,8 +65,7 @@ func GetOptimizedCount(db *gorm.DB, strategy types.FastCountStrategy, hasFilters
 
 	default:
 		// Fallback to regular COUNT
-		var total int64
-		return total, db.Count(&total).Error
+		return GetCountWithTimeout(db)
 	}
 }
 
@@ -95,12 +126,7 @@ func getCountByPgClass(db *gorm.DB, tableName string) (int64, error) {
 
 	if err != nil || total == 0 {
 		// Fallback to regular COUNT
-		var fallbackTotal int64
-		fallbackErr := db.Table(tableName).Count(&fallbackTotal).Error
-		if fallbackErr != nil {
-			return 0, fallbackErr
-		}
-		return fallbackTotal, nil
+		return GetCountWithTimeout(db.Table(tableName))
 	}
 
 	return total, err

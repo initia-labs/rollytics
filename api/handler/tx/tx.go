@@ -35,40 +35,18 @@ func (h *TxHandler) GetTxs(c *fiber.Ctx) error {
 	tx := h.GetDatabase().Begin(&sql.TxOptions{ReadOnly: true})
 	defer tx.Rollback()
 
-	var (
-		query      *gorm.DB
-		total      int64
-		msgTypeIds []int64
-	)
+	var msgTypeIds []int64
 
-	hasFilters := len(msgs) > 0
-	if hasFilters {
+	if len(msgs) > 0 {
 		msgTypeIds, err = h.GetMsgTypeIds(msgs)
 		if err != nil {
 			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 		}
 	}
 
-	useEdges := false
-	if hasFilters {
-		useEdges, err = common.IsEdgeBackfillReady(tx, types.SeqInfoTxEdgeBackfill)
-		if err != nil {
-			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
-		}
-	}
-
-	if useEdges {
-		var edgeErr error
-		query, total, edgeErr = buildEdgeQueryForGetTxs(tx, msgTypeIds, pagination)
-		if edgeErr != nil {
-			return fiber.NewError(fiber.StatusInternalServerError, edgeErr.Error())
-		}
-	} else {
-		var legacyErr error
-		query, total, legacyErr = buildTxLegacyQueryForGetTxs(tx, msgTypeIds, pagination)
-		if legacyErr != nil {
-			return fiber.NewError(fiber.StatusInternalServerError, legacyErr.Error())
-		}
+	query, total, err := buildEdgeQueryForGetTxs(tx, msgTypeIds, pagination)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	var txs []types.CollectedTx
@@ -133,17 +111,7 @@ func (h *TxHandler) GetTxsByAccount(c *fiber.Ctx) error {
 		})
 	}
 
-	// Check if we can use edges for this query
-	useEdges, err := common.IsEdgeBackfillReady(tx, types.SeqInfoTxEdgeBackfill)
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
-	}
-
-	var (
-		query      *gorm.DB
-		msgTypeIds []int64
-	)
-
+	var msgTypeIds []int64
 	if len(msgs) > 0 {
 		msgTypeIds, err = h.GetMsgTypeIds(msgs)
 		if err != nil {
@@ -151,19 +119,9 @@ func (h *TxHandler) GetTxsByAccount(c *fiber.Ctx) error {
 		}
 	}
 
-	var total int64
-	if useEdges {
-		var edgeErr error
-		query, total, edgeErr = buildTxEdgeQuery(tx, accountIds[0], isSigner, msgTypeIds, pagination)
-		if edgeErr != nil {
-			return fiber.NewError(fiber.StatusInternalServerError, edgeErr.Error())
-		}
-	} else {
-		var legacyErr error
-		query, total, legacyErr = buildTxLegacyQuery(tx, accountIds, isSigner, msgTypeIds, pagination)
-		if legacyErr != nil {
-			return fiber.NewError(fiber.StatusInternalServerError, legacyErr.Error())
-		}
+	query, total, err := buildTxEdgeQuery(tx, accountIds[0], isSigner, msgTypeIds, pagination)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	var txs []types.CollectedTx
@@ -215,37 +173,18 @@ func (h *TxHandler) GetTxsByHeight(c *fiber.Ctx) error {
 	tx := h.GetDatabase().Begin(&sql.TxOptions{ReadOnly: true})
 	defer tx.Rollback()
 
-	var (
-		query      *gorm.DB
-		msgTypeIds []int64
-		total      int64
-	)
+	var msgTypeIds []int64
 
-	useEdges := false
 	if len(msgs) > 0 {
 		msgTypeIds, err = h.GetMsgTypeIds(msgs)
 		if err != nil {
 			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 		}
-
-		useEdges, err = common.IsEdgeBackfillReady(tx, types.SeqInfoTxEdgeBackfill)
-		if err != nil {
-			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
-		}
 	}
 
-	if useEdges {
-		var edgeErr error
-		query, total, edgeErr = buildEdgeQueryForGetTxsByHeight(tx, height, msgTypeIds, pagination)
-		if edgeErr != nil {
-			return fiber.NewError(fiber.StatusInternalServerError, edgeErr.Error())
-		}
-	} else {
-		var legacyErr error
-		query, total, legacyErr = buildTxLegacyQueryForGetTxsByHeight(tx, height, msgTypeIds, pagination)
-		if legacyErr != nil {
-			return fiber.NewError(fiber.StatusInternalServerError, legacyErr.Error())
-		}
+	query, total, err := buildEdgeQueryForGetTxsByHeight(tx, height, msgTypeIds, pagination)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	var txs []types.CollectedTx

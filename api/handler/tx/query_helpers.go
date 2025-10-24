@@ -29,8 +29,8 @@ func buildTxEdgeQuery(tx *gorm.DB, accountID int64, isSigner bool, msgTypeIds []
 	sequenceQuery = sequenceQuery.Distinct("sequence")
 	countQuery := sequenceQuery.Session(&gorm.Session{})
 
-	var total int64
-	if err := countQuery.Count(&total).Error; err != nil {
+	total, err := common.GetCountWithTimeout(countQuery)
+	if err != nil {
 		return nil, 0, err
 	}
 
@@ -56,8 +56,8 @@ func buildEdgeQueryForGetTxs(tx *gorm.DB, msgTypeIds []int64, pagination *common
 	sequenceQuery = sequenceQuery.Distinct("sequence")
 	countQuery := sequenceQuery.Session(&gorm.Session{})
 
-	var total int64
-	if err := countQuery.Count(&total).Error; err != nil {
+	total, err := common.GetCountWithTimeout(countQuery)
+	if err != nil {
 		return nil, 0, err
 	}
 
@@ -88,71 +88,6 @@ func buildEdgeQueryForGetTxsByHeight(tx *gorm.DB, height int64, msgTypeIds []int
 
 	var strategy types.CollectedTx
 	const hasFilters = true // always filtering by msg_type_ids and height
-
-	total, err := common.GetOptimizedCount(query, strategy, hasFilters)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	query = pagination.ApplySequence(query)
-
-	return query, total, nil
-}
-
-func buildTxLegacyQuery(tx *gorm.DB, accountIds []int64, isSigner bool, msgTypeIds []int64, pagination *common.Pagination) (*gorm.DB, int64, error) {
-	query := tx.Model(&types.CollectedTx{}).
-		Where("account_ids && ?", pq.Array(accountIds))
-
-	if isSigner {
-		query = query.Where("signer_id = ?", accountIds[0])
-	}
-
-	if len(msgTypeIds) > 0 {
-		query = query.Where("msg_type_ids && ?", pq.Array(msgTypeIds))
-	}
-
-	var strategy types.CollectedTx
-	const hasFilters = true // always filtering by account_ids
-
-	total, err := common.GetOptimizedCount(query, strategy, hasFilters)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	query = pagination.ApplySequence(query)
-
-	return query, total, nil
-}
-
-func buildTxLegacyQueryForGetTxs(tx *gorm.DB, msgTypeIds []int64, pagination *common.Pagination) (*gorm.DB, int64, error) {
-	query := tx.Model(&types.CollectedTx{})
-
-	hasFilters := len(msgTypeIds) > 0
-	if hasFilters {
-		query = query.Where("msg_type_ids && ?", pq.Array(msgTypeIds))
-	}
-
-	var strategy types.CollectedTx
-	total, err := common.GetOptimizedCount(query, strategy, hasFilters)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	query = pagination.ApplySequence(query)
-
-	return query, total, nil
-}
-
-func buildTxLegacyQueryForGetTxsByHeight(tx *gorm.DB, height int64, msgTypeIds []int64, pagination *common.Pagination) (*gorm.DB, int64, error) {
-	query := tx.Model(&types.CollectedTx{}).
-		Where("height = ?", height)
-
-	if len(msgTypeIds) > 0 {
-		query = query.Where("msg_type_ids && ?", pq.Array(msgTypeIds))
-	}
-
-	var strategy types.CollectedTx
-	const hasFilters = true
 
 	total, err := common.GetOptimizedCount(query, strategy, hasFilters)
 	if err != nil {

@@ -5,7 +5,6 @@ import (
 	"errors"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/lib/pq"
 	"gorm.io/gorm"
 
 	"github.com/initia-labs/rollytics/api/handler/common"
@@ -106,28 +105,9 @@ func (h *TxHandler) GetEvmTxsByAccount(c *fiber.Ctx) error {
 		})
 	}
 
-	// Check if we can use edges for this query
-	useEdges, err := common.IsEdgeBackfillReady(tx, types.SeqInfoEvmTxEdgeBackfill)
+	query, total, err := buildEvmTxEdgeQuery(tx, accountIds[0], isSigner, pagination)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
-	}
-
-	var (
-		query *gorm.DB
-		total int64
-	)
-	if useEdges {
-		var edgeErr error
-		query, total, edgeErr = buildEvmTxEdgeQuery(tx, accountIds[0], isSigner, pagination)
-		if edgeErr != nil {
-			return fiber.NewError(fiber.StatusInternalServerError, edgeErr.Error())
-		}
-	} else {
-		var legacyErr error
-		query, total, legacyErr = buildEvmTxLegacyQuery(tx, accountIds, isSigner, pagination)
-		if legacyErr != nil {
-			return fiber.NewError(fiber.StatusInternalServerError, legacyErr.Error())
-		}
 	}
 
 	var txs []types.CollectedEvmTx
@@ -164,8 +144,8 @@ func buildEvmTxEdgeQuery(tx *gorm.DB, accountID int64, isSigner bool, pagination
 	sequenceQuery = sequenceQuery.Distinct("sequence")
 	countQuery := sequenceQuery.Session(&gorm.Session{})
 
-	var total int64
-	if err := countQuery.Count(&total).Error; err != nil {
+	total, err := common.GetCountWithTimeout(countQuery)
+	if err != nil {
 		return nil, 0, err
 	}
 
@@ -175,27 +155,6 @@ func buildEvmTxEdgeQuery(tx *gorm.DB, accountID int64, isSigner bool, pagination
 	query := tx.Model(&types.CollectedEvmTx{}).
 		Where("sequence IN (?)", sequenceQuery).
 		Order(pagination.OrderBy("sequence"))
-
-	return query, total, nil
-}
-
-func buildEvmTxLegacyQuery(tx *gorm.DB, accountIds []int64, isSigner bool, pagination *common.Pagination) (*gorm.DB, int64, error) {
-	query := tx.Model(&types.CollectedEvmTx{}).
-		Where("account_ids && ?", pq.Array(accountIds))
-
-	if isSigner {
-		query = query.Where("signer_id = ?", accountIds[0])
-	}
-
-	var strategy types.CollectedEvmTx
-	const hasFilters = true
-
-	total, err := common.GetOptimizedCount(query, strategy, hasFilters)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	query = pagination.ApplySequence(query)
 
 	return query, total, nil
 }

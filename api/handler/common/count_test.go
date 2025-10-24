@@ -87,9 +87,14 @@ func TestGetOptimizedCount_WithFilters(t *testing.T) {
 
 	strategy := types.CollectedTx{}
 
-	// When hasFilters is true, should use regular COUNT
+	// When hasFilters is true, should use regular COUNT with transaction
+	mock.ExpectBegin()
+	mock.ExpectExec(`SET LOCAL statement_timeout = '5s'`).
+		WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectQuery(`SELECT count\(\*\) FROM "tx"`).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(100))
+	mock.ExpectExec(`RESET statement_timeout`).WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectCommit()
 
 	// Create query with table context
 	query := db.Model(&types.CollectedTx{})
@@ -285,9 +290,14 @@ func TestGetOptimizedCount_PgClassFallback(t *testing.T) {
 		WithArgs("nft").
 		WillReturnRows(sqlmock.NewRows([]string{"coalesce"}).AddRow(0))
 
-	// Fallback to regular COUNT
+	// Fallback to regular COUNT with transaction
+	mock.ExpectBegin()
+	mock.ExpectExec(`SET LOCAL statement_timeout = '5s'`).
+		WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectQuery(`SELECT count\(\*\) FROM "nft"`).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1000))
+	mock.ExpectExec(`RESET statement_timeout`).WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectCommit()
 
 	// Create query with table context
 	query := db.Model(&types.CollectedNft{})
@@ -305,9 +315,14 @@ func TestGetOptimizedCount_UnsupportedStrategy(t *testing.T) {
 	// Create a mock strategy that doesn't support fast count
 	strategy := &mockUnsupportedStrategy{}
 
-	// Should fallback to regular COUNT
+	// Should fallback to regular COUNT with transaction
+	mock.ExpectBegin()
+	mock.ExpectExec(`SET LOCAL statement_timeout = '5s'`).
+		WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectQuery(`SELECT count\(\*\)`).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(500))
+	mock.ExpectExec(`RESET statement_timeout`).WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectCommit()
 
 	// Create query with table context
 	query := db.Table("mock_table")
@@ -324,9 +339,13 @@ func TestGetOptimizedCount_DatabaseError(t *testing.T) {
 
 	strategy := types.CollectedTx{}
 
-	// Simulate database error
+	// Simulate database error with transaction
+	mock.ExpectBegin()
+	mock.ExpectExec(`SET LOCAL statement_timeout = '5s'`).
+		WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectQuery(`SELECT count\(\*\) FROM "tx"`).
 		WillReturnError(sql.ErrConnDone)
+	mock.ExpectRollback()
 
 	// Create query with table context
 	query := db.Model(&types.CollectedTx{})
@@ -677,5 +696,258 @@ func BenchmarkGetOptimizedCount_WithoutFilters(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		query := db.Model(&types.CollectedTx{})
 		_, _ = GetOptimizedCount(query, strategy, false)
+	}
+}
+
+// Tests for GetCountWithTimeout function
+func TestGetCountWithTimeout_Success(t *testing.T) {
+	db, mock, cleanup := setupMockDB(t)
+	defer cleanup()
+
+	// Expect transaction begin
+	mock.ExpectBegin()
+	// Expect SET LOCAL statement_timeout
+	mock.ExpectExec(`SET LOCAL statement_timeout = '5s'`).
+		WillReturnResult(sqlmock.NewResult(0, 0))
+	// Expect COUNT query
+	mock.ExpectQuery(`SELECT count\(\*\) FROM "tx"`).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1500))
+	mock.ExpectExec(`RESET statement_timeout`).WillReturnResult(sqlmock.NewResult(0, 0))
+	// Expect transaction commit
+	mock.ExpectCommit()
+
+	query := db.Model(&types.CollectedTx{})
+	result, err := GetCountWithTimeout(query)
+
+	assert.NoError(t, err)
+	assert.Equal(t, int64(1500), result)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestGetCountWithTimeout_StatementTimeout(t *testing.T) {
+	db, mock, cleanup := setupMockDB(t)
+	defer cleanup()
+
+	// Expect transaction begin
+	mock.ExpectBegin()
+	// Expect SET LOCAL statement_timeout
+	mock.ExpectExec(`SET LOCAL statement_timeout = '5s'`).
+		WillReturnResult(sqlmock.NewResult(0, 0))
+	// Expect COUNT query to return timeout error
+	mock.ExpectQuery(`SELECT count\(\*\) FROM "tx"`).
+		WillReturnError(fmt.Errorf("canceling statement due to statement timeout"))
+	// Expect transaction rollback
+	mock.ExpectRollback()
+
+	query := db.Model(&types.CollectedTx{})
+	result, err := GetCountWithTimeout(query)
+
+	assert.NoError(t, err)             // Should not return error for timeout
+	assert.Equal(t, int64(-1), result) // Should return -1 for timeout
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestGetCountWithTimeout_DatabaseError(t *testing.T) {
+	db, mock, cleanup := setupMockDB(t)
+	defer cleanup()
+
+	// Expect transaction begin
+	mock.ExpectBegin()
+	// Expect SET LOCAL statement_timeout
+	mock.ExpectExec(`SET LOCAL statement_timeout = '5s'`).
+		WillReturnResult(sqlmock.NewResult(0, 0))
+	// Expect COUNT query to return database error
+	mock.ExpectQuery(`SELECT count\(\*\) FROM "tx"`).
+		WillReturnError(sql.ErrConnDone)
+	// Expect transaction rollback
+	mock.ExpectRollback()
+
+	query := db.Model(&types.CollectedTx{})
+	result, err := GetCountWithTimeout(query)
+
+	assert.Error(t, err)
+	assert.Equal(t, int64(0), result)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestGetCountWithTimeout_TimeoutSettingError(t *testing.T) {
+	db, mock, cleanup := setupMockDB(t)
+	defer cleanup()
+
+	// Expect transaction begin
+	mock.ExpectBegin()
+	// Expect SET LOCAL statement_timeout to fail
+	mock.ExpectExec(`SET LOCAL statement_timeout = '5s'`).
+		WillReturnError(sql.ErrConnDone)
+	// Expect transaction rollback
+	mock.ExpectRollback()
+
+	query := db.Model(&types.CollectedTx{})
+	result, err := GetCountWithTimeout(query)
+
+	assert.Error(t, err)
+	assert.Equal(t, int64(0), result)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestGetCountWithTimeout_EmptyResult(t *testing.T) {
+	db, mock, cleanup := setupMockDB(t)
+	defer cleanup()
+
+	// Expect transaction begin
+	mock.ExpectBegin()
+	// Expect SET LOCAL statement_timeout
+	mock.ExpectExec(`SET LOCAL statement_timeout = '5s'`).
+		WillReturnResult(sqlmock.NewResult(0, 0))
+	// Expect COUNT query to return 0
+	mock.ExpectQuery(`SELECT count\(\*\) FROM "tx"`).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
+	mock.ExpectExec(`RESET statement_timeout`).WillReturnResult(sqlmock.NewResult(0, 0))
+	// Expect transaction commit
+	mock.ExpectCommit()
+
+	query := db.Model(&types.CollectedTx{})
+	result, err := GetCountWithTimeout(query)
+
+	assert.NoError(t, err)
+	assert.Equal(t, int64(0), result)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestGetCountWithTimeout_WithFilters(t *testing.T) {
+	db, mock, cleanup := setupMockDB(t)
+	defer cleanup()
+
+	// Expect transaction begin
+	mock.ExpectBegin()
+	// Expect SET LOCAL statement_timeout
+	mock.ExpectExec(`SET LOCAL statement_timeout = '5s'`).
+		WillReturnResult(sqlmock.NewResult(0, 0))
+	// Expect COUNT query with WHERE clause - match the exact SQL pattern
+	mock.ExpectQuery(`SELECT count\(\*\) FROM "tx" WHERE sequence > \$1`).
+		WithArgs(1000).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(42))
+	mock.ExpectExec(`RESET statement_timeout`).WillReturnResult(sqlmock.NewResult(0, 0))
+	// Expect transaction commit
+	mock.ExpectCommit()
+
+	query := db.Model(&types.CollectedTx{}).Where("sequence > ?", 1000)
+	result, err := GetCountWithTimeout(query)
+
+	assert.NoError(t, err)
+	assert.Equal(t, int64(42), result)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestGetCountWithTimeout_TimeoutErrorVariations(t *testing.T) {
+	db, mock, cleanup := setupMockDB(t)
+	defer cleanup()
+
+	timeoutErrors := []string{
+		"canceling statement due to statement timeout",
+		"statement timeout",
+		"pq: canceling statement due to statement timeout",
+	}
+
+	for i, timeoutError := range timeoutErrors {
+		t.Run(fmt.Sprint("TimeoutError_", i), func(t *testing.T) {
+			// Expect transaction begin
+			mock.ExpectBegin()
+			// Expect SET LOCAL statement_timeout
+			mock.ExpectExec(`SET LOCAL statement_timeout = '5s'`).
+				WillReturnResult(sqlmock.NewResult(0, 0))
+			// Expect COUNT query to return timeout error
+			mock.ExpectQuery(`SELECT count\(\*\) FROM "tx"`).
+				WillReturnError(fmt.Errorf("%s", timeoutError))
+			// Expect transaction rollback
+			mock.ExpectRollback()
+
+			query := db.Model(&types.CollectedTx{})
+			result, err := GetCountWithTimeout(query)
+
+			assert.NoError(t, err)             // Should not return error for timeout
+			assert.Equal(t, int64(-1), result) // Should return -1 for timeout
+		})
+	}
+
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestGetCountWithTimeout_NonTimeoutError(t *testing.T) {
+	db, mock, cleanup := setupMockDB(t)
+	defer cleanup()
+
+	nonTimeoutErrors := []string{
+		"connection refused",
+		"table does not exist",
+		"syntax error",
+		"permission denied",
+	}
+
+	for i, nonTimeoutError := range nonTimeoutErrors {
+		t.Run(fmt.Sprint("NonTimeoutError_", i), func(t *testing.T) {
+			// Expect transaction begin
+			mock.ExpectBegin()
+			// Expect SET LOCAL statement_timeout
+			mock.ExpectExec(`SET LOCAL statement_timeout = '5s'`).
+				WillReturnResult(sqlmock.NewResult(0, 0))
+			// Expect COUNT query to return non-timeout error
+			mock.ExpectQuery(`SELECT count\(\*\) FROM "tx"`).
+				WillReturnError(fmt.Errorf("%s", nonTimeoutError))
+			// Expect transaction rollback
+			mock.ExpectRollback()
+
+			query := db.Model(&types.CollectedTx{})
+			result, err := GetCountWithTimeout(query)
+
+			assert.Error(t, err)              // Should return error for non-timeout errors
+			assert.Equal(t, int64(0), result) // Should return 0 for errors
+			assert.Contains(t, err.Error(), nonTimeoutError)
+		})
+	}
+
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// Benchmark tests for GetCountWithTimeout
+func BenchmarkGetCountWithTimeout_Success(b *testing.B) {
+	db, mock, cleanup := setupMockDB(&testing.T{})
+	defer cleanup()
+
+	// Setup expectations for benchmark
+	for i := 0; i < b.N; i++ {
+		mock.ExpectBegin()
+		mock.ExpectExec(`SET LOCAL statement_timeout = '5s'`).
+			WillReturnResult(sqlmock.NewResult(0, 0))
+		mock.ExpectQuery(`SELECT count\(\*\) FROM "tx"`).
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1000))
+		mock.ExpectCommit()
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		query := db.Model(&types.CollectedTx{})
+		_, _ = GetCountWithTimeout(query)
+	}
+}
+
+func BenchmarkGetCountWithTimeout_Timeout(b *testing.B) {
+	db, mock, cleanup := setupMockDB(&testing.T{})
+	defer cleanup()
+
+	// Setup expectations for benchmark
+	for i := 0; i < b.N; i++ {
+		mock.ExpectBegin()
+		mock.ExpectExec(`SET LOCAL statement_timeout = '5s'`).
+			WillReturnResult(sqlmock.NewResult(0, 0))
+		mock.ExpectQuery(`SELECT count\(\*\) FROM "tx"`).
+			WillReturnError(fmt.Errorf("statement timeout"))
+		mock.ExpectRollback()
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		query := db.Model(&types.CollectedTx{})
+		_, _ = GetCountWithTimeout(query)
 	}
 }

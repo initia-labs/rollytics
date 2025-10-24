@@ -5,7 +5,6 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/gofiber/fiber/v2"
-	"github.com/lib/pq"
 	"gorm.io/gorm"
 
 	"github.com/initia-labs/rollytics/api/handler/common"
@@ -56,12 +55,6 @@ func (h *NftHandler) GetNftTxs(c *fiber.Ctx) error {
 
 	query := h.GetDatabase().Model(&types.CollectedTx{}).Order(pagination.OrderBy("sequence"))
 
-	// Check if we can use edges for this query
-	edgeStatus, err := common.GetEdgeBackfillStatus(h.GetDatabase().DB, types.SeqInfoTxEdgeBackfill)
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
-	}
-
 	switch h.GetVmType() {
 	case types.MoveVM:
 		accAddr := sdk.AccAddress(nft.Addr)
@@ -76,15 +69,11 @@ func (h *NftHandler) GetNftTxs(c *fiber.Ctx) error {
 			})
 		}
 
-		if edgeStatus.Completed {
-			sequenceSubQuery := h.GetDatabase().
-				Model(&types.CollectedTxAccount{}).
-				Select("sequence").
-				Where("account_id = ?", accountIds[0])
-			query = query.Where("sequence IN (?)", sequenceSubQuery)
-		} else {
-			query = query.Where("account_ids && ?", pq.Array(accountIds))
-		}
+		sequenceSubQuery := h.GetDatabase().
+			Model(&types.CollectedTxAccount{}).
+			Select("sequence").
+			Where("account_id = ?", accountIds[0])
+		query = query.Where("sequence IN (?)", sequenceSubQuery)
 
 	case types.WasmVM, types.EVM:
 		nftKey := util.NftKey{
@@ -102,15 +91,11 @@ func (h *NftHandler) GetNftTxs(c *fiber.Ctx) error {
 			})
 		}
 
-		if edgeStatus.Completed {
-			sequenceSubQuery := h.GetDatabase().
-				Model(&types.CollectedTxNft{}).
-				Select("sequence").
-				Where("nft_id IN ?", nftIds)
-			query = query.Where("sequence IN (?)", sequenceSubQuery)
-		} else {
-			query = query.Where("nft_ids && ?", pq.Array(nftIds))
-		}
+		sequenceSubQuery := h.GetDatabase().
+			Model(&types.CollectedTxNft{}).
+			Select("sequence").
+			Where("nft_id IN ?", nftIds)
+		query = query.Where("sequence IN (?)", sequenceSubQuery)
 	}
 
 	// Use optimized COUNT - always has filters (account_ids or nft_ids)

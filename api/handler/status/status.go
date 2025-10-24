@@ -8,14 +8,11 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
 
-	"github.com/initia-labs/rollytics/api/handler/common"
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/types"
 )
 
-var (
-	lastEvmInternalTxHeight atomic.Int64
-)
+var lastEvmInternalTxHeight atomic.Int64
 
 // status handles GET /status
 // @Summary Status check
@@ -81,55 +78,13 @@ func (h *StatusHandler) GetStatus(c *fiber.Ctx) error {
 		}
 	}
 
-	edgeStatus, err := h.getEdgeBackfillStatus(tx)
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
-	}
-
 	return c.JSON(&StatusResponse{
 		Version:          config.Version,
 		CommitHash:       config.CommitHash,
 		ChainId:          h.GetChainId(),
 		Height:           lastBlock.Height,
 		InternalTxHeight: internalTxHeight,
-		EdgeBackfill:     edgeStatus,
 	})
-}
-
-func (h *StatusHandler) getEdgeBackfillStatus(tx *gorm.DB) (EdgeBackfillSummary, error) {
-	var summary EdgeBackfillSummary
-
-	if details, err := h.toEdgeDetails(tx, types.SeqInfoTxEdgeBackfill); err != nil {
-		return summary, err
-	} else {
-		summary.Tx = details
-	}
-
-	if details, err := h.toEdgeDetails(tx, types.SeqInfoEvmTxEdgeBackfill); err != nil {
-		return summary, err
-	} else {
-		summary.EvmTx = details
-	}
-
-	if details, err := h.toEdgeDetails(tx, types.SeqInfoEvmInternalTxEdgeBackfill); err != nil {
-		return summary, err
-	} else {
-		summary.EvmInternal = details
-	}
-
-	return summary, nil
-}
-
-func (h *StatusHandler) toEdgeDetails(tx *gorm.DB, name types.SeqInfoName) (EdgeBackfillDetails, error) {
-	status, err := common.GetEdgeBackfillStatus(tx, name)
-	if err != nil {
-		return EdgeBackfillDetails{}, err
-	}
-
-	return EdgeBackfillDetails{
-		Completed: status.Completed,
-		Sequence:  status.Sequence,
-	}, nil
 }
 
 func (h *StatusHandler) isInternalTxEnabledEvm() bool {

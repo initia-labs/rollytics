@@ -239,7 +239,6 @@ func TestIndexer_CollectInternalTxs(t *testing.T) {
 			value1,           // value
 			gas1,             // gas
 			gas1,             // gas_used
-			sqlmock.AnyArg(), // account_ids (order not guaranteed)
 			// Second transaction (first nested CALL)
 			int64(100),       // height
 			int64(1),         // hash ID
@@ -254,7 +253,6 @@ func TestIndexer_CollectInternalTxs(t *testing.T) {
 			value2,           // value
 			gas2,             // gas
 			gas2,             // gas_used
-			sqlmock.AnyArg(), // account_ids (order not guaranteed)
 			// Third transaction (STATICCALL inside first nested)
 			int64(100),       // height
 			int64(1),         // hash ID
@@ -269,7 +267,6 @@ func TestIndexer_CollectInternalTxs(t *testing.T) {
 			value3,           // value
 			gas3,             // gas
 			gasUsed3,         // gas_used
-			sqlmock.AnyArg(), // account_ids (order not guaranteed)
 			// Fourth transaction (DELEGATECALL)
 			int64(100),       // height
 			int64(1),         // hash ID
@@ -284,7 +281,6 @@ func TestIndexer_CollectInternalTxs(t *testing.T) {
 			value3,           // value
 			gas4,             // gas
 			gasUsed4,         // gas_used
-			sqlmock.AnyArg(), // account_ids (order not guaranteed)
 		).
 		WillReturnResult(sqlmock.NewResult(1, 4))
 
