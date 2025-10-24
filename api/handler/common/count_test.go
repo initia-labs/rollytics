@@ -98,7 +98,7 @@ func TestGetOptimizedCount_WithFilters(t *testing.T) {
 
 	// Create query with table context
 	query := db.Model(&types.CollectedTx{})
-	result, err := GetOptimizedCount(query, strategy, true)
+	result, err := GetOptimizedCount(query, strategy, true, true)
 
 	assert.NoError(t, err)
 	assert.Equal(t, int64(100), result)
@@ -117,7 +117,7 @@ func TestGetOptimizedCount_NoFilters_MaxOptimization(t *testing.T) {
 
 	// Create query with table context
 	query := db.Model(&types.CollectedTx{})
-	result, err := GetOptimizedCount(query, strategy, false)
+	result, err := GetOptimizedCount(query, strategy, false, true)
 
 	assert.NoError(t, err)
 	assert.Equal(t, int64(12345), result)
@@ -141,7 +141,7 @@ func TestGetOptimizedCount_ModelWithMaxOptimization(t *testing.T) {
 
 		// Simulate what happens in GetTxs: Model is applied to the query
 		query := db.Model(&types.CollectedTx{})
-		result, err := GetOptimizedCount(query, strategy, false)
+		result, err := GetOptimizedCount(query, strategy, false, true)
 
 		assert.NoError(t, err)
 		assert.Equal(t, int64(999), result)
@@ -155,7 +155,7 @@ func TestGetOptimizedCount_ModelWithMaxOptimization(t *testing.T) {
 			WillReturnRows(sqlmock.NewRows([]string{"max"}).AddRow(888))
 
 		query := db.Model(&types.CollectedEvmTx{})
-		result, err := GetOptimizedCount(query, strategy, false)
+		result, err := GetOptimizedCount(query, strategy, false, true)
 
 		assert.NoError(t, err)
 		assert.Equal(t, int64(888), result)
@@ -169,7 +169,7 @@ func TestGetOptimizedCount_ModelWithMaxOptimization(t *testing.T) {
 			WillReturnRows(sqlmock.NewRows([]string{"max"}).AddRow(777))
 
 		query := db.Model(&types.CollectedEvmInternalTx{})
-		result, err := GetOptimizedCount(query, strategy, false)
+		result, err := GetOptimizedCount(query, strategy, false, true)
 
 		assert.NoError(t, err)
 		assert.Equal(t, int64(777), result)
@@ -184,7 +184,7 @@ func TestGetOptimizedCount_ModelWithMaxOptimization(t *testing.T) {
 			WillReturnRows(sqlmock.NewRows([]string{"max"}).AddRow(666))
 
 		query := db.Model(&types.CollectedBlock{})
-		result, err := GetOptimizedCount(query, strategy, false)
+		result, err := GetOptimizedCount(query, strategy, false, true)
 
 		assert.NoError(t, err)
 		assert.Equal(t, int64(666), result)
@@ -203,7 +203,7 @@ func TestGetCountByMax_DirectCall(t *testing.T) {
 			WillReturnRows(sqlmock.NewRows([]string{"max"}).AddRow(9184))
 
 		query := db.Table("test_table")
-		result, err := getCountByMax(query, "test_field")
+		result, err := getCountByMax(query, "test_field", true)
 		assert.NoError(t, err)
 		assert.Equal(t, int64(9184), result)
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -220,7 +220,7 @@ func TestGetCountByMax_DirectCall(t *testing.T) {
 		// Statement.Table should be set when Model is used
 		_ = query.Statement.Parse(&types.CollectedTx{})
 
-		result, err := getCountByMax(query, "sequence")
+		result, err := getCountByMax(query, "sequence", true)
 
 		assert.NoError(t, err)
 		assert.Equal(t, int64(555), result)
@@ -234,7 +234,7 @@ func TestGetCountByMax_DirectCall(t *testing.T) {
 
 		// Query without Model but with Table
 		query := db.Table("some_table")
-		result, err := getCountByMax(query, "id")
+		result, err := getCountByMax(query, "id", true)
 
 		assert.NoError(t, err)
 		assert.Equal(t, int64(444), result)
@@ -246,7 +246,7 @@ func TestGetCountByMax_DirectCall(t *testing.T) {
 		query := db.Model(&types.CollectedTx{})
 
 		// Try with invalid field name containing SQL injection attempt
-		result, err := getCountByMax(query, "sequence; DROP TABLE users")
+		result, err := getCountByMax(query, "sequence; DROP TABLE users", true)
 
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid field name")
@@ -271,7 +271,7 @@ func TestGetOptimizedCount_NoFilters_PgClassOptimization(t *testing.T) {
 
 	// Create query with table context
 	query := db.Model(&types.CollectedNft{})
-	result, err := GetOptimizedCount(query, strategy, false)
+	result, err := GetOptimizedCount(query, strategy, false, true)
 
 	assert.NoError(t, err)
 	assert.Equal(t, int64(50000), result)
@@ -301,7 +301,7 @@ func TestGetOptimizedCount_PgClassFallback(t *testing.T) {
 
 	// Create query with table context
 	query := db.Model(&types.CollectedNft{})
-	result, err := GetOptimizedCount(query, strategy, false)
+	result, err := GetOptimizedCount(query, strategy, false, true)
 
 	assert.NoError(t, err)
 	assert.Equal(t, int64(1000), result)
@@ -326,7 +326,7 @@ func TestGetOptimizedCount_UnsupportedStrategy(t *testing.T) {
 
 	// Create query with table context
 	query := db.Table("mock_table")
-	result, err := GetOptimizedCount(query, strategy, false)
+	result, err := GetOptimizedCount(query, strategy, false, true)
 
 	assert.NoError(t, err)
 	assert.Equal(t, int64(500), result)
@@ -349,7 +349,7 @@ func TestGetOptimizedCount_DatabaseError(t *testing.T) {
 
 	// Create query with table context
 	query := db.Model(&types.CollectedTx{})
-	result, err := GetOptimizedCount(query, strategy, true)
+	result, err := GetOptimizedCount(query, strategy, true, true)
 
 	assert.Error(t, err)
 	assert.Equal(t, int64(0), result)
@@ -676,7 +676,7 @@ func BenchmarkGetOptimizedCount_WithFilters(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		query := db.Model(&types.CollectedTx{})
-		_, _ = GetOptimizedCount(query, strategy, true)
+		_, _ = GetOptimizedCount(query, strategy, true, true)
 	}
 }
 
@@ -695,7 +695,7 @@ func BenchmarkGetOptimizedCount_WithoutFilters(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		query := db.Model(&types.CollectedTx{})
-		_, _ = GetOptimizedCount(query, strategy, false)
+		_, _ = GetOptimizedCount(query, strategy, false, true)
 	}
 }
 
@@ -717,7 +717,7 @@ func TestGetCountWithTimeout_Success(t *testing.T) {
 	mock.ExpectCommit()
 
 	query := db.Model(&types.CollectedTx{})
-	result, err := GetCountWithTimeout(query)
+	result, err := GetCountWithTimeout(query, true)
 
 	assert.NoError(t, err)
 	assert.Equal(t, int64(1500), result)
@@ -740,7 +740,7 @@ func TestGetCountWithTimeout_StatementTimeout(t *testing.T) {
 	mock.ExpectRollback()
 
 	query := db.Model(&types.CollectedTx{})
-	result, err := GetCountWithTimeout(query)
+	result, err := GetCountWithTimeout(query, true)
 
 	assert.NoError(t, err)             // Should not return error for timeout
 	assert.Equal(t, int64(-1), result) // Should return -1 for timeout
@@ -763,7 +763,7 @@ func TestGetCountWithTimeout_DatabaseError(t *testing.T) {
 	mock.ExpectRollback()
 
 	query := db.Model(&types.CollectedTx{})
-	result, err := GetCountWithTimeout(query)
+	result, err := GetCountWithTimeout(query, true)
 
 	assert.Error(t, err)
 	assert.Equal(t, int64(0), result)
@@ -783,7 +783,7 @@ func TestGetCountWithTimeout_TimeoutSettingError(t *testing.T) {
 	mock.ExpectRollback()
 
 	query := db.Model(&types.CollectedTx{})
-	result, err := GetCountWithTimeout(query)
+	result, err := GetCountWithTimeout(query, true)
 
 	assert.Error(t, err)
 	assert.Equal(t, int64(0), result)
@@ -807,7 +807,7 @@ func TestGetCountWithTimeout_EmptyResult(t *testing.T) {
 	mock.ExpectCommit()
 
 	query := db.Model(&types.CollectedTx{})
-	result, err := GetCountWithTimeout(query)
+	result, err := GetCountWithTimeout(query, true)
 
 	assert.NoError(t, err)
 	assert.Equal(t, int64(0), result)
@@ -832,7 +832,7 @@ func TestGetCountWithTimeout_WithFilters(t *testing.T) {
 	mock.ExpectCommit()
 
 	query := db.Model(&types.CollectedTx{}).Where("sequence > ?", 1000)
-	result, err := GetCountWithTimeout(query)
+	result, err := GetCountWithTimeout(query, true)
 
 	assert.NoError(t, err)
 	assert.Equal(t, int64(42), result)
@@ -863,7 +863,7 @@ func TestGetCountWithTimeout_TimeoutErrorVariations(t *testing.T) {
 			mock.ExpectRollback()
 
 			query := db.Model(&types.CollectedTx{})
-			result, err := GetCountWithTimeout(query)
+			result, err := GetCountWithTimeout(query, true)
 
 			assert.NoError(t, err)             // Should not return error for timeout
 			assert.Equal(t, int64(-1), result) // Should return -1 for timeout
@@ -898,7 +898,7 @@ func TestGetCountWithTimeout_NonTimeoutError(t *testing.T) {
 			mock.ExpectRollback()
 
 			query := db.Model(&types.CollectedTx{})
-			result, err := GetCountWithTimeout(query)
+			result, err := GetCountWithTimeout(query, true)
 
 			assert.Error(t, err)              // Should return error for non-timeout errors
 			assert.Equal(t, int64(0), result) // Should return 0 for errors
@@ -927,7 +927,7 @@ func BenchmarkGetCountWithTimeout_Success(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		query := db.Model(&types.CollectedTx{})
-		_, _ = GetCountWithTimeout(query)
+		_, _ = GetCountWithTimeout(query, true)
 	}
 }
 
@@ -948,6 +948,6 @@ func BenchmarkGetCountWithTimeout_Timeout(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		query := db.Model(&types.CollectedTx{})
-		_, _ = GetCountWithTimeout(query)
+		_, _ = GetCountWithTimeout(query, true)
 	}
 }

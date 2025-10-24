@@ -132,6 +132,12 @@ const docTemplate = `{
                     },
                     {
                         "type": "boolean",
+                        "description": "Count total, default is true",
+                        "name": "pagination.count_total",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
                         "description": "Reverse order default is true if set to true, the results will be ordered in descending order",
                         "name": "pagination.reverse",
                         "in": "query"
@@ -188,6 +194,12 @@ const docTemplate = `{
                     },
                     {
                         "type": "boolean",
+                        "description": "Count total, default is true",
+                        "name": "pagination.count_total",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
                         "description": "Reverse order default is true if set to true, the results will be ordered in descending order",
                         "name": "pagination.reverse",
                         "in": "query"
@@ -240,6 +252,12 @@ const docTemplate = `{
                         "type": "integer",
                         "description": "Pagination limit, default is 100",
                         "name": "pagination.limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Total default is true if set to true, the results will include a count of the total number of items available for pagination",
+                        "name": "pagination.count_total",
                         "in": "query"
                     },
                     {
@@ -355,6 +373,12 @@ const docTemplate = `{
                     },
                     {
                         "type": "boolean",
+                        "description": "Count total, default is true",
+                        "name": "pagination.count_total",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
                         "description": "Reverse order default is true if set to true, the results will be ordered in descending order",
                         "name": "pagination.reverse",
                         "in": "query"
@@ -428,6 +452,12 @@ const docTemplate = `{
                     },
                     {
                         "type": "boolean",
+                        "description": "Count total, default is true",
+                        "name": "pagination.count_total",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
                         "description": "Reverse order default is true if set to true, the results will be ordered in descending order",
                         "name": "pagination.reverse",
                         "in": "query"
@@ -487,6 +517,12 @@ const docTemplate = `{
                         "type": "integer",
                         "description": "Pagination limit, default is 100",
                         "name": "pagination.limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Count total, default is true",
+                        "name": "pagination.count_total",
                         "in": "query"
                     },
                     {
@@ -746,6 +782,12 @@ const docTemplate = `{
                     },
                     {
                         "type": "boolean",
+                        "description": "Count total, default is true",
+                        "name": "pagination.count_total",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
                         "description": "Reverse order default is true if set to true, the results will be ordered in descending order",
                         "name": "pagination.reverse",
                         "in": "query"
@@ -791,6 +833,12 @@ const docTemplate = `{
                         "type": "integer",
                         "description": "Pagination limit, default is 100",
                         "name": "pagination.limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Count total, default is true",
+                        "name": "pagination.count_total",
                         "in": "query"
                     },
                     {
@@ -846,6 +894,12 @@ const docTemplate = `{
                         "type": "integer",
                         "description": "Pagination limit, default is 100",
                         "name": "pagination.limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Count total, default is true",
+                        "name": "pagination.count_total",
                         "in": "query"
                     },
                     {
@@ -917,6 +971,12 @@ const docTemplate = `{
                     },
                     {
                         "type": "boolean",
+                        "description": "Count total, default is true",
+                        "name": "pagination.count_total",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
                         "description": "Reverse order default is true if set to true, the results will be ordered in descending order",
                         "name": "pagination.reverse",
                         "in": "query"
@@ -973,6 +1033,12 @@ const docTemplate = `{
                         "type": "integer",
                         "description": "Pagination limit, default is 100",
                         "name": "pagination.limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Count total, default is true",
+                        "name": "pagination.count_total",
                         "in": "query"
                     },
                     {
@@ -1039,6 +1105,12 @@ const docTemplate = `{
                         "type": "integer",
                         "description": "Pagination limit, default is 100",
                         "name": "pagination.limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Count total, default is true",
+                        "name": "pagination.count_total",
                         "in": "query"
                     },
                     {
@@ -1295,6 +1367,31 @@ const docTemplate = `{
                 }
             }
         },
+        "status.EdgeBackfillDetails": {
+            "type": "object",
+            "properties": {
+                "completed": {
+                    "type": "boolean"
+                },
+                "sequence": {
+                    "type": "integer"
+                }
+            }
+        },
+        "status.EdgeBackfillSummary": {
+            "type": "object",
+            "properties": {
+                "evm_internal": {
+                    "$ref": "#/definitions/status.EdgeBackfillDetails"
+                },
+                "evm_tx": {
+                    "$ref": "#/definitions/status.EdgeBackfillDetails"
+                },
+                "tx": {
+                    "$ref": "#/definitions/status.EdgeBackfillDetails"
+                }
+            }
+        },
         "status.StatusResponse": {
             "type": "object",
             "properties": {
@@ -1305,6 +1402,15 @@ const docTemplate = `{
                 "commit_hash": {
                     "type": "string",
                     "x-order:1": true
+                },
+                "edge_backfill": {
+                    "description": "Edge backfill status",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/status.EdgeBackfillSummary"
+                        }
+                    ],
+                    "x-order:5": true
                 },
                 "height": {
                     "type": "integer",
