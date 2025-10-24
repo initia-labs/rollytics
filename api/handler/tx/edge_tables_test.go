@@ -357,7 +357,7 @@ func TestGetTxs_LegacyPathWithMsgFilter(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 	mock.ExpectExec(`RESET statement_timeout`).WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectQuery(`SELECT \* FROM "tx" WHERE sequence IN \(SELECT DISTINCT \"sequence\" FROM \"tx_msg_types\" WHERE msg_type_id = ANY\(\$1\) ORDER BY sequence DESC LIMIT \$2\)`).
-		WithArgs(sqlmock.AnyArg(), 100).
+		WithArgs(sqlmock.AnyArg(), int64(common.DefaultLimit)).
 		WillReturnRows(row)
 
 	mock.ExpectRollback()
@@ -395,7 +395,7 @@ func TestGetTxs_NoFilterLegacyPath(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 	mock.ExpectExec(`RESET statement_timeout`).WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectQuery(`SELECT \* FROM "tx" WHERE sequence IN \(SELECT DISTINCT \"sequence\" FROM \"tx_msg_types\" ORDER BY sequence DESC LIMIT \$1\)`).
-		WithArgs(100).
+		WithArgs(int64(common.DefaultLimit)).
 		WillReturnRows(row)
 
 	mock.ExpectRollback()
