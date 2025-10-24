@@ -8,7 +8,6 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	evmtypes "github.com/initia-labs/minievm/x/evm/types"
-	"github.com/lib/pq"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
@@ -304,12 +303,6 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB
 		if err != nil {
 			sub.logger.Error("Failed to decode tx hash", "txHash", txHash, "error", err)
 			continue
-		}
-
-		if err := tx.Model(&types.CollectedTx{}).
-			Where("hash = ? AND height = ?", txHashBytes, block.Height).
-			Update("nft_ids", pq.Array(nftIds)).Error; err != nil {
-			return err
 		}
 
 		var seqRow struct {
