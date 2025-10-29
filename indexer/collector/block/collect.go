@@ -1,6 +1,8 @@
 package block
 
 import (
+	"errors"
+
 	"gorm.io/gorm"
 
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
@@ -23,9 +25,14 @@ func (sub *BlockSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB)
 	if block.Height > 1 {
 		prevBlock, err := GetBlock(block.ChainId, block.Height-1, tx)
 		if err != nil {
-			return err
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				// starting mid-chain: previous block is not in DB yet; skip BlockTime for the first processed block
+			} else {
+				return err
+			}
+		} else {
+			cb.BlockTime = block.Timestamp.Sub(prevBlock.Timestamp).Milliseconds()
 		}
-		cb.BlockTime = block.Timestamp.Sub(prevBlock.Timestamp).Milliseconds()
 	}
 	cb.Proposer = block.Proposer
 	cb.TotalFee, err = getTotalFee(block.Txs, sub.cdc)

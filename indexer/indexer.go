@@ -72,7 +72,28 @@ func (i *Indexer) Run(ctx context.Context) error {
 		i.logger.Error("failed to get the last block from db", slog.Any("error", err))
 		return types.NewDatabaseError("get last block", err)
 	}
-	i.height = lastBlock.Height + 1
+	dbNext := lastBlock.Height + 1
+
+	// get the current chain height for validation/clamping
+	client := fiber.AcquireClient()
+	chainHeight, err := util.GetLatestHeight(client, i.cfg)
+	fiber.ReleaseClient(client)
+	if err != nil {
+		i.logger.Error("failed to get chain height", slog.Any("error", err))
+		return err
+	}
+
+	// determine the desired start height based on configuration and current DB state
+	i.height = computeStartHeight(dbNext, chainHeight, i.cfg.StartHeightSet(), i.cfg.StartHeightLatest(), i.cfg.GetStartHeight())
+
+	i.logger.Info("starting indexer",
+		slog.Int64("db_resume_height", dbNext),
+		slog.Int64("chain_height", chainHeight),
+		slog.Bool("start_height_set", i.cfg.StartHeightSet()),
+		slog.Bool("start_height_latest", i.cfg.StartHeightLatest()),
+		slog.Int64("configured_start_height", i.cfg.GetStartHeight()),
+		slog.Int64("effective_start_height", i.height),
+	)
 
 	// Use a wait group to track all goroutines
 	var wg sync.WaitGroup
@@ -252,4 +273,38 @@ func (i *Indexer) collect() {
 
 		i.height++
 	}
+}
+
+// computeStartHeight decides the effective starting height given
+// - the next height after the last block in DB (dbNext)
+// - the current chain head (chainHead)
+// - whether a start height is configured (startSet)
+// - whether the configured value is 'latest' (latest)
+// - the configured numeric start value (startVal)
+// It enforces: effective >= dbNext and effective <= chainHead.
+func computeStartHeight(dbNext, chainHead int64, startSet bool, latest bool, startVal int64) int64 {
+	if !startSet {
+		// Preserve previous behavior: resume from DB next height
+		return dbNext
+	}
+
+	var desired int64
+	if latest {
+		desired = chainHead
+	} else {
+		desired = startVal
+		if desired < 0 {
+			desired = 0
+		}
+	}
+
+	// Ensure we don't reprocess blocks already persisted
+	if desired < dbNext {
+		desired = dbNext
+	}
+	// Clamp to head to avoid requesting non-existent blocks
+	if desired > chainHead {
+		desired = chainHead
+	}
+	return desired
 }

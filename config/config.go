@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -117,6 +118,11 @@ type Config struct {
 	metricsConfig         *MetricsConfig
 	cacheConfig           *CacheConfig
 	sentryConfig          *SentryConfig
+
+	// Start height configuration
+	startHeight       int64 // explicit start height when set
+	startHeightSet    bool  // whether START_HEIGHT was provided
+	startHeightLatest bool  // whether START_HEIGHT was set to "latest"
 }
 
 func setDefaults() {
@@ -259,6 +265,23 @@ func loadConfig() (*Config, error) {
 		},
 	}
 
+	// parse optional START_HEIGHT env var. Accepts integer >= 0 or the string "latest".
+	if raw := strings.TrimSpace(viper.GetString("START_HEIGHT")); raw != "" {
+		low := strings.ToLower(raw)
+		if low == "latest" {
+			config.startHeightLatest = true
+		} else {
+			if val, err := strconv.ParseInt(low, 10, 64); err != nil {
+				return nil, types.NewInvalidValueError("START_HEIGHT", raw, "must be a non-negative integer or 'latest'")
+			} else if val < 0 {
+				return nil, types.NewInvalidValueError("START_HEIGHT", raw, "must be >= 0")
+			} else {
+				config.startHeight = val
+				config.startHeightSet = true
+			}
+		}
+	}
+
 	if err := config.Validate(); err != nil {
 		return nil, err
 	}
@@ -375,6 +398,19 @@ func (c Config) GetLogFormat() string {
 		return "json"
 	}
 	return "plain"
+}
+
+// Start height accessors
+func (c Config) StartHeightSet() bool {
+	return c.startHeightSet || c.startHeightLatest
+}
+
+func (c Config) StartHeightLatest() bool {
+	return c.startHeightLatest
+}
+
+func (c Config) GetStartHeight() int64 {
+	return c.startHeight
 }
 
 func (c Config) Validate() error {
