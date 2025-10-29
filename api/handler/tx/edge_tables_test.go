@@ -389,8 +389,6 @@ func TestGetTxs_NoFilterLegacyPath(t *testing.T) {
 	mock.ExpectBegin()
 
 	// Add transaction expectations for GetCountWithTimeout
-	// The new code path uses GetOptimizedCount with MAX(sequence) optimization
-	// when there are no filters, so we need to expect the MAX query instead
 	mock.ExpectQuery(`SELECT COALESCE\(MAX\(sequence\), 0\) FROM "` + types.CollectedTxMsgType{}.TableName() + `"`).
 		WillReturnRows(sqlmock.NewRows([]string{"coalesce"}).AddRow(sequence))
 
