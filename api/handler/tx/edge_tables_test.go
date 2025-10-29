@@ -389,11 +389,11 @@ func TestGetTxs_NoFilterLegacyPath(t *testing.T) {
 	mock.ExpectBegin()
 
 	// Add transaction expectations for GetCountWithTimeout
-	mock.ExpectExec(`SAVEPOINT sp`).WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec(`SET LOCAL statement_timeout = '5s'`).WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectQuery(`SELECT COUNT\(DISTINCT\("sequence"\)\) FROM "` + types.CollectedTxMsgType{}.TableName() + `"`).
-		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
-	mock.ExpectExec(`RESET statement_timeout`).WillReturnResult(sqlmock.NewResult(0, 0))
+	// The new code path uses GetOptimizedCount with MAX(sequence) optimization
+	// when there are no filters, so we need to expect the MAX query instead
+	mock.ExpectQuery(`SELECT COALESCE\(MAX\(sequence\), 0\) FROM "` + types.CollectedTxMsgType{}.TableName() + `"`).
+		WillReturnRows(sqlmock.NewRows([]string{"coalesce"}).AddRow(sequence))
+
 	mock.ExpectQuery(`SELECT \* FROM "tx" WHERE sequence IN \(SELECT DISTINCT \"sequence\" FROM \"tx_msg_types\" ORDER BY sequence DESC LIMIT \$1\)`).
 		WithArgs(int64(common.DefaultLimit)).
 		WillReturnRows(row)
@@ -471,4 +471,67 @@ func evmTxPayload(hash string) []byte {
 	}
 	data, _ := json.Marshal(payload)
 	return data
+}
+func TestBuildEdgeQueryForGetTxs(t *testing.T) {
+	handler, mock := newTxHandlerWithMockDB(t)
+	req := require.New(t)
+
+	// Test only one case: "with msg type filters and count total"
+	msgTypeIds := []int64{1, 2, 3}
+	pagination := &common.Pagination{
+		CountTotal: true,
+		Limit:      25,
+		Order:      common.OrderDesc,
+	}
+	expectedTotal := int64(75)
+
+	// Setup mock expectations for GetCountWithTimeout
+	mock.ExpectBegin() // GORM transaction begin
+	mock.ExpectExec(`SET LOCAL statement_timeout = '5s'`).WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectQuery(`SELECT COUNT\(DISTINCT\("sequence"\)\) FROM "` + types.CollectedTxMsgType{}.TableName() + `" WHERE msg_type_id = ANY`).
+		WithArgs(sqlmock.AnyArg()).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(expectedTotal))
+	mock.ExpectExec(`RESET statement_timeout`).WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectCommit() // GORM transaction commit
+
+	// Call the function
+	query, total, err := buildEdgeQueryForGetTxs(handler.BaseHandler.GetDatabase().DB, msgTypeIds, pagination)
+
+	// Verify results
+	req.NoError(err)
+	req.NotNil(query)
+	req.Equal(expectedTotal, total)
+
+	// Verify all expectations were met
+	req.NoError(mock.ExpectationsWereMet())
+}
+
+func TestBuildEdgeQueryForGetTxs_NoFilter(t *testing.T) {
+	handler, mock := newTxHandlerWithMockDB(t)
+	req := require.New(t)
+
+	// Test case: "no filter with count total"
+	var msgTypeIds []int64 // empty slice = no filter
+	pagination := &common.Pagination{
+		CountTotal: true,
+		Limit:      25,
+		Order:      common.OrderDesc,
+	}
+	expectedTotal := int64(150)
+
+	// Setup mock expectations for GetOptimizedCount (no filter case)
+	// This should use MAX(sequence) optimization
+	mock.ExpectQuery(`SELECT COALESCE\(MAX\(sequence\), 0\) FROM "tx_msg_types"`).
+		WillReturnRows(sqlmock.NewRows([]string{"max"}).AddRow(expectedTotal))
+
+	// Call the function
+	query, total, err := buildEdgeQueryForGetTxs(handler.BaseHandler.GetDatabase().DB, msgTypeIds, pagination)
+
+	// Verify results
+	req.NoError(err)
+	req.NotNil(query)
+	req.Equal(expectedTotal, total)
+
+	// Verify all expectations were met
+	req.NoError(mock.ExpectationsWereMet())
 }
