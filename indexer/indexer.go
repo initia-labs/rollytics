@@ -86,6 +86,13 @@ func (i *Indexer) Run(ctx context.Context) error {
 	// determine the desired start height based on configuration and current DB state
 	i.height = computeStartHeight(dbNext, chainHeight, i.cfg.StartHeightSet(), i.cfg.StartHeightLatest(), i.cfg.GetStartHeight())
 
+	if dbNext > chainHeight {
+		i.logger.Warn("database is ahead of chain",
+			slog.Int64("db_height", dbNext-1),
+			slog.Int64("chain_height", chainHeight),
+		)
+	}
+
 	i.logger.Info("starting indexer",
 		slog.Int64("db_resume_height", dbNext),
 		slog.Int64("chain_height", chainHeight),

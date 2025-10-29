@@ -266,20 +266,21 @@ func loadConfig() (*Config, error) {
 	}
 
 	// parse optional START_HEIGHT env var. Accepts integer >= 0 or the string "latest".
-	if raw := strings.TrimSpace(viper.GetString("START_HEIGHT")); raw != "" {
-		low := strings.ToLower(raw)
-		if low == "latest" {
-			config.startHeightLatest = true
-		} else {
-			if val, err := strconv.ParseInt(low, 10, 64); err != nil {
-				return nil, types.NewInvalidValueError("START_HEIGHT", raw, "must be a non-negative integer or 'latest'")
-			} else if val < 0 {
-				return nil, types.NewInvalidValueError("START_HEIGHT", raw, "must be >= 0")
-			} else {
-				config.startHeight = val
-				config.startHeightSet = true
-			}
+	raw := strings.TrimSpace(viper.GetString("START_HEIGHT"))
+	switch {
+	case raw == "":
+		// not set; do nothing
+	case strings.EqualFold(raw, "latest"):
+		config.startHeightLatest = true
+		// optionally also mark as set for clarity (accessor already ORs these):
+		// config.startHeightSet = true
+	default:
+		val, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil || val < 0 {
+			return nil, types.NewInvalidValueError("START_HEIGHT", raw, "must be a non-negative integer or 'latest'")
 		}
+		config.startHeight = val
+		config.startHeightSet = true
 	}
 
 	if err := config.Validate(); err != nil {
