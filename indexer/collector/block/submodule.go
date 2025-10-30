@@ -20,7 +20,7 @@ type BlockSubmodule struct {
 	cfg    *config.Config
 }
 
-func New(logger *slog.Logger, cdc codec.Codec, cfg *config.Config) *BlockSubmodule {
+func New(logger *slog.Logger, cfg *config.Config, cdc codec.Codec) *BlockSubmodule {
 	return &BlockSubmodule{
 		logger: logger.With("submodule", SubmoduleName),
 		cdc:    cdc,

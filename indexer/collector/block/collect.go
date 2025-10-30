@@ -1,7 +1,6 @@
 package block
 
 import (
-	"errors"
 	"log/slog"
 
 	"gorm.io/gorm"
@@ -37,18 +36,9 @@ func (sub *BlockSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB)
 		} else {
 			prevBlock, err := GetBlock(block.ChainId, prevHeight, tx)
 			if err != nil {
-				if errors.Is(err, gorm.ErrRecordNotFound) {
-					// starting mid-chain: previous block is not in DB yet; skip BlockTime for the first processed block
-					sub.logger.Info("starting mid-chain: previous block not found; skipping BlockTime",
-						slog.Int64("height", block.Height),
-						slog.Int64("prev_height", prevHeight),
-					)
-				} else {
-					return err
-				}
-			} else {
-				cb.BlockTime = block.Timestamp.Sub(prevBlock.Timestamp).Milliseconds()
+				return err
 			}
+			cb.BlockTime = block.Timestamp.Sub(prevBlock.Timestamp).Milliseconds()
 		}
 	}
 	cb.Proposer = block.Proposer

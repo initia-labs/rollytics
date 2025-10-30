@@ -30,7 +30,7 @@ type Collector struct {
 
 func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Collector {
 	cdc := getCodec()
-	blockSubmodule := block.New(logger, cdc, cfg)
+	blockSubmodule := block.New(logger, cfg, cdc)
 	txSubmodule := tx.New(logger, cfg, cdc)
 	var nftSubmodule indexertypes.Submodule
 	switch cfg.GetVmType() {
