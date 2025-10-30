@@ -2,6 +2,7 @@ package block
 
 import (
 	"errors"
+	"log/slog"
 
 	"gorm.io/gorm"
 
@@ -23,15 +24,31 @@ func (sub *BlockSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB)
 	cb.Hash = hashBytes
 	cb.Timestamp = block.Timestamp
 	if block.Height > 1 {
-		prevBlock, err := GetBlock(block.ChainId, block.Height-1, tx)
-		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				// starting mid-chain: previous block is not in DB yet; skip BlockTime for the first processed block
-			} else {
-				return err
-			}
+		prevHeight := block.Height - 1
+
+		// If a start height is configured and the previous height is below it,
+		// we are starting mid-chain. Skip BlockTime computation and log it.
+		if sub.cfg != nil && sub.cfg.StartHeightSet() && prevHeight < sub.cfg.GetStartHeight() {
+			sub.logger.Info("starting mid-chain: skipping BlockTime for first processed block",
+				slog.Int64("height", block.Height),
+				slog.Int64("prev_height", prevHeight),
+				slog.Int64("configured_start_height", sub.cfg.GetStartHeight()),
+			)
 		} else {
-			cb.BlockTime = block.Timestamp.Sub(prevBlock.Timestamp).Milliseconds()
+			prevBlock, err := GetBlock(block.ChainId, prevHeight, tx)
+			if err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					// starting mid-chain: previous block is not in DB yet; skip BlockTime for the first processed block
+					sub.logger.Info("starting mid-chain: previous block not found; skipping BlockTime",
+						slog.Int64("height", block.Height),
+						slog.Int64("prev_height", prevHeight),
+					)
+				} else {
+					return err
+				}
+			} else {
+				cb.BlockTime = block.Timestamp.Sub(prevBlock.Timestamp).Milliseconds()
+			}
 		}
 	}
 	cb.Proposer = block.Proposer

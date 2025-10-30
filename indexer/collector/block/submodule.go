@@ -6,6 +6,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	"gorm.io/gorm"
 
+	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/indexer/types"
 )
 
@@ -16,12 +17,14 @@ var _ types.Submodule = &BlockSubmodule{}
 type BlockSubmodule struct {
 	logger *slog.Logger
 	cdc    codec.Codec
+	cfg    *config.Config
 }
 
-func New(logger *slog.Logger, cdc codec.Codec) *BlockSubmodule {
+func New(logger *slog.Logger, cdc codec.Codec, cfg *config.Config) *BlockSubmodule {
 	return &BlockSubmodule{
 		logger: logger.With("submodule", SubmoduleName),
 		cdc:    cdc,
+		cfg:    cfg,
 	}
 }
 
