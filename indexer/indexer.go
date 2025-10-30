@@ -72,7 +72,34 @@ func (i *Indexer) Run(ctx context.Context) error {
 		i.logger.Error("failed to get the last block from db", slog.Any("error", err))
 		return types.NewDatabaseError("get last block", err)
 	}
-	i.height = lastBlock.Height + 1
+	dbNext := lastBlock.Height + 1
+
+	// get the current chain height for validation/clamping
+	client := fiber.AcquireClient()
+	chainHeight, err := util.GetLatestHeight(client, i.cfg)
+	fiber.ReleaseClient(client)
+	if err != nil {
+		i.logger.Error("failed to get chain height", slog.Any("error", err))
+		return err
+	}
+
+	// determine the desired start height based on configuration and current DB state
+	i.height = computeStartHeight(dbNext, chainHeight, i.cfg.StartHeightSet(), i.cfg.GetStartHeight())
+
+	if dbNext > chainHeight {
+		i.logger.Warn("database is ahead of chain",
+			slog.Int64("db_height", dbNext-1),
+			slog.Int64("chain_height", chainHeight),
+		)
+	}
+
+	i.logger.Info("starting indexer",
+		slog.Int64("db_resume_height", dbNext),
+		slog.Int64("chain_height", chainHeight),
+		slog.Bool("start_height_set", i.cfg.StartHeightSet()),
+		slog.Int64("configured_start_height", i.cfg.GetStartHeight()),
+		slog.Int64("effective_start_height", i.height),
+	)
 
 	// Use a wait group to track all goroutines
 	var wg sync.WaitGroup
@@ -252,4 +279,20 @@ func (i *Indexer) collect() {
 
 		i.height++
 	}
+}
+
+// computeStartHeight returns the effective starting height based on:
+// - the next height after the last block in DB (dbNext)
+// - the current chain head (chainHead)
+// - whether a start height is configured (startSet)
+// - the configured numeric start value (startVal)
+// Invariants: effective >= dbNext and effective <= chainHead.
+func computeStartHeight(dbNext, chainHead int64, startSet bool, startVal int64) int64 {
+	if !startSet {
+		// Resume from DB next height when not explicitly set
+		return dbNext
+	}
+	// Clamp in one expression using Go's built-in min/max (Go 1.21+):
+	// lower bound 0, then at least dbNext, and at most chainHead.
+	return max(dbNext, min(chainHead, max(int64(0), startVal)))
 }

@@ -1,6 +1,8 @@
 package block
 
 import (
+	"log/slog"
+
 	"gorm.io/gorm"
 
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
@@ -21,11 +23,23 @@ func (sub *BlockSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB)
 	cb.Hash = hashBytes
 	cb.Timestamp = block.Timestamp
 	if block.Height > 1 {
-		prevBlock, err := GetBlock(block.ChainId, block.Height-1, tx)
-		if err != nil {
-			return err
+		prevHeight := block.Height - 1
+
+		// If a start height is configured and the previous height is below it,
+		// we are starting mid-chain. Skip BlockTime computation and log it.
+		if sub.cfg != nil && sub.cfg.StartHeightSet() && prevHeight < sub.cfg.GetStartHeight() {
+			sub.logger.Info("starting mid-chain: skipping BlockTime for first processed block",
+				slog.Int64("height", block.Height),
+				slog.Int64("prev_height", prevHeight),
+				slog.Int64("configured_start_height", sub.cfg.GetStartHeight()),
+			)
+		} else {
+			prevBlock, err := GetBlock(block.ChainId, prevHeight, tx)
+			if err != nil {
+				return err
+			}
+			cb.BlockTime = block.Timestamp.Sub(prevBlock.Timestamp).Milliseconds()
 		}
-		cb.BlockTime = block.Timestamp.Sub(prevBlock.Timestamp).Milliseconds()
 	}
 	cb.Proposer = block.Proposer
 	cb.TotalFee, err = getTotalFee(block.Txs, sub.cdc)
