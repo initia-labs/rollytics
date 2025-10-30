@@ -266,10 +266,9 @@ func loadConfig() (*Config, error) {
 
 	// parse optional START_HEIGHT env var. Accepts integer >= 0.
 	raw := strings.TrimSpace(viper.GetString("START_HEIGHT"))
-	switch {
-	case raw == "":
+	if raw == "" {
 		// not set; do nothing
-	default:
+	} else {
 		val, err := strconv.ParseInt(raw, 10, 64)
 		if err != nil || val < 0 {
 			return nil, types.NewInvalidValueError("START_HEIGHT", raw, "must be a non-negative integer")
