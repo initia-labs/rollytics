@@ -120,9 +120,8 @@ type Config struct {
 	sentryConfig          *SentryConfig
 
 	// Start height configuration
-	startHeight       int64 // explicit start height when set
-	startHeightSet    bool  // whether START_HEIGHT was provided
-	startHeightLatest bool  // whether START_HEIGHT was set to "latest"
+	startHeight    int64 // explicit start height when set
+	startHeightSet bool  // whether START_HEIGHT was provided
 }
 
 func setDefaults() {
@@ -265,19 +264,15 @@ func loadConfig() (*Config, error) {
 		},
 	}
 
-	// parse optional START_HEIGHT env var. Accepts integer >= 0 or the string "latest".
+	// parse optional START_HEIGHT env var. Accepts integer >= 0.
 	raw := strings.TrimSpace(viper.GetString("START_HEIGHT"))
 	switch {
 	case raw == "":
 		// not set; do nothing
-	case strings.EqualFold(raw, "latest"):
-		config.startHeightLatest = true
-		// optionally also mark as set for clarity (accessor already ORs these):
-		// config.startHeightSet = true
 	default:
 		val, err := strconv.ParseInt(raw, 10, 64)
 		if err != nil || val < 0 {
-			return nil, types.NewInvalidValueError("START_HEIGHT", raw, "must be a non-negative integer or 'latest'")
+			return nil, types.NewInvalidValueError("START_HEIGHT", raw, "must be a non-negative integer")
 		}
 		config.startHeight = val
 		config.startHeightSet = true
@@ -403,11 +398,7 @@ func (c Config) GetLogFormat() string {
 
 // Start height accessors
 func (c Config) StartHeightSet() bool {
-	return c.startHeightSet || c.startHeightLatest
-}
-
-func (c Config) StartHeightLatest() bool {
-	return c.startHeightLatest
+	return c.startHeightSet
 }
 
 func (c Config) GetStartHeight() int64 {

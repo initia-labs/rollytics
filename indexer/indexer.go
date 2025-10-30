@@ -84,7 +84,7 @@ func (i *Indexer) Run(ctx context.Context) error {
 	}
 
 	// determine the desired start height based on configuration and current DB state
-	i.height = computeStartHeight(dbNext, chainHeight, i.cfg.StartHeightSet(), i.cfg.StartHeightLatest(), i.cfg.GetStartHeight())
+ i.height = computeStartHeight(dbNext, chainHeight, i.cfg.StartHeightSet(), i.cfg.GetStartHeight())
 
 	if dbNext > chainHeight {
 		i.logger.Warn("database is ahead of chain",
@@ -97,7 +97,6 @@ func (i *Indexer) Run(ctx context.Context) error {
 		slog.Int64("db_resume_height", dbNext),
 		slog.Int64("chain_height", chainHeight),
 		slog.Bool("start_height_set", i.cfg.StartHeightSet()),
-		slog.Bool("start_height_latest", i.cfg.StartHeightLatest()),
 		slog.Int64("configured_start_height", i.cfg.GetStartHeight()),
 		slog.Int64("effective_start_height", i.height),
 	)
@@ -282,36 +281,18 @@ func (i *Indexer) collect() {
 	}
 }
 
-// computeStartHeight decides the effective starting height given
+// computeStartHeight returns the effective starting height based on:
 // - the next height after the last block in DB (dbNext)
 // - the current chain head (chainHead)
 // - whether a start height is configured (startSet)
-// - whether the configured value is 'latest' (latest)
 // - the configured numeric start value (startVal)
-// It enforces: effective >= dbNext and effective <= chainHead.
-func computeStartHeight(dbNext, chainHead int64, startSet bool, latest bool, startVal int64) int64 {
+// Invariants: effective >= dbNext and effective <= chainHead.
+func computeStartHeight(dbNext, chainHead int64, startSet bool, startVal int64) int64 {
 	if !startSet {
-		// Preserve previous behavior: resume from DB next height
+		// Resume from DB next height when not explicitly set
 		return dbNext
 	}
-
-	var desired int64
-	if latest {
-		desired = chainHead
-	} else {
-		desired = startVal
-		if desired < 0 {
-			desired = 0
-		}
-	}
-
-	// Ensure we don't reprocess blocks already persisted
-	if desired < dbNext {
-		desired = dbNext
-	}
-	// Clamp to head to avoid requesting non-existent blocks
-	if desired > chainHead {
-		desired = chainHead
-	}
-	return desired
+	// Clamp in one expression using Go's built-in min/max (Go 1.21+):
+	// lower bound 0, then at least dbNext, and at most chainHead.
+	return max(dbNext, min(chainHead, max(int64(0), startVal)))
 }
