@@ -44,24 +44,39 @@ func buildTxEdgeQuery(tx *gorm.DB, accountID int64, isSigner bool, msgTypeIds []
 	return query, total, nil
 }
 
-func buildEdgeQueryForGetTxs(tx *gorm.DB, msgTypeIds []int64, pagination *common.Pagination) (*gorm.DB, int64, error) {
-	sequenceQuery := tx.
-		Model(&types.CollectedTxMsgType{}).
-		Select("sequence")
+func buildSequenceQueryWithMsgTypeFilter(tx *gorm.DB, msgTypeIds []int64) *gorm.DB {
+	query := tx.Model(&types.CollectedTxMsgType{})
 
 	if len(msgTypeIds) > 0 {
-		sequenceQuery = sequenceQuery.Where("msg_type_id = ANY(?)", pq.Array(msgTypeIds))
+		query = query.Where("msg_type_id = ANY(?)", pq.Array(msgTypeIds))
 	}
 
-	sequenceQuery = sequenceQuery.Distinct("sequence")
-	countQuery := sequenceQuery.Session(&gorm.Session{})
+	return query.Distinct("sequence")
+}
 
-	total, err := common.GetCountWithTimeout(countQuery, pagination.CountTotal)
+func buildEdgeQueryForGetTxs(tx *gorm.DB, msgTypeIds []int64, pagination *common.Pagination) (*gorm.DB, int64, error) {
+	sequenceQuery := buildSequenceQueryWithMsgTypeFilter(tx, msgTypeIds)
+
+	hasFilters := len(msgTypeIds) > 0
+
+	var total int64
+	var err error
+	if !hasFilters && pagination.CountTotal {
+		total, err = common.GetOptimizedCount(
+			tx.Model(&types.CollectedTxMsgType{}),
+			types.CollectedTxMsgType{},
+			false,
+			pagination.CountTotal,
+		)
+	} else {
+		countQuery := buildSequenceQueryWithMsgTypeFilter(tx, msgTypeIds)
+		total, err = common.GetCountWithTimeout(countQuery, pagination.CountTotal)
+	}
+
 	if err != nil {
 		return nil, 0, err
 	}
 
-	// apply pagination to the sequence query
 	sequenceQuery = pagination.ApplySequence(sequenceQuery)
 
 	query := tx.Model(&types.CollectedTx{}).
@@ -72,15 +87,7 @@ func buildEdgeQueryForGetTxs(tx *gorm.DB, msgTypeIds []int64, pagination *common
 }
 
 func buildEdgeQueryForGetTxsByHeight(tx *gorm.DB, height int64, msgTypeIds []int64, pagination *common.Pagination) (*gorm.DB, int64, error) {
-	sequenceQuery := tx.
-		Model(&types.CollectedTxMsgType{}).
-		Select("sequence")
-
-	if len(msgTypeIds) > 0 {
-		sequenceQuery = sequenceQuery.Where("msg_type_id = ANY(?)", pq.Array(msgTypeIds))
-	}
-
-	sequenceQuery = sequenceQuery.Distinct("sequence")
+	sequenceQuery := buildSequenceQueryWithMsgTypeFilter(tx, msgTypeIds)
 
 	query := tx.Model(&types.CollectedTx{}).
 		Where("height = ?", height).

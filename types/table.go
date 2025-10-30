@@ -404,3 +404,10 @@ func (n CollectedNft) GetOptimizationType() CountOptimizationType {
 }
 func (n CollectedNft) GetOptimizationField() string { return "" } // not used for pg_class
 func (n CollectedNft) SupportsFastCount() bool      { return true }
+
+// TX edge tables - use MAX(sequence) for fast counting
+func (t CollectedTxMsgType) GetOptimizationType() CountOptimizationType {
+	return CountOptimizationTypeMax
+}
+func (t CollectedTxMsgType) GetOptimizationField() string { return "sequence" }
+func (t CollectedTxMsgType) SupportsFastCount() bool      { return true }
