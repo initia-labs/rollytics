@@ -9,7 +9,7 @@ import (
 
 	"github.com/initia-labs/rollytics/config"
 	internaltx "github.com/initia-labs/rollytics/indexer/extension/internaltx"
-	richlist "github.com/initia-labs/rollytics/indexer/extension/rich-list"
+	richlist "github.com/initia-labs/rollytics/indexer/extension/richlist"
 	"github.com/initia-labs/rollytics/indexer/extension/types"
 	"github.com/initia-labs/rollytics/orm"
 )

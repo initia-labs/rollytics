@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/initia-labs/rollytics/config"
-	evmrichlist "github.com/initia-labs/rollytics/indexer/extension/rich-list/evm-rich-list"
+	evmrichlist "github.com/initia-labs/rollytics/indexer/extension/richlist/evmrichlist"
 	exttypes "github.com/initia-labs/rollytics/indexer/extension/types"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
@@ -27,7 +27,7 @@ type RichListExtension struct {
 }
 
 func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *RichListExtension {
-	if cfg.GetVmType() != types.EVM || !cfg.RichlistConfig.Enabled {
+	if cfg.GetVmType() != types.EVM || !cfg.GetRichListEnabled() {
 		return nil
 	}
 

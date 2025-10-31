@@ -1,5 +1,5 @@
 package config
 
-type RichlistConfig struct {
+type RichListConfig struct {
 	Enabled bool
 }
