@@ -1,4 +1,4 @@
-package evm_rich_list
+package evmrichlist
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/initia-labs/rollytics/config"
-	richlistutils "github.com/initia-labs/rollytics/indexer/extension/rich-list/utils"
+	richlistutils "github.com/initia-labs/rollytics/indexer/extension/richlist/utils"
 	"github.com/initia-labs/rollytics/orm"
 )
 

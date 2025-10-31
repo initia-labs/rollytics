@@ -115,7 +115,7 @@ type Config struct {
 	cacheTTL              time.Duration // for api only
 	pollingInterval       time.Duration // for api only
 	internalTxConfig      *InternalTxConfig
-	RichlistConfig        *RichlistConfig
+	richListConfig        *RichListConfig
 	metricsConfig         *MetricsConfig
 	cacheConfig           *CacheConfig
 	sentryConfig          *SentryConfig
@@ -345,6 +345,14 @@ func (c Config) InternalTxEnabled() bool {
 
 func (c Config) GetInternalTxConfig() *InternalTxConfig {
 	return c.internalTxConfig
+}
+
+func (c Config) GetRichListEnabled() bool {
+	return c.richListConfig.Enabled
+}
+
+func (c Config) GetRichListConfig() *RichListConfig {
+	return c.richListConfig
 }
 
 func (c Config) GetSentryConfig() *SentryConfig {

@@ -1,4 +1,4 @@
-package evm_rich_list
+package evmrichlist
 
 // JSONRPCRequest represents a JSON-RPC 2.0 request
 type JSONRPCRequest struct {
