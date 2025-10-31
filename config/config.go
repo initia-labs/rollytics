@@ -244,6 +244,9 @@ func loadConfig() (*Config, error) {
 			BatchSize:    viper.GetInt("INTERNAL_TX_BATCH_SIZE"),
 			QueueSize:    viper.GetInt("INTERNAL_TX_QUEUE_SIZE"),
 		},
+		richListConfig: &RichListConfig{
+			Enabled: viper.GetBool("RICH_LIST"),
+		},
 		metricsConfig: &MetricsConfig{
 			Enabled: viper.GetBool("METRICS_ENABLED"),
 			Path:    viper.GetString("METRICS_PATH"),
