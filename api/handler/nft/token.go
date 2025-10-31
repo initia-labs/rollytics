@@ -65,7 +65,7 @@ func (h *NftHandler) getTokensWithFilters(
 
 	return &NftsResponse{
 		Tokens:     nftsRes,
-		Pagination: pagination.ToResponseWithLastRecord(total, lastRecord),
+		Pagination: pagination.ToResponseWithLastRecord(total, len(nfts) == pagination.Limit, lastRecord),
 	}, nil
 }
 
@@ -119,7 +119,7 @@ func (h *NftHandler) GetTokensByAccount(c *fiber.Ctx) error {
 	if len(accountIds) == 0 {
 		return c.JSON(NftsResponse{
 			Tokens:     []Nft{},
-			Pagination: pagination.ToResponse(0),
+			Pagination: pagination.ToResponse(0, false),
 		})
 	}
 

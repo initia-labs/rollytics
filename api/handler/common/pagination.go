@@ -223,8 +223,8 @@ func (p *Pagination) safeGetString(field string) (string, error) {
 	return "", fmt.Errorf("cursor field '%s' is not a string: %T", field, value)
 }
 
-func (p *Pagination) ToResponse(total int64) (res PaginationResponse) {
-	if total > int64(p.Offset+p.Limit) {
+func (p *Pagination) ToResponse(total int64, hasMore bool) (res PaginationResponse) {
+	if hasMore {
 		nextKey := base64.StdEncoding.EncodeToString([]byte(strconv.Itoa(p.Offset + p.Limit)))
 		res.NextKey = &nextKey
 	}
@@ -237,7 +237,8 @@ func (p *Pagination) ToResponse(total int64) (res PaginationResponse) {
 	return
 }
 
-func (p *Pagination) ToResponseWithLastRecord(total int64, lastRecord any) PaginationResponse {
+func (p *Pagination) ToResponseWithLastRecord(total int64, hasMore bool, lastRecord any) PaginationResponse {
+	// TODO: revisit this func
 	if p.UseCursor() && lastRecord != nil {
 		if r, ok := lastRecord.(CursorRecord); ok {
 			nextCursor := r.GetCursorData()
@@ -252,8 +253,7 @@ func (p *Pagination) ToResponseWithLastRecord(total int64, lastRecord any) Pagin
 		}
 	}
 
-	// Fall back to traditional offset-based approach
-	return p.ToResponse(total)
+	return p.ToResponse(total, hasMore)
 }
 
 func (p *Pagination) ApplyToNftCollection(query *gorm.DB) *gorm.DB {

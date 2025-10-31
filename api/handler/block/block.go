@@ -52,7 +52,7 @@ func (h *BlockHandler) GetBlocks(c *fiber.Ctx) error {
 
 	return c.JSON(BlocksResponse{
 		Blocks:     blocksRes,
-		Pagination: pagination.ToResponse(total),
+		Pagination: pagination.ToResponse(total, len(blocks) == pagination.Limit),
 	})
 }
 

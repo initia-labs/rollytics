@@ -63,7 +63,7 @@ func (h *NftHandler) GetCollections(c *fiber.Ctx) error {
 
 	return c.JSON(CollectionsResponse{
 		Collections: ToCollectionsResponse(collections, creatorAccounts),
-		Pagination:  pagination.ToResponseWithLastRecord(total, lastRecord),
+		Pagination:  pagination.ToResponseWithLastRecord(total, len(collections) == pagination.Limit, lastRecord),
 	})
 }
 
@@ -103,7 +103,7 @@ func (h *NftHandler) GetCollectionsByAccount(c *fiber.Ctx) error {
 	if len(accountIds) == 0 {
 		return c.JSON(CollectionsResponse{
 			Collections: []Collection{},
-			Pagination:  pagination.ToResponse(0),
+			Pagination:  pagination.ToResponse(0, false),
 		})
 	}
 
@@ -158,7 +158,7 @@ func (h *NftHandler) GetCollectionsByAccount(c *fiber.Ctx) error {
 
 	return c.JSON(CollectionsResponse{
 		Collections: ToCollectionsResponse(collections, creatorAccounts),
-		Pagination:  pagination.ToResponseWithLastRecord(total, lastRecord),
+		Pagination:  pagination.ToResponseWithLastRecord(total, len(collections) == pagination.Limit, lastRecord),
 	})
 }
 
@@ -203,7 +203,7 @@ func (h *NftHandler) GetCollectionsByName(c *fiber.Ctx) error {
 
 	return c.JSON(CollectionsResponse{
 		Collections: ToCollectionsResponse(collections, creatorAccounts),
-		Pagination:  pagination.ToResponseWithLastRecord(total, lastRecord),
+		Pagination:  pagination.ToResponseWithLastRecord(total, len(collections) == pagination.Limit, lastRecord),
 	})
 }
 
