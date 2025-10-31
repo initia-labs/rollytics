@@ -9,6 +9,7 @@ import (
 
 	"github.com/getsentry/sentry-go"
 	"github.com/spf13/cobra"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/indexer"
@@ -75,19 +76,7 @@ You can configure database, chain, logging, and indexer options via environment 
 			}
 			defer func() { _ = db.Close() }()
 
-			if err := db.Migrate(); err != nil {
-				return err
-			}
-
-			// Apply patch
-			if err := patcher.Patch(cfg, db, logger); err != nil {
-				return err
-			}
-
-			// Start DB stats collection
-			metrics.StartDBStatsUpdater(db, logger)
-			defer metrics.StopDBStatsUpdater()
-
+			// Setup Sentry (doesn't depend on DB)
 			if sentryCfg := cfg.GetSentryConfig(); sentryCfg != nil {
 				sentryClientOptions := sentry.ClientOptions{
 					Dsn:                sentryCfg.DSN,
@@ -110,8 +99,42 @@ You can configure database, chain, logging, and indexer options via environment 
 				defer sentry.Flush(2 * time.Second)
 			}
 
+			// Create indexer before starting concurrent operations
 			idxer := indexer.New(cfg, logger, db)
-			return idxer.Run(ctx)
+
+			// Ensure DB stats cleanup
+			defer metrics.StopDBStatsUpdater()
+
+			// Start migration and indexer concurrently
+			g, gCtx := errgroup.WithContext(ctx)
+
+			// Run migration
+			g.Go(func() error {
+				if err := db.Migrate(); err != nil {
+					return err
+				}
+
+				// Apply patch after migration completes
+				if err := patcher.Patch(cfg, db, logger); err != nil {
+					return err
+				}
+
+				// Start DB stats collection after migration
+				metrics.StartDBStatsUpdater(db, logger)
+				return nil
+			})
+
+			// Run indexer
+			g.Go(func() error {
+				return idxer.Run(gCtx)
+			})
+
+			// Wait for both to complete
+			if err := g.Wait(); err != nil {
+				return err
+			}
+
+			return nil
 		},
 	}
 
