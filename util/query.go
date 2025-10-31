@@ -175,7 +175,7 @@ type ErrorResponse struct {
 type requestConfig struct {
 	method  string
 	params  map[string]string
-	payload map[string]any
+	payload any
 	headers map[string]string
 }
 
@@ -188,7 +188,7 @@ func Get(ctx context.Context, baseUrl, path string, params map[string]string, he
 	return executeWithRetry(ctx, baseUrl, path, config)
 }
 
-func Post(ctx context.Context, baseUrl, path string, payload map[string]any, headers map[string]string) ([]byte, error) {
+func Post(ctx context.Context, baseUrl, path string, payload any, headers map[string]string) ([]byte, error) {
 	config := requestConfig{
 		method:  fiber.MethodPost,
 		payload: payload,

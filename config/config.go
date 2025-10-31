@@ -115,6 +115,7 @@ type Config struct {
 	cacheTTL              time.Duration // for api only
 	pollingInterval       time.Duration // for api only
 	internalTxConfig      *InternalTxConfig
+	richListConfig        *RichListConfig
 	metricsConfig         *MetricsConfig
 	cacheConfig           *CacheConfig
 	sentryConfig          *SentryConfig
@@ -143,6 +144,7 @@ func setDefaults() {
 	viper.SetDefault("INTERNAL_TX_POLL_INTERVAL", DefaultInternalTxPollInterval)
 	viper.SetDefault("INTERNAL_TX_BATCH_SIZE", DefaultInternalTxBatchSize)
 	viper.SetDefault("INTERNAL_TX_QUEUE_SIZE", DefaultInternalTxQueueSize)
+	viper.SetDefault("RICH_LIST", true)
 	viper.SetDefault("METRICS_ENABLED", false)
 	viper.SetDefault("METRICS_PATH", DefaultMetricsPath)
 	viper.SetDefault("METRICS_PORT", DefaultMetricsPort)
@@ -242,6 +244,9 @@ func loadConfig() (*Config, error) {
 			PollInterval: viper.GetDuration("INTERNAL_TX_POLL_INTERVAL"),
 			BatchSize:    viper.GetInt("INTERNAL_TX_BATCH_SIZE"),
 			QueueSize:    viper.GetInt("INTERNAL_TX_QUEUE_SIZE"),
+		},
+		richListConfig: &RichListConfig{
+			Enabled: viper.GetBool("RICH_LIST"),
 		},
 		metricsConfig: &MetricsConfig{
 			Enabled: viper.GetBool("METRICS_ENABLED"),
@@ -344,6 +349,14 @@ func (c Config) InternalTxEnabled() bool {
 
 func (c Config) GetInternalTxConfig() *InternalTxConfig {
 	return c.internalTxConfig
+}
+
+func (c Config) GetRichListEnabled() bool {
+	return c.richListConfig.Enabled
+}
+
+func (c Config) GetRichListConfig() *RichListConfig {
+	return c.richListConfig
 }
 
 func (c Config) GetSentryConfig() *SentryConfig {
