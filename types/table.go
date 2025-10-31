@@ -162,6 +162,16 @@ type CollectedEvmInternalTx struct {
 	GasUsed     []byte `gorm:"type:bytea"`
 }
 
+type CollectedRichListStatus struct {
+	Height int64 `gorm:"type:bigint"`
+}
+
+type CollectedRichList struct {
+	Id     int64  `gorm:"type:bigint;primaryKey"`
+	Denom  string `gorm:"type:text;primaryKey"`
+	Amount string `gorm:"type:numeric"`
+}
+
 type CollectedEvmTxHashDict struct {
 	Id   int64  `gorm:"type:bigint;primaryKey"`
 	Hash []byte `gorm:"type:bytea;uniqueIndex:evm_tx_hash_dict_hash"`
@@ -245,6 +255,14 @@ func (CollectedTypeTagDict) TableName() string {
 
 func (CollectedEvmTxHashDict) TableName() string {
 	return "evm_tx_hash_dict"
+}
+
+func (CollectedRichListStatus) TableName() string {
+	return "rich_list_status"
+}
+
+func (CollectedRichList) TableName() string {
+	return "rich_list"
 }
 
 // CursorRecord interface implementations
