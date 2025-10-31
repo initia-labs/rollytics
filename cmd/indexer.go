@@ -4,7 +4,6 @@ import (
 	"context"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 	"time"
 
@@ -100,12 +99,6 @@ You can configure database, chain, logging, and indexer options via environment 
 				defer sentry.Flush(2 * time.Second)
 			}
 
-			// Migration must complete before indexer queries DB
-			// Indexer's wait() for chain gives migration time, but we'll use a sync mechanism
-			var migrationDone sync.WaitGroup
-			migrationDone.Add(1)
-			var migrationErr error
-
 			// Create indexer before starting concurrent operations
 			idxer := indexer.New(cfg, logger, db)
 
@@ -117,10 +110,8 @@ You can configure database, chain, logging, and indexer options via environment 
 
 			// Run migration
 			g.Go(func() error {
-				defer migrationDone.Done()
-				migrationErr = db.Migrate()
-				if migrationErr != nil {
-					return migrationErr
+				if err := db.Migrate(); err != nil {
+					return err
 				}
 
 				// Apply patch after migration completes
@@ -133,15 +124,8 @@ You can configure database, chain, logging, and indexer options via environment 
 				return nil
 			})
 
-			// Run indexer - it will wait for chain first (giving migration time)
-			// but we ensure migration completes before DB query
+			// Run indexer
 			g.Go(func() error {
-				// Wait for migration to complete before indexer queries DB
-				migrationDone.Wait()
-				if migrationErr != nil {
-					return migrationErr
-				}
-
 				return idxer.Run(gCtx)
 			})
 
