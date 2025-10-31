@@ -204,11 +204,8 @@ func (h *TxHandler) GetEvmInternalTxsByHeight(c *fiber.Ctx) error {
 	}
 
 	var txs []types.CollectedEvmInternalTx
-	if err := query.
-		Order(pagination.OrderBy("sequence")).
-		Offset(pagination.Offset).
-		Limit(pagination.Limit).
-		Find(&txs).Error; err != nil {
+	findQuery := pagination.ApplySequence(query)
+	if err := findQuery.Find(&txs).Error; err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
@@ -275,18 +272,14 @@ func (h *TxHandler) GetEvmInternalTxsByHash(c *fiber.Ctx) error {
 
 	// Use optimized COUNT - always has filters (hash_id)
 	var strategy types.CollectedEvmInternalTx
-	hasFilters := true // always has hash_id filter
-	var total int64
-	total, err = common.GetOptimizedCount(query, strategy, hasFilters, pagination.CountTotal)
+	total, err := common.GetOptimizedCount(query, strategy, true, pagination.CountTotal)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	var txs []types.CollectedEvmInternalTx
-	if err := query.Order(pagination.OrderBy("sequence")).
-		Offset(pagination.Offset).
-		Limit(pagination.Limit).
-		Find(&txs).Error; err != nil {
+	findQuery := pagination.ApplySequence(query)
+	if err := findQuery.Find(&txs).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return fiber.NewError(fiber.StatusNotFound, "tx not found")
 		}
