@@ -9,6 +9,7 @@ import (
 
 	"github.com/initia-labs/rollytics/config"
 	internaltx "github.com/initia-labs/rollytics/indexer/extension/internaltx"
+	richlist "github.com/initia-labs/rollytics/indexer/extension/rich-list"
 	"github.com/initia-labs/rollytics/indexer/extension/types"
 	"github.com/initia-labs/rollytics/orm"
 )
@@ -25,6 +26,10 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *ExtensionMa
 	// Internal Transaction
 	if itxIndexer := internaltx.New(cfg, logger, db); itxIndexer != nil {
 		extensions = append(extensions, itxIndexer)
+	}
+	// Rich List
+	if rlIndexer := richlist.New(cfg, logger, db); rlIndexer != nil {
+		extensions = append(extensions, rlIndexer)
 	}
 	return &ExtensionManager{
 		cfg:        cfg,
@@ -50,7 +55,6 @@ func (m *ExtensionManager) Run(ctx context.Context) {
 
 			// All extensions now implement Run(ctx)
 			err := ext.Run(gCtx)
-
 			if err != nil {
 				if errors.Is(err, context.Canceled) {
 					m.logger.Info("Extension stopped",

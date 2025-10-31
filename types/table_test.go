@@ -247,6 +247,8 @@ func TestTableNameMethods(t *testing.T) {
 		{"CollectedMsgTypeDict", CollectedMsgTypeDict{}, "msg_type_dict"},
 		{"CollectedTypeTagDict", CollectedTypeTagDict{}, "type_tag_dict"},
 		{"CollectedEvmTxHashDict", CollectedEvmTxHashDict{}, "evm_tx_hash_dict"},
+		{"CollectedRichListStatus", CollectedRichListStatus{}, "rich_list_status"},
+		{"CollectedRichList", CollectedRichList{}, "rich_list"},
 	}
 
 	for _, tt := range tests {

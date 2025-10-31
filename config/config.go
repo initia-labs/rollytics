@@ -115,6 +115,7 @@ type Config struct {
 	cacheTTL              time.Duration // for api only
 	pollingInterval       time.Duration // for api only
 	internalTxConfig      *InternalTxConfig
+	RichlistConfig        *RichlistConfig
 	metricsConfig         *MetricsConfig
 	cacheConfig           *CacheConfig
 	sentryConfig          *SentryConfig
