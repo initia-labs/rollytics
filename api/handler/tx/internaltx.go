@@ -70,7 +70,7 @@ func (h *TxHandler) GetEvmInternalTxs(c *fiber.Ctx) error {
 
 	return c.JSON(EvmInternalTxsResponse{
 		Txs:        txsRes,
-		Pagination: pagination.ToResponseWithLastRecord(total, lastRecord),
+		Pagination: pagination.ToResponseWithLastRecord(total, len(txsRes) == pagination.Limit, lastRecord),
 	})
 }
 
@@ -108,7 +108,7 @@ func (h *TxHandler) GetEvmInternalTxsByAccount(c *fiber.Ctx) error {
 	if len(accountIds) == 0 {
 		return c.JSON(EvmInternalTxsResponse{
 			Txs:        []EvmInternalTxResponse{},
-			Pagination: pagination.ToResponse(0),
+			Pagination: pagination.ToResponse(0, false),
 		})
 	}
 
@@ -137,7 +137,7 @@ func (h *TxHandler) GetEvmInternalTxsByAccount(c *fiber.Ctx) error {
 
 	return c.JSON(EvmInternalTxsResponse{
 		Txs:        txsRes,
-		Pagination: pagination.ToResponse(total),
+		Pagination: pagination.ToResponse(total, len(txsRes) == pagination.Limit),
 	})
 }
 
@@ -224,7 +224,7 @@ func (h *TxHandler) GetEvmInternalTxsByHeight(c *fiber.Ctx) error {
 
 	return c.JSON(EvmInternalTxsResponse{
 		Txs:        txsRes,
-		Pagination: pagination.ToResponse(total),
+		Pagination: pagination.ToResponse(total, len(txsRes) == pagination.Limit),
 	})
 }
 
@@ -301,6 +301,6 @@ func (h *TxHandler) GetEvmInternalTxsByHash(c *fiber.Ctx) error {
 
 	return c.JSON(EvmInternalTxsResponse{
 		Txs:        txsRes,
-		Pagination: pagination.ToResponse(total),
+		Pagination: pagination.ToResponse(total, len(txsRes) == pagination.Limit),
 	})
 }

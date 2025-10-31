@@ -152,14 +152,14 @@ func TestPagination_ToResponse(t *testing.T) {
 	}
 
 	// Test with data that should have next page
-	result := p.ToResponse(500) // total > offset + limit
+	result := p.ToResponse(500, true) // total > offset + limit
 
 	assert.Equal(t, "500", result.Total)
 	assert.NotNil(t, result.NextKey, "Should have next key when more data exists")
 	assert.NotNil(t, result.PreviousKey, "Should have previous key when offset > limit")
 
 	// Test without next page
-	result2 := p.ToResponse(250) // total <= offset + limit
+	result2 := p.ToResponse(250, false) // total <= offset + limit
 
 	assert.Equal(t, "250", result2.Total)
 	assert.Nil(t, result2.NextKey, "Should not have next key when no more data")
@@ -269,7 +269,7 @@ func TestPagination_ToResponseWithLastRecord(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := tt.pagination.ToResponseWithLastRecord(100, tt.lastRecord)
+			result := tt.pagination.ToResponseWithLastRecord(100, true, tt.lastRecord)
 
 			assert.Equal(t, "100", result.Total)
 
@@ -658,7 +658,7 @@ func TestPaginationWithAllTableCursors(t *testing.T) {
 			assert.True(t, tt.pagination.UseCursor())
 
 			// Test response generation with cursor record
-			response := tt.pagination.ToResponseWithLastRecord(1000, tt.record)
+			response := tt.pagination.ToResponseWithLastRecord(1000, true, tt.record)
 			assert.Equal(t, "1000", response.Total)
 			assert.NotNil(t, response.NextKey, "Should generate next key from cursor record")
 

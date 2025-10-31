@@ -67,7 +67,7 @@ func (h *TxHandler) GetTxs(c *fiber.Ctx) error {
 
 	return c.JSON(TxsResponse{
 		Txs:        txsRes,
-		Pagination: pagination.ToResponseWithLastRecord(total, lastRecord),
+		Pagination: pagination.ToResponseWithLastRecord(total, len(txsRes) == pagination.Limit, lastRecord),
 	})
 }
 
@@ -109,7 +109,7 @@ func (h *TxHandler) GetTxsByAccount(c *fiber.Ctx) error {
 	if len(accountIds) == 0 {
 		return c.JSON(TxsResponse{
 			Txs:        []types.Tx{},
-			Pagination: pagination.ToResponse(0),
+			Pagination: pagination.ToResponse(0, false),
 		})
 	}
 
@@ -143,7 +143,7 @@ func (h *TxHandler) GetTxsByAccount(c *fiber.Ctx) error {
 
 	return c.JSON(TxsResponse{
 		Txs:        txsRes,
-		Pagination: pagination.ToResponseWithLastRecord(total, lastRecord),
+		Pagination: pagination.ToResponseWithLastRecord(total, len(txsRes) == pagination.Limit, lastRecord),
 	})
 }
 
@@ -207,7 +207,7 @@ func (h *TxHandler) GetTxsByHeight(c *fiber.Ctx) error {
 
 	return c.JSON(TxsResponse{
 		Txs:        txsRes,
-		Pagination: pagination.ToResponseWithLastRecord(total, lastRecord),
+		Pagination: pagination.ToResponseWithLastRecord(total, len(txsRes) == pagination.Limit, lastRecord),
 	})
 }
 

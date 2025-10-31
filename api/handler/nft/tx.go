@@ -48,7 +48,7 @@ func (h *NftHandler) GetNftTxs(c *fiber.Ctx) error {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return c.JSON(tx.TxsResponse{
 				Txs:        []types.Tx{},
-				Pagination: pagination.ToResponse(0),
+				Pagination: pagination.ToResponse(0, false),
 			})
 		}
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
@@ -66,7 +66,7 @@ func (h *NftHandler) GetNftTxs(c *fiber.Ctx) error {
 		if len(accountIds) == 0 {
 			return c.JSON(tx.TxsResponse{
 				Txs:        []types.Tx{},
-				Pagination: pagination.ToResponse(0),
+				Pagination: pagination.ToResponse(0, false),
 			})
 		}
 
@@ -88,7 +88,7 @@ func (h *NftHandler) GetNftTxs(c *fiber.Ctx) error {
 		if len(nftIds) == 0 {
 			return c.JSON(tx.TxsResponse{
 				Txs:        []types.Tx{},
-				Pagination: pagination.ToResponse(0),
+				Pagination: pagination.ToResponse(0, false),
 			})
 		}
 
@@ -123,6 +123,6 @@ func (h *NftHandler) GetNftTxs(c *fiber.Ctx) error {
 
 	return c.JSON(tx.TxsResponse{
 		Txs:        txsRes,
-		Pagination: pagination.ToResponse(total),
+		Pagination: pagination.ToResponse(total, len(txs) == pagination.Limit),
 	})
 }
