@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"math"
 	"math/big"
+	"strings"
 	"time"
 
 	sdkmath "cosmossdk.io/math"
@@ -109,6 +110,10 @@ func processCosmosTransferEvent(logger *slog.Logger, event sdk.Event, balanceMap
 // It extracts transfer information from the event log and updates balances for both sender and receiver.
 // Returns true if the event was successfully processed, false otherwise.
 func processEVMTransferEvent(logger *slog.Logger, event sdk.Event, balanceMap map[BalanceChangeKey]sdkmath.Int) bool {
+	if len(event.Attributes) == 0 {
+		return false
+	}
+
 	// Parse the EVM log from the first attribute
 	var evmLog CosmosEventEvmLog
 	if err := json.Unmarshal([]byte(event.Attributes[0].Value), &evmLog); err != nil {
@@ -120,6 +125,7 @@ func processEVMTransferEvent(logger *slog.Logger, event sdk.Event, balanceMap ma
 		return false
 	}
 
+	denom := strings.ToLower(evmLog.Address)
 	fromAddr := evmLog.Topics[1]
 	toAddr := evmLog.Topics[2]
 
@@ -132,7 +138,7 @@ func processEVMTransferEvent(logger *slog.Logger, event sdk.Event, balanceMap ma
 
 	// Update sender's balance (subtract)
 	if fromAddr != EMPTY_ADDRESS {
-		fromKey := newBalanceChangeKey(evmLog.Address, fromAddr)
+		fromKey := newBalanceChangeKey(denom, fromAddr)
 		if balance, ok := balanceMap[fromKey]; !ok {
 			balanceMap[fromKey] = sdkmath.ZeroInt().Sub(amount)
 		} else {
@@ -142,7 +148,7 @@ func processEVMTransferEvent(logger *slog.Logger, event sdk.Event, balanceMap ma
 
 	// Update receiver's balance (add)
 	if toAddr != EMPTY_ADDRESS {
-		toKey := newBalanceChangeKey(evmLog.Address, toAddr)
+		toKey := newBalanceChangeKey(denom, toAddr)
 		if balance, ok := balanceMap[toKey]; !ok {
 			balanceMap[toKey] = sdkmath.ZeroInt().Add(amount)
 		} else {

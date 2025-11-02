@@ -58,7 +58,9 @@ func (r *RichListExtension) Run(ctx context.Context) error {
 
 	switch r.cfg.GetVmType() {
 	case types.EVM:
-		evmrichlist.Run(ctx, r.cfg, r.logger, r.db, r.startHeight)
+		if err := evmrichlist.Run(ctx, r.cfg, r.logger, r.db, r.startHeight); err != nil {
+			return err
+		}
 	default:
 		return fmt.Errorf("rich list not supported: %v", r.cfg.GetVmType())
 	}

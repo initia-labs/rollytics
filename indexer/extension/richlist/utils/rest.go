@@ -149,7 +149,6 @@ func fetchAccountBalancesWithPagination(ctx context.Context, restURL string, add
 		allBalances = append(allBalances, balancesResp.Balances...)
 
 		// Check if there are more pages
-		// Check if there are more pages
 		if len(balancesResp.Pagination.NextKey) == 0 {
 			// Workaround for broken API that returns null next_key prematurely.
 			if balancesResp.Pagination.Total != "" {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 
 	sdkmath "cosmossdk.io/math"
 	richlistutils "github.com/initia-labs/rollytics/indexer/extension/richlist/utils"
@@ -38,30 +39,14 @@ func queryERC20Balances(ctx context.Context, jsonrpcURL string, erc20Address str
 
 		batch := addresses[i:end]
 
-		// Retry logic with exponential backoff
-		var batchBalances map[richlistutils.AddressWithID]sdkmath.Int
-		var err error
-
-		for attempt := range richlistutils.MAX_ATTEMPTS {
-			batchBalances, err = queryBatchBalances(ctx, jsonrpcURL, erc20Address, batch, height, i)
-			if err == nil {
-				break
-			}
-
-			// Exponential backoff before retry
-			if attempt < richlistutils.MAX_ATTEMPTS-1 {
-				richlistutils.ExponentialBackoff(attempt)
-			}
-		}
-
+		// queryBatchBalances uses utils.Post which already handles retries with exponential backoff
+		batchBalances, err := queryBatchBalances(ctx, jsonrpcURL, erc20Address, batch, height, i)
 		if err != nil {
-			return nil, fmt.Errorf("failed to query batch after %d attempts: %w", richlistutils.MAX_ATTEMPTS, err)
+			return nil, fmt.Errorf("failed to query batch: %w", err)
 		}
 
 		// Merge batch results into main balances map
-		for addrWithID, balance := range batchBalances {
-			balances[addrWithID] = balance
-		}
+		maps.Copy(balances, batchBalances)
 	}
 
 	return balances, nil
@@ -131,9 +116,20 @@ func queryBatchBalances(ctx context.Context, jsonrpcURL string, erc20Address str
 		return nil, fmt.Errorf("batch response count mismatch: expected %d, got %d", len(batch), len(batchResponses))
 	}
 
+	// Build a map from request ID to the corresponding AddressWithID
+	idToAddr := make(map[int]richlistutils.AddressWithID, len(batch))
+	for idx, addrWithID := range batch {
+		requestID := idOffset + idx
+		idToAddr[requestID] = addrWithID
+	}
+
 	balances := make(map[richlistutils.AddressWithID]sdkmath.Int, len(batch))
-	for idx, rpcResp := range batchResponses {
-		addrWithID := batch[idx]
+	for _, rpcResp := range batchResponses {
+		// Look up the address by response ID
+		addrWithID, found := idToAddr[rpcResp.ID]
+		if !found {
+			return nil, fmt.Errorf("received response with unexpected ID %d", rpcResp.ID)
+		}
 
 		// Check for JSON-RPC error
 		if rpcResp.Error != nil {

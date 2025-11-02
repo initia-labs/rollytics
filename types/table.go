@@ -163,9 +163,10 @@ type CollectedEvmInternalTx struct {
 }
 
 type CollectedRichListStatus struct {
-	Height int64 `gorm:"type:bigint"`
+	Height int64 `gorm:"type:bigint;primaryKey"`
 }
 
+// TODO: add index
 type CollectedRichList struct {
 	Id     int64  `gorm:"type:bigint;primaryKey"`
 	Denom  string `gorm:"type:text;primaryKey"`
