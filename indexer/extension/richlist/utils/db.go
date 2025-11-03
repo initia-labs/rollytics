@@ -84,10 +84,10 @@ func UpdateBalanceChanges(ctx context.Context, db *gorm.DB, balanceMap map[Balan
 		var updatedAmount string
 		err := db.WithContext(ctx).Raw(`
 			INSERT INTO rich_list (id, denom, amount)
-			VALUES (?, ?, ?)
+			VALUES (?, ?, ?::numeric)
 			ON CONFLICT (id, denom)
-			DO UPDATE SET amount = (CAST(rich_list.amount AS NUMERIC) + CAST(EXCLUDED.amount AS NUMERIC))::TEXT
-			RETURNING amount
+			DO UPDATE SET amount = rich_list.amount + EXCLUDED.amount
+			RETURNING amount::text
 		`, accountId, key.Asset, changeAmount.String()).Scan(&updatedAmount).Error
 
 		if err != nil {
