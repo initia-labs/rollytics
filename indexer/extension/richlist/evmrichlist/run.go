@@ -18,7 +18,7 @@ func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.D
 	if currentHeight < cfgStartHeight {
 		logger.Info("reinitializing rich list", slog.Int64("db_start_height", currentHeight), slog.Int64("config_start_height", cfgStartHeight))
 		if err := db.Transaction(func(tx *gorm.DB) error {
-			err := richlistutils.InitializeBalances(ctx, tx, cfg.GetChainConfig().RestUrl, cfgStartHeight)
+			err := richlistutils.InitializeBalances(ctx, logger, tx, cfg.GetChainConfig().RestUrl, cfgStartHeight)
 			return err
 		}); err != nil {
 			return err
