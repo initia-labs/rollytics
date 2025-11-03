@@ -44,6 +44,7 @@ func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.D
 
 			// Process transactions to calculate balance changes
 			balanceMap := richlistutils.ProcessBalanceChanges(logger, txs)
+			logger.Info("processed balance changes", slog.Any("balance_map", balanceMap))
 
 			// Update balance changes to the database
 			negativeDenoms, err := richlistutils.UpdateBalanceChanges(ctx, tx, balanceMap)
@@ -54,6 +55,8 @@ func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.D
 
 			// Log warning if any denoms have negative balances
 			if len(negativeDenoms) > 0 {
+				logger.Info("updating balances for negative denoms", slog.Int("num_denoms", len(negativeDenoms)))
+
 				addresses, err := richlistutils.GetAllAddresses(ctx, tx)
 				if err != nil {
 					logger.Error("failed to get all addresses", slog.Any("error", err))
