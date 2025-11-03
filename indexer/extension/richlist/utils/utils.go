@@ -51,8 +51,8 @@ func ParseHexAmountToSDKInt(data string) (sdkmath.Int, bool) {
 	return sdkmath.NewIntFromBigInt(amountBigInt), true
 }
 
-// newBalanceChangeKey creates a BalanceChangeKey from asset and address.
-func newBalanceChangeKey(asset, addr string) BalanceChangeKey {
+// NewBalanceChangeKey creates a BalanceChangeKey from asset and address.
+func NewBalanceChangeKey(asset, addr string) BalanceChangeKey {
 	return BalanceChangeKey{
 		Asset: asset,
 		Addr:  addr,
@@ -91,7 +91,7 @@ func processCosmosTransferEvent(logger *slog.Logger, event sdk.Event, balanceMap
 	// Process each coin in the transfer
 	for _, coin := range coins {
 		// Update sender's balance (subtract)
-		senderKey := newBalanceChangeKey(coin.Denom, sender)
+		senderKey := NewBalanceChangeKey(coin.Denom, sender)
 		if balance, ok := balanceMap[senderKey]; !ok {
 			balanceMap[senderKey] = sdkmath.ZeroInt().Sub(coin.Amount)
 		} else {
@@ -99,7 +99,7 @@ func processCosmosTransferEvent(logger *slog.Logger, event sdk.Event, balanceMap
 		}
 
 		// Update recipient's balance (add)
-		recipientKey := newBalanceChangeKey(coin.Denom, recipient)
+		recipientKey := NewBalanceChangeKey(coin.Denom, recipient)
 		if balance, ok := balanceMap[recipientKey]; !ok {
 			balanceMap[recipientKey] = coin.Amount
 		} else {
@@ -110,62 +110,9 @@ func processCosmosTransferEvent(logger *slog.Logger, event sdk.Event, balanceMap
 	return true
 }
 
-// processEVMTransferEvent processes an EVM transfer event and updates the balance map.
-// It extracts transfer information from the event log and updates balances for both sender and receiver.
-// Returns true if the event was successfully processed, false otherwise.
-func processEVMTransferEvent(logger *slog.Logger, event sdk.Event, balanceMap map[BalanceChangeKey]sdkmath.Int) bool {
-	if len(event.Attributes) == 0 {
-		return false
-	}
-
-	// Parse the EVM log from the first attribute
-	var evmLog CosmosEventEvmLog
-	if err := json.Unmarshal([]byte(event.Attributes[0].Value), &evmLog); err != nil {
-		return false
-	}
-
-	// Check if this is a Transfer event (3 topics with the Transfer signature)
-	if len(evmLog.Topics) != 3 || evmLog.Topics[0] != EVM_TRANSFER_TOPIC {
-		return false
-	}
-
-	denom := strings.ToLower(evmLog.Address)
-	fromAddr := evmLog.Topics[1]
-	toAddr := evmLog.Topics[2]
-
-	// Parse amount from hex string in evmLog.Data
-	amount, ok := ParseHexAmountToSDKInt(evmLog.Data)
-	if !ok {
-		logger.Error("failed to parse amount, skipping the entry")
-		return false
-	}
-
-	// Update sender's balance (subtract)
-	if fromAddr != EMPTY_ADDRESS {
-		fromKey := newBalanceChangeKey(denom, fromAddr)
-		if balance, ok := balanceMap[fromKey]; !ok {
-			balanceMap[fromKey] = sdkmath.ZeroInt().Sub(amount)
-		} else {
-			balanceMap[fromKey] = balance.Sub(amount)
-		}
-	}
-
-	// Update receiver's balance (add)
-	if toAddr != EMPTY_ADDRESS {
-		toKey := newBalanceChangeKey(denom, toAddr)
-		if balance, ok := balanceMap[toKey]; !ok {
-			balanceMap[toKey] = sdkmath.ZeroInt().Add(amount)
-		} else {
-			balanceMap[toKey] = balance.Add(amount)
-		}
-	}
-
-	return true
-}
-
-// processBalanceChanges processes EVM transactions and calculates balance changes
+// ProcessCosmosBalanceChanges processes Cosmos transactions and calculates balance changes
 // for each address. Returns a map of BalanceChangeKey to balance change amounts.
-func ProcessBalanceChanges(logger *slog.Logger, txs []types.CollectedTx) map[BalanceChangeKey]sdkmath.Int {
+func ProcessCosmosBalanceChanges(logger *slog.Logger, txs []types.CollectedTx) map[BalanceChangeKey]sdkmath.Int {
 	balanceMap := make(map[BalanceChangeKey]sdkmath.Int)
 
 	// Process each transaction
@@ -182,11 +129,8 @@ func ProcessBalanceChanges(logger *slog.Logger, txs []types.CollectedTx) map[Bal
 		}
 
 		for _, event := range events {
-			switch event.Type {
-			case COSMOS_TRANSFER_EVENT:
+			if event.Type == COSMOS_TRANSFER_EVENT {
 				processCosmosTransferEvent(logger, event, balanceMap)
-			case COSMOS_EVM_EVENT:
-				processEVMTransferEvent(logger, event, balanceMap)
 			}
 		}
 	}

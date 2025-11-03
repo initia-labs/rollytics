@@ -3,6 +3,7 @@ package evmrichlist
 import (
 	"context"
 	"log/slog"
+	"maps"
 
 	"gorm.io/gorm"
 
@@ -41,10 +42,16 @@ func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.D
 				logger.Error("failed to get transactions", slog.Any("error", err))
 				return err
 			}
+			evmTxs, err := GetBlockCollectedEvmTxs(ctx, tx, currentHeight)
+			if err != nil {
+				logger.Error("failed to get evm transactions", slog.Any("error", err))
+				return err
+			}
 
 			// Process transactions to calculate balance changes
-			balanceMap := richlistutils.ProcessBalanceChanges(logger, txs)
-			logger.Info("processed balance changes", slog.Any("balance_map", balanceMap))
+			balanceMap := richlistutils.ProcessCosmosBalanceChanges(logger, txs)
+			evmBalanceMap := ProcessEvmBalanceChanges(logger, evmTxs)
+			maps.Copy(balanceMap, evmBalanceMap)
 
 			// Update balance changes to the database
 			negativeDenoms, err := richlistutils.UpdateBalanceChanges(ctx, tx, balanceMap)

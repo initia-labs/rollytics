@@ -1,0 +1,23 @@
+package evmrichlist
+
+import (
+	"context"
+
+	"gorm.io/gorm"
+
+	"github.com/initia-labs/rollytics/types"
+)
+
+// GetBlockCollectedTxs retrieves all transactions for a specific block height.
+// Returns transactions ordered by sequence in ascending order.
+func GetBlockCollectedEvmTxs(ctx context.Context, db *gorm.DB, height int64) ([]types.CollectedEvmTx, error) {
+	var evmTxs []types.CollectedEvmTx
+
+	if err := db.WithContext(ctx).
+		Model(types.CollectedEvmTx{}).Where("height = ?", height).
+		Order("sequence ASC").Find(&evmTxs).Error; err != nil {
+		return nil, err
+	}
+
+	return evmTxs, nil
+}

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/initia-labs/rollytics/util"
 )
@@ -146,7 +147,18 @@ func fetchAccountBalancesWithPagination(ctx context.Context, restURL string, add
 		}
 
 		// Append balances from this page
-		allBalances = append(allBalances, balancesResp.Balances...)
+		for _, balance := range balancesResp.Balances {
+			var denom string
+			if strings.HasPrefix(balance.Denom, "evm/") {
+				denom = strings.ToLower(strings.ReplaceAll(balance.Denom, "evm/", "0x"))
+			} else {
+				denom = balance.Denom
+			}
+			allBalances = append(allBalances, CosmosCoin{
+				Denom:  denom,
+				Amount: balance.Amount,
+			})
+		}
 
 		// Check if there are more pages
 		if len(balancesResp.Pagination.NextKey) == 0 {
