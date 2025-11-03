@@ -227,10 +227,14 @@ func InitializeBalances(ctx context.Context, logger *slog.Logger, db *gorm.DB, r
 
 	// Step 3: Fetch balances for each account and accumulate by denomination
 	// Map structure: denom -> (AddressWithID -> amount)
-	logger.Info("fetching balances for each account and accumulating by denomination", slog.Int64("height", height), slog.Int("num_accounts", len(addresses)))
 	balancesByDenom := make(map[string]map[AddressWithID]sdkmath.Int)
 
-	for _, address := range addresses {
+	for idx, address := range addresses {
+		if idx%100 == 0 {
+			progress := fmt.Sprintf("%d/%d", idx, len(addresses))
+			logger.Info("fetching balances for each account and accumulating by denomination", slog.Int64("height", height), slog.String("progress", progress))
+		}
+
 		accountID, ok := accountIDMap[address]
 		if !ok {
 			return fmt.Errorf("account ID not found for address: %s", address)

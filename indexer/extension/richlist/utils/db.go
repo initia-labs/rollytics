@@ -80,28 +80,18 @@ func UpdateBalanceChanges(ctx context.Context, db *gorm.DB, balanceMap map[Balan
 			return nil, fmt.Errorf("account ID not found for address: %s", key.Addr)
 		}
 
-		// Use raw SQL to update or insert with ON CONFLICT
-		// COALESCE is used to handle the case where the record doesn't exist yet (NULL + change = change)
-		result := db.WithContext(ctx).Exec(`
+		// Use raw SQL to update or insert with ON CONFLICT and RETURNING to get the updated amount in one query
+		var updatedAmount string
+		err := db.WithContext(ctx).Raw(`
 			INSERT INTO rich_list (id, denom, amount)
 			VALUES (?, ?, ?)
 			ON CONFLICT (id, denom)
 			DO UPDATE SET amount = (CAST(rich_list.amount AS NUMERIC) + CAST(EXCLUDED.amount AS NUMERIC))::TEXT
-		`, accountId, key.Asset, changeAmount.String())
+			RETURNING amount
+		`, accountId, key.Asset, changeAmount.String()).Scan(&updatedAmount).Error
 
-		if result.Error != nil {
-			return nil, fmt.Errorf("failed to update balance for account %d, denom %s: %w", accountId, key.Asset, result.Error)
-		}
-
-		// Check if the resulting balance is negative
-		var updatedAmount string
-		err := db.WithContext(ctx).
-			Model(&types.CollectedRichList{}).
-			Select("amount").
-			Where("id = ? AND denom = ?", accountId, key.Asset).
-			Scan(&updatedAmount).Error
 		if err != nil {
-			return nil, fmt.Errorf("failed to check updated balance: %w", err)
+			return nil, fmt.Errorf("failed to update balance for account %d, denom %s: %w", accountId, key.Asset, err)
 		}
 
 		// Parse the amount and check if negative
@@ -162,7 +152,7 @@ func UpdateRichListStatus(ctx context.Context, db *gorm.DB, currentHeight int64)
 	result := db.WithContext(ctx).Exec(`
 		INSERT INTO rich_list_status (height)
 		VALUES (?)
-		ON CONFLICT DO UPDATE SET height = EXCLUDED.height
+		ON CONFLICT (height) DO UPDATE SET height = EXCLUDED.height
 	`, currentHeight)
 
 	if result.Error != nil {
