@@ -27,7 +27,7 @@ type RichListExtension struct {
 }
 
 func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *RichListExtension {
-	if cfg.GetVmType() != types.EVM || !cfg.GetRichListEnabled() {
+	if !cfg.GetRichListEnabled() {
 		return nil
 	}
 
