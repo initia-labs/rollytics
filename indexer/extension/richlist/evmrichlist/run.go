@@ -16,6 +16,7 @@ func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.D
 
 	cfgStartHeight := cfg.GetStartHeight()
 	if currentHeight < cfgStartHeight {
+		logger.Info("reinitializing rich list", slog.Int64("db_start_height", currentHeight), slog.Int64("config_start_height", cfgStartHeight))
 		if err := db.Transaction(func(tx *gorm.DB) error {
 			err := richlistutils.InitializeBalances(ctx, tx, cfg.GetChainConfig().RestUrl, cfgStartHeight)
 			return err
@@ -25,6 +26,7 @@ func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.D
 		currentHeight = cfgStartHeight + 1
 	}
 
+	logger.Info("starting rich list extension", slog.Int64("start_height", currentHeight))
 	for {
 		if err := db.Transaction(func(tx *gorm.DB) error {
 			// Ensure if the next block is indexed in the db

@@ -206,8 +206,9 @@ func ProcessBalanceChanges(logger *slog.Logger, txs []types.CollectedTx) map[Bal
 //
 // Returns:
 //   - error if any step fails
-func InitializeBalances(ctx context.Context, db *gorm.DB, restURL string, height int64) error {
+func InitializeBalances(ctx context.Context, logger *slog.Logger, db *gorm.DB, restURL string, height int64) error {
 	// Step 1: Fetch all accounts with pagination
+	logger.Info("fetching all accounts with pagination", slog.Int64("height", height))
 	addresses, err := fetchAllAccountsWithPagination(ctx, restURL, height)
 	if err != nil {
 		return fmt.Errorf("failed to fetch accounts: %w", err)
@@ -218,6 +219,7 @@ func InitializeBalances(ctx context.Context, db *gorm.DB, restURL string, height
 	}
 
 	// Step 2: Get or create account IDs
+	logger.Info("getting or creating account IDs", slog.Int64("height", height), slog.Int("num_accounts", len(addresses)))
 	accountIDMap, err := util.GetOrCreateAccountIds(db, addresses, true)
 	if err != nil {
 		return fmt.Errorf("failed to get or create account IDs: %w", err)
@@ -225,6 +227,7 @@ func InitializeBalances(ctx context.Context, db *gorm.DB, restURL string, height
 
 	// Step 3: Fetch balances for each account and accumulate by denomination
 	// Map structure: denom -> (AddressWithID -> amount)
+	logger.Info("fetching balances for each account and accumulating by denomination", slog.Int64("height", height), slog.Int("num_accounts", len(addresses)))
 	balancesByDenom := make(map[string]map[AddressWithID]sdkmath.Int)
 
 	for _, address := range addresses {
@@ -267,6 +270,7 @@ func InitializeBalances(ctx context.Context, db *gorm.DB, restURL string, height
 	}
 
 	// Step 4: Batch update balances by denomination
+	logger.Info("batch updating balances by denomination", slog.Int64("height", height), slog.Int("num_denoms", len(balancesByDenom)))
 	for denom, denomBalances := range balancesByDenom {
 		if err := UpdateBalances(ctx, db, denom, denomBalances); err != nil {
 			return fmt.Errorf("failed to update balances for denom %s: %w", denom, err)
@@ -274,6 +278,7 @@ func InitializeBalances(ctx context.Context, db *gorm.DB, restURL string, height
 	}
 
 	// Step 5: Update rich list status to track the processed height
+	logger.Info("updating rich list status to track the processed height", slog.Int64("height", height))
 	if err := UpdateRichListStatus(ctx, db, height); err != nil {
 		return fmt.Errorf("failed to update rich list status: %w", err)
 	}

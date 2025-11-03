@@ -56,7 +56,6 @@ func (r *RichListExtension) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to initialize rich list extension: %w", err)
 	}
 
-	r.logger.Info("starting rich list extension", slog.Int64("start_height", r.startHeight))
 	switch r.cfg.GetVmType() {
 	case types.EVM:
 		if err := evmrichlist.Run(ctx, r.cfg, r.logger, r.db, r.startHeight); err != nil {
