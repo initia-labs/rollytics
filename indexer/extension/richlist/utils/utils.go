@@ -223,8 +223,9 @@ func InitializeBalances(ctx context.Context, db *gorm.DB, restURL string, height
 		return fmt.Errorf("failed to get or create account IDs: %w", err)
 	}
 
-	// Step 3: Fetch balances for each account and build balance map
-	balanceMap := make(map[AddressWithID]sdkmath.Int)
+	// Step 3: Fetch balances for each account and accumulate by denomination
+	// Map structure: denom -> (AddressWithID -> amount)
+	balancesByDenom := make(map[string]map[AddressWithID]sdkmath.Int)
 
 	for _, address := range addresses {
 		accountID, ok := accountIDMap[address]
@@ -255,12 +256,20 @@ func InitializeBalances(ctx context.Context, db *gorm.DB, restURL string, height
 				AccountID: accountID,
 			}
 
-			balanceMap[addrWithID] = amount
-
-			// Step 4: Upsert to the table for this denom
-			if err := UpdateBalances(ctx, db, balance.Denom, map[AddressWithID]sdkmath.Int{addrWithID: amount}); err != nil {
-				return fmt.Errorf("failed to update balance for address %s, denom %s: %w", address, balance.Denom, err)
+			// Initialize the per-denom map if it doesn't exist
+			if balancesByDenom[balance.Denom] == nil {
+				balancesByDenom[balance.Denom] = make(map[AddressWithID]sdkmath.Int)
 			}
+
+			// Accumulate the balance for this denom
+			balancesByDenom[balance.Denom][addrWithID] = amount
+		}
+	}
+
+	// Step 4: Batch update balances by denomination
+	for denom, denomBalances := range balancesByDenom {
+		if err := UpdateBalances(ctx, db, denom, denomBalances); err != nil {
+			return fmt.Errorf("failed to update balances for denom %s: %w", denom, err)
 		}
 	}
 
