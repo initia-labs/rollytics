@@ -12,7 +12,10 @@ import (
 	"github.com/initia-labs/rollytics/types"
 )
 
-var lastEvmInternalTxHeight atomic.Int64
+var (
+	lastEvmInternalTxHeight atomic.Int64
+	lastRichListHeight      atomic.Int64
+)
 
 // status handles GET /status
 // @Summary Status check
@@ -24,8 +27,9 @@ var lastEvmInternalTxHeight atomic.Int64
 // @Router /status [get]
 func (h *StatusHandler) GetStatus(c *fiber.Ctx) error {
 	var (
-		lastBlock         types.CollectedBlock
-		lastEvmInternalTx types.CollectedEvmInternalTx
+		lastBlock          types.CollectedBlock
+		lastEvmInternalTx  types.CollectedEvmInternalTx
+		lastRichListStatus types.CollectedRichListStatus
 	)
 
 	// Use single transaction for consistent snapshot
@@ -78,15 +82,38 @@ func (h *StatusHandler) GetStatus(c *fiber.Ctx) error {
 		}
 	}
 
+	richListHeight := lastRichListHeight.Load()
+	if h.isRichListEnabled() {
+		if err := tx.
+			Model(&types.CollectedRichListStatus{}).
+			Order("height DESC").
+			First(&lastRichListStatus).Error; err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
+
+		if lastRichListStatus.Height > 0 && lastRichListStatus.Height > richListHeight {
+			if lastRichListHeight.CompareAndSwap(richListHeight, lastRichListStatus.Height) {
+				richListHeight = lastRichListStatus.Height
+			} else {
+				richListHeight = lastRichListHeight.Load()
+			}
+		}
+	}
+
 	return c.JSON(&StatusResponse{
 		Version:          config.Version,
 		CommitHash:       config.CommitHash,
 		ChainId:          h.GetChainId(),
 		Height:           lastBlock.Height,
 		InternalTxHeight: internalTxHeight,
+		RichListHeight:   richListHeight,
 	})
 }
 
 func (h *StatusHandler) isInternalTxEnabledEvm() bool {
 	return (h.GetChainConfig().VmType == types.EVM) && h.GetConfig().InternalTxEnabled()
+}
+
+func (h *StatusHandler) isRichListEnabled() bool {
+	return h.GetConfig().GetRichListEnabled()
 }
