@@ -33,7 +33,6 @@ func GetCollectedBlock(ctx context.Context, db *gorm.DB, chainId string, height 
 
 // GetBlockCollectedTxs retrieves all transactions for a specific block height.
 // Returns transactions ordered by sequence in ascending order.
-// Uses exponential backoff retry logic for transient database errors.
 func GetBlockCollectedTxs(ctx context.Context, db *gorm.DB, height int64) ([]types.CollectedTx, error) {
 	var txs []types.CollectedTx
 
