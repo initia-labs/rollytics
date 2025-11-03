@@ -3,6 +3,7 @@ package evmrichlist
 import (
 	"encoding/json"
 	"log/slog"
+	"math/big"
 	"strings"
 
 	sdkmath "cosmossdk.io/math"
@@ -20,6 +21,9 @@ func processEVMTransferEvent(logger *slog.Logger, evmLog types.EvmLog, balanceMa
 	toAddr := evmLog.Topics[2]
 
 	// Parse amount from hex string in evmLog.Data
+	amountBigInt := new(big.Int)
+	amountBigInt.SetString(evmLog.Data[2:], 16)
+	logger.Info("evm transfer", slog.String("from", fromAddr), slog.String("to", toAddr), slog.String("amount", evmLog.Data), slog.String("parsed", amountBigInt.String()))
 	amount, ok := utils.ParseHexAmountToSDKInt(evmLog.Data)
 	if !ok {
 		logger.Error("failed to parse amount, skipping the entry")
