@@ -11,7 +11,7 @@ import (
 	"github.com/initia-labs/rollytics/util"
 )
 
-// getCollectedBlock retrieves a block from the database by chain ID and height.
+// GetCollectedBlock retrieves a block from the database by chain ID and height.
 // Uses exponential backoff retry logic for transient database errors.
 func GetCollectedBlock(ctx context.Context, db *gorm.DB, chainId string, height int64) (*types.CollectedBlock, error) {
 	var block types.CollectedBlock
@@ -31,27 +31,22 @@ func GetCollectedBlock(ctx context.Context, db *gorm.DB, chainId string, height 
 	return nil, err
 }
 
-// getBlockCollectedTxs retrieves all transactions for a specific block height.
+// GetBlockCollectedTxs retrieves all transactions for a specific block height.
 // Returns transactions ordered by sequence in ascending order.
 // Uses exponential backoff retry logic for transient database errors.
 func GetBlockCollectedTxs(ctx context.Context, db *gorm.DB, height int64) ([]types.CollectedTx, error) {
 	var txs []types.CollectedTx
-	var err error
 
-	for attempt := range MAX_ATTEMPTS {
-		if err := db.WithContext(ctx).
-			Model(types.CollectedTx{}).Where("height = ?", height).
-			Order("sequence ASC").Find(&txs).Error; err != nil {
-			ExponentialBackoff(attempt)
-			continue
-		}
-		return txs, nil
+	if err := db.WithContext(ctx).
+		Model(types.CollectedTx{}).Where("height = ?", height).
+		Order("sequence ASC").Find(&txs).Error; err != nil {
+		return nil, err
 	}
 
-	return nil, err
+	return txs, nil
 }
 
-// updateBalanceChanges updates the rich_list table with balance changes.
+// UpdateBalanceChanges updates the rich_list table with balance changes.
 // It converts addresses to account IDs, updates balances in the database,
 // and returns a slice of denoms where any user's balance became negative.
 func UpdateBalanceChanges(ctx context.Context, db *gorm.DB, balanceMap map[BalanceChangeKey]sdkmath.Int) ([]string, error) {
@@ -130,7 +125,7 @@ func UpdateBalanceChanges(ctx context.Context, db *gorm.DB, balanceMap map[Balan
 	return result, nil
 }
 
-// getAllAddresses retrieves all unique addresses from the account_dict table.
+// GetAllAddresses retrieves all unique addresses from the account_dict table.
 // Returns a slice of AddressWithID containing both hex-encoded address strings and their account IDs.
 func GetAllAddresses(ctx context.Context, db *gorm.DB) ([]AddressWithID, error) {
 	var accounts []types.CollectedAccountDict
@@ -152,7 +147,7 @@ func GetAllAddresses(ctx context.Context, db *gorm.DB) ([]AddressWithID, error) 
 	return addresses, nil
 }
 
-// updateRichListStatus updates the rich_list_status table with the current height.
+// UpdateRichListStatus updates the rich_list_status table with the current height.
 // This should be called before incrementing the height to track progress of the rich list indexer.
 //
 // Parameters:
@@ -178,7 +173,7 @@ func UpdateRichListStatus(ctx context.Context, db *gorm.DB, currentHeight int64)
 	return nil
 }
 
-// updateBalances updates the rich_list table with absolute balance values for a specific denom.
+// UpdateBalances updates the rich_list table with absolute balance values for a specific denom.
 // It takes a map of AddressWithID to their absolute balances (not deltas) and updates the database.
 //
 // Parameters:

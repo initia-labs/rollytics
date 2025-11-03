@@ -39,6 +39,10 @@ func ExponentialBackoff(attempt int) {
 // parseHexAmountToSDKInt converts a hex string to sdkmath.Int.
 // Expected format: "0x" followed by hex digits.
 func ParseHexAmountToSDKInt(data string) (sdkmath.Int, bool) {
+	if len(data) < 2 || !strings.HasPrefix(data, "0x") {
+		return sdkmath.ZeroInt(), false
+	}
+
 	amountBigInt := new(big.Int)
 	// Remove "0x" prefix and parse as hex;
 	if _, ok := amountBigInt.SetString(data[2:], 16); !ok {
