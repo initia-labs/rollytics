@@ -3,7 +3,6 @@ package evmrichlist
 import (
 	"encoding/json"
 	"log/slog"
-	"math/big"
 	"strings"
 
 	sdkmath "cosmossdk.io/math"
@@ -16,14 +15,15 @@ import (
 // It extracts transfer information from the event log and updates balances for both sender and receiver.
 // Returns true if the event was successfully processed, false otherwise.
 func processEVMTransferEvent(logger *slog.Logger, evmLog types.EvmLog, balanceMap map[utils.BalanceChangeKey]sdkmath.Int) bool {
+	if len(evmLog.Topics) != 3 || evmLog.Topics[0] != EVM_TRANSFER_TOPIC {
+		return false
+	}
+
 	denom := strings.ToLower(evmLog.Address)
 	fromAddr := evmLog.Topics[1]
 	toAddr := evmLog.Topics[2]
 
 	// Parse amount from hex string in evmLog.Data
-	amountBigInt := new(big.Int)
-	amountBigInt.SetString(evmLog.Data[2:], 16)
-	logger.Info("evm transfer", slog.String("from", fromAddr), slog.String("to", toAddr), slog.String("amount", evmLog.Data), slog.String("parsed", amountBigInt.String()))
 	amount, ok := utils.ParseHexAmountToSDKInt(evmLog.Data)
 	if !ok {
 		logger.Error("failed to parse amount, skipping the entry")
