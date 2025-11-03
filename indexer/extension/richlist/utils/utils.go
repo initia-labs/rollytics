@@ -90,8 +90,10 @@ func processCosmosTransferEvent(logger *slog.Logger, event sdk.Event, balanceMap
 
 	// Process each coin in the transfer
 	for _, coin := range coins {
+		denom := strings.ToLower(coin.Denom)
+
 		// Update sender's balance (subtract)
-		senderKey := NewBalanceChangeKey(coin.Denom, sender)
+		senderKey := NewBalanceChangeKey(denom, sender)
 		if balance, ok := balanceMap[senderKey]; !ok {
 			balanceMap[senderKey] = sdkmath.ZeroInt().Sub(coin.Amount)
 		} else {
@@ -99,7 +101,7 @@ func processCosmosTransferEvent(logger *slog.Logger, event sdk.Event, balanceMap
 		}
 
 		// Update recipient's balance (add)
-		recipientKey := NewBalanceChangeKey(coin.Denom, recipient)
+		recipientKey := NewBalanceChangeKey(denom, recipient)
 		if balance, ok := balanceMap[recipientKey]; !ok {
 			balanceMap[recipientKey] = coin.Amount
 		} else {
