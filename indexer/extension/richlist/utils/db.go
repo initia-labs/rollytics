@@ -126,16 +126,10 @@ func GetAllAddresses(ctx context.Context, db *gorm.DB, vmType types.VMType) ([]A
 
 	addresses := make([]AddressWithID, len(accounts))
 	for i, account := range accounts {
-		hexAddress := util.BytesToHexWithPrefix(account.Account)
-
-		if vmType == types.EVM && len(hexAddress) > 42 {
+		if vmType == types.EVM && len(account.Account) > 40 {
 			continue
 		}
-
-		addresses[i] = AddressWithID{
-			Address:   hexAddress,
-			AccountID: account.Id,
-		}
+		addresses[i] = NewAddressWithID(account.Account, account.Id)
 	}
 
 	return addresses, nil

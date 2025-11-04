@@ -1,6 +1,8 @@
 package utils
 
-import "encoding/json"
+import (
+	"encoding/json"
+)
 
 const (
 	COSMOS_TRANSFER_EVENT = "transfer"

@@ -51,6 +51,13 @@ func ParseHexAmountToSDKInt(data string) (sdkmath.Int, bool) {
 	return sdkmath.NewIntFromBigInt(amountBigInt), true
 }
 
+func NewAddressWithID(address []byte, id int64) AddressWithID {
+	return AddressWithID{
+		Address:   sdk.AccAddress(address).String(),
+		AccountID: id,
+	}
+}
+
 // NewBalanceChangeKey creates a BalanceChangeKey from asset and address.
 func NewBalanceChangeKey(asset, addr string) BalanceChangeKey {
 	return BalanceChangeKey{
@@ -217,17 +224,13 @@ func FetchAndUpdateBalances(
 				continue
 			}
 
-			addrWithID := AddressWithID{
-				Address:   address.String(),
-				AccountID: accountID,
-			}
-
 			// Initialize the per-denom map if it doesn't exist
 			if balancesByDenom[balance.Denom] == nil {
 				balancesByDenom[balance.Denom] = make(map[AddressWithID]sdkmath.Int)
 			}
 
 			// Accumulate the balance for this denom
+			addrWithID := NewAddressWithID(address, accountID)
 			balancesByDenom[balance.Denom][addrWithID] = amount
 		}
 	}
