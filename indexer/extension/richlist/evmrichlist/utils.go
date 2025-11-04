@@ -30,6 +30,8 @@ func processEVMTransferEvent(logger *slog.Logger, evmLog types.EvmLog, balanceMa
 		return false
 	}
 
+	logger.Warn("evm log", slog.String("denom", denom))
+
 	// Update sender's balance (subtract)
 	if fromAddr != EMPTY_ADDRESS {
 		fromKey := utils.NewBalanceChangeKey(denom, fromAddr)
