@@ -5,9 +5,13 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
+	sdk "github.com/cosmos/cosmos-sdk/types"
+
+	"github.com/initia-labs/rollytics/types"
 	"github.com/initia-labs/rollytics/util"
 )
 
@@ -37,10 +41,10 @@ func init() {
 // Returns:
 //   - A slice of account addresses
 //   - error if the query fails
-func fetchAllAccountsWithPagination(ctx context.Context, restURL string, height int64) ([]string, error) {
+func fetchAllAccountsWithPagination(ctx context.Context, vmType types.VMType, restURL string, height int64) ([]sdk.AccAddress, error) {
 	const path = "/cosmos/auth/v1beta1/accounts"
 
-	var allAddresses []string
+	var allAddresses []sdk.AccAddress
 	var nextKey []byte
 	useOffset := false
 	offset := 0
@@ -73,7 +77,13 @@ func fetchAllAccountsWithPagination(ctx context.Context, restURL string, height 
 		// Extract addresses from accounts
 		for _, account := range accountsResp.Accounts {
 			if account.Address != "" {
-				allAddresses = append(allAddresses, account.Address)
+				if accAddress, err := util.AccAddressFromString(account.Address); err == nil {
+					if vmType == types.EVM && len(accAddress) > 40 {
+						continue
+					}
+
+					allAddresses = append(allAddresses, accAddress)
+				}
 			}
 		}
 
@@ -100,6 +110,69 @@ func fetchAllAccountsWithPagination(ctx context.Context, restURL string, height 
 	return allAddresses, nil
 }
 
+// FetchMinterBurnerModuleAccounts fetches module accounts with "minter" or "burner" permissions
+// from the Cosmos SDK blockchain using pagination. These accounts have the ability to mint or burn
+// tokens and need to be excluded from rich list calculations to avoid incorrect total supply values.
+func FetchMinterBurnerModuleAccounts(ctx context.Context, restURL string) ([]sdk.AccAddress, error) {
+	const path = "/cosmos/auth/v1beta1/module_accounts"
+
+	var moduleAccounts []sdk.AccAddress
+	var nextKey []byte
+	useOffset := false
+	offset := 0
+
+	for {
+		// Build pagination parameters
+		params := map[string]string{"pagination.limit": paginationLimit}
+		if useOffset {
+			params["pagination.offset"] = strconv.Itoa(offset)
+		} else if len(nextKey) > 0 {
+			params["pagination.key"] = base64.StdEncoding.EncodeToString(nextKey)
+		}
+
+		// Fetch page using util.Get (has built-in retry with exponential backoff)
+		body, err := util.Get(ctx, restURL, path, params, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		var accountsResp CosmosAccountsResponse
+		if err := json.Unmarshal(body, &accountsResp); err != nil {
+			return nil, err
+		}
+
+		// Filter accounts with minter or burner permissions
+		for _, account := range accountsResp.Accounts {
+			if account.Address != "" && (slices.Contains(account.Permissions, "minter") || slices.Contains(account.Permissions, "burner")) {
+				if accAddress, err := util.AccAddressFromString(account.Address); err == nil {
+					moduleAccounts = append(moduleAccounts, accAddress)
+				}
+			}
+		}
+
+		// Check if there are more pages
+		if len(accountsResp.Pagination.NextKey) == 0 {
+			// Workaround for broken API that returns null next_key prematurely
+			if accountsResp.Pagination.Total != "" {
+				total, err := strconv.Atoi(accountsResp.Pagination.Total)
+				if err != nil {
+					return moduleAccounts, fmt.Errorf("failed to parse pagination.total: %w", err)
+				}
+
+				if len(moduleAccounts) < total && len(accountsResp.Accounts) == paginationLimitInt {
+					useOffset = true
+					continue // try next page with offset
+				}
+			}
+			break
+		}
+
+		nextKey = accountsResp.Pagination.NextKey
+	}
+
+	return moduleAccounts, nil
+}
+
 // fetchAccountBalancesWithPagination queries all balances for a specific account address from the Cosmos SDK REST API at a specific height.
 // It paginates through all results using a limit of 100 per request until next_key is null.
 // Similar to fetchAllTxsWithPagination, this uses util.Get which has built-in retry logic with exponential backoff.
@@ -113,8 +186,8 @@ func fetchAllAccountsWithPagination(ctx context.Context, restURL string, height 
 // Returns:
 //   - A slice of CosmosCoin containing all balances for the account
 //   - error if the query fails
-func fetchAccountBalancesWithPagination(ctx context.Context, restURL string, address string, height int64) ([]CosmosCoin, error) {
-	path := fmt.Sprintf("/cosmos/bank/v1beta1/balances/%s", address)
+func fetchAccountBalancesWithPagination(ctx context.Context, restURL string, address sdk.AccAddress, height int64) ([]CosmosCoin, error) {
+	path := fmt.Sprintf("/cosmos/bank/v1beta1/balances/%s", address.String())
 
 	var allBalances []CosmosCoin
 	var nextKey []byte

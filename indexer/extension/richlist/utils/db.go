@@ -89,7 +89,6 @@ func UpdateBalanceChanges(ctx context.Context, db *gorm.DB, balanceMap map[Balan
 			DO UPDATE SET amount = rich_list.amount + EXCLUDED.amount
 			RETURNING amount::text
 		`, accountId, key.Asset, changeAmount.String()).Scan(&updatedAmount).Error
-
 		if err != nil {
 			return nil, fmt.Errorf("failed to update balance for account %d, denom %s: %w", accountId, key.Asset, err)
 		}
@@ -116,7 +115,7 @@ func UpdateBalanceChanges(ctx context.Context, db *gorm.DB, balanceMap map[Balan
 
 // GetAllAddresses retrieves all unique addresses from the account_dict table.
 // Returns a slice of AddressWithID containing both hex-encoded address strings and their account IDs.
-func GetAllAddresses(ctx context.Context, db *gorm.DB) ([]AddressWithID, error) {
+func GetAllAddresses(ctx context.Context, db *gorm.DB, vmType types.VMType) ([]AddressWithID, error) {
 	var accounts []types.CollectedAccountDict
 
 	if err := db.WithContext(ctx).
@@ -127,8 +126,14 @@ func GetAllAddresses(ctx context.Context, db *gorm.DB) ([]AddressWithID, error) 
 
 	addresses := make([]AddressWithID, len(accounts))
 	for i, account := range accounts {
+		hexAddress := util.BytesToHexWithPrefix(account.Account)
+
+		if vmType == types.EVM && len(hexAddress) > 42 {
+			continue
+		}
+
 		addresses[i] = AddressWithID{
-			Address:   util.BytesToHexWithPrefix(account.Account),
+			Address:   hexAddress,
 			AccountID: account.Id,
 		}
 	}

@@ -2,9 +2,11 @@ package evmrichlist
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"maps"
 
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"gorm.io/gorm"
 
 	"github.com/initia-labs/rollytics/config"
@@ -12,14 +14,14 @@ import (
 	"github.com/initia-labs/rollytics/orm"
 )
 
-func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.Database, startHeight int64) error {
+func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.Database, startHeight int64, moduleAccounts []sdk.AccAddress) error {
 	currentHeight := startHeight
 
 	cfgStartHeight := cfg.GetStartHeight()
 	if currentHeight < cfgStartHeight {
 		logger.Info("reinitializing rich list", slog.Int64("db_start_height", currentHeight), slog.Int64("config_start_height", cfgStartHeight))
 		if err := db.Transaction(func(tx *gorm.DB) error {
-			err := richlistutils.InitializeBalances(ctx, logger, tx, cfg.GetChainConfig().RestUrl, cfgStartHeight)
+			err := richlistutils.InitializeBalances(ctx, logger, tx, cfg.GetVmType(), cfg.GetChainConfig().RestUrl, cfgStartHeight)
 			return err
 		}); err != nil {
 			return err
@@ -49,7 +51,7 @@ func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.D
 			}
 
 			// Process transactions to calculate balance changes
-			balanceMap := richlistutils.ProcessCosmosBalanceChanges(logger, txs)
+			balanceMap := richlistutils.ProcessCosmosBalanceChanges(logger, txs, moduleAccounts)
 			evmBalanceMap := ProcessEvmBalanceChanges(logger, evmTxs)
 			maps.Copy(balanceMap, evmBalanceMap)
 
@@ -64,7 +66,7 @@ func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.D
 			if len(negativeDenoms) > 0 {
 				logger.Info("updating balances for negative denoms", slog.Int("num_denoms", len(negativeDenoms)))
 
-				addresses, err := richlistutils.GetAllAddresses(ctx, tx)
+				addresses, err := richlistutils.GetAllAddresses(ctx, tx, cfg.GetVmType())
 				if err != nil {
 					logger.Error("failed to get all addresses", slog.Any("error", err))
 					return err
@@ -86,6 +88,10 @@ func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.D
 						return err
 					}
 				}
+			}
+
+			if err := richlistutils.FetchAndUpdateBalances(ctx, logger, tx, cfg.GetChainConfig().RestUrl, moduleAccounts, currentHeight); err != nil {
+				return fmt.Errorf("failed to fetch and update balances: %w", err)
 			}
 
 			if err := richlistutils.UpdateRichListStatus(ctx, tx, currentHeight); err != nil {

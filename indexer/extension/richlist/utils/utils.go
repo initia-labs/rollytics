@@ -59,25 +59,40 @@ func NewBalanceChangeKey(asset, addr string) BalanceChangeKey {
 	}
 }
 
+// containsAddress checks if an address is in the list of addresses.
+func containsAddress(addresses []sdk.AccAddress, target sdk.AccAddress) bool {
+	for _, addr := range addresses {
+		if addr.Equals(target) {
+			return true
+		}
+	}
+	return false
+}
+
 // processCosmosTransferEvent processes a Cosmos transfer event and updates the balance map.
 // It extracts transfer information from the event attributes and updates balances for both sender and receiver.
 // Returns true if the event was successfully processed, false otherwise.
-func processCosmosTransferEvent(logger *slog.Logger, event sdk.Event, balanceMap map[BalanceChangeKey]sdkmath.Int) bool {
+func processCosmosTransferEvent(logger *slog.Logger, event sdk.Event, balanceMap map[BalanceChangeKey]sdkmath.Int, moduleAccounts []sdk.AccAddress) bool {
 	// Extract attributes from the event
-	var recipient, sender, amount string
+	var recipient, sender sdk.AccAddress
+	var amount string
 	for _, attr := range event.Attributes {
 		switch attr.Key {
 		case "recipient":
-			recipient = attr.Value
+			if accAddress, err := util.AccAddressFromString(attr.Value); err == nil {
+				recipient = accAddress
+			}
 		case "sender":
-			sender = attr.Value
+			if accAddress, err := util.AccAddressFromString(attr.Value); err == nil {
+				sender = accAddress
+			}
 		case "amount":
 			amount = attr.Value
 		}
 	}
 
 	// Validate required fields are present
-	if recipient == "" || sender == "" || amount == "" {
+	if recipient.Empty() || sender.Empty() || amount == "" {
 		return false
 	}
 
@@ -92,20 +107,24 @@ func processCosmosTransferEvent(logger *slog.Logger, event sdk.Event, balanceMap
 	for _, coin := range coins {
 		denom := strings.ToLower(coin.Denom)
 
-		// Update sender's balance (subtract)
-		senderKey := NewBalanceChangeKey(denom, sender)
-		if balance, ok := balanceMap[senderKey]; !ok {
-			balanceMap[senderKey] = sdkmath.ZeroInt().Sub(coin.Amount)
-		} else {
-			balanceMap[senderKey] = balance.Sub(coin.Amount)
+		if !containsAddress(moduleAccounts, sender) {
+			// Update sender's balance (subtract)
+			senderKey := NewBalanceChangeKey(denom, strings.ToLower(sender.String()))
+			if balance, ok := balanceMap[senderKey]; !ok {
+				balanceMap[senderKey] = sdkmath.ZeroInt().Sub(coin.Amount)
+			} else {
+				balanceMap[senderKey] = balance.Sub(coin.Amount)
+			}
 		}
 
-		// Update recipient's balance (add)
-		recipientKey := NewBalanceChangeKey(denom, recipient)
-		if balance, ok := balanceMap[recipientKey]; !ok {
-			balanceMap[recipientKey] = coin.Amount
-		} else {
-			balanceMap[recipientKey] = balance.Add(coin.Amount)
+		if !containsAddress(moduleAccounts, recipient) {
+			// Update recipient's balance (add)
+			recipientKey := NewBalanceChangeKey(denom, strings.ToLower(recipient.String()))
+			if balance, ok := balanceMap[recipientKey]; !ok {
+				balanceMap[recipientKey] = coin.Amount
+			} else {
+				balanceMap[recipientKey] = balance.Add(coin.Amount)
+			}
 		}
 	}
 
@@ -114,7 +133,7 @@ func processCosmosTransferEvent(logger *slog.Logger, event sdk.Event, balanceMap
 
 // ProcessCosmosBalanceChanges processes Cosmos transactions and calculates balance changes
 // for each address. Returns a map of BalanceChangeKey to balance change amounts.
-func ProcessCosmosBalanceChanges(logger *slog.Logger, txs []types.CollectedTx) map[BalanceChangeKey]sdkmath.Int {
+func ProcessCosmosBalanceChanges(logger *slog.Logger, txs []types.CollectedTx, moduleAccounts []sdk.AccAddress) map[BalanceChangeKey]sdkmath.Int {
 	balanceMap := make(map[BalanceChangeKey]sdkmath.Int)
 
 	// Process each transaction
@@ -132,7 +151,7 @@ func ProcessCosmosBalanceChanges(logger *slog.Logger, txs []types.CollectedTx) m
 
 		for _, event := range events {
 			if event.Type == COSMOS_TRANSFER_EVENT {
-				processCosmosTransferEvent(logger, event, balanceMap)
+				processCosmosTransferEvent(logger, event, balanceMap, moduleAccounts)
 			}
 		}
 	}
@@ -140,48 +159,42 @@ func ProcessCosmosBalanceChanges(logger *slog.Logger, txs []types.CollectedTx) m
 	return balanceMap
 }
 
-// initializeBalances fetches all accounts, creates account IDs, queries their balances,
-// and upserts them to the rich_list table. This is useful for initializing the rich list
-// from scratch or syncing absolute balances.
+// FetchAndAccumulateBalancesByDenom fetches balances for a list of addresses and accumulates
+// them by denomination. Returns a map where the key is the denomination and the value is
+// a map of AddressWithID to balance amount.
 //
 // Parameters:
 //   - ctx: Context for timeout and cancellation
-//   - db: Database connection for transaction
+//   - logger: Logger for progress tracking
 //   - restURL: The Cosmos SDK REST API endpoint URL
+//   - addresses: List of addresses to fetch balances for
+//   - accountIDMap: Map of address to account ID
 //   - height: The block height to query at
 //
 // Returns:
+//   - map[string]map[AddressWithID]sdkmath.Int: Balances grouped by denomination
 //   - error if any step fails
-func InitializeBalances(ctx context.Context, logger *slog.Logger, db *gorm.DB, restURL string, height int64) error {
-	// Step 1: Fetch all accounts with pagination
-	logger.Info("fetching all accounts with pagination", slog.Int64("height", height))
-	addresses, err := fetchAllAccountsWithPagination(ctx, restURL, height)
-	if err != nil {
-		return fmt.Errorf("failed to fetch accounts: %w", err)
-	}
-
-	if len(addresses) == 0 {
-		return nil // No accounts to process
-	}
-
-	// Step 2: Get or create account IDs
-	logger.Info("getting or creating account IDs", slog.Int64("height", height), slog.Int("num_accounts", len(addresses)))
-	accountIDMap, err := util.GetOrCreateAccountIds(db, addresses, true)
+func FetchAndUpdateBalances(
+	ctx context.Context,
+	logger *slog.Logger,
+	db *gorm.DB,
+	restURL string,
+	accounts []sdk.AccAddress,
+	height int64,
+) error {
+	accountIDMap, err := getOrCreateAccountIds(db, accounts, true)
 	if err != nil {
 		return fmt.Errorf("failed to get or create account IDs: %w", err)
 	}
 
-	// Step 3: Fetch balances for each account and accumulate by denomination
-	// Map structure: denom -> (AddressWithID -> amount)
 	balancesByDenom := make(map[string]map[AddressWithID]sdkmath.Int)
-
-	for idx, address := range addresses {
+	for idx, address := range accounts {
 		if idx%100 == 0 {
-			progress := fmt.Sprintf("%d/%d", idx, len(addresses))
+			progress := fmt.Sprintf("%d/%d", idx, len(accounts))
 			logger.Info("fetching balances for each account and accumulating by denomination", slog.Int64("height", height), slog.String("progress", progress))
 		}
 
-		accountID, ok := accountIDMap[address]
+		accountID, ok := accountIDMap[address.String()]
 		if !ok {
 			return fmt.Errorf("account ID not found for address: %s", address)
 		}
@@ -205,7 +218,7 @@ func InitializeBalances(ctx context.Context, logger *slog.Logger, db *gorm.DB, r
 			}
 
 			addrWithID := AddressWithID{
-				Address:   address,
+				Address:   address.String(),
 				AccountID: accountID,
 			}
 
@@ -219,19 +232,58 @@ func InitializeBalances(ctx context.Context, logger *slog.Logger, db *gorm.DB, r
 		}
 	}
 
-	// Step 4: Batch update balances by denomination
-	logger.Info("batch updating balances by denomination", slog.Int64("height", height), slog.Int("num_denoms", len(balancesByDenom)))
 	for denom, denomBalances := range balancesByDenom {
 		if err := UpdateBalances(ctx, db, denom, denomBalances); err != nil {
 			return fmt.Errorf("failed to update balances for denom %s: %w", denom, err)
 		}
 	}
 
-	// Step 5: Update rich list status to track the processed height
+	return nil
+}
+
+// initializeBalances fetches all accounts, creates account IDs, queries their balances,
+// and upserts them to the rich_list table. This is useful for initializing the rich list
+// from scratch or syncing absolute balances.
+//
+// Parameters:
+//   - ctx: Context for timeout and cancellation
+//   - db: Database connection for transaction
+//   - restURL: The Cosmos SDK REST API endpoint URL
+//   - height: The block height to query at
+//
+// Returns:
+//   - error if any step fails
+func InitializeBalances(ctx context.Context, logger *slog.Logger, db *gorm.DB, vmType types.VMType, restURL string, height int64) error {
+	// Step 1: Fetch all accounts with pagination
+	logger.Info("fetching all accounts with pagination", slog.Int64("height", height))
+	accounts, err := fetchAllAccountsWithPagination(ctx, vmType, restURL, height)
+	if err != nil {
+		return fmt.Errorf("failed to fetch accounts: %w", err)
+	}
+
+	if len(accounts) == 0 {
+		return nil // No accounts to process
+	}
+
+	// Step 2: Fetch balances for each account and update by denomination
+	logger.Info("fetching and updating balances", slog.Int64("height", height))
+	if err := FetchAndUpdateBalances(ctx, logger, db, restURL, accounts, height); err != nil {
+		return fmt.Errorf("failed to fetch and accumulate balances: %w", err)
+	}
+
+	// Step 3: Update rich list status to track the processed height
 	logger.Info("updating rich list status to track the processed height", slog.Int64("height", height))
 	if err := UpdateRichListStatus(ctx, db, height); err != nil {
 		return fmt.Errorf("failed to update rich list status: %w", err)
 	}
 
 	return nil
+}
+
+func getOrCreateAccountIds(db *gorm.DB, accounts []sdk.AccAddress, createNew bool) (idMap map[string]int64, err error) {
+	var addresses []string
+	for _, account := range accounts {
+		addresses = append(addresses, account.String())
+	}
+	return util.GetOrCreateAccountIds(db, addresses, createNew)
 }

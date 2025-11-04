@@ -10,6 +10,7 @@ import (
 
 	"github.com/initia-labs/rollytics/config"
 	evmrichlist "github.com/initia-labs/rollytics/indexer/extension/richlist/evmrichlist"
+	richlistutils "github.com/initia-labs/rollytics/indexer/extension/richlist/utils"
 	exttypes "github.com/initia-labs/rollytics/indexer/extension/types"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
@@ -56,9 +57,14 @@ func (r *RichListExtension) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to initialize rich list extension: %w", err)
 	}
 
+	moduleAccounts, err := richlistutils.FetchMinterBurnerModuleAccounts(ctx, r.cfg.GetChainConfig().RestUrl)
+	if err != nil {
+		return fmt.Errorf("failed to fetch module accounts: %w", err)
+	}
+
 	switch r.cfg.GetVmType() {
 	case types.EVM:
-		if err := evmrichlist.Run(ctx, r.cfg, r.logger, r.db, r.startHeight); err != nil {
+		if err := evmrichlist.Run(ctx, r.cfg, r.logger, r.db, r.startHeight, moduleAccounts); err != nil {
 			return err
 		}
 	default:
