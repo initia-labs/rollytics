@@ -126,7 +126,7 @@ func GetAllAddresses(ctx context.Context, db *gorm.DB, vmType types.VMType) ([]A
 
 	addresses := make([]AddressWithID, len(accounts))
 	for i, account := range accounts {
-		if vmType == types.EVM && len(account.Account) > 40 {
+		if vmType == types.EVM && len(account.Account) > 20 {
 			continue
 		}
 		addresses[i] = NewAddressWithID(account.Account, account.Id)

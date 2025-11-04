@@ -77,10 +77,9 @@ func fetchAllAccountsWithPagination(ctx context.Context, vmType types.VMType, re
 		for _, account := range accountsResp.Accounts {
 			if account.Address != "" {
 				if accAddress, err := util.AccAddressFromString(account.Address); err == nil {
-					if vmType == types.EVM && len(accAddress) > 40 {
+					if vmType == types.EVM && len(accAddress) > 20 {
 						continue
 					}
-
 					allAddresses = append(allAddresses, accAddress)
 				}
 			}

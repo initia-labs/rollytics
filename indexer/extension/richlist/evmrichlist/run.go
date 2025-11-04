@@ -12,7 +12,6 @@ import (
 	"github.com/initia-labs/rollytics/config"
 	richlistutils "github.com/initia-labs/rollytics/indexer/extension/richlist/utils"
 	"github.com/initia-labs/rollytics/orm"
-	"github.com/initia-labs/rollytics/util"
 )
 
 func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.Database, startHeight int64, moduleAccounts []sdk.AccAddress) error {
@@ -65,10 +64,6 @@ func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.D
 
 			// Log warning if any denoms have negative balances
 			if len(negativeDenoms) > 0 {
-				for _, denom := range negativeDenoms {
-					logger.Warn("negative denom", slog.String("denom", denom))
-				}
-
 				logger.Info("updating balances for negative denoms", slog.Int("num_denoms", len(negativeDenoms)))
 
 				addresses, err := richlistutils.GetAllAddresses(ctx, tx, cfg.GetVmType())
@@ -76,9 +71,6 @@ func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.D
 					logger.Error("failed to get all addresses", slog.Any("error", err))
 					return err
 				}
-
-				account, _ := util.AccAddressFromString(addresses[0].HexAddress)
-				logger.Warn("addresses length", slog.Int("len", len(account)))
 
 				for _, negativeDenom := range negativeDenoms {
 					balances, err := queryERC20Balances(ctx, cfg.GetChainConfig().JsonRpcUrl, negativeDenom, addresses, currentHeight)
