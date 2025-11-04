@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"sync"
 
 	sdkmath "cosmossdk.io/math"
 	richlistutils "github.com/initia-labs/rollytics/indexer/extension/richlist/utils"
@@ -32,21 +33,52 @@ func queryERC20Balances(ctx context.Context, jsonrpcURL string, erc20Address str
 	balances := make(map[richlistutils.AddressWithID]sdkmath.Int, len(addresses))
 
 	const batchSize = 1000
+	const maxConcurrent = 10
 
-	// Process addresses in batches
+	// Create batches
+	var batches [][]richlistutils.AddressWithID
 	for i := 0; i < len(addresses); i += batchSize {
 		end := min(i+batchSize, len(addresses))
+		batches = append(batches, addresses[i:end])
+	}
 
-		batch := addresses[i:end]
+	// Process batches with parallelization
+	var (
+		mu      sync.Mutex
+		wg      sync.WaitGroup
+		errChan = make(chan error, len(batches))
+		sem     = make(chan struct{}, maxConcurrent)
+	)
 
-		// queryBatchBalances uses utils.Post which already handles retries with exponential backoff
-		batchBalances, err := queryBatchBalances(ctx, jsonrpcURL, erc20Address, batch, height, i)
-		if err != nil {
-			return nil, fmt.Errorf("failed to query batch: %w", err)
-		}
+	for idx, batch := range batches {
+		wg.Add(1)
+		go func(batchIdx int, batch []richlistutils.AddressWithID) {
+			defer wg.Done()
 
-		// Merge batch results into main balances map
-		maps.Copy(balances, batchBalances)
+			// Acquire semaphore
+			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			// queryBatchBalances uses utils.Post which already handles retries with exponential backoff
+			batchBalances, err := queryBatchBalances(ctx, jsonrpcURL, erc20Address, batch, height, batchIdx*batchSize)
+			if err != nil {
+				errChan <- fmt.Errorf("failed to query batch %d: %w", batchIdx, err)
+				return
+			}
+
+			// Merge batch results into main balances map
+			mu.Lock()
+			maps.Copy(balances, batchBalances)
+			mu.Unlock()
+		}(idx, batch)
+	}
+
+	wg.Wait()
+	close(errChan)
+
+	// Check for errors
+	if err := <-errChan; err != nil {
+		return nil, err
 	}
 
 	return balances, nil
