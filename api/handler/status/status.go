@@ -26,11 +26,7 @@ var (
 // @Success 200 {object} StatusResponse
 // @Router /status [get]
 func (h *StatusHandler) GetStatus(c *fiber.Ctx) error {
-	var (
-		lastBlock          types.CollectedBlock
-		lastEvmInternalTx  types.CollectedEvmInternalTx
-		lastRichListStatus types.CollectedRichListStatus
-	)
+	var lastBlock types.CollectedBlock
 
 	// Use single transaction for consistent snapshot
 	tx := h.GetDatabase().Begin(&sql.TxOptions{ReadOnly: true})
@@ -44,60 +40,22 @@ func (h *StatusHandler) GetStatus(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	internalTxHeight := lastEvmInternalTxHeight.Load()
-	//nolint:nestif
+	var internalTxHeight int64
 	if h.isInternalTxEnabledEvm() {
-		if err := tx.
-			Model(&types.CollectedEvmInternalTx{}).
-			Order("height DESC").
-			First(&lastEvmInternalTx).Error; err != nil {
-			if !errors.Is(err, gorm.ErrRecordNotFound) {
-				return fiber.NewError(fiber.StatusInternalServerError, err.Error())
-			}
+		height, err := h.getInternalTxHeight(tx, lastBlock.Height)
+		if err != nil {
+			return err
 		}
-
-		// replace if current height is higher than last one using compare-and-swap
-		if lastEvmInternalTx.Height > 0 && lastEvmInternalTx.Height > internalTxHeight {
-			if lastEvmInternalTxHeight.CompareAndSwap(internalTxHeight, lastEvmInternalTx.Height) {
-				internalTxHeight = lastEvmInternalTx.Height
-			} else {
-				internalTxHeight = lastEvmInternalTxHeight.Load()
-			}
-		}
-
-		var exists bool
-		if err := tx.
-			Model(&types.CollectedBlock{}).
-			Select("1").
-			Where("chain_id = ?", h.GetChainId()).
-			Where("height > ?", internalTxHeight).
-			Where("tx_count > 0").
-			Limit(1).
-			Find(&exists).Error; err != nil {
-			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
-		}
-
-		if !exists {
-			internalTxHeight = lastBlock.Height
-		}
+		internalTxHeight = height
 	}
 
-	richListHeight := lastRichListHeight.Load()
+	var richListHeight int64
 	if h.isRichListEnabled() {
-		if err := tx.
-			Model(&types.CollectedRichListStatus{}).
-			Order("height DESC").
-			First(&lastRichListStatus).Error; err != nil {
-			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		height, err := h.getRichListHeight(tx)
+		if err != nil {
+			return err
 		}
-
-		if lastRichListStatus.Height > 0 && lastRichListStatus.Height > richListHeight {
-			if lastRichListHeight.CompareAndSwap(richListHeight, lastRichListStatus.Height) {
-				richListHeight = lastRichListStatus.Height
-			} else {
-				richListHeight = lastRichListHeight.Load()
-			}
-		}
+		richListHeight = height
 	}
 
 	return c.JSON(&StatusResponse{
@@ -114,6 +72,62 @@ func (h *StatusHandler) isInternalTxEnabledEvm() bool {
 	return (h.GetChainConfig().VmType == types.EVM) && h.GetConfig().InternalTxEnabled()
 }
 
+func (h *StatusHandler) getInternalTxHeight(tx *gorm.DB, lastBlockHeight int64) (int64, error) {
+	internalTxHeight := lastEvmInternalTxHeight.Load()
+
+	var lastEvmInternalTx types.CollectedEvmInternalTx
+	err := tx.Model(&types.CollectedEvmInternalTx{}).Order("height DESC").First(&lastEvmInternalTx).Error
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return 0, fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	// Replace if current height is higher than last one using compare-and-swap
+	if lastEvmInternalTx.Height > internalTxHeight {
+		if lastEvmInternalTxHeight.CompareAndSwap(internalTxHeight, lastEvmInternalTx.Height) {
+			internalTxHeight = lastEvmInternalTx.Height
+		} else {
+			internalTxHeight = lastEvmInternalTxHeight.Load()
+		}
+	}
+
+	var exists bool
+	err = tx.Model(&types.CollectedBlock{}).
+		Select("1").
+		Where("chain_id = ?", h.GetChainId()).
+		Where("height > ?", internalTxHeight).
+		Where("tx_count > 0").
+		Limit(1).
+		Find(&exists).Error
+	if err != nil {
+		return 0, fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	if !exists {
+		internalTxHeight = lastBlockHeight
+	}
+
+	return internalTxHeight, nil
+}
+
 func (h *StatusHandler) isRichListEnabled() bool {
 	return h.GetConfig().GetRichListEnabled()
+}
+
+func (h *StatusHandler) getRichListHeight(tx *gorm.DB) (int64, error) {
+	richListHeight := lastRichListHeight.Load()
+
+	var lastRichListStatus types.CollectedRichListStatus
+	err := tx.Model(&types.CollectedRichListStatus{}).First(&lastRichListStatus).Error
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return 0, fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	if lastRichListStatus.Height > richListHeight {
+		if lastRichListHeight.CompareAndSwap(richListHeight, lastRichListStatus.Height) {
+			return lastRichListStatus.Height, nil
+		}
+		return lastRichListHeight.Load(), nil
+	}
+
+	return richListHeight, nil
 }
