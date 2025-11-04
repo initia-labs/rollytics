@@ -88,9 +88,9 @@ func UpdateBalanceChanges(ctx context.Context, db *gorm.DB, balanceMap map[Balan
 			ON CONFLICT (id, denom)
 			DO UPDATE SET amount = rich_list.amount + EXCLUDED.amount
 			RETURNING amount::text
-		`, accountId, key.Asset, changeAmount.String()).Scan(&updatedAmount).Error
+		`, accountId, key.Denom, changeAmount.String()).Scan(&updatedAmount).Error
 		if err != nil {
-			return nil, fmt.Errorf("failed to update balance for account %d, denom %s: %w", accountId, key.Asset, err)
+			return nil, fmt.Errorf("failed to update balance for account %d, denom %s: %w", accountId, key.Denom, err)
 		}
 
 		// Parse the amount and check if negative
@@ -100,7 +100,7 @@ func UpdateBalanceChanges(ctx context.Context, db *gorm.DB, balanceMap map[Balan
 		}
 
 		if amount.IsNegative() {
-			negativeDenoms[key.Asset] = true
+			negativeDenoms[key.Denom] = true
 		}
 	}
 

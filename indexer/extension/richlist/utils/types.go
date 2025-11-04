@@ -9,7 +9,7 @@ const (
 )
 
 type BalanceChangeKey struct {
-	Asset string
+	Denom string
 	Addr  string
 }
 

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"slices"
 	"strconv"
-	"strings"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
@@ -221,14 +220,8 @@ func fetchAccountBalancesWithPagination(ctx context.Context, restURL string, add
 
 		// Append balances from this page
 		for _, balance := range balancesResp.Balances {
-			var denom string
-			if strings.HasPrefix(balance.Denom, "evm/") {
-				denom = strings.ToLower(strings.ReplaceAll(balance.Denom, "evm/", "0x"))
-			} else {
-				denom = balance.Denom
-			}
 			allBalances = append(allBalances, CosmosCoin{
-				Denom:  denom,
+				Denom:  NormalizeDenom(balance.Denom),
 				Amount: balance.Amount,
 			})
 		}

@@ -64,6 +64,10 @@ func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.D
 
 			// Log warning if any denoms have negative balances
 			if len(negativeDenoms) > 0 {
+				for _, denom := range negativeDenoms {
+					logger.Warn("negative denom", slog.String("denom", denom))
+				}
+
 				logger.Info("updating balances for negative denoms", slog.Int("num_denoms", len(negativeDenoms)))
 
 				addresses, err := richlistutils.GetAllAddresses(ctx, tx, cfg.GetVmType())

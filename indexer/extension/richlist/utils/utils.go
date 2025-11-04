@@ -60,9 +60,9 @@ func NewAddressWithID(address []byte, id int64) AddressWithID {
 }
 
 // NewBalanceChangeKey creates a BalanceChangeKey from asset and address.
-func NewBalanceChangeKey(asset, addr string) BalanceChangeKey {
+func NewBalanceChangeKey(denom, addr string) BalanceChangeKey {
 	return BalanceChangeKey{
-		Asset: asset,
+		Denom: denom,
 		Addr:  addr,
 	}
 }
@@ -75,6 +75,15 @@ func containsAddress(addresses []sdk.AccAddress, target sdk.AccAddress) bool {
 		}
 	}
 	return false
+}
+
+func NormalizeDenom(denom string) string {
+	normalizedDenom := strings.ToLower(denom)
+	if strings.HasPrefix(normalizedDenom, "evm/") {
+		return strings.ReplaceAll(normalizedDenom, "evm/", "0x")
+	} else {
+		return normalizedDenom
+	}
 }
 
 // processCosmosTransferEvent processes a Cosmos transfer event and updates the balance map.
@@ -113,7 +122,7 @@ func processCosmosTransferEvent(logger *slog.Logger, event sdk.Event, balanceMap
 
 	// Process each coin in the transfer
 	for _, coin := range coins {
-		denom := strings.ToLower(coin.Denom)
+		denom := NormalizeDenom(coin.Denom)
 
 		if !containsAddress(moduleAccounts, sender) {
 			// Update sender's balance (subtract)
