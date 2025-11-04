@@ -63,7 +63,7 @@ func queryBatchBalances(ctx context.Context, jsonrpcURL string, erc20Address str
 	for idx, addrWithID := range batch {
 		// Prepare the call data: balanceOf(address)
 		// Format: 0x70a08231 + 000000000000000000000000 + address (without 0x)
-		addressParam := addrWithID.Address
+		addressParam := addrWithID.HexAddress
 		if len(addressParam) >= 2 && addressParam[:2] == "0x" {
 			addressParam = addressParam[2:]
 		}
@@ -133,13 +133,13 @@ func queryBatchBalances(ctx context.Context, jsonrpcURL string, erc20Address str
 
 		// Check for JSON-RPC error
 		if rpcResp.Error != nil {
-			return nil, fmt.Errorf("JSON-RPC error for address %s: code=%d, message=%s", addrWithID.Address, rpcResp.Error.Code, rpcResp.Error.Message)
+			return nil, fmt.Errorf("JSON-RPC error for address %s: code=%d, message=%s", addrWithID.HexAddress, rpcResp.Error.Code, rpcResp.Error.Message)
 		}
 
 		// Parse balance from hex string
 		balance, ok := richlistutils.ParseHexAmountToSDKInt(rpcResp.Result)
 		if !ok {
-			return nil, fmt.Errorf("failed to parse balance for address %s: %s", addrWithID.Address, rpcResp.Result)
+			return nil, fmt.Errorf("failed to parse balance for address %s: %s", addrWithID.HexAddress, rpcResp.Result)
 		}
 
 		balances[addrWithID] = balance

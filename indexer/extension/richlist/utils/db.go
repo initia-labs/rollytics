@@ -187,11 +187,11 @@ func UpdateBalances(ctx context.Context, db *gorm.DB, denom string, addressBalan
 			VALUES (?, ?, ?)
 			ON CONFLICT (id, denom)
 			DO UPDATE SET amount = EXCLUDED.amount
-		`, addrWithID.AccountID, denom, balance.String())
+		`, addrWithID.Id, denom, balance.String())
 
 		if result.Error != nil {
 			return fmt.Errorf("failed to update balance for account %d (address %s), denom %s: %w",
-				addrWithID.AccountID, addrWithID.Address, denom, result.Error)
+				addrWithID.Id, addrWithID.BechAddress, denom, result.Error)
 		}
 	}
 

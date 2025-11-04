@@ -15,8 +15,9 @@ type BalanceChangeKey struct {
 
 // AddressWithID represents an address with its account ID
 type AddressWithID struct {
-	Address   string
-	AccountID int64
+	BechAddress string
+	HexAddress  string
+	Id          int64
 }
 
 // CosmosAccount represents a simplified account from the Cosmos SDK.

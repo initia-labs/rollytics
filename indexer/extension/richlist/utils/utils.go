@@ -53,8 +53,9 @@ func ParseHexAmountToSDKInt(data string) (sdkmath.Int, bool) {
 
 func NewAddressWithID(address []byte, id int64) AddressWithID {
 	return AddressWithID{
-		Address:   sdk.AccAddress(address).String(),
-		AccountID: id,
+		BechAddress: sdk.AccAddress(address).String(),
+		HexAddress:  util.BytesToHexWithPrefix(address),
+		Id:          id,
 	}
 }
 
