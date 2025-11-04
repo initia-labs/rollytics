@@ -76,6 +76,9 @@ func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.D
 					return err
 				}
 
+				account, _ := sdk.AccAddressFromHexUnsafe(addresses[0].HexAddress)
+				logger.Warn("addresses length", slog.Int("len", len(account)))
+
 				for _, negativeDenom := range negativeDenoms {
 					balances, err := queryERC20Balances(ctx, cfg.GetChainConfig().JsonRpcUrl, negativeDenom, addresses, currentHeight)
 					if err != nil {
