@@ -11,7 +11,6 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/types"
@@ -72,7 +71,7 @@ func fetchAllAccountsWithPagination(ctx context.Context, cfg *config.Config, hei
 			return nil, err
 		}
 
-		var accountsResp authtypes.QueryAccountsResponse
+		var accountsResp QueryAccountsResponse
 		if err := json.Unmarshal(body, &accountsResp); err != nil {
 			return nil, err
 		}
@@ -105,8 +104,11 @@ func fetchAllAccountsWithPagination(ctx context.Context, cfg *config.Config, hei
 		}
 		if len(nextKeyBytes) == 0 {
 			// Workaround for broken API that returns null next_key prematurely.
-			if accountsResp.Pagination != nil && accountsResp.Pagination.Total != 0 {
-				total := int(accountsResp.Pagination.Total)
+			if accountsResp.Pagination != nil && accountsResp.Pagination.Total != "" {
+				total, err := strconv.Atoi(accountsResp.Pagination.Total)
+				if err != nil {
+					return nil, fmt.Errorf("failed to parse pagination.total: %w", err)
+				}
 				if len(allAddresses) < total && len(accountsResp.Accounts) == paginationLimitInt {
 					useOffset = true
 					continue // try next page with offset
@@ -202,7 +204,7 @@ func fetchAccountBalancesWithPagination(ctx context.Context, cfg *config.Config,
 			return nil, err
 		}
 
-		var balancesResp banktypes.QueryAllBalancesResponse
+		var balancesResp QueryAllBalancesResponse
 		if err := json.Unmarshal(body, &balancesResp); err != nil {
 			return nil, err
 		}
@@ -225,18 +227,26 @@ func fetchAccountBalancesWithPagination(ctx context.Context, cfg *config.Config,
 		}
 
 		// Check if there are more pages
-		if len(balancesResp.Pagination.NextKey) == 0 {
+		var nextKeyBytes []byte
+		if balancesResp.Pagination != nil {
+			nextKeyBytes = balancesResp.Pagination.NextKey
+		}
+		if len(nextKeyBytes) == 0 {
 			// Workaround for broken API that returns null next_key prematurely.
-			if balancesResp.Pagination.Total != 0 {
-				total := balancesResp.Pagination.Total
-				if len(allBalances) < int(total) && len(balancesResp.Balances) == paginationLimitInt {
+			if balancesResp.Pagination != nil && balancesResp.Pagination.Total != "" {
+				total, err := strconv.Atoi(balancesResp.Pagination.Total)
+				if err != nil {
+					return nil, fmt.Errorf("failed to parse pagination.total: %w", err)
+				}
+				if len(allBalances) < total && len(balancesResp.Balances) == paginationLimitInt {
+					useOffset = true
 					continue // try next page with offset
 				}
 			}
 			break
 		}
 
-		nextKey = balancesResp.Pagination.NextKey
+		nextKey = nextKeyBytes
 	}
 
 	return allBalances, nil

@@ -5,10 +5,7 @@ import (
 	"fmt"
 
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
-)
-
-const (
-	COSMOS_TRANSFER_EVENT = "transfer"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 type BalanceChangeKey struct {
@@ -50,4 +47,22 @@ func getAddressFromAccount(account *codectypes.Any) (string, error) {
 type CosmosCoin struct {
 	Denom  string `json:"denom"`
 	Amount string `json:"amount"`
+}
+
+// Pagination represents pagination info with Total as string (as returned by JSON API)
+type Pagination struct {
+	NextKey []byte `json:"next_key"`
+	Total   string `json:"total"`
+}
+
+// QueryAccountsResponse represents the accounts query response with custom pagination
+type QueryAccountsResponse struct {
+	Accounts   []*codectypes.Any `json:"accounts"`
+	Pagination *Pagination       `json:"pagination,omitempty"`
+}
+
+// QueryAllBalancesResponse represents the balances query response with custom pagination
+type QueryAllBalancesResponse struct {
+	Balances   []sdk.Coin  `json:"balances"`
+	Pagination *Pagination `json:"pagination,omitempty"`
 }
