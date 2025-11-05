@@ -31,20 +31,20 @@ func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.D
 
 	logger.Info("starting rich list extension", slog.Int64("start_height", currentHeight))
 	for {
-		if err := db.Transaction(func(tx *gorm.DB) error {
+		if err := db.Transaction(func(dbTx *gorm.DB) error {
 			// Ensure if the next block is indexed in the db
-			if _, err := richlistutils.GetCollectedBlock(ctx, tx, cfg.GetChainId(), currentHeight); err != nil {
+			if _, err := richlistutils.GetCollectedBlock(ctx, dbTx, cfg.GetChainId(), currentHeight); err != nil {
 				logger.Error("failed to get block", slog.Any("error", err))
 				return err
 			}
 
 			// Get the txs for the current height block
-			txs, err := richlistutils.GetBlockCollectedTxs(ctx, tx, currentHeight)
+			txs, err := richlistutils.GetBlockCollectedTxs(ctx, dbTx, currentHeight)
 			if err != nil {
 				logger.Error("failed to get transactions", slog.Any("error", err))
 				return err
 			}
-			evmTxs, err := GetBlockCollectedEvmTxs(ctx, tx, currentHeight)
+			evmTxs, err := GetBlockCollectedEvmTxs(ctx, dbTx, currentHeight)
 			if err != nil {
 				logger.Error("failed to get evm transactions", slog.Any("error", err))
 				return err
@@ -56,7 +56,7 @@ func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.D
 			maps.Copy(balanceMap, evmBalanceMap)
 
 			// Update balance changes to the database
-			negativeDenoms, err := richlistutils.UpdateBalanceChanges(ctx, tx, balanceMap)
+			negativeDenoms, err := richlistutils.UpdateBalanceChanges(ctx, dbTx, balanceMap)
 			if err != nil {
 				logger.Error("failed to update balance changes", slog.Any("error", err))
 				return err
@@ -66,7 +66,7 @@ func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.D
 			if len(negativeDenoms) > 0 {
 				logger.Info("updating balances for negative denoms", slog.Int("num_denoms", len(negativeDenoms)))
 
-				addresses, err := richlistutils.GetAllAddresses(ctx, tx, cfg.GetVmType())
+				addresses, err := richlistutils.GetAllAddresses(ctx, dbTx, cfg.GetVmType())
 				if err != nil {
 					logger.Error("failed to get all addresses", slog.Any("error", err))
 					return err
@@ -81,7 +81,7 @@ func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.D
 						return err
 					}
 
-					if err := richlistutils.UpdateBalances(ctx, tx, negativeDenom, balances); err != nil {
+					if err := richlistutils.UpdateBalances(ctx, dbTx, negativeDenom, balances); err != nil {
 						logger.Error("failed to update balances to database",
 							slog.String("denom", negativeDenom),
 							slog.Any("error", err))
@@ -90,11 +90,11 @@ func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.D
 				}
 			}
 
-			if err := richlistutils.FetchAndUpdateBalances(ctx, logger, tx, cfg.GetChainConfig().RestUrl, moduleAccounts, currentHeight); err != nil {
+			if err := richlistutils.FetchAndUpdateBalances(ctx, logger, dbTx, cfg.GetChainConfig().RestUrl, moduleAccounts, currentHeight); err != nil {
 				return fmt.Errorf("failed to fetch and update balances: %w", err)
 			}
 
-			if err := richlistutils.UpdateRichListStatus(ctx, tx, currentHeight); err != nil {
+			if err := richlistutils.UpdateRichListStatus(ctx, dbTx, currentHeight); err != nil {
 				logger.Error("failed to update rich list processed height",
 					slog.Int64("height", currentHeight),
 					slog.Any("error", err))
