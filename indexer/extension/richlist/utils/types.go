@@ -1,10 +1,6 @@
 package utils
 
 import (
-	"encoding/json"
-	"fmt"
-
-	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
@@ -20,29 +16,6 @@ type AddressWithID struct {
 	Id          int64
 }
 
-func getAddressFromAccount(account *codectypes.Any) (string, error) {
-	// Handle accounts with base_account field (e.g., TableAccount, ContractAccount, etc.)
-	// Try to unmarshal as JSON to extract address from base_account
-	var raw map[string]any
-	if err := json.Unmarshal(account.Value, &raw); err != nil {
-		return "", err
-	}
-
-	// Check if this account has a base_account field
-	if baseAccountMap, ok := raw["base_account"].(map[string]any); ok {
-		if address, ok := baseAccountMap["address"].(string); ok {
-			return address, nil
-		}
-	}
-
-	// Fallback: try direct address field (for BaseAccount)
-	if address, ok := raw["address"].(string); ok {
-		return address, nil
-	}
-
-	return "", fmt.Errorf("invalid account type")
-}
-
 // CosmosCoin represents a coin with denom and amount
 type CosmosCoin struct {
 	Denom  string `json:"denom"`
@@ -55,10 +28,10 @@ type Pagination struct {
 	Total   string `json:"total"`
 }
 
-// QueryAccountsResponse represents the accounts query response with custom pagination
-type QueryAccountsResponse struct {
-	Accounts   []*codectypes.Any `json:"accounts"`
-	Pagination *Pagination       `json:"pagination,omitempty"`
+// CosmosAccountsResponse represents the response from /cosmos/auth/v1beta1/accounts
+type CosmosAccountsResponse struct {
+	Accounts   []CosmosAccount `json:"accounts"`
+	Pagination Pagination      `json:"pagination,omitempty"`
 }
 
 // QueryAllBalancesResponse represents the balances query response with custom pagination

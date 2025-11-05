@@ -70,24 +70,15 @@ func fetchAllAccountsWithPagination(ctx context.Context, cfg *config.Config, hei
 			return nil, err
 		}
 
-		var accountsResp QueryAccountsResponse
+		var accountsResp CosmosAccountsResponse
 		if err := json.Unmarshal(body, &accountsResp); err != nil {
 			return nil, err
 		}
 
 		// Extract addresses from accounts
 		for _, account := range accountsResp.Accounts {
-			if account == nil {
-				continue
-			}
-
-			addr, err := getAddressFromAccount(account)
-			if err != nil {
-				continue
-			}
-
-			if addr != "" {
-				if accAddress, err := util.AccAddressFromString(addr); err == nil {
+			if account.Address != "" {
+				if accAddress, err := util.AccAddressFromString(account.Address); err == nil {
 					if cfg.GetVmType() == types.EVM && len(accAddress) > 20 {
 						continue
 					}
@@ -98,12 +89,9 @@ func fetchAllAccountsWithPagination(ctx context.Context, cfg *config.Config, hei
 
 		// Check if there are more pages
 		var nextKeyBytes []byte
-		if accountsResp.Pagination != nil {
-			nextKeyBytes = accountsResp.Pagination.NextKey
-		}
 		if len(nextKeyBytes) == 0 {
 			// Workaround for broken API that returns null next_key prematurely.
-			if accountsResp.Pagination != nil && accountsResp.Pagination.Total != "" {
+			if accountsResp.Pagination.Total != "" {
 				total, err := strconv.Atoi(accountsResp.Pagination.Total)
 				if err != nil {
 					return nil, fmt.Errorf("failed to parse pagination.total: %w", err)
