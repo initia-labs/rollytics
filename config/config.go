@@ -79,6 +79,25 @@ type MetricsConfig struct {
 	Port    string `json:"port"`
 }
 
+// CORSConfig contains Cross-Origin Resource Sharing settings for the API
+// Env vars:
+// - CORS_ENABLED (bool)
+// - CORS_ALLOW_ORIGINS (comma-separated list; supports "*" and patterns like "*.example.com")
+// - CORS_ALLOW_METHODS (comma-separated list)
+// - CORS_ALLOW_HEADERS (comma-separated list; supports "*")
+// - CORS_ALLOW_CREDENTIALS (bool)
+// - CORS_EXPOSE_HEADERS (comma-separated list; supports "*" without credentials; and headers like "Content-Type")
+// - CORS_MAX_AGE (int; seconds)
+type CORSConfig struct {
+	Enabled          bool     `json:"enabled"`
+	AllowOrigin      []string `json:"allow_origin"`
+	AllowMethods     []string `json:"allow_methods"`
+	AllowHeaders     []string `json:"allow_headers"`
+	AllowCredentials bool     `json:"allow_credentials"`
+	ExposeHeaders    []string `json:"expose_headers"`
+	MaxAge           int      `json:"max_age"`
+}
+
 // CacheConfig contains configuration for dictionary caches
 type CacheConfig struct {
 	AccountCacheSize   int `json:"account_cache_size"`
@@ -118,6 +137,7 @@ type Config struct {
 	metricsConfig         *MetricsConfig
 	cacheConfig           *CacheConfig
 	sentryConfig          *SentryConfig
+	corsConfig            *CORSConfig
 
 	// Start height configuration
 	startHeight    int64 // explicit start height when set
@@ -147,6 +167,14 @@ func setDefaults() {
 	viper.SetDefault("METRICS_PATH", DefaultMetricsPath)
 	viper.SetDefault("METRICS_PORT", DefaultMetricsPort)
 	viper.SetDefault("ENVIRONMENT", DefaultEnvironment)
+
+	viper.SetDefault("CORS_ENABLED", false)
+	viper.SetDefault("CORS_ALLOW_ORIGINS", "*")
+	viper.SetDefault("CORS_ALLOW_METHODS", "GET,POST,PUT,DELETE,PATCH,OPTIONS,HEAD")
+	viper.SetDefault("CORS_ALLOW_HEADERS", "Origin, Content-Type, Accept, Authorization, X-Requested-With")
+	viper.SetDefault("CORS_ALLOW_CREDENTIALS", false)
+	viper.SetDefault("CORS_EXPOSE_HEADERS", "")
+	viper.SetDefault("CORS_MAX_AGE", 0)
 
 	// Sentry defaults
 	viper.SetDefault("SENTRY_DSN", "")
@@ -264,6 +292,18 @@ func loadConfig() (*Config, error) {
 		},
 	}
 
+	enabled := viper.GetBool("CORS_ENABLED")
+	allowCredentials := viper.GetBool("CORS_ALLOW_CREDENTIALS")
+	config.corsConfig = &CORSConfig{
+		Enabled:          enabled,
+		AllowOrigin:      splitAndTrim(viper.GetString("CORS_ALLOW_ORIGINS")),
+		AllowMethods:     splitAndTrim(viper.GetString("CORS_ALLOW_METHODS")),
+		AllowHeaders:     splitAndTrim(viper.GetString("CORS_ALLOW_HEADERS")),
+		AllowCredentials: allowCredentials,
+		ExposeHeaders:    splitAndTrim(viper.GetString("CORS_EXPOSE_HEADERS")),
+		MaxAge:           viper.GetInt("CORS_MAX_AGE"),
+	}
+
 	// parse optional START_HEIGHT env var. Accepts integer >= 0.
 	raw := strings.TrimSpace(viper.GetString("START_HEIGHT"))
 	if raw == "" {
@@ -285,6 +325,23 @@ func loadConfig() (*Config, error) {
 	InitializeSDKConfig(cc.AccountAddressPrefix)
 
 	return config, nil
+}
+
+// splitAndTrim splits a comma-separated list into a slice of trimmed, non-empty strings.
+func splitAndTrim(s string) []string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return []string{}
+	}
+	parts := strings.Split(s, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 func (c Config) GetListenPort() string {
@@ -312,6 +369,11 @@ func (c Config) GetChainConfig() *ChainConfig {
 // SetInternalTxConfig assigns the internal tx config for testing purposes.
 func (c *Config) SetInternalTxConfig(internalTxCfg *InternalTxConfig) {
 	c.internalTxConfig = internalTxCfg
+}
+
+// SetCORSConfig assigns the CORS config for testing purposes.
+func (c *Config) SetCORSConfig(corsCfg *CORSConfig) {
+	c.corsConfig = corsCfg
 }
 
 func (c Config) GetDBBatchSize() int {
@@ -386,6 +448,10 @@ func (c Config) GetMetricsConfig() *MetricsConfig {
 
 func (c Config) GetCacheConfig() *CacheConfig {
 	return c.cacheConfig
+}
+
+func (c Config) GetCORSConfig() *CORSConfig {
+	return c.corsConfig
 }
 
 func (c Config) GetLogFormat() string {

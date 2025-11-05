@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/swagger"
 
 	"github.com/initia-labs/rollytics/api/docs"
@@ -33,6 +34,7 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Api {
 		ErrorHandler:          createErrorHandler(logger),
 	})
 
+	addCORS(app, cfg)
 	addPanicRecoveryMiddleware(app, logger)
 	addMetricsMiddleware(app)
 	handler.Register(app, db, cfg, logger)
@@ -65,6 +67,81 @@ func createErrorHandler(logger *slog.Logger) func(c *fiber.Ctx, err error) error
 		}
 		return c.Status(code).SendString(errString)
 	}
+}
+
+// addCORS configures Cross-Origin Resource Sharing (CORS) for the API.
+func addCORS(app *fiber.App, cfg *config.Config) {
+	corsCfg := cfg.GetCORSConfig()
+	if corsCfg == nil || !corsCfg.Enabled {
+		return
+	}
+
+	allowedOrigins := make([]string, len(corsCfg.AllowOrigin))
+	for i, o := range corsCfg.AllowOrigin {
+		allowedOrigins[i] = strings.ToLower(strings.TrimSpace(o))
+	}
+	allowedMethods := strings.Join(corsCfg.AllowMethods, ",")
+	allowedHeaders := strings.Join(corsCfg.AllowHeaders, ",")
+	exposedHeaders := strings.Join(corsCfg.ExposeHeaders, ",")
+
+	// Detect wildcard
+	hasWildcard := false
+	for _, o := range allowedOrigins {
+		if o == "*" {
+			hasWildcard = true
+			break
+		}
+	}
+
+	mwCfg := cors.Config{
+		AllowMethods:     allowedMethods,
+		AllowHeaders:     allowedHeaders,
+		ExposeHeaders:    exposedHeaders,
+		AllowCredentials: corsCfg.AllowCredentials,
+		MaxAge:           corsCfg.MaxAge,
+	}
+
+	if hasWildcard {
+		if corsCfg.AllowCredentials {
+			// With credentials, "*" is not permitted in ACAO(Access-Control-Allow-Origin).
+			mwCfg.AllowOriginsFunc = func(origin string) bool {
+				if strings.TrimSpace(origin) == "" {
+					return true
+				}
+				return true // allow all origins
+			}
+		} else {
+			// No credentials: we can safely use "*" so browsers see ACAO: *
+			mwCfg.AllowOrigins = "*"
+		}
+	} else {
+		// No wildcard: use pattern/equality matching
+		mwCfg.AllowOriginsFunc = func(origin string) bool {
+			if strings.TrimSpace(origin) == "" {
+				return true
+			}
+			o := strings.ToLower(strings.TrimSpace(origin))
+			for _, pat := range allowedOrigins {
+				if pat == "" {
+					continue
+				}
+
+				if o == pat {
+					return true
+				}
+				// Subdomain pattern: *.example.com
+				if strings.HasPrefix(pat, "*.") {
+					domain := strings.TrimPrefix(pat, "*.")
+					if strings.HasSuffix(o, "."+domain) || o == domain {
+						return true
+					}
+				}
+			}
+			return false
+		}
+	}
+
+	app.Use(cors.New(mwCfg))
 }
 
 // addPanicRecoveryMiddleware adds panic recovery middleware to the app
