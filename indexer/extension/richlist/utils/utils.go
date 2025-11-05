@@ -15,6 +15,7 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"gorm.io/gorm"
 
+	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/types"
 	"github.com/initia-labs/rollytics/util"
 )
@@ -78,15 +79,6 @@ func containsAddress(addresses []sdk.AccAddress, target sdk.AccAddress) bool {
 	return false
 }
 
-func NormalizeDenom(denom string) string {
-	normalizedDenom := strings.ToLower(denom)
-	if strings.HasPrefix(normalizedDenom, "evm/") {
-		return strings.ReplaceAll(normalizedDenom, "evm/", "0x")
-	} else {
-		return normalizedDenom
-	}
-}
-
 // processCosmosTransferEvent processes a Cosmos transfer event and updates the balance map.
 // It extracts transfer information from the event attributes and updates balances for both sender and receiver.
 // Returns true if the event was successfully processed, false otherwise.
@@ -123,7 +115,7 @@ func processCosmosTransferEvent(logger *slog.Logger, event sdk.Event, balanceMap
 
 	// Process each coin in the transfer
 	for _, coin := range coins {
-		denom := NormalizeDenom(coin.Denom)
+		denom := strings.ToLower(coin.Denom)
 
 		if !containsAddress(moduleAccounts, sender) {
 			// Update sender's balance (subtract)
@@ -196,7 +188,7 @@ func FetchAndUpdateBalances(
 	ctx context.Context,
 	logger *slog.Logger,
 	db *gorm.DB,
-	restURL string,
+	cfg *config.Config,
 	accounts []sdk.AccAddress,
 	height int64,
 ) error {
@@ -218,7 +210,7 @@ func FetchAndUpdateBalances(
 		}
 
 		// Fetch balances for this account
-		balances, err := fetchAccountBalancesWithPagination(ctx, restURL, address, height)
+		balances, err := fetchAccountBalancesWithPagination(ctx, cfg, address, height)
 		if err != nil {
 			return fmt.Errorf("failed to fetch balances for address %s: %w", address, err)
 		}
@@ -267,10 +259,10 @@ func FetchAndUpdateBalances(
 //
 // Returns:
 //   - error if any step fails
-func InitializeBalances(ctx context.Context, logger *slog.Logger, db *gorm.DB, vmType types.VMType, restURL string, height int64) error {
+func InitializeBalances(ctx context.Context, logger *slog.Logger, db *gorm.DB, cfg *config.Config, height int64) error {
 	// Step 1: Fetch all accounts with pagination
 	logger.Info("fetching all accounts with pagination", slog.Int64("height", height))
-	accounts, err := fetchAllAccountsWithPagination(ctx, vmType, restURL, height)
+	accounts, err := fetchAllAccountsWithPagination(ctx, cfg, height)
 	if err != nil {
 		return fmt.Errorf("failed to fetch accounts: %w", err)
 	}
@@ -281,7 +273,7 @@ func InitializeBalances(ctx context.Context, logger *slog.Logger, db *gorm.DB, v
 
 	// Step 2: Fetch balances for each account and update by denomination
 	logger.Info("fetching and updating balances", slog.Int64("height", height))
-	if err := FetchAndUpdateBalances(ctx, logger, db, restURL, accounts, height); err != nil {
+	if err := FetchAndUpdateBalances(ctx, logger, db, cfg, accounts, height); err != nil {
 		return fmt.Errorf("failed to fetch and accumulate balances: %w", err)
 	}
 

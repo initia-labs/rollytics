@@ -7,11 +7,13 @@ import (
 	"fmt"
 	"slices"
 	"strconv"
+	"strings"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 
+	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/types"
 	"github.com/initia-labs/rollytics/util"
 )
@@ -42,7 +44,7 @@ func init() {
 // Returns:
 //   - A slice of account addresses
 //   - error if the query fails
-func fetchAllAccountsWithPagination(ctx context.Context, vmType types.VMType, restURL string, height int64) ([]sdk.AccAddress, error) {
+func fetchAllAccountsWithPagination(ctx context.Context, cfg *config.Config, height int64) ([]sdk.AccAddress, error) {
 	const path = "/cosmos/auth/v1beta1/accounts"
 
 	var allAddresses []sdk.AccAddress
@@ -65,7 +67,7 @@ func fetchAllAccountsWithPagination(ctx context.Context, vmType types.VMType, re
 		}
 
 		// Fetch page using util.Get (has built-in retry with exponential backoff)
-		body, err := util.Get(ctx, restURL, path, params, headers)
+		body, err := util.Get(ctx, cfg.GetChainConfig().RestUrl, path, params, headers)
 		if err != nil {
 			return nil, err
 		}
@@ -88,7 +90,7 @@ func fetchAllAccountsWithPagination(ctx context.Context, vmType types.VMType, re
 
 			if addr != "" {
 				if accAddress, err := util.AccAddressFromString(addr); err == nil {
-					if vmType == types.EVM && len(accAddress) > 20 {
+					if cfg.GetVmType() == types.EVM && len(accAddress) > 20 {
 						continue
 					}
 					allAddresses = append(allAddresses, accAddress)
@@ -172,7 +174,7 @@ func FetchMinterBurnerModuleAccounts(ctx context.Context, restURL string) ([]sdk
 // Returns:
 //   - A slice of CosmosCoin containing all balances for the account
 //   - error if the query fails
-func fetchAccountBalancesWithPagination(ctx context.Context, restURL string, address sdk.AccAddress, height int64) ([]CosmosCoin, error) {
+func fetchAccountBalancesWithPagination(ctx context.Context, cfg *config.Config, address sdk.AccAddress, height int64) ([]CosmosCoin, error) {
 	path := fmt.Sprintf("/cosmos/bank/v1beta1/balances/%s", address.String())
 
 	var allBalances []CosmosCoin
@@ -195,7 +197,7 @@ func fetchAccountBalancesWithPagination(ctx context.Context, restURL string, add
 		}
 
 		// Fetch page using util.Get (has built-in retry with exponential backoff)
-		body, err := util.Get(ctx, restURL, path, params, headers)
+		body, err := util.Get(ctx, cfg.GetChainConfig().RestUrl, path, params, headers)
 		if err != nil {
 			return nil, err
 		}
@@ -207,8 +209,17 @@ func fetchAccountBalancesWithPagination(ctx context.Context, restURL string, add
 
 		// Append balances from this page
 		for _, balance := range balancesResp.Balances {
+			denom := strings.ToLower(balance.Denom)
+			if cfg.GetVmType() == types.EVM {
+				contract, err := util.GetEvmContractByDenom(ctx, denom)
+				if err != nil {
+					continue
+				}
+				denom = contract
+			}
+
 			allBalances = append(allBalances, CosmosCoin{
-				Denom:  NormalizeDenom(balance.Denom),
+				Denom:  denom,
 				Amount: balance.Amount.String(),
 			})
 		}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"maps"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"gorm.io/gorm"
@@ -21,7 +20,7 @@ func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.D
 	if currentHeight < cfgStartHeight {
 		logger.Info("reinitializing rich list", slog.Int64("db_start_height", currentHeight), slog.Int64("config_start_height", cfgStartHeight))
 		if err := db.Transaction(func(tx *gorm.DB) error {
-			err := richlistutils.InitializeBalances(ctx, logger, tx, cfg.GetVmType(), cfg.GetChainConfig().RestUrl, cfgStartHeight)
+			err := richlistutils.InitializeBalances(ctx, logger, tx, cfg, cfgStartHeight)
 			return err
 		}); err != nil {
 			return err
@@ -46,11 +45,6 @@ func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.D
 			}
 
 			// Get the txs for the current height block
-			txs, err := richlistutils.GetBlockCollectedTxs(ctx, dbTx, currentHeight)
-			if err != nil {
-				logger.Error("failed to get transactions", slog.Any("error", err))
-				return err
-			}
 			evmTxs, err := GetBlockCollectedEvmTxs(ctx, dbTx, currentHeight)
 			if err != nil {
 				logger.Error("failed to get evm transactions", slog.Any("error", err))
@@ -58,9 +52,7 @@ func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.D
 			}
 
 			// Process transactions to calculate balance changes
-			balanceMap := richlistutils.ProcessCosmosBalanceChanges(logger, txs, moduleAccounts)
-			evmBalanceMap := ProcessEvmBalanceChanges(logger, evmTxs)
-			maps.Copy(balanceMap, evmBalanceMap)
+			balanceMap := ProcessEvmBalanceChanges(logger, evmTxs)
 
 			// Update balance changes to the database
 			negativeDenoms, err := richlistutils.UpdateBalanceChanges(ctx, dbTx, balanceMap)
@@ -97,7 +89,7 @@ func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.D
 				}
 			}
 
-			if err := richlistutils.FetchAndUpdateBalances(ctx, logger, dbTx, cfg.GetChainConfig().RestUrl, moduleAccounts, currentHeight); err != nil {
+			if err := richlistutils.FetchAndUpdateBalances(ctx, logger, dbTx, cfg, moduleAccounts, currentHeight); err != nil {
 				return fmt.Errorf("failed to fetch and update balances: %w", err)
 			}
 
