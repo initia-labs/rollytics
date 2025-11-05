@@ -66,3 +66,14 @@ type QueryAllBalancesResponse struct {
 	Balances   []sdk.Coin  `json:"balances"`
 	Pagination *Pagination `json:"pagination,omitempty"`
 }
+
+// QueryModuleAccountsResponse represents the module accounts query response
+type QueryModuleAccountsResponse struct {
+	Accounts []ModuleAccount `json:"accounts"`
+}
+
+// ModuleAccount represents a module account with address and permissions
+type ModuleAccount struct {
+	Address     string   `json:"address"`
+	Permissions []string `json:"permissions"`
+}

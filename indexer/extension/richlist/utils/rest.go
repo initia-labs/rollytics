@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/types"
@@ -137,24 +136,15 @@ func FetchMinterBurnerModuleAccounts(ctx context.Context, restURL string) ([]sdk
 		return nil, err
 	}
 
-	var accountsResp authtypes.QueryModuleAccountsResponse
+	var accountsResp QueryModuleAccountsResponse
 	if err := json.Unmarshal(body, &accountsResp); err != nil {
 		return nil, err
 	}
 
 	// Filter accounts with minter or burner permissions
 	for _, account := range accountsResp.Accounts {
-		if account == nil {
-			continue
-		}
-
-		var moduleAccount authtypes.ModuleAccount
-		if err := json.Unmarshal(account.Value, &moduleAccount); err != nil {
-			continue
-		}
-
-		if moduleAccount.Address != "" && (slices.Contains(moduleAccount.Permissions, "minter") || slices.Contains(moduleAccount.Permissions, "burner")) {
-			if accAddress, err := util.AccAddressFromString(moduleAccount.Address); err == nil {
+		if account.Address != "" && (slices.Contains(account.Permissions, "minter") || slices.Contains(account.Permissions, "burner")) {
+			if accAddress, err := util.AccAddressFromString(account.Address); err == nil {
 				moduleAccounts = append(moduleAccounts, accAddress)
 			}
 		}
