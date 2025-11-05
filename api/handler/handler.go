@@ -22,7 +22,7 @@ func Register(router fiber.Router, db *orm.Database, cfg *config.Config, logger 
 		block.NewBlockHandler(base),
 		tx.NewTxHandler(base),
 		nft.NewNftHandler(base),
-		richlist.NewRichListHandler(base),
+		richlist.NewRichListHandler(base, cfg),
 	}
 
 	for _, handler := range handlers {

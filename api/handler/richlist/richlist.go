@@ -4,10 +4,12 @@ import (
 	"database/sql"
 	"strings"
 
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/gofiber/fiber/v2"
 
 	"github.com/initia-labs/rollytics/api/handler/common"
 	"github.com/initia-labs/rollytics/types"
+	"github.com/initia-labs/rollytics/util"
 )
 
 func (h *RichListHandler) GetTokenHolders(c *fiber.Ctx) error {
@@ -58,7 +60,11 @@ func (h *RichListHandler) GetTokenHolders(c *fiber.Ctx) error {
 	// Create account ID to address mapping
 	accountMap := make(map[int64]string, len(accounts))
 	for _, acc := range accounts {
-		accountMap[acc.Id] = string(acc.Account)
+		if h.cfg.GetVmType() == types.EVM {
+			accountMap[acc.Id] = util.BytesToHexWithPrefix(acc.Account)
+		} else {
+			accountMap[acc.Id] = sdk.AccAddress(acc.Account).String()
+		}
 	}
 
 	// Map results to response format

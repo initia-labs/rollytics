@@ -63,6 +63,7 @@ func ProcessEvmBalanceChanges(logger *slog.Logger, evmTxs []types.CollectedEvmTx
 		// Parse tx data to get timestamp and events
 		var evmTxData types.EvmTx
 		if err := json.Unmarshal(evmTx.Data, &evmTxData); err != nil {
+			logger.Warn("failed to unmarshal evm transaction data, skipping", "error", err)
 			continue
 		}
 

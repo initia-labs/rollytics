@@ -163,7 +163,7 @@ type CollectedEvmInternalTx struct {
 }
 
 type CollectedRichListStatus struct {
-	Height int64 `gorm:"type:bigint;primaryKey"`
+	Height int64 `gorm:"type:bigint"`
 }
 
 type CollectedRichList struct {

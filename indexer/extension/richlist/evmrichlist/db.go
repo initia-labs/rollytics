@@ -8,7 +8,7 @@ import (
 	"github.com/initia-labs/rollytics/types"
 )
 
-// GetBlockCollectedTxs retrieves all transactions for a specific block height.
+// GetBlockCollectedEvmTxs retrieves all evm transactions for a specific block height.
 // Returns transactions ordered by sequence in ascending order.
 func GetBlockCollectedEvmTxs(ctx context.Context, db *gorm.DB, height int64) ([]types.CollectedEvmTx, error) {
 	var evmTxs []types.CollectedEvmTx

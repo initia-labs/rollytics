@@ -31,6 +31,13 @@ func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.D
 
 	logger.Info("starting rich list extension", slog.Int64("start_height", currentHeight))
 	for {
+		// context cancellation check
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
 		if err := db.Transaction(func(dbTx *gorm.DB) error {
 			// Ensure if the next block is indexed in the db
 			if _, err := richlistutils.GetCollectedBlock(ctx, dbTx, cfg.GetChainId(), currentHeight); err != nil {

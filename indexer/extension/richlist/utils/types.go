@@ -2,6 +2,7 @@ package utils
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 const (
@@ -52,7 +53,7 @@ func (a *CosmosAccount) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	return nil
+	return fmt.Errorf("no address field found in account JSON")
 }
 
 type Pagination struct {

@@ -124,12 +124,12 @@ func GetAllAddresses(ctx context.Context, db *gorm.DB, vmType types.VMType) ([]A
 		return nil, fmt.Errorf("failed to get addresses from account_dict: %w", err)
 	}
 
-	addresses := make([]AddressWithID, len(accounts))
-	for i, account := range accounts {
+	addresses := make([]AddressWithID, 0)
+	for _, account := range accounts {
 		if vmType == types.EVM && len(account.Account) > 20 {
 			continue
 		}
-		addresses[i] = NewAddressWithID(account.Account, account.Id)
+		addresses = append(addresses, NewAddressWithID(account.Account, account.Id))
 	}
 
 	return addresses, nil
@@ -149,9 +149,9 @@ func UpdateRichListStatus(ctx context.Context, db *gorm.DB, currentHeight int64)
 	// Use raw SQL to upsert the status record
 	// Since there's typically only one row in this table, we can use a simple upsert
 	result := db.WithContext(ctx).Exec(`
-		INSERT INTO rich_list_status (height)
-		VALUES (?)
-		ON CONFLICT (height) DO UPDATE SET height = EXCLUDED.height
+		INSERT INTO rich_list_status (id, height)
+		VALUES (1, ?)
+		ON CONFLICT (id) DO UPDATE SET height = EXCLUDED.height
 	`, currentHeight)
 
 	if result.Error != nil {
