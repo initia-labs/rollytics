@@ -12,6 +12,7 @@ import (
 
 	sdkmath "cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"gorm.io/gorm"
 
 	"github.com/initia-labs/rollytics/types"
@@ -167,7 +168,7 @@ func ProcessCosmosBalanceChanges(logger *slog.Logger, txs []types.CollectedTx, m
 		}
 
 		for _, event := range events {
-			if event.Type == COSMOS_TRANSFER_EVENT {
+			if event.Type == banktypes.EventTypeTransfer {
 				processCosmosTransferEvent(logger, event, balanceMap, moduleAccounts)
 			}
 		}

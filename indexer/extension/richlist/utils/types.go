@@ -3,6 +3,8 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
+
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 )
 
 const (
@@ -21,60 +23,31 @@ type AddressWithID struct {
 	Id          int64
 }
 
-// CosmosAccount represents a simplified account from the Cosmos SDK.
-// It supports multiple account formats:
-// - BaseAccount: { "address": "init1...", ... }
-// - ModuleAccount, ContractAccount, and others: { "base_account": { "address": "init1...", ... }, ... }
-type CosmosAccount struct {
-	Type        string   `json:"@type"`
-	Address     string   `json:"address"`
-	Permissions []string `json:"permissions,omitempty"`
-}
-
-// UnmarshalJSON implements custom JSON unmarshaling to support both account types
-func (a *CosmosAccount) UnmarshalJSON(data []byte) error {
-	// Try to unmarshal as a map to check the structure
+func getAddressFromAccount(account *codectypes.Any) (string, error) {
+	// Handle accounts with base_account field (e.g., TableAccount, ContractAccount, etc.)
+	// Try to unmarshal as JSON to extract address from base_account
 	var raw map[string]any
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
+	if err := json.Unmarshal(account.Value, &raw); err != nil {
+		return "", err
 	}
 
-	// Check if this is a non BaseAccount
-	if baseAccount, ok := raw["base_account"].(map[string]any); ok {
-		if address, ok := baseAccount["address"].(string); ok {
-			a.Address = address
-			return nil
+	// Check if this account has a base_account field
+	if baseAccountMap, ok := raw["base_account"].(map[string]any); ok {
+		if address, ok := baseAccountMap["address"].(string); ok {
+			return address, nil
 		}
 	}
 
-	// Otherwise, try direct address field (BaseAccount)
+	// Fallback: try direct address field (for BaseAccount)
 	if address, ok := raw["address"].(string); ok {
-		a.Address = address
-		return nil
+		return address, nil
 	}
 
-	return fmt.Errorf("no address field found in account JSON")
-}
-
-type Pagination struct {
-	NextKey []byte `json:"next_key"`
-	Total   string `json:"total"`
-}
-
-// CosmosAccountsResponse represents the response from /cosmos/auth/v1beta1/accounts
-type CosmosAccountsResponse struct {
-	Accounts   []CosmosAccount `json:"accounts"`
-	Pagination Pagination      `json:"pagination,omitempty"`
+	return "", fmt.Errorf("invalid account type")
 }
 
 // CosmosCoin represents a coin with denom and amount
 type CosmosCoin struct {
 	Denom  string `json:"denom"`
 	Amount string `json:"amount"`
-}
-
-// CosmosBalancesResponse represents the response from /cosmos/bank/v1beta1/balances/{address}
-type CosmosBalancesResponse struct {
-	Balances   []CosmosCoin `json:"balances"`
-	Pagination Pagination   `json:"pagination,omitempty"`
 }

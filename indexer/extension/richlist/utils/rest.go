@@ -9,6 +9,8 @@ import (
 	"strconv"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 
 	"github.com/initia-labs/rollytics/types"
 	"github.com/initia-labs/rollytics/util"
@@ -68,15 +70,24 @@ func fetchAllAccountsWithPagination(ctx context.Context, vmType types.VMType, re
 			return nil, err
 		}
 
-		var accountsResp CosmosAccountsResponse
+		var accountsResp authtypes.QueryAccountsResponse
 		if err := json.Unmarshal(body, &accountsResp); err != nil {
 			return nil, err
 		}
 
 		// Extract addresses from accounts
 		for _, account := range accountsResp.Accounts {
-			if account.Address != "" {
-				if accAddress, err := util.AccAddressFromString(account.Address); err == nil {
+			if account == nil {
+				continue
+			}
+
+			addr, err := getAddressFromAccount(account)
+			if err != nil {
+				continue
+			}
+
+			if addr != "" {
+				if accAddress, err := util.AccAddressFromString(addr); err == nil {
 					if vmType == types.EVM && len(accAddress) > 20 {
 						continue
 					}
@@ -86,14 +97,14 @@ func fetchAllAccountsWithPagination(ctx context.Context, vmType types.VMType, re
 		}
 
 		// Check if there are more pages
-		if len(accountsResp.Pagination.NextKey) == 0 {
+		var nextKeyBytes []byte
+		if accountsResp.Pagination != nil {
+			nextKeyBytes = accountsResp.Pagination.NextKey
+		}
+		if len(nextKeyBytes) == 0 {
 			// Workaround for broken API that returns null next_key prematurely.
-			if accountsResp.Pagination.Total != "" {
-				total, err := strconv.Atoi(accountsResp.Pagination.Total)
-				if err != nil {
-					return allAddresses, fmt.Errorf("failed to parse pagination.total: %w", err)
-				}
-
+			if accountsResp.Pagination != nil && accountsResp.Pagination.Total != 0 {
+				total := int(accountsResp.Pagination.Total)
 				if len(allAddresses) < total && len(accountsResp.Accounts) == paginationLimitInt {
 					useOffset = true
 					continue // try next page with offset
@@ -102,7 +113,7 @@ func fetchAllAccountsWithPagination(ctx context.Context, vmType types.VMType, re
 			break
 		}
 
-		nextKey = accountsResp.Pagination.NextKey
+		nextKey = nextKeyBytes
 	}
 
 	return allAddresses, nil
@@ -115,57 +126,34 @@ func FetchMinterBurnerModuleAccounts(ctx context.Context, restURL string) ([]sdk
 	const path = "/cosmos/auth/v1beta1/module_accounts"
 
 	var moduleAccounts []sdk.AccAddress
-	var nextKey []byte
-	useOffset := false
-	offset := 0
 
-	for {
-		// Build pagination parameters
-		params := map[string]string{"pagination.limit": paginationLimit}
-		if useOffset {
-			params["pagination.offset"] = strconv.Itoa(offset)
-		} else if len(nextKey) > 0 {
-			params["pagination.key"] = base64.StdEncoding.EncodeToString(nextKey)
+	// Fetch page using util.Get (has built-in retry with exponential backoff)
+	body, err := util.Get(ctx, restURL, path, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var accountsResp authtypes.QueryModuleAccountsResponse
+	if err := json.Unmarshal(body, &accountsResp); err != nil {
+		return nil, err
+	}
+
+	// Filter accounts with minter or burner permissions
+	for _, account := range accountsResp.Accounts {
+		if account == nil {
+			continue
 		}
 
-		// Fetch page using util.Get (has built-in retry with exponential backoff)
-		body, err := util.Get(ctx, restURL, path, params, nil)
-		if err != nil {
-			return nil, err
+		var moduleAccount authtypes.ModuleAccount
+		if err := json.Unmarshal(account.Value, &moduleAccount); err != nil {
+			continue
 		}
 
-		var accountsResp CosmosAccountsResponse
-		if err := json.Unmarshal(body, &accountsResp); err != nil {
-			return nil, err
-		}
-
-		// Filter accounts with minter or burner permissions
-		for _, account := range accountsResp.Accounts {
-			if account.Address != "" && (slices.Contains(account.Permissions, "minter") || slices.Contains(account.Permissions, "burner")) {
-				if accAddress, err := util.AccAddressFromString(account.Address); err == nil {
-					moduleAccounts = append(moduleAccounts, accAddress)
-				}
+		if moduleAccount.Address != "" && (slices.Contains(moduleAccount.Permissions, "minter") || slices.Contains(moduleAccount.Permissions, "burner")) {
+			if accAddress, err := util.AccAddressFromString(moduleAccount.Address); err == nil {
+				moduleAccounts = append(moduleAccounts, accAddress)
 			}
 		}
-
-		// Check if there are more pages
-		if len(accountsResp.Pagination.NextKey) == 0 {
-			// Workaround for broken API that returns null next_key prematurely
-			if accountsResp.Pagination.Total != "" {
-				total, err := strconv.Atoi(accountsResp.Pagination.Total)
-				if err != nil {
-					return moduleAccounts, fmt.Errorf("failed to parse pagination.total: %w", err)
-				}
-
-				if len(moduleAccounts) < total && len(accountsResp.Accounts) == paginationLimitInt {
-					useOffset = true
-					continue // try next page with offset
-				}
-			}
-			break
-		}
-
-		nextKey = accountsResp.Pagination.NextKey
 	}
 
 	return moduleAccounts, nil
@@ -212,7 +200,7 @@ func fetchAccountBalancesWithPagination(ctx context.Context, restURL string, add
 			return nil, err
 		}
 
-		var balancesResp CosmosBalancesResponse
+		var balancesResp banktypes.QueryAllBalancesResponse
 		if err := json.Unmarshal(body, &balancesResp); err != nil {
 			return nil, err
 		}
@@ -221,26 +209,22 @@ func fetchAccountBalancesWithPagination(ctx context.Context, restURL string, add
 		for _, balance := range balancesResp.Balances {
 			allBalances = append(allBalances, CosmosCoin{
 				Denom:  NormalizeDenom(balance.Denom),
-				Amount: balance.Amount,
+				Amount: balance.Amount.String(),
 			})
 		}
 
 		// Check if there are more pages
 		if len(balancesResp.Pagination.NextKey) == 0 {
 			// Workaround for broken API that returns null next_key prematurely.
-			if balancesResp.Pagination.Total != "" {
-				total, err := strconv.Atoi(balancesResp.Pagination.Total)
-				if err != nil {
-					return allBalances, fmt.Errorf("failed to parse pagination.total: %w", err)
-				}
-
-				if len(allBalances) < total && len(balancesResp.Balances) == paginationLimitInt {
-					useOffset = true
+			if balancesResp.Pagination.Total != 0 {
+				total := balancesResp.Pagination.Total
+				if len(allBalances) < int(total) && len(balancesResp.Balances) == paginationLimitInt {
 					continue // try next page with offset
 				}
 			}
 			break
 		}
+
 		nextKey = balancesResp.Pagination.NextKey
 	}
 
