@@ -22,40 +22,6 @@ import (
 
 const MAX_ATTEMPTS = 10
 
-// CosmosAccount represents a simplified account from the Cosmos SDK.
-// It supports multiple account formats:
-// - BaseAccount: { "address": "init1...", ... }
-// - ModuleAccount, ContractAccount, and others: { "base_account": { "address": "init1...", ... }, ... }
-type CosmosAccount struct {
-	Type        string   `json:"@type"`
-	Address     string   `json:"address"`
-	Permissions []string `json:"permissions,omitempty"`
-}
-
-func (a *CosmosAccount) UnmarshalJSON(data []byte) error {
-	// Try to unmarshal as a map to check the structure
-	var raw map[string]any
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-
-	// Check if this is a non BaseAccount
-	if baseAccount, ok := raw["base_account"].(map[string]any); ok {
-		if address, ok := baseAccount["address"].(string); ok {
-			a.Address = address
-			return nil
-		}
-	}
-
-	// Otherwise, try direct address field (BaseAccount)
-	if address, ok := raw["address"].(string); ok {
-		a.Address = address
-		return nil
-	}
-
-	return fmt.Errorf("no address field found in account JSON")
-}
-
 // ExponentialBackoff sleeps for an exponentially increasing duration based on the attempt number.
 // The sleep duration is calculated as: min(2^attempt * 100ms, maxDuration)
 // Maximum sleep duration is capped at 5 seconds.
@@ -251,13 +217,8 @@ func FetchAndUpdateBalances(
 
 		// Process each balance (denom) for this account
 		for _, balance := range balances {
-			amount, ok := sdkmath.NewIntFromString(balance.Amount)
-			if !ok {
-				return fmt.Errorf("failed to parse amount for address %s, denom %s: %s", address, balance.Denom, balance.Amount)
-			}
-
 			// Skip zero balances
-			if amount.IsZero() {
+			if balance.Amount.IsZero() {
 				continue
 			}
 
@@ -268,7 +229,7 @@ func FetchAndUpdateBalances(
 
 			// Accumulate the balance for this denom
 			addrWithID := NewAddressWithID(address, accountID)
-			balancesByDenom[balance.Denom][addrWithID] = amount
+			balancesByDenom[balance.Denom][addrWithID] = balance.Amount
 		}
 	}
 

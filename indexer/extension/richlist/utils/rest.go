@@ -88,14 +88,14 @@ func fetchAllAccountsWithPagination(ctx context.Context, cfg *config.Config, hei
 		}
 
 		// Check if there are more pages
-		var nextKeyBytes []byte
-		if len(nextKeyBytes) == 0 {
+		if len(accountsResp.Pagination.NextKey) == 0 {
 			// Workaround for broken API that returns null next_key prematurely.
 			if accountsResp.Pagination.Total != "" {
 				total, err := strconv.Atoi(accountsResp.Pagination.Total)
 				if err != nil {
-					return nil, fmt.Errorf("failed to parse pagination.total: %w", err)
+					return allAddresses, fmt.Errorf("failed to parse pagination.total: %w", err)
 				}
+
 				if len(allAddresses) < total && len(accountsResp.Accounts) == paginationLimitInt {
 					useOffset = true
 					continue // try next page with offset
@@ -104,7 +104,7 @@ func fetchAllAccountsWithPagination(ctx context.Context, cfg *config.Config, hei
 			break
 		}
 
-		nextKey = nextKeyBytes
+		nextKey = accountsResp.Pagination.NextKey
 	}
 
 	return allAddresses, nil
@@ -154,10 +154,10 @@ func FetchMinterBurnerModuleAccounts(ctx context.Context, restURL string) ([]sdk
 // Returns:
 //   - A slice of CosmosCoin containing all balances for the account
 //   - error if the query fails
-func fetchAccountBalancesWithPagination(ctx context.Context, cfg *config.Config, address sdk.AccAddress, height int64) ([]CosmosCoin, error) {
+func fetchAccountBalancesWithPagination(ctx context.Context, cfg *config.Config, address sdk.AccAddress, height int64) ([]sdk.Coin, error) {
 	path := fmt.Sprintf("/cosmos/bank/v1beta1/balances/%s", address.String())
 
-	var allBalances []CosmosCoin
+	var allBalances []sdk.Coin
 	var nextKey []byte
 	useOffset := false
 	offset := 0
@@ -198,24 +198,21 @@ func fetchAccountBalancesWithPagination(ctx context.Context, cfg *config.Config,
 				denom = contract
 			}
 
-			allBalances = append(allBalances, CosmosCoin{
+			allBalances = append(allBalances, sdk.Coin{
 				Denom:  denom,
-				Amount: balance.Amount.String(),
+				Amount: balance.Amount,
 			})
 		}
 
 		// Check if there are more pages
-		var nextKeyBytes []byte
-		if balancesResp.Pagination != nil {
-			nextKeyBytes = balancesResp.Pagination.NextKey
-		}
-		if len(nextKeyBytes) == 0 {
+		if len(balancesResp.Pagination.NextKey) == 0 {
 			// Workaround for broken API that returns null next_key prematurely.
-			if balancesResp.Pagination != nil && balancesResp.Pagination.Total != "" {
+			if balancesResp.Pagination.Total != "" {
 				total, err := strconv.Atoi(balancesResp.Pagination.Total)
 				if err != nil {
-					return nil, fmt.Errorf("failed to parse pagination.total: %w", err)
+					return allBalances, fmt.Errorf("failed to parse pagination.total: %w", err)
 				}
+
 				if len(allBalances) < total && len(balancesResp.Balances) == paginationLimitInt {
 					useOffset = true
 					continue // try next page with offset
@@ -223,8 +220,7 @@ func fetchAccountBalancesWithPagination(ctx context.Context, cfg *config.Config,
 			}
 			break
 		}
-
-		nextKey = nextKeyBytes
+		nextKey = balancesResp.Pagination.NextKey
 	}
 
 	return allBalances, nil
