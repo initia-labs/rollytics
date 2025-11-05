@@ -166,11 +166,10 @@ type CollectedRichListStatus struct {
 	Height int64 `gorm:"type:bigint;primaryKey"`
 }
 
-// TODO: add index
 type CollectedRichList struct {
 	Id     int64  `gorm:"type:bigint;primaryKey"`
-	Denom  string `gorm:"type:text;primaryKey"`
-	Amount string `gorm:"type:numeric"`
+	Denom  string `gorm:"type:text;primaryKey;index:rich_list_denom_amount,priority:1"`
+	Amount string `gorm:"type:numeric;index:rich_list_denom_amount,priority:2,sort:desc"`
 }
 
 type CollectedEvmTxHashDict struct {
