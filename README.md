@@ -107,7 +107,7 @@ You can configure rollytics using environment variables. All settings can be con
 
 ### CORS Settings (API)
 
-CORS is enabled by default to support browser-based clients. You can configure it using the following environment variables:
+CORS is disabled by default. Enable it when you need to serve browser-based clients, and adjust the following environment variables as needed:
 
 - `CORS_ENABLED`: Enable/disable CORS middleware (optional, default: `false`)
 - `CORS_ALLOW_ORIGINS`: Comma-separated list of allowed origins. Supports `*` (allow all) and subdomain patterns like `*.example.com`. (default: `*`) Examples:
@@ -150,7 +150,7 @@ export START_HEIGHT=9184
 
 # CORS settings
 export CORS_ENABLED=true
-export CORS_ALLOW_ORIGINS='https://app.initia.xyz,https://initia.xyz,https://*.doi.com'
+export CORS_ALLOW_ORIGINS='https://app.initia.xyz,https://initia.xyz,*.doi.com'
 export CORS_ALLOW_METHODS='GET,POST,PUT,DELETE,PATCH,OPTIONS,HEAD'
 export CORS_ALLOW_HEADERS='Origin, Content-Type, Accept, Authorization, X-Requested-With'
 export CORS_ALLOW_CREDENTIALS=true

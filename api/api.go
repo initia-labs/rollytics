@@ -69,6 +69,48 @@ func createErrorHandler(logger *slog.Logger) func(c *fiber.Ctx, err error) error
 	}
 }
 
+func normalizeOrigins(in []string) []string {
+	out := make([]string, 0, len(in))
+	for _, o := range in {
+		o = strings.ToLower(strings.TrimSpace(o))
+		if o != "" {
+			out = append(out, o)
+		}
+	}
+	return out
+}
+
+func containsWildcard(origins []string) bool {
+	for _, o := range origins {
+		if o == "*" {
+			return true
+		}
+	}
+	return false
+}
+
+func makeAllowOriginsFunc(allowed []string) func(string) bool {
+	return func(origin string) bool {
+		orig := strings.ToLower(strings.TrimSpace(origin))
+		if orig == "" {
+			// No Origin header -> allow request to pass (no CORS header needed)
+			return true
+		}
+		for _, pat := range allowed {
+			if pat == orig {
+				return true
+			}
+			if strings.HasPrefix(pat, "*.") {
+				domain := strings.TrimPrefix(pat, "*.")
+				if strings.HasSuffix(orig, "."+domain) || orig == domain {
+					return true
+				}
+			}
+		}
+		return false
+	}
+}
+
 // addCORS configures Cross-Origin Resource Sharing (CORS) for the API.
 func addCORS(app *fiber.App, cfg *config.Config) {
 	corsCfg := cfg.GetCORSConfig()
@@ -76,69 +118,26 @@ func addCORS(app *fiber.App, cfg *config.Config) {
 		return
 	}
 
-	allowedOrigins := make([]string, len(corsCfg.AllowOrigin))
-	for i, o := range corsCfg.AllowOrigin {
-		allowedOrigins[i] = strings.ToLower(strings.TrimSpace(o))
-	}
-	allowedMethods := strings.Join(corsCfg.AllowMethods, ",")
-	allowedHeaders := strings.Join(corsCfg.AllowHeaders, ",")
-	exposedHeaders := strings.Join(corsCfg.ExposeHeaders, ",")
-
-	// Detect wildcard
-	hasWildcard := false
-	for _, o := range allowedOrigins {
-		if o == "*" {
-			hasWildcard = true
-			break
-		}
-	}
+	allowedOrigins := normalizeOrigins(corsCfg.AllowOrigin)
 
 	mwCfg := cors.Config{
-		AllowMethods:     allowedMethods,
-		AllowHeaders:     allowedHeaders,
-		ExposeHeaders:    exposedHeaders,
+		AllowMethods:     strings.Join(corsCfg.AllowMethods, ","),
+		AllowHeaders:     strings.Join(corsCfg.AllowHeaders, ","),
+		ExposeHeaders:    strings.Join(corsCfg.ExposeHeaders, ","),
 		AllowCredentials: corsCfg.AllowCredentials,
 		MaxAge:           corsCfg.MaxAge,
 	}
 
-	if hasWildcard {
+	if containsWildcard(allowedOrigins) {
 		if corsCfg.AllowCredentials {
-			// With credentials, "*" is not permitted in ACAO(Access-Control-Allow-Origin).
-			mwCfg.AllowOriginsFunc = func(origin string) bool {
-				if strings.TrimSpace(origin) == "" {
-					return true
-				}
-				return true // allow all origins
-			}
+			// With credentials, browsers don't accept '*' in ACAO, so use function to allow all origins.
+			mwCfg.AllowOriginsFunc = func(string) bool { return true }
 		} else {
-			// No credentials: we can safely use "*" so browsers see ACAO: *
+			// No credentials -> can use '*'
 			mwCfg.AllowOrigins = "*"
 		}
 	} else {
-		// No wildcard: use pattern/equality matching
-		mwCfg.AllowOriginsFunc = func(origin string) bool {
-			if strings.TrimSpace(origin) == "" {
-				return true
-			}
-			o := strings.ToLower(strings.TrimSpace(origin))
-			for _, pat := range allowedOrigins {
-				if pat == "" {
-					continue
-				}
-
-				if o == pat {
-					return true
-				}
-				// Subdomain pattern: *.example.com
-				if strings.HasPrefix(pat, "*.") {
-					domain := strings.TrimPrefix(pat, "*.")
-					if strings.HasSuffix(o, "."+domain) || o == domain {
-						return true
-					}
-				}
-			}
-			return false
-		}
+		mwCfg.AllowOriginsFunc = makeAllowOriginsFunc(allowedOrigins)
 	}
 
 	app.Use(cors.New(mwCfg))
