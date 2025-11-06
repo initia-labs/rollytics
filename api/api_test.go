@@ -2,6 +2,8 @@ package api
 
 import (
 	"context"
+	"io"
+	"log/slog"
 	"net/http"
 	"testing"
 
@@ -14,7 +16,8 @@ func newTestAppWithCORS(corsCfg *config.CORSConfig) *fiber.App {
 	app := fiber.New()
 	cfg := &config.Config{}
 	cfg.SetCORSConfig(corsCfg)
-	addCORS(app, cfg)
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	addCORS(app, cfg, logger)
 	// simple route for testing
 	app.Get("/ping", func(c *fiber.Ctx) error { return c.SendString("pong") })
 	return app
@@ -252,7 +255,7 @@ func TestCORS_Defaults_Enabled_AllOrigins_NoCredentials(t *testing.T) {
 	}
 }
 
-// Wildcard with credentials=true should echo the request origin, never '*'.
+// Wildcard with credentials=true should be sanitized: credentials disabled and ACAO should be '*'.
 func TestCORS_WildcardWithCredentialsEcho(t *testing.T) {
 	app := newTestAppWithCORS(&config.CORSConfig{
 		Enabled:          true,
@@ -263,16 +266,20 @@ func TestCORS_WildcardWithCredentialsEcho(t *testing.T) {
 	})
 
 	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "/ping", nil)
-	origin := "https://echo.me"
-	req.Header.Set("Origin", origin)
+	req.Header.Set("Origin", "https://echo.me")
 	resp, err := app.Test(req)
 	if err != nil {
 		t.Fatalf("request failed: %v", err)
 	}
 	_ = resp.Body.Close()
 
-	if got := resp.Header.Get("Access-Control-Allow-Origin"); got != origin {
-		t.Fatalf("expected ACAO to echo origin %q with credentials=true, got %q", origin, got)
+	// After security validation, credentials are disabled and with wildcard origins ACAO must be '*'.
+	if got := resp.Header.Get("Access-Control-Allow-Origin"); got != "*" {
+		t.Fatalf("expected ACAO='*' when wildcard+credentials=true is sanitized, got %q", got)
+	}
+	// And Allow-Credentials header should be absent or not 'true'.
+	if cred := resp.Header.Get("Access-Control-Allow-Credentials"); cred == "true" {
+		t.Fatalf("expected Allow-Credentials to be disabled/absent, got %q", cred)
 	}
 }
 
