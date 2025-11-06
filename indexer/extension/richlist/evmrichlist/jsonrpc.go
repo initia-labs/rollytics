@@ -8,6 +8,8 @@ import (
 	"sync"
 
 	sdkmath "cosmossdk.io/math"
+	"golang.org/x/sync/errgroup"
+
 	richlistutils "github.com/initia-labs/rollytics/indexer/extension/richlist/utils"
 	"github.com/initia-labs/rollytics/util"
 )
@@ -42,42 +44,32 @@ func queryERC20Balances(ctx context.Context, jsonrpcURL string, erc20Address str
 		batches = append(batches, addresses[i:end])
 	}
 
-	// Process batches with parallelization
-	var (
-		mu      sync.Mutex
-		wg      sync.WaitGroup
-		errChan = make(chan error, len(batches))
-		sem     = make(chan struct{}, maxConcurrent)
-	)
+	// Process batches with parallelization using errgroup
+	var mu sync.Mutex
+	g, ctx := errgroup.WithContext(ctx)
+	g.SetLimit(maxConcurrent)
 
 	for idx, batch := range batches {
-		wg.Add(1)
-		go func(batchIdx int, batch []richlistutils.AddressWithID) {
-			defer wg.Done()
-
-			// Acquire semaphore
-			sem <- struct{}{}
-			defer func() { <-sem }()
-
+		batchIdx := idx
+		batchData := batch
+		g.Go(func() error {
 			// queryBatchBalances uses utils.Post which already handles retries with exponential backoff
-			batchBalances, err := queryBatchBalances(ctx, jsonrpcURL, erc20Address, batch, height, batchIdx*batchSize)
+			batchBalances, err := queryBatchBalances(ctx, jsonrpcURL, erc20Address, batchData, height, batchIdx*batchSize)
 			if err != nil {
-				errChan <- fmt.Errorf("failed to query batch %d: %w", batchIdx, err)
-				return
+				return fmt.Errorf("failed to query batch %d: %w", batchIdx, err)
 			}
 
 			// Merge batch results into main balances map
 			mu.Lock()
 			maps.Copy(balances, batchBalances)
 			mu.Unlock()
-		}(idx, batch)
+
+			return nil
+		})
 	}
 
-	wg.Wait()
-	close(errChan)
-
-	// Check for errors
-	if err := <-errChan; err != nil {
+	// Wait for all goroutines and return first error if any
+	if err := g.Wait(); err != nil {
 		return nil, err
 	}
 

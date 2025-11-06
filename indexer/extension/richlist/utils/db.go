@@ -2,6 +2,7 @@ package utils
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	sdkmath "cosmossdk.io/math"
@@ -146,14 +147,21 @@ func GetAllAddresses(ctx context.Context, db *gorm.DB, vmType types.VMType) ([]A
 // Returns:
 //   - error if the update fails
 func UpdateRichListStatus(ctx context.Context, db *gorm.DB, currentHeight int64) error {
-	// Use raw SQL to upsert the status record
-	// Since there's typically only one row in this table, we can use a simple upsert
-	result := db.WithContext(ctx).Exec(`
-		INSERT INTO rich_list_status (id, height)
-		VALUES (1, ?)
-		ON CONFLICT (id) DO UPDATE SET height = EXCLUDED.height
-	`, currentHeight)
+	var status types.CollectedRichListStatus
+	result := db.WithContext(ctx).First(&status)
 
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			// No record exists, create it
+			result = db.WithContext(ctx).Create(&types.CollectedRichListStatus{Height: currentHeight})
+		} else {
+			// Some other error occurred
+			return result.Error
+		}
+	} else {
+		// Record exists, update it
+		result = db.WithContext(ctx).Model(&status).Where("1 = 1").Updates(types.CollectedRichListStatus{Height: currentHeight})
+	}
 	if result.Error != nil {
 		return fmt.Errorf("failed to update rich list status: %w", result.Error)
 	}

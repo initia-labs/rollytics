@@ -175,10 +175,10 @@ func ProcessCosmosBalanceChanges(logger *slog.Logger, txs []types.CollectedTx, m
 //
 // Parameters:
 //   - ctx: Context for timeout and cancellation
+//   - db: Database connection for account ID operations
 //   - logger: Logger for progress tracking
-//   - restURL: The Cosmos SDK REST API endpoint URL
-//   - addresses: List of addresses to fetch balances for
-//   - accountIDMap: Map of address to account ID
+//   - cfg: Configuration containing REST API endpoint and other settings
+//   - accounts: List of SDK account addresses to fetch balances for
 //   - height: The block height to query at
 //
 // Returns:
@@ -248,8 +248,9 @@ func FetchAndUpdateBalances(
 //
 // Parameters:
 //   - ctx: Context for timeout and cancellation
+//   - logger: Logger for progress tracking
 //   - db: Database connection for transaction
-//   - restURL: The Cosmos SDK REST API endpoint URL
+//   - cfg: Configuration containing REST API endpoint and other settings
 //   - height: The block height to query at
 //
 // Returns:
