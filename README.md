@@ -105,6 +105,29 @@ You can configure rollytics using environment variables. All settings can be con
 - `METRICS_PATH`: Metrics endpoint path (optional, default: `/metrics`)
 - `METRICS_PORT`: Metrics server port (optional, default: `9090`)
 
+### CORS Settings (API)
+
+CORS is disabled by default. Enable it when you need to serve browser-based clients, and adjust the following environment variables as needed:
+
+- `CORS_ENABLED`: Enable/disable CORS middleware (optional, default: `false`)
+- `CORS_ALLOW_ORIGINS`: Comma-separated list of allowed origins. Supports `*` (allow all) and subdomain patterns like `*.example.com`. (default: `*`) Examples:
+  - `*`
+  - `https://app.initia.xyz,https://initia.xyz`
+  - `*.initia.xyz`
+- `CORS_ALLOW_METHODS`: Comma-separated list of allowed HTTP methods (optional, default: `GET,POST,PUT,DELETE,PATCH,OPTIONS,HEAD`)
+- `CORS_ALLOW_HEADERS`: Comma-separated list of allowed request headers (optional, default: `Origin, Content-Type, Accept, Authorization, X-Requested-With`)
+- `CORS_ALLOW_CREDENTIALS`: Allow sending cookies and credentials (optional, default: `false`)
+- `CORS_EXPOSE_HEADERS`: Comma-separated list of exposeHeaders defines a whitelist headers that clients are allowed to access (optional, default: `""`)
+- `CORS_MAX_AGE`: Preflight cache TTL in seconds for `Access-Control-Max-Age` (optional, default: `0`)
+
+Notes:
+- Empty `Origin` header (non-browser/same-origin requests) is accepted.
+- Wildcard `*` allows any origin. Pattern `*.example.com` matches any subdomain, but not the bare domain `example.com`.
+
+### Indexer Start Height
+
+- `START_HEIGHT`: Optional non-negative integer. If provided, the indexer starts from this height instead of the default discovery behavior. Example: `START_HEIGHT=0` to start from genesis, or `START_HEIGHT=9184` to resume from a specific block.
+
 ### Example
 
 ```sh
@@ -122,7 +145,18 @@ export DB_AUTO_MIGRATE='true'
 export MAX_CONCURRENT_REQUESTS='100'
 # INTERNAL_TX=true is automatically set for EVM chains
 
-./rollytics api
+# Start height
+export START_HEIGHT=9184
+
+# CORS settings
+export CORS_ENABLED=true
+export CORS_ALLOW_ORIGINS='https://app.initia.xyz,https://initia.xyz,*.doi.com'
+export CORS_ALLOW_METHODS='GET,POST,PUT,DELETE,PATCH,OPTIONS,HEAD'
+export CORS_ALLOW_HEADERS='Origin, Content-Type, Accept, Authorization, X-Requested-With'
+export CORS_ALLOW_CREDENTIALS=true
+export CORS_MAX_AGE=300
+
+./rollytics api/indexer
 ```
 
 #### VM-Specific Defaults

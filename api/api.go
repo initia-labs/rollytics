@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/swagger"
 
 	"github.com/initia-labs/rollytics/api/docs"
@@ -33,6 +34,7 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Api {
 		ErrorHandler:          createErrorHandler(logger),
 	})
 
+	addCORS(app, cfg, logger)
 	addPanicRecoveryMiddleware(app, logger)
 	addMetricsMiddleware(app)
 	handler.Register(app, db, cfg, logger)
@@ -65,6 +67,82 @@ func createErrorHandler(logger *slog.Logger) func(c *fiber.Ctx, err error) error
 		}
 		return c.Status(code).SendString(errString)
 	}
+}
+
+func normalizeOrigins(in []string) []string {
+	out := make([]string, 0, len(in))
+	for _, o := range in {
+		o = strings.ToLower(strings.TrimSpace(o))
+		if o != "" {
+			out = append(out, o)
+		}
+	}
+	return out
+}
+
+func containsWildcard(origins []string) bool {
+	for _, o := range origins {
+		if o == "*" {
+			return true
+		}
+	}
+	return false
+}
+
+func makeAllowOriginsFunc(allowed []string) func(string) bool {
+	return func(origin string) bool {
+		orig := strings.ToLower(strings.TrimSpace(origin))
+		if orig == "" {
+			// No Origin header -> allow request to pass (no CORS header needed)
+			return true
+		}
+		for _, pat := range allowed {
+			if pat == orig {
+				return true
+			}
+			if strings.HasPrefix(pat, "*.") {
+				domain := strings.TrimPrefix(pat, "*.")
+				if strings.HasSuffix(orig, "."+domain) {
+					return true
+				}
+			}
+		}
+		return false
+	}
+}
+
+// addCORS configures Cross-Origin Resource Sharing (CORS) for the API.
+func addCORS(app *fiber.App, cfg *config.Config, logger *slog.Logger) {
+	corsCfg := cfg.GetCORSConfig()
+	if corsCfg == nil || !corsCfg.Enabled {
+		return
+	}
+
+	allowedOrigins := normalizeOrigins(corsCfg.AllowOrigin)
+
+	// Security validation: do not allow credentials with wildcard origins
+	if containsWildcard(allowedOrigins) && corsCfg.AllowCredentials {
+		logger.Error("SECURITY: invalid CORS configuration — wildcard in AllowOrigin with AllowCredentials=true; disabling credentials to avoid credential leakage", "allow_origin", corsCfg.AllowOrigin, "allow_credentials", corsCfg.AllowCredentials)
+		// Disable credentials to prevent allowing credentialed requests from any origin
+		corsCfg.AllowCredentials = false
+	}
+
+	mwCfg := cors.Config{
+		AllowMethods:     strings.Join(corsCfg.AllowMethods, ","),
+		AllowHeaders:     strings.Join(corsCfg.AllowHeaders, ","),
+		ExposeHeaders:    strings.Join(corsCfg.ExposeHeaders, ","),
+		AllowCredentials: corsCfg.AllowCredentials,
+		MaxAge:           corsCfg.MaxAge,
+	}
+
+	if containsWildcard(allowedOrigins) {
+		// With no credentials, we can safely use '*'
+		mwCfg.AllowOrigins = "*"
+	} else {
+		mwCfg.AllowOriginsFunc = makeAllowOriginsFunc(allowedOrigins)
+	}
+
+	app.Use(cors.New(mwCfg))
 }
 
 // addPanicRecoveryMiddleware adds panic recovery middleware to the app
