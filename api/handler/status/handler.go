@@ -22,5 +22,5 @@ func NewStatusHandler(base *common.BaseHandler) *StatusHandler {
 func (h *StatusHandler) Register(router fiber.Router) {
 	status := router.Group("/status")
 
-	status.Get("/", cache.WithExpiration(250*time.Millisecond), h.GetStatus)
+	status.Get("/", cache.WithExpiration(time.Second), h.GetStatus)
 }

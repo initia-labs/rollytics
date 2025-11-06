@@ -210,7 +210,7 @@ func TestGetStatus(t *testing.T) {
 		require.Equal(t, "hit", resp2.Header.Get("X-Cache"))
 
 		// 3. Wait longer than expiration - SHOULD be a miss, but we expect a HIT due to the bug
-		time.Sleep(300 * time.Millisecond)
+		time.Sleep(time.Second)
 
 		// We do NOT expect another DB query here, because the bug prevents expiration
 
