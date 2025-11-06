@@ -34,6 +34,7 @@ func closeBody(resp *http.Response) {
 
 // setup creates a new StatusHandler with a mocked database and a test config.
 func setup(t *testing.T) (*StatusHandler, sqlmock.Sqlmock, *config.Config) {
+	t.Helper()
 	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
 	require.NoError(t, err)
 
@@ -56,22 +57,23 @@ func setup(t *testing.T) (*StatusHandler, sqlmock.Sqlmock, *config.Config) {
 }
 
 func TestGetStatus(t *testing.T) {
-			t.Run("success - internal tx disabled", func(t *testing.T) {
-				h, mock, cfg := setup(t)
-				defer lastEvmInternalTxHeight.Store(0)
-	
-				cfg.GetInternalTxConfig().Enabled = false
-				cfg.GetChainConfig().VmType = types.EVM
-	
-				mock.ExpectBegin()
-				rows := sqlmock.NewRows([]string{"height"}).AddRow(100)
-				mock.ExpectQuery(`SELECT .* FROM "block"`).WillReturnRows(rows)
-				mock.ExpectRollback()
-	
-				app := fiber.New()
-				app.Get("/status", h.GetStatus)
-	
-				req, _ := http.NewRequestWithContext(context.Background(), "GET", "/status", nil)		resp, err := app.Test(req)
+	t.Run("success - internal tx disabled", func(t *testing.T) {
+		h, mock, cfg := setup(t)
+		defer lastEvmInternalTxHeight.Store(0)
+
+		cfg.GetInternalTxConfig().Enabled = false
+		cfg.GetChainConfig().VmType = types.EVM
+
+		mock.ExpectBegin()
+		rows := sqlmock.NewRows([]string{"height"}).AddRow(100)
+		mock.ExpectQuery(`SELECT .* FROM "block"`).WillReturnRows(rows)
+		mock.ExpectRollback()
+
+		app := fiber.New()
+		app.Get("/status", h.GetStatus)
+
+		req, _ := http.NewRequestWithContext(context.Background(), "GET", "/status", nil)
+		resp, err := app.Test(req)
 		defer closeBody(resp)
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
@@ -107,7 +109,7 @@ func TestGetStatus(t *testing.T) {
 		app := fiber.New()
 		app.Get("/status", h.GetStatus)
 
-		req, _ := http.NewRequest("GET", "/status", nil)
+		req, _ := http.NewRequestWithContext(context.Background(), "GET", "/status", nil)
 		resp, err := app.Test(req)
 		defer closeBody(resp)
 		require.NoError(t, err)
@@ -146,7 +148,7 @@ func TestGetStatus(t *testing.T) {
 		app := fiber.New()
 		app.Get("/status", h.GetStatus)
 
-		req, _ := http.NewRequest("GET", "/status", nil)
+		req, _ := http.NewRequestWithContext(context.Background(), "GET", "/status", nil)
 		resp, err := app.Test(req)
 		defer closeBody(resp)
 		require.NoError(t, err)
@@ -176,7 +178,7 @@ func TestGetStatus(t *testing.T) {
 		app := fiber.New()
 		app.Get("/status", h.GetStatus)
 
-		req, _ := http.NewRequest("GET", "/status", nil)
+		req, _ := http.NewRequestWithContext(context.Background(), "GET", "/status", nil)
 		resp, err := app.Test(req)
 		defer closeBody(resp)
 		require.NoError(t, err)
@@ -213,7 +215,7 @@ func TestGetStatus(t *testing.T) {
 		// 2. Wait shorter than expiration - should be a cache hit
 		time.Sleep(100 * time.Millisecond)
 
-		req2, _ := http.NewRequest("GET", "/status", nil)
+		req2, _ := http.NewRequestWithContext(context.Background(), "GET", "/status", nil)
 		resp2, err := app.Test(req2, -1)
 		defer closeBody(resp2)
 		require.NoError(t, err)
@@ -223,7 +225,7 @@ func TestGetStatus(t *testing.T) {
 		// 3. Wait longer than expiration - SHOULD be a miss
 		time.Sleep(time.Second)
 
-		req3, _ := http.NewRequest("GET", "/status", nil)
+		req3, _ := http.NewRequestWithContext(context.Background(), "GET", "/status", nil)
 		resp3, err := app.Test(req3, -1)
 		defer closeBody(resp3)
 		require.NoError(t, err)
