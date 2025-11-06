@@ -7,8 +7,8 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/initia-labs/rollytics/api/handler/common"
 	"github.com/initia-labs/rollytics/types"
+	"github.com/initia-labs/rollytics/util/common-handler/common"
 )
 
 func TestToTxsResponse(t *testing.T) {

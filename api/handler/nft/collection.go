@@ -7,8 +7,8 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
 
-	"github.com/initia-labs/rollytics/api/handler/common"
 	"github.com/initia-labs/rollytics/types"
+	"github.com/initia-labs/rollytics/util/common-handler/common"
 )
 
 // GetCollections handles GET /nft/v1/collections

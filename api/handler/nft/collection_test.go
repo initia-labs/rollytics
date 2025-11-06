@@ -5,8 +5,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/initia-labs/rollytics/api/handler/common"
 	"github.com/initia-labs/rollytics/types"
+	"github.com/initia-labs/rollytics/util/common-handler/common"
 )
 
 func TestToCollectionsResponse(t *testing.T) {

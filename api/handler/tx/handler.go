@@ -6,8 +6,8 @@ import (
 	"github.com/gofiber/fiber/v2"
 
 	"github.com/initia-labs/rollytics/api/cache"
-	"github.com/initia-labs/rollytics/api/handler/common"
 	"github.com/initia-labs/rollytics/types"
+	"github.com/initia-labs/rollytics/util/common-handler/common"
 )
 
 type TxHandler struct {

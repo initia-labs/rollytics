@@ -4,8 +4,8 @@ import (
 	"github.com/lib/pq"
 	"gorm.io/gorm"
 
-	"github.com/initia-labs/rollytics/api/handler/common"
 	"github.com/initia-labs/rollytics/types"
+	"github.com/initia-labs/rollytics/util/common-handler/common"
 )
 
 func buildTxEdgeQuery(tx *gorm.DB, accountID int64, isSigner bool, msgTypeIds []int64, pagination *common.Pagination) (*gorm.DB, int64, error) {

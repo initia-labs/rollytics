@@ -13,12 +13,12 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/stretchr/testify/require"
 
-	"github.com/initia-labs/rollytics/api/handler/common"
 	"github.com/initia-labs/rollytics/config"
 	dbconfig "github.com/initia-labs/rollytics/orm/config"
 	"github.com/initia-labs/rollytics/orm/testutil"
 	"github.com/initia-labs/rollytics/types"
 	"github.com/initia-labs/rollytics/util"
+	"github.com/initia-labs/rollytics/util/common-handler/common"
 )
 
 func init() {
@@ -470,6 +470,7 @@ func evmTxPayload(hash string) []byte {
 	data, _ := json.Marshal(payload)
 	return data
 }
+
 func TestBuildEdgeQueryForGetTxs(t *testing.T) {
 	handler, mock := newTxHandlerWithMockDB(t)
 	req := require.New(t)

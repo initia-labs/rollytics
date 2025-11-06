@@ -6,10 +6,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/initia-labs/rollytics/api/handler/common"
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/types"
 	"github.com/initia-labs/rollytics/util"
+	"github.com/initia-labs/rollytics/util/common-handler/common"
 )
 
 type BlocksResponse struct {
