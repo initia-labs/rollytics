@@ -34,7 +34,7 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Api {
 		ErrorHandler:          createErrorHandler(logger),
 	})
 
-	addCORS(app, cfg)
+	addCORS(app, cfg, logger)
 	addPanicRecoveryMiddleware(app, logger)
 	addMetricsMiddleware(app)
 	handler.Register(app, db, cfg, logger)
@@ -112,13 +112,20 @@ func makeAllowOriginsFunc(allowed []string) func(string) bool {
 }
 
 // addCORS configures Cross-Origin Resource Sharing (CORS) for the API.
-func addCORS(app *fiber.App, cfg *config.Config) {
+func addCORS(app *fiber.App, cfg *config.Config, logger *slog.Logger) {
 	corsCfg := cfg.GetCORSConfig()
 	if corsCfg == nil || !corsCfg.Enabled {
 		return
 	}
 
 	allowedOrigins := normalizeOrigins(corsCfg.AllowOrigin)
+
+	// Security validation: do not allow credentials with wildcard origins
+	if containsWildcard(allowedOrigins) && corsCfg.AllowCredentials {
+		logger.Error("SECURITY: invalid CORS configuration — wildcard in AllowOrigin with AllowCredentials=true; disabling credentials to avoid credential leakage", "allow_origin", corsCfg.AllowOrigin, "allow_credentials", corsCfg.AllowCredentials)
+		// Disable credentials to prevent allowing credentialed requests from any origin
+		corsCfg.AllowCredentials = false
+	}
 
 	mwCfg := cors.Config{
 		AllowMethods:     strings.Join(corsCfg.AllowMethods, ","),
@@ -129,13 +136,8 @@ func addCORS(app *fiber.App, cfg *config.Config) {
 	}
 
 	if containsWildcard(allowedOrigins) {
-		if corsCfg.AllowCredentials {
-			// With credentials, browsers don't accept '*' in ACAO, so use function to allow all origins.
-			mwCfg.AllowOriginsFunc = func(string) bool { return true }
-		} else {
-			// No credentials -> can use '*'
-			mwCfg.AllowOrigins = "*"
-		}
+		// With no credentials, we can safely use '*'
+		mwCfg.AllowOrigins = "*"
 	} else {
 		mwCfg.AllowOriginsFunc = makeAllowOriginsFunc(allowedOrigins)
 	}
