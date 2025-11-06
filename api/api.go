@@ -102,7 +102,7 @@ func makeAllowOriginsFunc(allowed []string) func(string) bool {
 			}
 			if strings.HasPrefix(pat, "*.") {
 				domain := strings.TrimPrefix(pat, "*.")
-				if strings.HasSuffix(orig, "."+domain) || orig == domain {
+				if strings.HasSuffix(orig, "."+domain) {
 					return true
 				}
 			}

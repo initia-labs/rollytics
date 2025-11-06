@@ -22,10 +22,11 @@ func newTestAppWithCORS(corsCfg *config.CORSConfig) *fiber.App {
 
 func TestCORS_WildcardOrigin(t *testing.T) {
 	app := newTestAppWithCORS(&config.CORSConfig{
-		Enabled:      true,
-		AllowOrigin:  []string{"*"},
-		AllowMethods: []string{"GET", "OPTIONS"},
-		AllowHeaders: []string{"Content-Type", "Authorization"},
+		Enabled:          true,
+		AllowOrigin:      []string{"*"},
+		AllowMethods:     []string{"GET", "OPTIONS"},
+		AllowHeaders:     []string{"Content-Type", "Authorization"},
+		AllowCredentials: false, // explicit: credentials are false for this test
 	})
 
 	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "/ping", nil)
@@ -36,9 +37,9 @@ func TestCORS_WildcardOrigin(t *testing.T) {
 	}
 	_ = resp.Body.Close()
 
-	if got := resp.Header.Get("Access-Control-Allow-Origin"); got != "https://moro.example" && got != "*" {
-		// fiber sets ACAO to echo origin when credentials true; allow either echo or '*'
-		t.Fatalf("expected ACAO to be echo origin or '*', got %q", got)
+	// With wildcard origins and credentials disabled, ACAO must be "*" (see api.go).
+	if got := resp.Header.Get("Access-Control-Allow-Origin"); got != "*" {
+		t.Fatalf("expected ACAO='*' when credentials=false with wildcard, got %q", got)
 	}
 }
 
