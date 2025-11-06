@@ -1,6 +1,7 @@
 package status
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"log/slog"
@@ -24,6 +25,11 @@ import (
 // newTestConfig creates a minimal config.Config for testing purposes.
 func newTestConfig() *config.Config {
 	return &config.Config{}
+}
+func closeBody(resp *http.Response) {
+	if resp != nil && resp.Body != nil {
+		_ = resp.Body.Close()
+	}
 }
 
 // setup creates a new StatusHandler with a mocked database and a test config.
@@ -50,23 +56,23 @@ func setup(t *testing.T) (*StatusHandler, sqlmock.Sqlmock, *config.Config) {
 }
 
 func TestGetStatus(t *testing.T) {
-	t.Run("success - internal tx disabled", func(t *testing.T) {
-		h, mock, cfg := setup(t)
-		defer lastEvmInternalTxHeight.Store(0)
-
-		cfg.GetInternalTxConfig().Enabled = false
-		cfg.GetChainConfig().VmType = types.EVM
-
-		mock.ExpectBegin()
-		rows := sqlmock.NewRows([]string{"height"}).AddRow(100)
-		mock.ExpectQuery(`SELECT .* FROM "block"`).WillReturnRows(rows)
-		mock.ExpectRollback()
-
-		app := fiber.New()
-		app.Get("/status", h.GetStatus)
-
-		req, _ := http.NewRequest("GET", "/status", nil)
-		resp, err := app.Test(req)
+			t.Run("success - internal tx disabled", func(t *testing.T) {
+				h, mock, cfg := setup(t)
+				defer lastEvmInternalTxHeight.Store(0)
+	
+				cfg.GetInternalTxConfig().Enabled = false
+				cfg.GetChainConfig().VmType = types.EVM
+	
+				mock.ExpectBegin()
+				rows := sqlmock.NewRows([]string{"height"}).AddRow(100)
+				mock.ExpectQuery(`SELECT .* FROM "block"`).WillReturnRows(rows)
+				mock.ExpectRollback()
+	
+				app := fiber.New()
+				app.Get("/status", h.GetStatus)
+	
+				req, _ := http.NewRequestWithContext(context.Background(), "GET", "/status", nil)		resp, err := app.Test(req)
+		defer closeBody(resp)
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 
@@ -103,6 +109,7 @@ func TestGetStatus(t *testing.T) {
 
 		req, _ := http.NewRequest("GET", "/status", nil)
 		resp, err := app.Test(req)
+		defer closeBody(resp)
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 
@@ -141,6 +148,7 @@ func TestGetStatus(t *testing.T) {
 
 		req, _ := http.NewRequest("GET", "/status", nil)
 		resp, err := app.Test(req)
+		defer closeBody(resp)
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 
@@ -170,6 +178,7 @@ func TestGetStatus(t *testing.T) {
 
 		req, _ := http.NewRequest("GET", "/status", nil)
 		resp, err := app.Test(req)
+		defer closeBody(resp)
 		require.NoError(t, err)
 		require.Equal(t, http.StatusInternalServerError, resp.StatusCode)
 
@@ -193,8 +202,9 @@ func TestGetStatus(t *testing.T) {
 		mock.ExpectQuery(`SELECT .* FROM "block"`).WillReturnRows(rows1)
 		mock.ExpectRollback()
 
-		req1, _ := http.NewRequest("GET", "/status", nil)
+		req1, _ := http.NewRequestWithContext(context.Background(), "GET", "/status", nil)
 		resp1, err := app.Test(req1, -1)
+		defer closeBody(resp1)
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, resp1.StatusCode)
 		require.Equal(t, "miss", resp1.Header.Get("X-Cache"))
@@ -205,6 +215,7 @@ func TestGetStatus(t *testing.T) {
 
 		req2, _ := http.NewRequest("GET", "/status", nil)
 		resp2, err := app.Test(req2, -1)
+		defer closeBody(resp2)
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, resp2.StatusCode)
 		require.Equal(t, "hit", resp2.Header.Get("X-Cache"))
@@ -214,6 +225,7 @@ func TestGetStatus(t *testing.T) {
 
 		req3, _ := http.NewRequest("GET", "/status", nil)
 		resp3, err := app.Test(req3, -1)
+		defer closeBody(resp3)
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, resp3.StatusCode)
 

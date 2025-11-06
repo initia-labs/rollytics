@@ -1,6 +1,7 @@
 package cache_test
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"testing"
@@ -44,28 +45,28 @@ func TestCacheExpiration(t *testing.T) {
 			})
 
 			// 1. First request - should be a cache miss
-			req1, err := http.NewRequest("GET", "/test", nil)
+			req1, err := http.NewRequestWithContext(context.Background(), "GET", "/test", nil)
 			require.NoError(t, err)
 			resp1, err := app.Test(req1, -1) // -1 disables timeout
 			require.NoError(t, err)
 			require.Equal(t, "miss", resp1.Header.Get("X-Cache"))
 			body1, _ := io.ReadAll(resp1.Body)
-			resp1.Body.Close()
+			_ = resp1.Body.Close()
 
 			// 2. Wait for a duration shorter than expiration and make a second request
 			time.Sleep(tc.waitBeforeHit)
-			req2, err := http.NewRequest("GET", "/test", nil)
+			req2, err := http.NewRequestWithContext(context.Background(), "GET", "/test", nil)
 			require.NoError(t, err)
 			resp2, err := app.Test(req2, -1)
 			require.NoError(t, err)
 			require.Equal(t, "hit", resp2.Header.Get("X-Cache"))
 			body2, _ := io.ReadAll(resp2.Body)
-			resp2.Body.Close()
+			_ = resp2.Body.Close()
 			require.Equal(t, body1, body2, "Content should be the same for a cache hit")
 
 			// 3. Wait for a duration longer than expiration and make a third request
 			time.Sleep(tc.waitAfterExpire)
-			req3, err := http.NewRequest("GET", "/test", nil)
+			req3, err := http.NewRequestWithContext(context.Background(), "GET", "/test", nil)
 			require.NoError(t, err)
 			resp3, err := app.Test(req3, -1)
 			require.NoError(t, err)
@@ -73,7 +74,7 @@ func TestCacheExpiration(t *testing.T) {
 			// This is the crucial assertion
 			finalCacheStatus := resp3.Header.Get("X-Cache")
 			body3, _ := io.ReadAll(resp3.Body)
-			resp3.Body.Close()
+			_ = resp3.Body.Close()
 
 			if tc.expectFail {
 				// For the sub-second test, we expect a 'hit' here, proving the cache did NOT expire
