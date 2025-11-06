@@ -209,10 +209,8 @@ func TestGetStatus(t *testing.T) {
 		require.Equal(t, http.StatusOK, resp2.StatusCode)
 		require.Equal(t, "hit", resp2.Header.Get("X-Cache"))
 
-		// 3. Wait longer than expiration - SHOULD be a miss, but we expect a HIT due to the bug
+		// 3. Wait longer than expiration - SHOULD be a miss
 		time.Sleep(time.Second)
-
-		// We do NOT expect another DB query here, because the bug prevents expiration
 
 		req3, _ := http.NewRequest("GET", "/status", nil)
 		resp3, err := app.Test(req3, -1)
