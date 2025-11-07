@@ -9,6 +9,7 @@ import (
 
 	"github.com/initia-labs/rollytics/indexer/extension/richlist/utils"
 	"github.com/initia-labs/rollytics/types"
+	"github.com/initia-labs/rollytics/util"
 )
 
 // processEVMTransferEvent processes an EVM transfer event and updates the balance map.
@@ -31,8 +32,8 @@ func processEVMTransferEvent(logger *slog.Logger, evmLog types.EvmLog, balanceMa
 	}
 
 	// Update sender's balance (subtract)
-	if fromAddr != EMPTY_ADDRESS {
-		fromKey := utils.NewBalanceChangeKey(denom, fromAddr)
+	if fromAddrBytes, err := util.HexToBytes(fromAddr); fromAddr != EMPTY_ADDRESS && err == nil {
+		fromKey := utils.NewBalanceChangeKey(denom, fromAddrBytes)
 		if balance, ok := balanceMap[fromKey]; !ok {
 			balanceMap[fromKey] = sdkmath.ZeroInt().Sub(amount)
 		} else {
@@ -41,8 +42,8 @@ func processEVMTransferEvent(logger *slog.Logger, evmLog types.EvmLog, balanceMa
 	}
 
 	// Update receiver's balance (add)
-	if toAddr != EMPTY_ADDRESS {
-		toKey := utils.NewBalanceChangeKey(denom, toAddr)
+	if toAddrBytes, err := util.HexToBytes(fromAddr); toAddr != EMPTY_ADDRESS && err == nil {
+		toKey := utils.NewBalanceChangeKey(denom, toAddrBytes)
 		if balance, ok := balanceMap[toKey]; !ok {
 			balanceMap[toKey] = sdkmath.ZeroInt().Add(amount)
 		} else {

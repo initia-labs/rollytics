@@ -53,19 +53,19 @@ func ParseHexAmountToSDKInt(data string) (sdkmath.Int, bool) {
 	return sdkmath.NewIntFromBigInt(amountBigInt), true
 }
 
-func NewAddressWithID(address []byte, id int64) AddressWithID {
+func NewAddressWithID(address sdk.AccAddress, id int64) AddressWithID {
 	return AddressWithID{
-		BechAddress: sdk.AccAddress(address).String(),
+		BechAddress: address.String(),
 		HexAddress:  util.BytesToHexWithPrefix(address),
 		Id:          id,
 	}
 }
 
 // NewBalanceChangeKey creates a BalanceChangeKey from asset and address.
-func NewBalanceChangeKey(denom, addr string) BalanceChangeKey {
+func NewBalanceChangeKey(denom string, addr sdk.AccAddress) BalanceChangeKey {
 	return BalanceChangeKey{
 		Denom: denom,
-		Addr:  addr,
+		Addr:  addr.String(),
 	}
 }
 
@@ -119,7 +119,7 @@ func processCosmosTransferEvent(logger *slog.Logger, event sdk.Event, balanceMap
 
 		if !containsAddress(moduleAccounts, sender) {
 			// Update sender's balance (subtract)
-			senderKey := NewBalanceChangeKey(denom, strings.ToLower(sender.String()))
+			senderKey := NewBalanceChangeKey(denom, sender)
 			if balance, ok := balanceMap[senderKey]; !ok {
 				balanceMap[senderKey] = sdkmath.ZeroInt().Sub(coin.Amount)
 			} else {
@@ -129,7 +129,7 @@ func processCosmosTransferEvent(logger *slog.Logger, event sdk.Event, balanceMap
 
 		if !containsAddress(moduleAccounts, recipient) {
 			// Update recipient's balance (add)
-			recipientKey := NewBalanceChangeKey(denom, strings.ToLower(recipient.String()))
+			recipientKey := NewBalanceChangeKey(denom, recipient)
 			if balance, ok := balanceMap[recipientKey]; !ok {
 				balanceMap[recipientKey] = coin.Amount
 			} else {
