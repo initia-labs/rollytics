@@ -58,6 +58,7 @@ func UpdateBalanceChanges(ctx context.Context, db *gorm.DB, balanceMap map[Balan
 	addressSet := make(map[string]bool)
 	for key := range balanceMap {
 		if len(key.Addr) > 44 {
+			// TODO: remove panic
 			panic(key.Addr)
 		}
 		addressSet[key.Addr] = true
@@ -82,10 +83,6 @@ func UpdateBalanceChanges(ctx context.Context, db *gorm.DB, balanceMap map[Balan
 		accountId, ok := accountIdMap[key.Addr]
 		if !ok {
 			return nil, fmt.Errorf("account ID not found for address: %s", key.Addr)
-		}
-
-		if accountId == 0 {
-			panic(fmt.Errorf("account ID should not be 0: %s", key.Addr))
 		}
 
 		// Use raw SQL to update or insert with ON CONFLICT and RETURNING to get the updated amount in one query
@@ -197,6 +194,7 @@ func UpdateBalances(ctx context.Context, db *gorm.DB, denom string, addressBalan
 	// Update balances in the database using raw SQL for atomic updates
 	for addrWithID, balance := range addressBalances {
 		if len(addrWithID.BechAddress) > 44 {
+			// TODO: remove panic
 			panic(addrWithID.BechAddress)
 		}
 		// Use raw SQL to insert or update with ON CONFLICT
