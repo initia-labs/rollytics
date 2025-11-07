@@ -81,6 +81,10 @@ func UpdateBalanceChanges(ctx context.Context, db *gorm.DB, balanceMap map[Balan
 			return nil, fmt.Errorf("account ID not found for address: %s", key.Addr)
 		}
 
+		if accountId == 0 {
+			return nil, fmt.Errorf("account ID should not be 0: %s", key.Addr)
+		}
+
 		// Use raw SQL to update or insert with ON CONFLICT and RETURNING to get the updated amount in one query
 		var updatedAmount string
 		err := db.WithContext(ctx).Raw(`

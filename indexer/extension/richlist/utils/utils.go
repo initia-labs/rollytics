@@ -192,7 +192,7 @@ func FetchAndUpdateBalances(
 	accounts []sdk.AccAddress,
 	height int64,
 ) error {
-	accountIDMap, err := getOrCreateAccountIds(db, accounts, true)
+	accountIdMap, err := getOrCreateAccountIds(db, accounts, true)
 	if err != nil {
 		return fmt.Errorf("failed to get or create account IDs: %w", err)
 	}
@@ -204,7 +204,7 @@ func FetchAndUpdateBalances(
 			logger.Info("fetching balances for each account and accumulating by denomination", slog.Int64("height", height), slog.String("progress", progress))
 		}
 
-		accountID, ok := accountIDMap[address.String()]
+		accountID, ok := accountIdMap[address.String()]
 		if !ok {
 			return fmt.Errorf("account ID not found for address: %s", address)
 		}

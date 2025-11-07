@@ -503,7 +503,8 @@ func GetEvmContractByDenom(ctx context.Context, denom string) (string, error) {
 	}
 
 	// Cache the result
-	evmDenomContractCache.Set(denom, response.Address)
+	address := strings.ToLower(response.Address)
+	evmDenomContractCache.Set(denom, address)
 
-	return strings.ToLower(response.Address), nil
+	return address, nil
 }

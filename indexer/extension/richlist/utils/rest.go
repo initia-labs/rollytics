@@ -195,7 +195,7 @@ func fetchAccountBalancesWithPagination(ctx context.Context, cfg *config.Config,
 				if err != nil {
 					continue
 				}
-				denom = strings.ToLower(contract)
+				denom = contract
 			}
 
 			allBalances = append(allBalances, sdk.Coin{
