@@ -186,7 +186,7 @@ func setupSwagger(app *fiber.App, cfg *config.Config) {
 		URL:         "/swagger/doc.json",
 		DeepLinking: true,
 		TagsSorter: template.JS(`function(a, b) {
-			const order = ["Block", "Tx", "EVM Tx", "EVM Internal Tx", "NFT"];
+			const order = ["Block", "Tx", "EVM Tx", "EVM Internal Tx", "NFT", "Rich List"];
 			return order.indexOf(a) - order.indexOf(b);
 		}`),
 	}
@@ -239,6 +239,9 @@ func setupNonEVMSwagger(app *fiber.App) {
 
 // @tag.name NFT
 // @tag.description NFT related operations
+
+// @tag.name Rich List
+// @tag.description Rich list related operations
 func (a *Api) Start() error {
 	port := a.cfg.GetListenPort()
 	docs.SwaggerInfo.Title = "Rollytics API"

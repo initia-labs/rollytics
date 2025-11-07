@@ -12,6 +12,20 @@ import (
 	"github.com/initia-labs/rollytics/util"
 )
 
+// GetTokenHolders handles GET /richlist/v1/:denom
+// @Summary Get token holders
+// @Description Get a list of token holders for a specific denomination, ordered by amount in descending order
+// @Tags Rich List
+// @Accept json
+// @Produce json
+// @Param denom path string true "Token denomination"
+// @Param pagination.key query string false "Pagination key"
+// @Param pagination.offset query int false "Pagination offset"
+// @Param pagination.limit query int false "Pagination limit, default is 100" default is 100
+// @Param pagination.count_total query bool false "Count total, default is true" default is true
+// @Param pagination.reverse query bool false "Reverse order default is true if set to true, the results will be ordered in descending order"
+// @Success 200 {object} TokenHoldersResponse
+// @Router /richlist/v1/{denom} [get]
 func (h *RichListHandler) GetTokenHolders(c *fiber.Ctx) error {
 	denom := c.Params("denom")
 	if denom == "" {
