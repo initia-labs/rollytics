@@ -159,7 +159,6 @@ func grepAddressesFromEvmTx(evmTx types.EvmTx) (grepped []string, err error) {
 		if err != nil {
 			return grepped, err
 		}
-		panic(accAddr.String())
 		grepped = append(grepped, accAddr.String())
 	}
 

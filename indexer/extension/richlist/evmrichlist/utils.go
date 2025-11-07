@@ -32,8 +32,8 @@ func processEVMTransferEvent(logger *slog.Logger, evmLog types.EvmLog, balanceMa
 	}
 
 	// Update sender's balance (subtract)
-	if fromAddrBytes, err := util.HexToBytes(fromAddr); fromAddr != EMPTY_ADDRESS && err == nil {
-		fromKey := utils.NewBalanceChangeKey(denom, fromAddrBytes)
+	if fromAccAddr, err := util.AccAddressFromString(fromAddr); fromAddr != EMPTY_ADDRESS && err == nil {
+		fromKey := utils.NewBalanceChangeKey(denom, fromAccAddr)
 		if balance, ok := balanceMap[fromKey]; !ok {
 			balanceMap[fromKey] = sdkmath.ZeroInt().Sub(amount)
 		} else {
@@ -42,8 +42,9 @@ func processEVMTransferEvent(logger *slog.Logger, evmLog types.EvmLog, balanceMa
 	}
 
 	// Update receiver's balance (add)
-	if toAddrBytes, err := util.HexToBytes(toAddr); toAddr != EMPTY_ADDRESS && err == nil {
-		toKey := utils.NewBalanceChangeKey(denom, toAddrBytes)
+	if toAccAddr, err := util.AccAddressFromString(toAddr); toAddr != EMPTY_ADDRESS && err == nil {
+		toKey := utils.NewBalanceChangeKey(denom, toAccAddr)
+		panic(toKey)
 		if balance, ok := balanceMap[toKey]; !ok {
 			balanceMap[toKey] = sdkmath.ZeroInt().Add(amount)
 		} else {
