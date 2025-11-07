@@ -44,7 +44,6 @@ func processEVMTransferEvent(logger *slog.Logger, evmLog types.EvmLog, balanceMa
 	// Update receiver's balance (add)
 	if toAccAddr, err := util.AccAddressFromString(toAddr); toAddr != EMPTY_ADDRESS && err == nil {
 		toKey := utils.NewBalanceChangeKey(denom, toAccAddr)
-		panic(toKey)
 		if balance, ok := balanceMap[toKey]; !ok {
 			balanceMap[toKey] = sdkmath.ZeroInt().Add(amount)
 		} else {

@@ -57,6 +57,9 @@ func UpdateBalanceChanges(ctx context.Context, db *gorm.DB, balanceMap map[Balan
 	// Step 1: Collect all unique addresses that need account ID conversion
 	addressSet := make(map[string]bool)
 	for key := range balanceMap {
+		if len(key.Addr) > 44 {
+			panic(key.Addr)
+		}
 		addressSet[key.Addr] = true
 	}
 
@@ -193,6 +196,9 @@ func UpdateBalances(ctx context.Context, db *gorm.DB, denom string, addressBalan
 
 	// Update balances in the database using raw SQL for atomic updates
 	for addrWithID, balance := range addressBalances {
+		if len(addrWithID.BechAddress) > 44 {
+			panic(addrWithID.BechAddress)
+		}
 		// Use raw SQL to insert or update with ON CONFLICT
 		result := db.WithContext(ctx).Exec(`
 			INSERT INTO rich_list (id, denom, amount)
