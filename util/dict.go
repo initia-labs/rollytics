@@ -473,6 +473,10 @@ type EvmContractByDenomResponse struct {
 // GetEvmContractByDenom queries the MiniEVM API for a contract address by denom
 // and caches the result. It returns the contract address or an error.
 func GetEvmContractByDenom(ctx context.Context, denom string) (string, error) {
+	if strings.HasPrefix(denom, "0x") {
+		return denom, nil
+	}
+
 	// Check cache first
 	if address, ok := evmDenomContractCache.Get(denom); ok {
 		return address, nil
