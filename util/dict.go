@@ -57,7 +57,7 @@ func checkAccountCache(accounts []string) (idMap map[string]int64, uncached []st
 		}
 		id, ok := accountCache.Get(key)
 		if ok {
-			idMap[account] = id
+			idMap[key] = id
 		} else {
 			uncached = append(uncached, account)
 		}
@@ -108,9 +108,9 @@ func createNewAccountEntries(db *gorm.DB, uncached []string, accountIdMap map[st
 		if err := db.Clauses(orm.DoNothingWhenConflict).Create(&newEntries).Error; err != nil {
 			return err
 		}
-		for i, entry := range newEntries {
+		for _, entry := range newEntries {
 			accAddr := sdk.AccAddress(entry.Account)
-			accountIdMap[accAddr.String()] = newEntries[i].Id
+			accountIdMap[accAddr.String()] = entry.Id
 		}
 	}
 	return nil
@@ -126,7 +126,7 @@ func updateAccountCacheAndResult(uncached []string, accountIdMap map[string]int6
 
 		if id, ok := accountIdMap[key]; ok {
 			accountCache.Set(key, id)
-			idMap[account] = id
+			idMap[key] = id
 		}
 	}
 }
