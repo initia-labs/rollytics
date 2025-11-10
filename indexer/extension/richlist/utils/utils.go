@@ -143,9 +143,7 @@ func processCosmosTransferEvent(logger *slog.Logger, event sdk.Event, balanceMap
 
 // ProcessCosmosBalanceChanges processes Cosmos transactions and calculates balance changes
 // for each address. Returns a map of BalanceChangeKey to balance change amounts.
-func ProcessCosmosBalanceChanges(logger *slog.Logger, txs []types.CollectedTx, moduleAccounts []sdk.AccAddress) map[BalanceChangeKey]sdkmath.Int {
-	balanceMap := make(map[BalanceChangeKey]sdkmath.Int)
-
+func ProcessCosmosBalanceChanges(logger *slog.Logger, txs []types.CollectedTx, moduleAccounts []sdk.AccAddress, balanceMap map[BalanceChangeKey]sdkmath.Int, onlyFailed bool) {
 	// Process each transaction
 	for _, tx := range txs {
 		// Parse tx data to get timestamp and events
@@ -154,9 +152,7 @@ func ProcessCosmosBalanceChanges(logger *slog.Logger, txs []types.CollectedTx, m
 			continue
 		}
 
-		// Skip failed transactions
-		// Cosmos SDK Code: 0 = success, non-zero = failed
-		if txData.Code != 0 {
+		if onlyFailed && txData.Code == 0 {
 			logger.Debug("skipping failed cosmos transaction", "tx_hash", txData.TxHash, "code", txData.Code)
 			continue
 		}
@@ -172,8 +168,6 @@ func ProcessCosmosBalanceChanges(logger *slog.Logger, txs []types.CollectedTx, m
 			}
 		}
 	}
-
-	return balanceMap
 }
 
 // FetchAndAccumulateBalancesByDenom fetches balances for a list of addresses and accumulates

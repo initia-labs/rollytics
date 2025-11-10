@@ -21,3 +21,15 @@ func GetBlockCollectedEvmTxs(ctx context.Context, db *gorm.DB, height int64) ([]
 
 	return evmTxs, nil
 }
+
+func GetBlockCollectedCosmosTxs(ctx context.Context, db *gorm.DB, height int64) ([]types.CollectedTx, error) {
+	var cosmosTxs []types.CollectedTx
+
+	if err := db.WithContext(ctx).
+		Model(types.CollectedTx{}).Where("height = ?", height).
+		Order("sequence ASC").Find(&cosmosTxs).Error; err != nil {
+		return nil, err
+	}
+
+	return cosmosTxs, nil
+}

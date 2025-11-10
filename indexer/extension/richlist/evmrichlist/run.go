@@ -54,8 +54,16 @@ func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.D
 				return err
 			}
 
+			cosmosTxs, err := GetBlockCollectedCosmosTxs(ctx, dbTx, currentHeight)
+			if err != nil {
+				logger.Error("failed to get cosmos transactions", slog.Any("error", err))
+				return err
+			}
+
 			// Process transactions to calculate balance changes
 			balanceMap := ProcessEvmBalanceChanges(logger, evmTxs)
+			// Process failed cosmos transactions to calculate balance changes
+			richlistutils.ProcessCosmosBalanceChanges(logger, cosmosTxs, moduleAccounts, balanceMap, true)
 
 			// Update balance changes to the database
 			negativeDenoms, err := richlistutils.UpdateBalanceChanges(ctx, dbTx, balanceMap)
