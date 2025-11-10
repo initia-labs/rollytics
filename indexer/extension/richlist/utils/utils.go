@@ -82,7 +82,7 @@ func containsAddress(addresses []sdk.AccAddress, target sdk.AccAddress) bool {
 // processCosmosTransferEvent processes a Cosmos transfer event and updates the balance map.
 // It extracts transfer information from the event attributes and updates balances for both sender and receiver.
 // Returns true if the event was successfully processed, false otherwise.
-func processCosmosTransferEvent(logger *slog.Logger, event sdk.Event, balanceMap map[BalanceChangeKey]sdkmath.Int, moduleAccounts []sdk.AccAddress) bool {
+func processCosmosTransferEvent(logger *slog.Logger, cfg *config.Config, event sdk.Event, balanceMap map[BalanceChangeKey]sdkmath.Int, moduleAccounts []sdk.AccAddress) bool {
 	// Extract attributes from the event
 	var recipient, sender sdk.AccAddress
 	var amount string
@@ -115,7 +115,14 @@ func processCosmosTransferEvent(logger *slog.Logger, event sdk.Event, balanceMap
 
 	// Process each coin in the transfer
 	for _, coin := range coins {
-		denom := strings.ToLower(coin.Denom)
+		denom := strings.ToLower(strings.ToLower(coin.Denom))
+		if cfg.GetChainConfig().VmType == types.EVM {
+			contract, err := util.GetEvmContractByDenom(context.Background(), denom)
+			if err != nil {
+				continue
+			}
+			denom = contract
+		}
 
 		if !containsAddress(moduleAccounts, sender) {
 			// Update sender's balance (subtract)
@@ -143,7 +150,7 @@ func processCosmosTransferEvent(logger *slog.Logger, event sdk.Event, balanceMap
 
 // ProcessCosmosBalanceChanges processes Cosmos transactions and calculates balance changes
 // for each address. Returns a map of BalanceChangeKey to balance change amounts.
-func ProcessCosmosBalanceChanges(logger *slog.Logger, txs []types.CollectedTx, moduleAccounts []sdk.AccAddress, balanceMap map[BalanceChangeKey]sdkmath.Int, onlyFailed bool) {
+func ProcessCosmosBalanceChanges(logger *slog.Logger, cfg *config.Config, txs []types.CollectedTx, moduleAccounts []sdk.AccAddress, balanceMap map[BalanceChangeKey]sdkmath.Int, onlyFailed bool) {
 	// Process each transaction
 	for _, tx := range txs {
 		// Parse tx data to get timestamp and events
@@ -164,7 +171,7 @@ func ProcessCosmosBalanceChanges(logger *slog.Logger, txs []types.CollectedTx, m
 
 		for _, event := range events {
 			if event.Type == banktypes.EventTypeTransfer {
-				processCosmosTransferEvent(logger, event, balanceMap, moduleAccounts)
+				processCosmosTransferEvent(logger, cfg, event, balanceMap, moduleAccounts)
 			}
 		}
 	}
