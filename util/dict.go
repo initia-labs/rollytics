@@ -57,7 +57,7 @@ func checkAccountCache(accounts []string) (idMap map[string]int64, uncached []st
 		}
 		id, ok := accountCache.Get(key)
 		if ok {
-			idMap[key] = id
+			idMap[account] = id
 		} else {
 			uncached = append(uncached, account)
 		}
@@ -126,7 +126,7 @@ func updateAccountCacheAndResult(uncached []string, accountIdMap map[string]int6
 
 		if id, ok := accountIdMap[key]; ok {
 			accountCache.Set(key, id)
-			idMap[key] = id
+			idMap[account] = id
 		}
 	}
 }
