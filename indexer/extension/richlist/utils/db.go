@@ -215,15 +215,14 @@ func UpdateBalances(ctx context.Context, db *gorm.DB, denom string, addressBalan
 }
 
 func QueryBalance(ctx context.Context, db *gorm.DB, denom string, address string) (string, error) {
-	var accountId int64 = 0
-	if len(address) > 44 {
-		idMap, err := util.GetOrCreateAccountIds(db, []string{address}, false)
-		if err != nil {
-			return "0", fmt.Errorf("failed to get account ID: %w", err)
-		}
-		accountId = idMap[address]
-	} else {
-		return "0", fmt.Errorf("address is too short: %s", address)
+	var accountId int64
+	idMap, err := util.GetOrCreateAccountIds(db, []string{address}, false)
+	if err != nil {
+		return "0", fmt.Errorf("failed to get account ID: %w", err)
+	}
+	accountId, ok := idMap[address]
+	if !ok {
+		return "0", fmt.Errorf("account ID not found for address: %s", address)
 	}
 
 	var balance types.CollectedRichList
