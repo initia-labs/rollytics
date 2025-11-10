@@ -213,3 +213,22 @@ func UpdateBalances(ctx context.Context, db *gorm.DB, denom string, addressBalan
 
 	return nil
 }
+
+func QueryBalance(ctx context.Context, db *gorm.DB, denom string, address string) (string, error) {
+	var accountId int64 = 0
+	if len(address) > 44 {
+		idMap, err := util.GetOrCreateAccountIds(db, []string{address}, false)
+		if err != nil {
+			return "0", fmt.Errorf("failed to get account ID: %w", err)
+		}
+		accountId = idMap[address]
+	} else {
+		return "0", fmt.Errorf("address is too short: %s", address)
+	}
+
+	var balance types.CollectedRichList
+	if err := db.WithContext(ctx).Model(&types.CollectedRichList{}).Where("denom = ? AND id = ?", denom, accountId).First(&balance).Error; err != nil {
+		return "0", fmt.Errorf("failed to query balance: %w", err)
+	}
+	return balance.Amount, nil
+}

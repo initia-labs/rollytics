@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"log/slog"
 
+	sdkmath "cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"gorm.io/gorm"
 
 	"github.com/initia-labs/rollytics/config"
+	"github.com/initia-labs/rollytics/indexer/extension/richlist/utils"
 	richlistutils "github.com/initia-labs/rollytics/indexer/extension/richlist/utils"
 	"github.com/initia-labs/rollytics/orm"
 )
@@ -87,6 +89,7 @@ func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.D
 						return err
 					}
 				}
+
 			}
 
 			if err := richlistutils.FetchAndUpdateBalances(ctx, logger, dbTx, cfg, moduleAccounts, currentHeight); err != nil {
@@ -98,6 +101,68 @@ func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.D
 					slog.Int64("height", currentHeight),
 					slog.Any("error", err))
 				return err
+			}
+
+			// Debug: Compare blockchain balances with database balances
+			for key, calulatedBalance := range balanceMap {
+				// Query balance from blockchain via JSON-RPC
+				balances, err := queryERC20Balances(ctx, cfg.GetChainConfig().JsonRpcUrl, key.Denom, []utils.AddressWithID{{HexAddress: key.Addr}}, currentHeight)
+				if err != nil {
+					logger.Error("failed to query balances",
+						slog.String("denom", key.Denom),
+						slog.Any("error", err))
+					panic(err)
+				}
+
+				// Query balance from database
+				dbBalanceStr, err := richlistutils.QueryBalance(ctx, dbTx, key.Denom, key.Addr)
+				if err != nil {
+					logger.Error("failed to query balance from database",
+						slog.String("denom", key.Denom),
+						slog.String("address", key.Addr),
+						slog.Any("error", err))
+					panic(err)
+				}
+
+				// Parse database balance
+				dbBalance, ok := sdkmath.NewIntFromString(dbBalanceStr)
+				if !ok {
+					panic(fmt.Sprintf("failed to parse database balance: %s", dbBalanceStr))
+				}
+
+				// Get blockchain balance for this address
+				var blockchainBalance sdkmath.Int
+				found := false
+				for addrWithID, balance := range balances {
+					if addrWithID.HexAddress == key.Addr {
+						blockchainBalance = balance
+						found = true
+						break
+					}
+				}
+
+				if !found {
+					panic(fmt.Sprintf("blockchain balance not found for address %s, denom %s", key.Addr, key.Denom))
+				}
+
+				// Compare balances
+				if !dbBalance.Equal(blockchainBalance) {
+					logger.Error("balance mismatch detected",
+						slog.String("denom", key.Denom),
+						slog.String("address", key.Addr),
+						slog.String("calculated_change", calulatedBalance.String()),
+						slog.String("db_balance", dbBalance.String()),
+						slog.String("blockchain_balance", blockchainBalance.String()),
+						slog.Int64("height", currentHeight))
+					panic(fmt.Sprintf("balance mismatch: db=%s, blockchain=%s for address %s, denom %s at height %d",
+						dbBalance.String(), blockchainBalance.String(), key.Addr, key.Denom, currentHeight))
+				}
+
+				logger.Info("balance verification passed",
+					slog.String("denom", key.Denom),
+					slog.String("address", key.Addr),
+					slog.String("balance", blockchainBalance.String()),
+					slog.Int64("height", currentHeight))
 			}
 
 			logger.Info("rich list processed height", slog.Int64("height", currentHeight))
