@@ -13,6 +13,7 @@ import (
 	"github.com/initia-labs/rollytics/indexer/extension/richlist/utils"
 	richlistutils "github.com/initia-labs/rollytics/indexer/extension/richlist/utils"
 	"github.com/initia-labs/rollytics/orm"
+	"github.com/initia-labs/rollytics/util"
 )
 
 func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.Database, startHeight int64, moduleAccounts []sdk.AccAddress) error {
@@ -106,7 +107,15 @@ func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.D
 			// Debug: Compare blockchain balances with database balances
 			for key, calulatedBalance := range balanceMap {
 				// Query balance from blockchain via JSON-RPC
-				balances, err := queryERC20Balances(ctx, cfg.GetChainConfig().JsonRpcUrl, key.Denom, []utils.AddressWithID{{HexAddress: key.Addr}}, currentHeight)
+				sdkAddr, err := util.AccAddressFromString(key.Addr)
+				if err != nil {
+					logger.Error("failed to convert address to sdk address",
+						slog.String("address", key.Addr),
+						slog.Any("error", err))
+					panic(err)
+				}
+				hexAddr := util.BytesToHexWithPrefix(sdkAddr)
+				balances, err := queryERC20Balances(ctx, cfg.GetChainConfig().JsonRpcUrl, key.Denom, []utils.AddressWithID{{HexAddress: hexAddr}}, currentHeight)
 				if err != nil {
 					logger.Error("failed to query balances",
 						slog.String("denom", key.Denom),
@@ -134,7 +143,7 @@ func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.D
 				var blockchainBalance sdkmath.Int
 				found := false
 				for addrWithID, balance := range balances {
-					if addrWithID.HexAddress == key.Addr {
+					if addrWithID.HexAddress == hexAddr {
 						blockchainBalance = balance
 						found = true
 						break
