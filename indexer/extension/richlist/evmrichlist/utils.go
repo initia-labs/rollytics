@@ -2,6 +2,7 @@ package evmrichlist
 
 import (
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"strings"
 
@@ -68,7 +69,18 @@ func ProcessEvmBalanceChanges(logger *slog.Logger, evmTxs []types.CollectedEvmTx
 			continue
 		}
 
+		if evmTxData.Status != "0x1" && evmTxData.Status != "1" {
+			logger.Debug("skipping failed transaction", "tx_hash", evmTxData.TxHash, "status", evmTxData.Status)
+			continue
+		}
+
 		for _, log := range evmTxData.Logs {
+			if log.Removed {
+				panic(fmt.Sprintf("skipping removed log, tx_hash: %s, log_index: %s", evmTxData.TxHash, log.LogIndex))
+				logger.Debug("skipping removed log", "tx_hash", evmTxData.TxHash, "log_index", log.LogIndex)
+				continue
+			}
+
 			processEVMTransferEvent(logger, log, balanceMap)
 		}
 	}

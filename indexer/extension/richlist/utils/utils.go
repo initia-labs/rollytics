@@ -154,6 +154,13 @@ func ProcessCosmosBalanceChanges(logger *slog.Logger, txs []types.CollectedTx, m
 			continue
 		}
 
+		// Skip failed transactions
+		// Cosmos SDK Code: 0 = success, non-zero = failed
+		if txData.Code != 0 {
+			logger.Debug("skipping failed cosmos transaction", "tx_hash", txData.TxHash, "code", txData.Code)
+			continue
+		}
+
 		var events sdk.Events
 		if err := json.Unmarshal(txData.Events, &events); err != nil {
 			continue
