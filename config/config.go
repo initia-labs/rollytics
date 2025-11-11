@@ -28,10 +28,11 @@ var (
 // Default configuration constants
 const (
 	// Port settings
-	DefaultAPIPort     = "8080"
-	DefaultMetricsPort = "9090"
-	MinPortNumber      = 1
-	MaxPortNumber      = 65535
+	DefaultAPIPort        = "8080"
+	DefaultIndexerAPIPort = "8081"
+	DefaultMetricsPort    = "9090"
+	MinPortNumber         = 1
+	MaxPortNumber         = 65535
 
 	// Database settings
 	DefaultDBMaxConns  = 0 // 0 means unlimited (GORM default)
@@ -125,6 +126,7 @@ func SetBuildInfo(v, commit string) {
 
 type Config struct {
 	listenPort            string
+	indexerListenPort     string
 	dbConfig              *dbconfig.Config
 	chainConfig           *ChainConfig
 	logLevel              string
@@ -149,6 +151,7 @@ type Config struct {
 
 func setDefaults() {
 	viper.SetDefault("PORT", DefaultAPIPort)
+	viper.SetDefault("INDEXER_PORT", DefaultIndexerAPIPort)
 	viper.SetDefault("DB_AUTO_MIGRATE", false)
 	viper.SetDefault("DB_BATCH_SIZE", DefaultDBBatchSize)
 	viper.SetDefault("DB_MAX_CONNS", DefaultDBMaxConns)
@@ -260,6 +263,7 @@ func loadConfig() (*Config, error) {
 
 	config := &Config{
 		listenPort:            viper.GetString("PORT"),
+		indexerListenPort:     viper.GetString("INDEXER_PORT"),
 		dbConfig:              dc,
 		chainConfig:           cc,
 		logLevel:              viper.GetString("LOG_LEVEL"),
@@ -355,6 +359,10 @@ func splitAndTrim(s string) []string {
 
 func (c Config) GetListenPort() string {
 	return c.listenPort
+}
+
+func (c Config) GetIndexerListenPort() string {
+	return c.indexerListenPort
 }
 
 // SetDBConfig assigns the DB config for testing purposes.
@@ -494,6 +502,9 @@ func (c Config) Validate() error {
 	if err := c.validatePort(); err != nil {
 		return err
 	}
+	if err := c.validateIndexerPort(); err != nil {
+		return err
+	}
 	if err := c.validateLogSettings(); err != nil {
 		return err
 	}
@@ -519,6 +530,17 @@ func (c Config) validatePort() error {
 	}
 	if port, err := strconv.Atoi(c.listenPort); err != nil || port < MinPortNumber || port > MaxPortNumber {
 		return types.NewValidationError("PORT", fmt.Sprintf("must be a valid port number (%d-%d)", MinPortNumber, MaxPortNumber))
+	}
+	return nil
+}
+
+// validateIndexerPort validates the listen port configuration
+func (c Config) validateIndexerPort() error {
+	if len(c.indexerListenPort) == 0 {
+		return types.NewValidationError("INDEXER_PORT", "required field is missing")
+	}
+	if port, err := strconv.Atoi(c.indexerListenPort); err != nil || port < MinPortNumber || port > MaxPortNumber {
+		return types.NewValidationError("INDEXER_PORT", fmt.Sprintf("must be a valid port number (%d-%d)", MinPortNumber, MaxPortNumber))
 	}
 	return nil
 }

@@ -16,16 +16,17 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/initia-labs/rollytics/api/cache"
-	"github.com/initia-labs/rollytics/api/handler/common"
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
+	"github.com/initia-labs/rollytics/util/common-handler/common"
 )
 
 // newTestConfig creates a minimal config.Config for testing purposes.
 func newTestConfig() *config.Config {
 	return &config.Config{}
 }
+
 func closeBody(resp *http.Response) {
 	if resp != nil && resp.Body != nil {
 		_ = resp.Body.Close()

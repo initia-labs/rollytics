@@ -12,6 +12,7 @@ import (
 
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/indexer"
+	indexerapi "github.com/initia-labs/rollytics/indexer/api"
 	"github.com/initia-labs/rollytics/log"
 	"github.com/initia-labs/rollytics/metrics"
 	"github.com/initia-labs/rollytics/orm"
@@ -43,6 +44,13 @@ You can configure database, chain, logging, and indexer options via environment 
 			// Initialize dictionary caches
 			util.InitializeCaches(cfg.GetCacheConfig())
 
+			// Initialize database
+			db, err := orm.OpenDB(cfg.GetDBConfig(), logger)
+			if err != nil {
+				return err
+			}
+			defer func() { _ = db.Close() }()
+
 			// Initialize metrics
 			metrics.Init()
 			metricsServer := metrics.NewServer(cfg, logger)
@@ -54,27 +62,7 @@ You can configure database, chain, logging, and indexer options via environment 
 				}
 			}()
 
-			// Setup graceful shutdown
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-
-			sigChan := make(chan os.Signal, 1)
-			signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
-			go func() {
-				<-sigChan
-				logger.Info("shutting down indexer...")
-				if err := metricsServer.Shutdown(ctx); err != nil {
-					logger.Error("failed to shutdown metrics server", "error", err)
-				}
-				cancel()
-			}()
-
-			db, err := orm.OpenDB(cfg.GetDBConfig(), logger)
-			if err != nil {
-				return err
-			}
-			defer func() { _ = db.Close() }()
-
+			// Start DB migration
 			if err := db.Migrate(); err != nil {
 				return err
 			}
@@ -83,6 +71,35 @@ You can configure database, chain, logging, and indexer options via environment 
 			if err := patcher.Patch(cfg, db, logger); err != nil {
 				return err
 			}
+
+			// Initialize API server
+			indexerAPI := indexerapi.New(cfg, logger, db)
+
+			// Start API server in background
+			go func() {
+				if err := indexerAPI.Start(); err != nil {
+					logger.Error("indexer API server failed", "error", err)
+				}
+			}()
+
+			// Setup graceful shutdown
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			sigChan := make(chan os.Signal, 1)
+			signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
+			go func() {
+				<-sigChan
+				logger.Info("shutting down indexer...")
+				if err := indexerAPI.Shutdown(); err != nil {
+					logger.Error("failed to shutdown indexer API server", "error", err)
+				}
+				if err := metricsServer.Shutdown(ctx); err != nil {
+					logger.Error("failed to shutdown metrics server", "error", err)
+				}
+				cancel()
+			}()
 
 			// Start DB stats collection
 			metrics.StartDBStatsUpdater(db, logger)

@@ -1,7 +1,7 @@
 package richlist
 
 import (
-	"github.com/initia-labs/rollytics/api/handler/common"
+	"github.com/initia-labs/rollytics/util/common-handler/common"
 )
 
 type TokenHoldersResponse struct {

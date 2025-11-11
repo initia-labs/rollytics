@@ -3,11 +3,10 @@ package tx
 import (
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http/httptest"
 	"testing"
 	"time"
-
-	"log/slog"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/stretchr/testify/require"
@@ -15,12 +14,12 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
 
-	"github.com/initia-labs/rollytics/api/handler/common"
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/orm"
 	dbconfig "github.com/initia-labs/rollytics/orm/config"
 	"github.com/initia-labs/rollytics/types"
 	"github.com/initia-labs/rollytics/util"
+	"github.com/initia-labs/rollytics/util/common-handler/common"
 )
 
 func BenchmarkGetTxsByAccount(b *testing.B) {
