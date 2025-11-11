@@ -159,8 +159,9 @@ func ProcessCosmosBalanceChanges(logger *slog.Logger, cfg *config.Config, txs []
 			continue
 		}
 
+		// When onlyFailed is true, skip successful transactions (Code == 0 means success)
 		if onlyFailed && txData.Code == 0 {
-			logger.Debug("skipping failed cosmos transaction", "tx_hash", txData.TxHash, "code", txData.Code)
+			logger.Debug("skipping successful cosmos transaction", "tx_hash", txData.TxHash, "code", txData.Code)
 			continue
 		}
 
@@ -207,7 +208,7 @@ func FetchAndUpdateBalances(
 	for idx, address := range accounts {
 		if idx%100 == 0 {
 			progress := fmt.Sprintf("%d/%d", idx, len(accounts))
-			logger.Info("fetching balances for each account and accumulating by denomination", slog.Int64("height", height), slog.String("progress", progress))
+			logger.Info("fetching and accumulating balances by denomination", slog.Int64("height", height), slog.String("progress", progress))
 		}
 
 		accountID, ok := accountIdMap[address.String()]

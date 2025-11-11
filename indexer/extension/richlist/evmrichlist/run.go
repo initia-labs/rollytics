@@ -41,7 +41,7 @@ func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.D
 		}
 
 		if err := db.Transaction(func(dbTx *gorm.DB) error {
-			// Ensure if the next block is indexed in the db
+			// Verify that the block at current height exists in the database
 			if _, err := richlistutils.GetCollectedBlock(ctx, dbTx, cfg.GetChainId(), currentHeight); err != nil {
 				logger.Error("failed to get block", slog.Any("error", err))
 				return err
@@ -112,10 +112,11 @@ func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.D
 				return err
 			}
 
-			// Debug: Compare blockchain balances with database balances
+			// Debug: Compare blockchain balances with database balances for addresses with balance changes.
+			// Queries on-chain state via JSON-RPC and fails the block if any mismatch is detected.
 			for key, calulatedBalance := range balanceMap {
-				// Query balance from blockchain via JSON-RPC
-				if sdkAddr, err := util.AccAddressFromString(key.Addr); err != nil {
+				// Query balance from blockchain via JSON-RPC for verification
+				if sdkAddr, err := util.AccAddressFromString(key.Addr); err == nil {
 					hexAddr := util.BytesToHexWithPrefix(sdkAddr)
 					balances, err := queryERC20Balances(ctx, cfg.GetChainConfig().JsonRpcUrl, key.Denom, []utils.AddressWithID{{HexAddress: hexAddr}}, currentHeight)
 					if err != nil {

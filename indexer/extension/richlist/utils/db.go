@@ -75,7 +75,8 @@ func UpdateBalanceChanges(ctx context.Context, db *gorm.DB, balanceMap map[Balan
 	}
 
 	// Step 3: Update balances in the database using raw SQL for atomic updates
-	// Track denoms that have negative balances
+	// Track denoms that have negative balances. Negative balances can occur due to
+	// transaction ordering issues or missed events, and require correction via on-chain queries.
 	negativeDenoms := make(map[string]bool)
 
 	for key, changeAmount := range balanceMap {
