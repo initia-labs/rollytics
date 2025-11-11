@@ -47,7 +47,7 @@ func setup(t *testing.T) (*StatusHandler, sqlmock.Sqlmock, *config.Config) {
 	cfg := newTestConfig()
 	cfg.SetChainConfig(&config.ChainConfig{ChainId: "test-chain"})
 	cfg.SetInternalTxConfig(&config.InternalTxConfig{})
-	cfg.SetRichListConfig(&config.RichListConfig{Enabled: true})
+	cfg.SetRichListConfig(&config.RichListConfig{})
 
 	dbWrapper := &orm.Database{DB: gormDB}
 
@@ -236,5 +236,254 @@ func TestGetStatus(t *testing.T) {
 		// This is the crucial assertion that confirms the bug's behavior
 		require.Equal(t, "hit", resp3.Header.Get("X-Cache"), "This confirms the bug: cache did not expire after 250ms")
 		t.Log("Test confirmed the known bug: cache was still a 'hit' after expiration period.")
+	})
+
+	t.Run("success - rich list disabled", func(t *testing.T) {
+		h, mock, cfg := setup(t)
+		defer lastRichListHeight.Store(0)
+
+		cfg.GetRichListConfig().Enabled = false
+		cfg.GetChainConfig().VmType = types.EVM
+
+		mock.ExpectBegin()
+		rows := sqlmock.NewRows([]string{"height"}).AddRow(100)
+		mock.ExpectQuery(`SELECT .* FROM "block"`).WillReturnRows(rows)
+		mock.ExpectRollback()
+
+		app := fiber.New()
+		app.Get("/status", h.GetStatus)
+
+		req, _ := http.NewRequestWithContext(context.Background(), "GET", "/status", nil)
+		resp, err := app.Test(req)
+		defer closeBody(resp)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+
+		var body StatusResponse
+		err = json.NewDecoder(resp.Body).Decode(&body)
+		require.NoError(t, err)
+
+		require.Equal(t, int64(100), body.Height)
+		require.Equal(t, int64(0), body.RichListHeight)
+
+		require.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("success - rich list enabled with records", func(t *testing.T) {
+		h, mock, cfg := setup(t)
+		defer lastRichListHeight.Store(0)
+
+		cfg.GetRichListConfig().Enabled = true
+		cfg.GetChainConfig().VmType = types.EVM
+
+		mock.ExpectBegin()
+		blkRows := sqlmock.NewRows([]string{"height"}).AddRow(100)
+		mock.ExpectQuery(`SELECT .* FROM "block"`).WillReturnRows(blkRows)
+
+		richListRows := sqlmock.NewRows([]string{"height"}).AddRow(95)
+		mock.ExpectQuery(`SELECT .* FROM "rich_list_status"`).WillReturnRows(richListRows)
+
+		mock.ExpectRollback()
+
+		app := fiber.New()
+		app.Get("/status", h.GetStatus)
+
+		req, _ := http.NewRequestWithContext(context.Background(), "GET", "/status", nil)
+		resp, err := app.Test(req)
+		defer closeBody(resp)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+
+		var body StatusResponse
+		err = json.NewDecoder(resp.Body).Decode(&body)
+		require.NoError(t, err)
+
+		require.Equal(t, int64(100), body.Height)
+		require.Equal(t, int64(95), body.RichListHeight)
+
+		require.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("success - rich list enabled but no records", func(t *testing.T) {
+		h, mock, cfg := setup(t)
+		defer lastRichListHeight.Store(0)
+
+		cfg.GetRichListConfig().Enabled = true
+		cfg.GetChainConfig().VmType = types.EVM
+
+		mock.ExpectBegin()
+		blkRows := sqlmock.NewRows([]string{"height"}).AddRow(100)
+		mock.ExpectQuery(`SELECT .* FROM "block"`).WillReturnRows(blkRows)
+
+		// Return gorm.ErrRecordNotFound
+		mock.ExpectQuery(`SELECT .* FROM "rich_list_status"`).WillReturnError(gorm.ErrRecordNotFound)
+		mock.ExpectRollback()
+
+		app := fiber.New()
+		app.Get("/status", h.GetStatus)
+
+		req, _ := http.NewRequestWithContext(context.Background(), "GET", "/status", nil)
+		resp, err := app.Test(req)
+		defer closeBody(resp)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+
+		var body StatusResponse
+		err = json.NewDecoder(resp.Body).Decode(&body)
+		require.NoError(t, err)
+
+		require.Equal(t, int64(100), body.Height)
+		require.Equal(t, int64(0), body.RichListHeight)
+
+		require.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("success - rich list enabled with cached height", func(t *testing.T) {
+		h, mock, cfg := setup(t)
+		defer lastRichListHeight.Store(0)
+
+		// Pre-populate the atomic variable with a cached height
+		lastRichListHeight.Store(85)
+
+		cfg.GetRichListConfig().Enabled = true
+		cfg.GetChainConfig().VmType = types.EVM
+
+		mock.ExpectBegin()
+		blkRows := sqlmock.NewRows([]string{"height"}).AddRow(100)
+		mock.ExpectQuery(`SELECT .* FROM "block"`).WillReturnRows(blkRows)
+
+		// Return a height lower than cached value (should use cached value)
+		richListRows := sqlmock.NewRows([]string{"height"}).AddRow(80)
+		mock.ExpectQuery(`SELECT .* FROM "rich_list_status"`).WillReturnRows(richListRows)
+		mock.ExpectRollback()
+
+		app := fiber.New()
+		app.Get("/status", h.GetStatus)
+
+		req, _ := http.NewRequestWithContext(context.Background(), "GET", "/status", nil)
+		resp, err := app.Test(req)
+		defer closeBody(resp)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+
+		var body StatusResponse
+		err = json.NewDecoder(resp.Body).Decode(&body)
+		require.NoError(t, err)
+
+		require.Equal(t, int64(100), body.Height)
+		require.Equal(t, int64(85), body.RichListHeight, "Should return cached height when DB height is lower")
+
+		require.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("success - rich list enabled with higher DB height", func(t *testing.T) {
+		h, mock, cfg := setup(t)
+		defer lastRichListHeight.Store(0)
+
+		// Pre-populate the atomic variable with a cached height
+		lastRichListHeight.Store(85)
+
+		cfg.GetRichListConfig().Enabled = true
+		cfg.GetChainConfig().VmType = types.EVM
+
+		mock.ExpectBegin()
+		blkRows := sqlmock.NewRows([]string{"height"}).AddRow(100)
+		mock.ExpectQuery(`SELECT .* FROM "block"`).WillReturnRows(blkRows)
+
+		// Return a height higher than cached value (should update to new value)
+		richListRows := sqlmock.NewRows([]string{"height"}).AddRow(90)
+		mock.ExpectQuery(`SELECT .* FROM "rich_list_status"`).WillReturnRows(richListRows)
+		mock.ExpectRollback()
+
+		app := fiber.New()
+		app.Get("/status", h.GetStatus)
+
+		req, _ := http.NewRequestWithContext(context.Background(), "GET", "/status", nil)
+		resp, err := app.Test(req)
+		defer closeBody(resp)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+
+		var body StatusResponse
+		err = json.NewDecoder(resp.Body).Decode(&body)
+		require.NoError(t, err)
+
+		require.Equal(t, int64(100), body.Height)
+		require.Equal(t, int64(90), body.RichListHeight, "Should update to new height when DB height is higher")
+
+		require.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("failure - rich list database error", func(t *testing.T) {
+		h, mock, cfg := setup(t)
+		defer lastRichListHeight.Store(0)
+
+		cfg.GetRichListConfig().Enabled = true
+		cfg.GetChainConfig().VmType = types.EVM
+
+		mock.ExpectBegin()
+		blkRows := sqlmock.NewRows([]string{"height"}).AddRow(100)
+		mock.ExpectQuery(`SELECT .* FROM "block"`).WillReturnRows(blkRows)
+
+		// Return a database error (not ErrRecordNotFound)
+		mock.ExpectQuery(`SELECT .* FROM "rich_list_status"`).WillReturnError(gorm.ErrInvalidDB)
+		mock.ExpectRollback()
+
+		app := fiber.New()
+		app.Get("/status", h.GetStatus)
+
+		req, _ := http.NewRequestWithContext(context.Background(), "GET", "/status", nil)
+		resp, err := app.Test(req)
+		defer closeBody(resp)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusInternalServerError, resp.StatusCode)
+
+		require.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("success - rich list and internal tx both enabled", func(t *testing.T) {
+		h, mock, cfg := setup(t)
+		defer func() {
+			lastEvmInternalTxHeight.Store(0)
+			lastRichListHeight.Store(0)
+		}()
+
+		cfg.GetInternalTxConfig().Enabled = true
+		cfg.GetRichListConfig().Enabled = true
+		cfg.GetChainConfig().VmType = types.EVM
+
+		mock.ExpectBegin()
+		blkRows := sqlmock.NewRows([]string{"height"}).AddRow(100)
+		mock.ExpectQuery(`SELECT .* FROM "block"`).WillReturnRows(blkRows)
+
+		intTxRows := sqlmock.NewRows([]string{"height"}).AddRow(95)
+		mock.ExpectQuery(`SELECT .* FROM "evm_internal_tx"`).WillReturnRows(intTxRows)
+
+		existsRows := sqlmock.NewRows([]string{"1"}).AddRow(1)
+		mock.ExpectQuery(`SELECT 1 FROM "block"`).WillReturnRows(existsRows)
+
+		richListRows := sqlmock.NewRows([]string{"height"}).AddRow(90)
+		mock.ExpectQuery(`SELECT .* FROM "rich_list_status"`).WillReturnRows(richListRows)
+
+		mock.ExpectRollback()
+
+		app := fiber.New()
+		app.Get("/status", h.GetStatus)
+
+		req, _ := http.NewRequestWithContext(context.Background(), "GET", "/status", nil)
+		resp, err := app.Test(req)
+		defer closeBody(resp)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+
+		var body StatusResponse
+		err = json.NewDecoder(resp.Body).Decode(&body)
+		require.NoError(t, err)
+
+		require.Equal(t, int64(100), body.Height)
+		require.Equal(t, int64(95), body.InternalTxHeight)
+		require.Equal(t, int64(90), body.RichListHeight)
+
+		require.NoError(t, mock.ExpectationsWereMet())
 	})
 }
