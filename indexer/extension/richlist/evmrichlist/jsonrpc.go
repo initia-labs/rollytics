@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"strings"
 	"sync"
 
 	sdkmath "cosmossdk.io/math"
@@ -87,14 +88,11 @@ func queryBatchBalances(ctx context.Context, jsonrpcURL string, erc20Address str
 	for idx, addrWithID := range batch {
 		// Prepare the call data: balanceOf(address)
 		// Format: 0x70a08231 + 000000000000000000000000 + address (without 0x)
-		addressParam := addrWithID.HexAddress
-		if len(addressParam) >= 2 && addressParam[:2] == "0x" {
-			addressParam = addressParam[2:]
-		}
+		addressParam := strings.TrimPrefix(addrWithID.HexAddress, "0x")
 
-		// Pad address to 32 bytes (64 hex chars)
-		for len(addressParam) < 64 {
-			addressParam = "0" + addressParam
+		// Pad address to 32 bytes (64 hex chars) - efficient single allocation
+		if len(addressParam) < 64 {
+			addressParam = strings.Repeat("0", 64-len(addressParam)) + strings.TrimPrefix(addrWithID.HexAddress, "0x")
 		}
 
 		callData := balanceOfSelector + addressParam
