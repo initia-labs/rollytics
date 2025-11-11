@@ -388,6 +388,11 @@ func (c *Config) SetInternalTxConfig(internalTxCfg *InternalTxConfig) {
 	c.internalTxConfig = internalTxCfg
 }
 
+// SetRichListConfig assigns the rich list tx config for testing purposes.
+func (c *Config) SetRichListConfig(richListCfg *RichListConfig) {
+	c.richListConfig = richListCfg
+}
+
 // SetCORSConfig assigns the CORS config for testing purposes.
 func (c *Config) SetCORSConfig(corsCfg *CORSConfig) {
 	c.corsConfig = corsCfg
@@ -426,9 +431,6 @@ func (c Config) GetInternalTxConfig() *InternalTxConfig {
 }
 
 func (c Config) GetRichListEnabled() bool {
-	if c.richListConfig == nil {
-		return false
-	}
 	return c.richListConfig.Enabled
 }
 

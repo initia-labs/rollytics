@@ -44,6 +44,7 @@ func newTxHandlerWithMockDB(tb testing.TB) (*TxHandler, sqlmock.Sqlmock) {
 	cfg.SetDBConfig(&dbconfig.Config{})
 	cfg.SetChainConfig(&config.ChainConfig{ChainId: "test-chain", VmType: types.EVM})
 	cfg.SetInternalTxConfig(&config.InternalTxConfig{Enabled: true})
+	cfg.SetRichListConfig(&config.RichListConfig{Enabled: true})
 
 	base := common.NewBaseHandler(db, cfg, logger)
 	handler := NewTxHandler(base)
