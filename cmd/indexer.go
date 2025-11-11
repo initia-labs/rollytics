@@ -62,6 +62,16 @@ You can configure database, chain, logging, and indexer options via environment 
 				}
 			}()
 
+			// Start DB migration
+			if err := db.Migrate(); err != nil {
+				return err
+			}
+
+			// Apply patch
+			if err := patcher.Patch(cfg, db, logger); err != nil {
+				return err
+			}
+
 			// Initialize API server
 			indexerAPI := indexerapi.New(cfg, logger, db)
 
@@ -90,16 +100,6 @@ You can configure database, chain, logging, and indexer options via environment 
 				}
 				cancel()
 			}()
-
-			// Start DB migration
-			if err := db.Migrate(); err != nil {
-				return err
-			}
-
-			// Apply patch
-			if err := patcher.Patch(cfg, db, logger); err != nil {
-				return err
-			}
 
 			// Start DB stats collection
 			metrics.StartDBStatsUpdater(db, logger)
