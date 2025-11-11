@@ -47,6 +47,7 @@ func setup(t *testing.T) (*StatusHandler, sqlmock.Sqlmock, *config.Config) {
 	cfg := newTestConfig()
 	cfg.SetChainConfig(&config.ChainConfig{ChainId: "test-chain"})
 	cfg.SetInternalTxConfig(&config.InternalTxConfig{})
+	cfg.SetRichListConfig(&config.RichListConfig{Enabled: true})
 
 	dbWrapper := &orm.Database{DB: gormDB}
 
