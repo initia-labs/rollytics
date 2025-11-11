@@ -1159,6 +1159,68 @@ const docTemplate = `{
                 "responses": {}
             }
         },
+        "/richlist/v1/{denom}": {
+            "get": {
+                "description": "Get a list of token holders for a specific denomination, ordered by amount in descending order",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Rich List"
+                ],
+                "summary": "Get token holders",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Token denomination",
+                        "name": "denom",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Pagination key",
+                        "name": "pagination.key",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination offset",
+                        "name": "pagination.offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination limit, default is 100",
+                        "name": "pagination.limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Count total, default is true",
+                        "name": "pagination.count_total",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Reverse order default is true if set to true, the results will be ordered in descending order",
+                        "name": "pagination.reverse",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/richlist.TokenHoldersResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/status": {
             "get": {
                 "description": "Get current indexer status including chain ID and latest block height",
@@ -1367,6 +1429,31 @@ const docTemplate = `{
                 }
             }
         },
+        "richlist.TokenHolder": {
+            "type": "object",
+            "properties": {
+                "account": {
+                    "type": "string"
+                },
+                "amount": {
+                    "type": "string"
+                }
+            }
+        },
+        "richlist.TokenHoldersResponse": {
+            "type": "object",
+            "properties": {
+                "holders": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/richlist.TokenHolder"
+                    }
+                },
+                "pagination": {
+                    "$ref": "#/definitions/common.PaginationResponse"
+                }
+            }
+        },
         "status.StatusResponse": {
             "type": "object",
             "properties": {
@@ -1385,6 +1472,10 @@ const docTemplate = `{
                 "internal_tx_height": {
                     "type": "integer",
                     "x-order:4": true
+                },
+                "rich_list_height": {
+                    "type": "integer",
+                    "x-order:5": true
                 },
                 "version": {
                     "type": "string",
