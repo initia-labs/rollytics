@@ -356,6 +356,9 @@ func (c Config) GetInternalTxConfig() *InternalTxConfig {
 }
 
 func (c Config) GetRichListEnabled() bool {
+	if c.richListConfig == nil {
+		return false
+	}
 	return c.richListConfig.Enabled
 }
 

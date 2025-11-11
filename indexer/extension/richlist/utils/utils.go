@@ -177,20 +177,18 @@ func ProcessCosmosBalanceChanges(logger *slog.Logger, cfg *config.Config, txs []
 	}
 }
 
-// FetchAndAccumulateBalancesByDenom fetches balances for a list of addresses and accumulates
-// them by denomination. Returns a map where the key is the denomination and the value is
-// a map of AddressWithID to balance amount.
+// FetchAndUpdateBalances fetches balances for a list of addresses, accumulates them by
+// denomination, and updates the rich_list table in the database.
 //
 // Parameters:
 //   - ctx: Context for timeout and cancellation
-//   - db: Database connection for account ID operations
 //   - logger: Logger for progress tracking
+//   - db: Database connection for account ID operations and balance updates
 //   - cfg: Configuration containing REST API endpoint and other settings
 //   - accounts: List of SDK account addresses to fetch balances for
 //   - height: The block height to query at
 //
 // Returns:
-//   - map[string]map[AddressWithID]sdkmath.Int: Balances grouped by denomination
 //   - error if any step fails
 func FetchAndUpdateBalances(
 	ctx context.Context,
