@@ -1,6 +1,10 @@
 package util
 
 import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"strings"
 	"sync"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -18,11 +22,12 @@ type NftKey struct {
 }
 
 var (
-	accountCache   *cache.Cache[string, int64]
-	nftCache       *cache.Cache[NftKey, int64]
-	msgTypeCache   *cache.Cache[string, int64]
-	typeTagCache   *cache.Cache[string, int64]
-	evmTxHashCache *cache.Cache[string, int64]
+	accountCache          *cache.Cache[string, int64]
+	nftCache              *cache.Cache[NftKey, int64]
+	msgTypeCache          *cache.Cache[string, int64]
+	typeTagCache          *cache.Cache[string, int64]
+	evmTxHashCache        *cache.Cache[string, int64]
+	evmDenomContractCache *cache.Cache[string, string]
 
 	// Singleton initialization
 	cacheInitOnce sync.Once
@@ -37,6 +42,7 @@ func InitializeCaches(cfg *config.CacheConfig) {
 		msgTypeCache = cache.New[string, int64](cfg.MsgTypeCacheSize)
 		typeTagCache = cache.New[string, int64](cfg.TypeTagCacheSize)
 		evmTxHashCache = cache.New[string, int64](cfg.EvmTxHashCacheSize)
+		evmDenomContractCache = cache.New[string, string](cfg.EvmDenomContractCacheSize)
 	})
 }
 
@@ -102,9 +108,9 @@ func createNewAccountEntries(db *gorm.DB, uncached []string, accountIdMap map[st
 		if err := db.Clauses(orm.DoNothingWhenConflict).Create(&newEntries).Error; err != nil {
 			return err
 		}
-		for i, entry := range newEntries {
+		for _, entry := range newEntries {
 			accAddr := sdk.AccAddress(entry.Account)
-			accountIdMap[accAddr.String()] = newEntries[i].Id
+			accountIdMap[accAddr.String()] = entry.Id
 		}
 	}
 	return nil
@@ -457,4 +463,48 @@ func GetOrCreateEvmTxHashIds(db *gorm.DB, hashes [][]byte, createNew bool) (idMa
 	}
 
 	return idMap, nil
+}
+
+// EvmContractByDenomResponse represents the response from /minievm/evm/v1/contracts/by_denom
+type EvmContractByDenomResponse struct {
+	Address string `json:"address"`
+}
+
+// GetEvmContractByDenom queries the MiniEVM API for a contract address by denom
+// and caches the result. It returns the contract address or an error.
+func GetEvmContractByDenom(ctx context.Context, denom string) (string, error) {
+	if strings.HasPrefix(denom, "0x") {
+		return denom, nil
+	}
+
+	// Check cache first
+	if address, ok := evmDenomContractCache.Get(denom); ok {
+		return address, nil
+	}
+
+	// Query the API
+	path := "/minievm/evm/v1/contracts/by_denom"
+	params := map[string]string{"denom": denom}
+
+	body, err := Get(ctx, cfg.GetChainConfig().RestUrl, path, params, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to query contract by denom %s: %w", denom, err)
+	}
+
+	// Parse the response
+	var response EvmContractByDenomResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return "", fmt.Errorf("failed to parse contract by denom response: %w", err)
+	}
+
+	// Validate the response
+	if response.Address == "" {
+		return "", fmt.Errorf("empty contract address returned for denom %s", denom)
+	}
+
+	// Cache the result
+	address := strings.ToLower(response.Address)
+	evmDenomContractCache.Set(denom, address)
+
+	return address, nil
 }

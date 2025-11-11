@@ -44,11 +44,12 @@ const (
 	DefaultCacheTTL  = 10 * time.Minute
 
 	// Dictionary cache settings
-	DefaultAccountCacheSize   = 40960
-	DefaultNftCacheSize       = 40960
-	DefaultMsgTypeCacheSize   = 1024
-	DefaultTypeTagCacheSize   = 1024
-	DefaultEvmTxHashCacheSize = 40960
+	DefaultAccountCacheSize          = 40960
+	DefaultNftCacheSize              = 40960
+	DefaultMsgTypeCacheSize          = 1024
+	DefaultTypeTagCacheSize          = 1024
+	DefaultEvmTxHashCacheSize        = 40960
+	DefaultEvmDenomContractCacheSize = 10240
 
 	// Timeout and interval settings
 	DefaultCoolingDuration = 50 * time.Millisecond
@@ -101,11 +102,12 @@ type CORSConfig struct {
 
 // CacheConfig contains configuration for dictionary caches
 type CacheConfig struct {
-	AccountCacheSize   int `json:"account_cache_size"`
-	NftCacheSize       int `json:"nft_cache_size"`
-	MsgTypeCacheSize   int `json:"msg_type_cache_size"`
-	TypeTagCacheSize   int `json:"type_tag_cache_size"`
-	EvmTxHashCacheSize int `json:"evm_tx_hash_cache_size"`
+	AccountCacheSize          int `json:"account_cache_size"`
+	NftCacheSize              int `json:"nft_cache_size"`
+	MsgTypeCacheSize          int `json:"msg_type_cache_size"`
+	TypeTagCacheSize          int `json:"type_tag_cache_size"`
+	EvmTxHashCacheSize        int `json:"evm_tx_hash_cache_size"`
+	EvmDenomContractCacheSize int `json:"evm_denom_contract_cache_size"`
 }
 
 // SentryConfig contains configuration for Sentry integration
@@ -136,6 +138,7 @@ type Config struct {
 	cacheTTL              time.Duration // for api only
 	pollingInterval       time.Duration // for api only
 	internalTxConfig      *InternalTxConfig
+	richListConfig        *RichListConfig
 	metricsConfig         *MetricsConfig
 	cacheConfig           *CacheConfig
 	sentryConfig          *SentryConfig
@@ -166,6 +169,7 @@ func setDefaults() {
 	viper.SetDefault("INTERNAL_TX_POLL_INTERVAL", DefaultInternalTxPollInterval)
 	viper.SetDefault("INTERNAL_TX_BATCH_SIZE", DefaultInternalTxBatchSize)
 	viper.SetDefault("INTERNAL_TX_QUEUE_SIZE", DefaultInternalTxQueueSize)
+	viper.SetDefault("RICH_LIST", true)
 	viper.SetDefault("METRICS_ENABLED", false)
 	viper.SetDefault("METRICS_PATH", DefaultMetricsPath)
 	viper.SetDefault("METRICS_PORT", DefaultMetricsPort)
@@ -191,6 +195,7 @@ func setDefaults() {
 	viper.SetDefault("MSG_TYPE_CACHE_SIZE", DefaultMsgTypeCacheSize)
 	viper.SetDefault("TYPE_TAG_CACHE_SIZE", DefaultTypeTagCacheSize)
 	viper.SetDefault("EVM_TX_HASH_CACHE_SIZE", DefaultEvmTxHashCacheSize)
+	viper.SetDefault("EVM_DENOM_CONTRACT_CACHE_SIZE", DefaultEvmDenomContractCacheSize)
 
 	//  CHAIN_ID, VM_TYPE, RPC_URL, REST_URL, and JSON_RPC_URL have no defaults
 }
@@ -275,17 +280,21 @@ func loadConfig() (*Config, error) {
 			BatchSize:    viper.GetInt("INTERNAL_TX_BATCH_SIZE"),
 			QueueSize:    viper.GetInt("INTERNAL_TX_QUEUE_SIZE"),
 		},
+		richListConfig: &RichListConfig{
+			Enabled: viper.GetBool("RICH_LIST"),
+		},
 		metricsConfig: &MetricsConfig{
 			Enabled: viper.GetBool("METRICS_ENABLED"),
 			Path:    viper.GetString("METRICS_PATH"),
 			Port:    viper.GetString("METRICS_PORT"),
 		},
 		cacheConfig: &CacheConfig{
-			AccountCacheSize:   viper.GetInt("ACCOUNT_CACHE_SIZE"),
-			NftCacheSize:       viper.GetInt("NFT_CACHE_SIZE"),
-			MsgTypeCacheSize:   viper.GetInt("MSG_TYPE_CACHE_SIZE"),
-			TypeTagCacheSize:   viper.GetInt("TYPE_TAG_CACHE_SIZE"),
-			EvmTxHashCacheSize: viper.GetInt("EVM_TX_HASH_CACHE_SIZE"),
+			AccountCacheSize:          viper.GetInt("ACCOUNT_CACHE_SIZE"),
+			NftCacheSize:              viper.GetInt("NFT_CACHE_SIZE"),
+			MsgTypeCacheSize:          viper.GetInt("MSG_TYPE_CACHE_SIZE"),
+			TypeTagCacheSize:          viper.GetInt("TYPE_TAG_CACHE_SIZE"),
+			EvmTxHashCacheSize:        viper.GetInt("EVM_TX_HASH_CACHE_SIZE"),
+			EvmDenomContractCacheSize: viper.GetInt("EVM_DENOM_CONTRACT_CACHE_SIZE"),
 		},
 		sentryConfig: &SentryConfig{
 			DSN:                viper.GetString("SENTRY_DSN"),
@@ -414,6 +423,17 @@ func (c Config) InternalTxEnabled() bool {
 
 func (c Config) GetInternalTxConfig() *InternalTxConfig {
 	return c.internalTxConfig
+}
+
+func (c Config) GetRichListEnabled() bool {
+	if c.richListConfig == nil {
+		return false
+	}
+	return c.richListConfig.Enabled
+}
+
+func (c Config) GetRichListConfig() *RichListConfig {
+	return c.richListConfig
 }
 
 func (c Config) GetSentryConfig() *SentryConfig {

@@ -7,6 +7,7 @@ import (
 
 	"github.com/initia-labs/rollytics/api/handler/block"
 	"github.com/initia-labs/rollytics/api/handler/nft"
+	"github.com/initia-labs/rollytics/api/handler/richlist"
 	"github.com/initia-labs/rollytics/api/handler/tx"
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/orm"
@@ -21,6 +22,7 @@ func Register(router fiber.Router, db *orm.Database, cfg *config.Config, logger 
 		block.NewBlockHandler(base),
 		tx.NewTxHandler(base),
 		nft.NewNftHandler(base),
+		richlist.NewRichListHandler(base, cfg),
 	}
 
 	for _, handler := range handlers {

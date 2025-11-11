@@ -23,11 +23,12 @@ import (
 
 func init() {
 	util.InitializeCaches(&config.CacheConfig{
-		AccountCacheSize:   1024,
-		NftCacheSize:       1024,
-		MsgTypeCacheSize:   256,
-		TypeTagCacheSize:   256,
-		EvmTxHashCacheSize: 1024,
+		AccountCacheSize:          1024,
+		NftCacheSize:              1024,
+		MsgTypeCacheSize:          256,
+		TypeTagCacheSize:          256,
+		EvmTxHashCacheSize:        1024,
+		EvmDenomContractCacheSize: 1024,
 	})
 }
 
