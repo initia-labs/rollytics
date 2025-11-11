@@ -153,6 +153,7 @@ func setupSQLiteBenchmarkHandler(tb testing.TB, txCount int, useEdges bool) (*Tx
 	cfg.SetDBConfig(&dbconfig.Config{})
 	cfg.SetChainConfig(&config.ChainConfig{ChainId: "test-chain", VmType: types.EVM})
 	cfg.SetInternalTxConfig(&config.InternalTxConfig{Enabled: true})
+	cfg.SetRichListConfig(&config.RichListConfig{Enabled: true})
 
 	base := common.NewBaseHandler(&orm.Database{DB: gdb}, cfg, logger)
 	handler := NewTxHandler(base)

@@ -43,6 +43,9 @@ func setupTestConfig() *config.Config {
 		Enabled:   true,
 		BatchSize: 10,
 	})
+	cfg.SetRichListConfig(&config.RichListConfig{
+		Enabled: true,
+	})
 
 	return cfg
 }
