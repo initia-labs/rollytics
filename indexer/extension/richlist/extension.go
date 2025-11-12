@@ -42,9 +42,31 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *RichListExt
 
 func (r *RichListExtension) Initialize(ctx context.Context) error {
 	var lastHeight types.CollectedRichListStatus
-	if err := r.db.WithContext(ctx).
-		Model(types.CollectedRichListStatus{}).Limit(1).First(&lastHeight).Error; err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		r.logger.Error("failed to get the last block height", slog.Any("error", err))
+	err := r.db.WithContext(ctx).
+		Model(types.CollectedRichListStatus{}).Limit(1).First(&lastHeight).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// If no richlist status found, use the latest block height
+			var lastBlock types.CollectedBlock
+			if err := r.db.WithContext(ctx).
+				Where("chain_id = ?", r.cfg.GetChainId()).
+				Order("height DESC").
+				Limit(1).
+				First(&lastBlock).Error; err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					r.logger.Warn("no blocks found in database, starting from height 1")
+					r.startHeight = 1
+					return nil
+				}
+				r.logger.Error("failed to get the latest block height", slog.Any("error", err))
+				return err
+			}
+			r.logger.Info("no richlist status found, using latest block height", slog.Int64("height", lastBlock.Height))
+			r.startHeight = lastBlock.Height
+			return nil
+		}
+		r.logger.Error("failed to get the last richlist status", slog.Any("error", err))
 		return err
 	}
 
