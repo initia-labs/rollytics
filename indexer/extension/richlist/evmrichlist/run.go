@@ -15,19 +15,18 @@ import (
 	"github.com/initia-labs/rollytics/util"
 )
 
-func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.Database, startHeight int64, moduleAccounts []sdk.AccAddress) error {
+func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.Database, startHeight int64, moduleAccounts []sdk.AccAddress, requireInit bool) error {
 	currentHeight := startHeight
 
-	cfgStartHeight := cfg.GetStartHeight()
-	if currentHeight < cfgStartHeight {
-		logger.Info("reinitializing rich list", slog.Int64("db_start_height", currentHeight), slog.Int64("config_start_height", cfgStartHeight))
+	if requireInit {
+		logger.Info("reinitializing rich list", slog.Int64("start_height", currentHeight))
 		if err := db.Transaction(func(tx *gorm.DB) error {
-			err := richlistutils.InitializeBalances(ctx, logger, tx, cfg, cfgStartHeight)
+			err := richlistutils.InitializeBalances(ctx, logger, tx, cfg, currentHeight)
 			return err
 		}); err != nil {
 			return err
 		}
-		currentHeight = cfgStartHeight + 1
+		currentHeight = currentHeight + 1
 	}
 
 	logger.Info("starting rich list extension", slog.Int64("start_height", currentHeight))
@@ -158,7 +157,7 @@ func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.D
 							slog.String("db_balance", dbBalance.String()),
 							slog.String("blockchain_balance", blockchainBalance.String()),
 							slog.Int64("height", currentHeight))
-						// return fmt.Errorf("balance mismatch: db=%s, blockchain=%s for address %s, denom %s at height %d", dbBalance.String(), blockchainBalance.String(), key.Addr, key.Denom, currentHeight)
+						return fmt.Errorf("balance mismatch: db=%s, blockchain=%s for address %s, denom %s at height %d", dbBalance.String(), blockchainBalance.String(), key.Addr, key.Denom, currentHeight)
 					}
 				}
 			}
