@@ -487,6 +487,8 @@ func GetEvmContractByDenom(ctx context.Context, denom string) (string, error) {
 	// evm/AnyCase
 	if strings.HasPrefix(denom, "ibc/") {
 		denom = fmt.Sprintf("ibc/%s", strings.ToUpper(denom[4:]))
+	} else if strings.ToLower(denom) == "gas" {
+		denom = "GAS"
 	}
 
 	// Query the API
