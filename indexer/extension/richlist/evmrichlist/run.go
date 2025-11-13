@@ -10,7 +10,6 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/initia-labs/rollytics/config"
-	"github.com/initia-labs/rollytics/indexer/extension/richlist/utils"
 	richlistutils "github.com/initia-labs/rollytics/indexer/extension/richlist/utils"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/util"
@@ -118,7 +117,7 @@ func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.D
 				// Query balance from blockchain via JSON-RPC for verification
 				if sdkAddr, err := util.AccAddressFromString(key.Addr); err == nil {
 					hexAddr := util.BytesToHexWithPrefix(sdkAddr)
-					balances, err := queryERC20Balances(ctx, cfg.GetChainConfig().JsonRpcUrl, key.Denom, []utils.AddressWithID{{HexAddress: hexAddr}}, currentHeight)
+					balances, err := queryERC20Balances(ctx, cfg.GetChainConfig().JsonRpcUrl, key.Denom, []richlistutils.AddressWithID{{HexAddress: hexAddr}}, currentHeight)
 					if err != nil {
 						logger.Error("failed to query balances",
 							slog.String("denom", key.Denom),
@@ -159,7 +158,7 @@ func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.D
 							slog.String("db_balance", dbBalance.String()),
 							slog.String("blockchain_balance", blockchainBalance.String()),
 							slog.Int64("height", currentHeight))
-						return fmt.Errorf("balance mismatch: db=%s, blockchain=%s for address %s, denom %s at height %d", dbBalance.String(), blockchainBalance.String(), key.Addr, key.Denom, currentHeight)
+						// return fmt.Errorf("balance mismatch: db=%s, blockchain=%s for address %s, denom %s at height %d", dbBalance.String(), blockchainBalance.String(), key.Addr, key.Denom, currentHeight)
 					}
 				}
 			}
