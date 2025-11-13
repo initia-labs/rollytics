@@ -25,6 +25,7 @@ type RichListExtension struct {
 	logger      *slog.Logger
 	db          *orm.Database
 	startHeight int64 // Last produced/queued height
+	requireInit bool
 }
 
 func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *RichListExtension {
@@ -41,10 +42,20 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *RichListExt
 }
 
 func (r *RichListExtension) Initialize(ctx context.Context) error {
+	// TODO: Clean up all existing richlist data
+	if err := r.db.WithContext(ctx).Exec("DELETE FROM rich_list").Error; err != nil {
+		r.logger.Error("failed to clean up rich_list table", slog.Any("error", err))
+		return fmt.Errorf("failed to clean up rich_list table: %w", err)
+	}
+	if err := r.db.WithContext(ctx).Exec("DELETE FROM rich_list_status").Error; err != nil {
+		r.logger.Error("failed to clean up rich_list_status table", slog.Any("error", err))
+		return fmt.Errorf("failed to clean up rich_list_status table: %w", err)
+	}
+	r.logger.Info("cleaned up existing richlist data")
+
 	var lastHeight types.CollectedRichListStatus
 	err := r.db.WithContext(ctx).
 		Model(types.CollectedRichListStatus{}).Limit(1).First(&lastHeight).Error
-
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			// If no richlist status found, use the latest block height
@@ -64,6 +75,7 @@ func (r *RichListExtension) Initialize(ctx context.Context) error {
 			}
 			r.logger.Info("no richlist status found, using latest block height", slog.Int64("height", lastBlock.Height))
 			r.startHeight = lastBlock.Height
+			r.requireInit = true
 			return nil
 		}
 		r.logger.Error("failed to get the last richlist status", slog.Any("error", err))
@@ -87,7 +99,7 @@ func (r *RichListExtension) Run(ctx context.Context) error {
 
 	switch r.cfg.GetVmType() {
 	case types.EVM:
-		if err := evmrichlist.Run(ctx, r.cfg, r.logger, r.db, r.startHeight, moduleAccounts); err != nil {
+		if err := evmrichlist.Run(ctx, r.cfg, r.logger, r.db, r.startHeight, moduleAccounts, r.requireInit); err != nil {
 			return err
 		}
 	default:

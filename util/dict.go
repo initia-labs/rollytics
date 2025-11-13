@@ -482,6 +482,15 @@ func GetEvmContractByDenom(ctx context.Context, denom string) (string, error) {
 		return address, nil
 	}
 
+	// ibc/UPPERCASE
+	// l2/lowercase
+	// evm/AnyCase
+	if strings.HasPrefix(denom, "ibc/") {
+		denom = fmt.Sprintf("ibc/%s", strings.ToUpper(denom[4:]))
+	} else if strings.ToLower(denom) == "gas" {
+		denom = "GAS"
+	}
+
 	// Query the API
 	path := "/minievm/evm/v1/contracts/by_denom"
 	params := map[string]string{"denom": denom}
