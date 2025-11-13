@@ -140,7 +140,6 @@ func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.D
 					found := false
 					for addrWithID, balance := range balances {
 						if addrWithID.HexAddress == hexAddr {
-							fmt.Println("found balance", balance.String())
 							blockchainBalance = balance
 							found = true
 							break
