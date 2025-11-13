@@ -482,9 +482,11 @@ func GetEvmContractByDenom(ctx context.Context, denom string) (string, error) {
 		return address, nil
 	}
 
-	splitDenom := strings.Split(denom, "/")
-	if len(splitDenom) == 2 {
-		denom = fmt.Sprintf("%s/%s", splitDenom[0], strings.ToUpper(splitDenom[1]))
+	// ibc/UPPERCASE
+	// l2/lowercase
+	// evm/AnyCase
+	if strings.HasPrefix(denom, "ibc/") {
+		denom = fmt.Sprintf("ibc/%s", strings.ToUpper(denom[4:]))
 	}
 
 	// Query the API
