@@ -482,6 +482,11 @@ func GetEvmContractByDenom(ctx context.Context, denom string) (string, error) {
 		return address, nil
 	}
 
+	splitDenom := strings.Split(denom, "/")
+	if len(splitDenom) == 2 {
+		denom = fmt.Sprintf("%s/%s", splitDenom[0], strings.ToUpper(splitDenom[1]))
+	}
+
 	// Query the API
 	path := "/minievm/evm/v1/contracts/by_denom"
 	params := map[string]string{"denom": denom}
