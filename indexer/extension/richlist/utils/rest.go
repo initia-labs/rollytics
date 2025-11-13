@@ -82,6 +82,9 @@ func fetchAllAccountsWithPagination(ctx context.Context, cfg *config.Config, hei
 					if cfg.GetVmType() == types.EVM && len(accAddress) > 20 {
 						continue
 					}
+					if accAddress.String() == "init1f6cg6hqmp2ppxqagd3an4jq9cfunmeurksxhh9" {
+						fmt.Println("======> FOUND init1f6cg6hqmp2ppxqagd3an4jq9cfunmeurksxhh9 !!!")
+					}
 					allAddresses = append(allAddresses, accAddress)
 				}
 			}
@@ -162,6 +165,10 @@ func fetchAccountBalancesWithPagination(ctx context.Context, cfg *config.Config,
 	useOffset := false
 	offset := 0
 
+	if address.String() == "init1f6cg6hqmp2ppxqagd3an4jq9cfunmeurksxhh9" {
+		fmt.Println("BALANCE ====> init1f6cg6hqmp2ppxqagd3an4jq9cfunmeurksxhh9")
+	}
+
 	for {
 		// Build pagination parameters
 		params := map[string]string{"pagination.limit": paginationLimit}
@@ -193,6 +200,8 @@ func fetchAccountBalancesWithPagination(ctx context.Context, cfg *config.Config,
 			if cfg.GetVmType() == types.EVM {
 				contract, err := util.GetEvmContractByDenom(ctx, denom)
 				if err != nil {
+					fmt.Println("======>", address.String(), denom)
+					// panic(err)
 					continue
 				}
 				denom = contract

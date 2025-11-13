@@ -32,6 +32,7 @@ func (h *RichListHandler) GetTokenHolders(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "denom parameter is required")
 	}
 
+	denom = strings.ReplaceAll(denom, "%2F", "/")
 	denom = strings.ToLower(denom)
 	if h.cfg.GetVmType() == types.EVM {
 		contract, err := util.GetEvmContractByDenom(c.Context(), denom)
