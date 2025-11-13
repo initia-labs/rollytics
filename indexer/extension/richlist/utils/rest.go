@@ -201,7 +201,8 @@ func fetchAccountBalancesWithPagination(ctx context.Context, cfg *config.Config,
 				contract, err := util.GetEvmContractByDenom(ctx, denom)
 				if err != nil {
 					fmt.Println("======>", address.String(), denom)
-					panic(err)
+					// panic(err)
+					continue
 				}
 				denom = contract
 			}
