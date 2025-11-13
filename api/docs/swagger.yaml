@@ -513,6 +513,49 @@ paths:
       summary: Get NFT transactions by collection and token ID
       tags:
       - NFT
+  /indexer/richlist/v1/{denom}:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of token holders for a specific denomination, ordered
+        by amount in descending order
+      parameters:
+      - description: Token denomination
+        in: path
+        name: denom
+        required: true
+        type: string
+      - description: Pagination key
+        in: query
+        name: pagination.key
+        type: string
+      - description: Pagination offset
+        in: query
+        name: pagination.offset
+        type: integer
+      - description: Pagination limit, default is 100
+        in: query
+        name: pagination.limit
+        type: integer
+      - description: Count total, default is true
+        in: query
+        name: pagination.count_total
+        type: boolean
+      - description: Reverse order default is true if set to true, the results will
+          be ordered in descending order
+        in: query
+        name: pagination.reverse
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/richlist.TokenHoldersResponse'
+      summary: Get token holders
+      tags:
+      - Rich List
   /indexer/tx/v1/evm-internal-txs:
     get:
       consumes:
@@ -944,49 +987,6 @@ paths:
       summary: Get transactions by height
       tags:
       - Tx
-  /richlist/v1/{denom}:
-    get:
-      consumes:
-      - application/json
-      description: Get a list of token holders for a specific denomination, ordered
-        by amount in descending order
-      parameters:
-      - description: Token denomination
-        in: path
-        name: denom
-        required: true
-        type: string
-      - description: Pagination key
-        in: query
-        name: pagination.key
-        type: string
-      - description: Pagination offset
-        in: query
-        name: pagination.offset
-        type: integer
-      - description: Pagination limit, default is 100
-        in: query
-        name: pagination.limit
-        type: integer
-      - description: Count total, default is true
-        in: query
-        name: pagination.count_total
-        type: boolean
-      - description: Reverse order default is true if set to true, the results will
-          be ordered in descending order
-        in: query
-        name: pagination.reverse
-        type: boolean
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/richlist.TokenHoldersResponse'
-      summary: Get token holders
-      tags:
-      - Rich List
   /status:
     get:
       consumes:

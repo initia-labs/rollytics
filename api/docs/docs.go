@@ -535,6 +535,68 @@ const docTemplate = `{
                 "responses": {}
             }
         },
+        "/indexer/richlist/v1/{denom}": {
+            "get": {
+                "description": "Get a list of token holders for a specific denomination, ordered by amount in descending order",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Rich List"
+                ],
+                "summary": "Get token holders",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Token denomination",
+                        "name": "denom",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Pagination key",
+                        "name": "pagination.key",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination offset",
+                        "name": "pagination.offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination limit, default is 100",
+                        "name": "pagination.limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Count total, default is true",
+                        "name": "pagination.count_total",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Reverse order default is true if set to true, the results will be ordered in descending order",
+                        "name": "pagination.reverse",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/richlist.TokenHoldersResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/indexer/tx/v1/evm-internal-txs": {
             "get": {
                 "description": "Get a list of EVM internal transactions with pagination",
@@ -1157,68 +1219,6 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {}
-            }
-        },
-        "/richlist/v1/{denom}": {
-            "get": {
-                "description": "Get a list of token holders for a specific denomination, ordered by amount in descending order",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Rich List"
-                ],
-                "summary": "Get token holders",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Token denomination",
-                        "name": "denom",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Pagination key",
-                        "name": "pagination.key",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Pagination offset",
-                        "name": "pagination.offset",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Pagination limit, default is 100",
-                        "name": "pagination.limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "boolean",
-                        "description": "Count total, default is true",
-                        "name": "pagination.count_total",
-                        "in": "query"
-                    },
-                    {
-                        "type": "boolean",
-                        "description": "Reverse order default is true if set to true, the results will be ordered in descending order",
-                        "name": "pagination.reverse",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/richlist.TokenHoldersResponse"
-                        }
-                    }
-                }
             }
         },
         "/status": {

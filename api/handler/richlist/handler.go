@@ -25,6 +25,6 @@ func NewRichListHandler(base *common.BaseHandler, cfg *config.Config) *RichListH
 }
 
 func (h *RichListHandler) Register(router fiber.Router) {
-	richlist := router.Group("richlist/v1")
+	richlist := router.Group("indexer/richlist/v1")
 	richlist.Get("/:denom", cache.WithExpiration(10*time.Second), h.GetTokenHolders)
 }

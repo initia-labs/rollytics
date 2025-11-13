@@ -42,17 +42,6 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *RichListExt
 }
 
 func (r *RichListExtension) Initialize(ctx context.Context) error {
-	// TODO: Clean up all existing richlist data
-	if err := r.db.WithContext(ctx).Exec("DELETE FROM rich_list").Error; err != nil {
-		r.logger.Error("failed to clean up rich_list table", slog.Any("error", err))
-		return fmt.Errorf("failed to clean up rich_list table: %w", err)
-	}
-	if err := r.db.WithContext(ctx).Exec("DELETE FROM rich_list_status").Error; err != nil {
-		r.logger.Error("failed to clean up rich_list_status table", slog.Any("error", err))
-		return fmt.Errorf("failed to clean up rich_list_status table: %w", err)
-	}
-	r.logger.Info("cleaned up existing richlist data")
-
 	var lastHeight types.CollectedRichListStatus
 	err := r.db.WithContext(ctx).
 		Model(types.CollectedRichListStatus{}).Limit(1).First(&lastHeight).Error
