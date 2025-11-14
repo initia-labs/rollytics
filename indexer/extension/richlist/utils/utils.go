@@ -187,6 +187,11 @@ func processEvmTransferEvent(logger *slog.Logger, event sdk.Event, balanceMap ma
 				} else {
 					balanceMap[fromKey] = balance.Sub(amount)
 				}
+
+				if fromAccAddr.String() == "init1g52ga5nsm0w0hc7pgg87myge66q7p0jqu3nzut" && denom == "0xe1ff7038eaaaf027031688e1535a055b2bac2546" {
+					logger.Info(fmt.Sprintf("=====> from init1g52ga5nsm0w0hc7pgg87myge66q7p0jqu3nzut: -%s", amount.String()))
+					logger.Info(fmt.Sprintf("=====> from init1g52ga5nsm0w0hc7pgg87myge66q7p0jqu3nzut: after %s", balanceMap[fromKey].String()))
+				}
 			}
 
 			// Update receiver's balance (add)
@@ -197,6 +202,11 @@ func processEvmTransferEvent(logger *slog.Logger, event sdk.Event, balanceMap ma
 				} else {
 					balanceMap[toKey] = balance.Add(amount)
 				}
+
+				if toAccAddr.String() == "init1g52ga5nsm0w0hc7pgg87myge66q7p0jqu3nzut" && denom == "0xe1ff7038eaaaf027031688e1535a055b2bac2546" {
+					logger.Info(fmt.Sprintf("=====> from init1g52ga5nsm0w0hc7pgg87myge66q7p0jqu3nzut: changes %s", amount.String()))
+					logger.Info(fmt.Sprintf("=====> from init1g52ga5nsm0w0hc7pgg87myge66q7p0jqu3nzut: after %s", balanceMap[toKey].String()))
+				}
 			}
 		}
 	}
@@ -204,9 +214,9 @@ func processEvmTransferEvent(logger *slog.Logger, event sdk.Event, balanceMap ma
 	return true
 }
 
-// ProcessCosmosBalanceChanges processes Cosmos transactions and calculates balance changes
+// ProcessBalanceChanges processes Cosmos transactions and calculates balance changes
 // for each address. Returns a map of BalanceChangeKey to balance change amounts.
-func ProcessCosmosBalanceChanges(logger *slog.Logger, cfg *config.Config, txs []types.CollectedTx, moduleAccounts []sdk.AccAddress) map[BalanceChangeKey]sdkmath.Int {
+func ProcessBalanceChanges(logger *slog.Logger, cfg *config.Config, txs []types.CollectedTx, moduleAccounts []sdk.AccAddress) map[BalanceChangeKey]sdkmath.Int {
 	balanceMap := make(map[BalanceChangeKey]sdkmath.Int)
 
 	// Process each transaction

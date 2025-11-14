@@ -54,7 +54,7 @@ func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.D
 			}
 
 			// Process cosmos transactions to calculate balance changes
-			balanceMap := richlistutils.ProcessCosmosBalanceChanges(logger, cfg, cosmosTxs, moduleAccounts)
+			balanceMap := richlistutils.ProcessBalanceChanges(logger, cfg, cosmosTxs, moduleAccounts)
 
 			// Update balance changes to the database
 			negativeDenoms, err := richlistutils.UpdateBalanceChanges(ctx, dbTx, balanceMap)
