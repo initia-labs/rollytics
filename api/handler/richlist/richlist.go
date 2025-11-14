@@ -51,11 +51,11 @@ func (h *RichListHandler) GetTokenHolders(c *fiber.Ctx) error {
 	tx := h.GetDatabase().Begin(&sql.TxOptions{ReadOnly: true})
 	defer tx.Rollback()
 
-	// Query rich list ordered by amount DESC with pagination
+	// Query rich list ordered by amount with pagination
 	var richListRecords []types.CollectedRichList
 	if err := tx.Model(&types.CollectedRichList{}).
 		Where("denom = ?", denom).
-		Order("amount DESC").
+		Order(pagination.OrderBy("amount")).
 		Limit(pagination.Limit).
 		Offset(pagination.Offset).
 		Find(&richListRecords).Error; err != nil {
