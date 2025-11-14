@@ -7,11 +7,13 @@ import (
 
 	sdkmath "cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/getsentry/sentry-go"
 	"gorm.io/gorm"
 
 	"github.com/initia-labs/rollytics/config"
 	richlistutils "github.com/initia-labs/rollytics/indexer/extension/richlist/utils"
 	"github.com/initia-labs/rollytics/orm"
+	"github.com/initia-labs/rollytics/sentry_integration"
 	"github.com/initia-labs/rollytics/util"
 )
 
@@ -112,7 +114,8 @@ func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.D
 
 			// Debug: Compare blockchain balances with database balances for addresses with balance changes.
 			// Queries on-chain state via JSON-RPC and fails the block if any mismatch is detected.
-			for key, calulatedBalance := range balanceMap {
+			blockchainBalancesByDenom := make(map[string]map[richlistutils.AddressWithID]sdkmath.Int)
+			for key, amountChange := range balanceMap {
 				// Query balance from blockchain via JSON-RPC for verification
 				if sdkAddr, err := util.AccAddressFromString(key.Addr); err == nil {
 					hexAddr := util.BytesToHexWithPrefix(sdkAddr)
@@ -129,9 +132,9 @@ func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.D
 						return err
 					}
 
-					dbBalance, ok := sdkmath.NewIntFromString(dbBalanceStr)
+					dbBalance, ok := sdkmath.NewIntFromString(dbBalanceStr.Amount)
 					if !ok {
-						return fmt.Errorf("failed to parse database balance: %s", dbBalanceStr)
+						return fmt.Errorf("failed to parse database balance: %s", dbBalanceStr.Amount)
 					}
 
 					var blockchainBalance sdkmath.Int
@@ -153,14 +156,47 @@ func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.D
 						logger.Error("balance mismatch detected",
 							slog.String("denom", key.Denom),
 							slog.String("address", key.Addr),
-							slog.String("calculated_change", calulatedBalance.String()),
+							slog.String("balance_change", amountChange.String()),
 							slog.String("db_balance", dbBalance.String()),
 							slog.String("blockchain_balance", blockchainBalance.String()),
 							slog.Int64("height", currentHeight))
-						// TODO: fix
-						// return fmt.Errorf("balance mismatch: db=%s, blockchain=%s for address %s, denom %s at height %d", dbBalance.String(), blockchainBalance.String(), key.Addr, key.Denom, currentHeight)
+
+						if blockchainBalancesByDenom[key.Denom] == nil {
+							blockchainBalancesByDenom[key.Denom] = make(map[richlistutils.AddressWithID]sdkmath.Int)
+						}
+						blockchainBalancesByDenom[key.Denom][richlistutils.NewAddressWithID(sdkAddr, dbBalanceStr.Id)] = blockchainBalance
+
+						// Send error to Sentry with all structured fields
+						errMsg := fmt.Errorf("balance mismatch detected: db=%s, blockchain=%s for address %s, denom %s at height %d, balance change=%s",
+							dbBalance.String(), blockchainBalance.String(), key.Addr, key.Denom, currentHeight, amountChange.String())
+						sentry_integration.CaptureExceptionWithContext(errMsg, sentry.LevelWarning,
+							map[string]string{
+								"denom":   key.Denom,
+								"address": key.Addr,
+								"height":  fmt.Sprintf("%d", currentHeight),
+							},
+							map[string]any{
+								"balance_change":     amountChange.String(),
+								"db_balance":         dbBalance.String(),
+								"blockchain_balance": blockchainBalance.String(),
+							})
 					}
 				}
+			}
+
+			// Batch update all mismatches grouped by denom
+			if len(blockchainBalancesByDenom) > 0 {
+				// Update balances once per denom
+				for denom, balanceMapToUpdate := range blockchainBalancesByDenom {
+					if err := richlistutils.UpdateBalances(ctx, dbTx, denom, balanceMapToUpdate); err != nil {
+						logger.Error("failed to update balances in database",
+							slog.String("denom", denom),
+							slog.Any("error", err))
+						return err
+					}
+				}
+
+				logger.Info("balance mismatches corrected", slog.Int("num_blockchain_balances", len(blockchainBalancesByDenom)))
 			}
 
 			logger.Info("rich list processed height", slog.Int64("height", currentHeight))
