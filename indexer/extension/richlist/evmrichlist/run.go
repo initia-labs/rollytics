@@ -115,7 +115,7 @@ func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.D
 			// Debug: Compare blockchain balances with database balances for addresses with balance changes.
 			// Queries on-chain state via JSON-RPC and fails the block if any mismatch is detected.
 			blockchainBalancesByDenom := make(map[string]map[richlistutils.AddressWithID]sdkmath.Int)
-			for key := range balanceMap {
+			for key, amountChange := range balanceMap {
 				// Query balance from blockchain via JSON-RPC for verification
 				if sdkAddr, err := util.AccAddressFromString(key.Addr); err == nil {
 					hexAddr := util.BytesToHexWithPrefix(sdkAddr)
@@ -156,17 +156,30 @@ func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.D
 						logger.Error("balance mismatch detected",
 							slog.String("denom", key.Denom),
 							slog.String("address", key.Addr),
+							slog.String("balance_change", amountChange.String()),
 							slog.String("db_balance", dbBalance.String()),
 							slog.String("blockchain_balance", blockchainBalance.String()),
 							slog.Int64("height", currentHeight))
 
+						if blockchainBalancesByDenom[key.Denom] == nil {
+							blockchainBalancesByDenom[key.Denom] = make(map[richlistutils.AddressWithID]sdkmath.Int)
+						}
 						blockchainBalancesByDenom[key.Denom][richlistutils.NewAddressWithID(sdkAddr, dbBalanceStr.Id)] = blockchainBalance
 
-						// Send error to Sentry
-						errMsg := fmt.Errorf("balance mismatch corrected: db=%s, blockchain=%s for address %s, denom %s at height %d",
-							dbBalance.String(), blockchainBalance.String(), key.Addr, key.Denom, currentHeight)
-						sentry_integration.CaptureCurrentHubException(errMsg, sentry.LevelWarning)
-						logger.Error("balance mismatch corrected", slog.String("denom", key.Denom), slog.String("address", key.Addr), slog.String("db_balance", dbBalance.String()), slog.String("blockchain_balance", blockchainBalance.String()), slog.Int64("height", currentHeight))
+						// Send error to Sentry with all structured fields
+						errMsg := fmt.Errorf("balance mismatch detected: db=%s, blockchain=%s for address %s, denom %s at height %d, balance change=%s",
+							dbBalance.String(), blockchainBalance.String(), key.Addr, key.Denom, currentHeight, amountChange.String())
+						sentry_integration.CaptureExceptionWithContext(errMsg, sentry.LevelWarning,
+							map[string]string{
+								"denom":   key.Denom,
+								"address": key.Addr,
+								"height":  fmt.Sprintf("%d", currentHeight),
+							},
+							map[string]any{
+								"balance_change":     amountChange.String(),
+								"db_balance":         dbBalance.String(),
+								"blockchain_balance": blockchainBalance.String(),
+							})
 					}
 				}
 			}
