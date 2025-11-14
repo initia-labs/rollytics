@@ -156,6 +156,10 @@ func processEvmTransferEvent(logger *slog.Logger, event sdk.Event, balanceMap ma
 	// Extract the log attribute from the event
 	for _, attr := range event.Attributes {
 		if attr.Key == "log" {
+			if strings.Contains(attr.Value, "0x0000000000000000000000000000000000000000000000000014e9c004d5936c") {
+				logger.Info(attr.Value)
+			}
+
 			// Parse the JSON log
 			var evmLog EvmEventLog
 			if err := json.Unmarshal([]byte(attr.Value), &evmLog); err != nil {
@@ -177,12 +181,6 @@ func processEvmTransferEvent(logger *slog.Logger, event sdk.Event, balanceMap ma
 			if !ok {
 				logger.Error("failed to parse amount from evm log data", "data", evmLog.Data)
 				return false
-			}
-
-			if evmLog.Data == "0x0000000000000000000000000000000000000000000000000014e9c004d5936c" {
-				logger.Info(evmLog.Topics[0])
-				logger.Info(evmLog.Topics[1])
-				logger.Info(evmLog.Topics[1])
 			}
 
 			// Update sender's balance (subtract)
