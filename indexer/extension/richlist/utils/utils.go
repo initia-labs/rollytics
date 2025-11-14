@@ -164,12 +164,12 @@ func processEvmTransferEvent(logger *slog.Logger, event sdk.Event, balanceMap ma
 			var evmLog EvmEventLog
 			if err := json.Unmarshal([]byte(attr.Value), &evmLog); err != nil {
 				logger.Error("failed to unmarshal evm log", "error", err)
-				return false
+				continue
 			}
 
 			// Validate it's a Transfer event with the correct number of topics
 			if len(evmLog.Topics) != 3 || evmLog.Topics[0] != EVM_TRANSFER_TOPIC {
-				return false
+				continue
 			}
 
 			denom := strings.ToLower(evmLog.Address)
@@ -180,7 +180,7 @@ func processEvmTransferEvent(logger *slog.Logger, event sdk.Event, balanceMap ma
 			amount, ok := ParseHexAmountToSDKInt(evmLog.Data)
 			if !ok {
 				logger.Error("failed to parse amount from evm log data", "data", evmLog.Data)
-				return false
+				continue
 			}
 
 			// Update sender's balance (subtract)
