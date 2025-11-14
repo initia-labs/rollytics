@@ -47,23 +47,14 @@ func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.D
 				return err
 			}
 
-			// Get the txs for the current height block
-			evmTxs, err := GetBlockCollectedEvmTxs(ctx, dbTx, currentHeight)
-			if err != nil {
-				logger.Error("failed to get evm transactions", slog.Any("error", err))
-				return err
-			}
-
-			cosmosTxs, err := GetBlockCollectedCosmosTxs(ctx, dbTx, currentHeight)
+			cosmosTxs, err := richlistutils.GetBlockCollectedTxs(ctx, dbTx, currentHeight)
 			if err != nil {
 				logger.Error("failed to get cosmos transactions", slog.Any("error", err))
 				return err
 			}
 
-			// Process transactions to calculate balance changes
-			balanceMap := ProcessEvmBalanceChanges(logger, evmTxs)
-			// Process failed cosmos transactions to calculate balance changes
-			richlistutils.ProcessCosmosBalanceChanges(logger, cfg, cosmosTxs, moduleAccounts, balanceMap, true)
+			// Process cosmos transactions to calculate balance changes
+			balanceMap := richlistutils.ProcessCosmosBalanceChanges(logger, cfg, cosmosTxs, moduleAccounts)
 
 			// Update balance changes to the database
 			negativeDenoms, err := richlistutils.UpdateBalanceChanges(ctx, dbTx, balanceMap)
@@ -113,7 +104,7 @@ func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.D
 			}
 
 			// Debug: Compare blockchain balances with database balances for addresses with balance changes.
-			// Queries on-chain state via JSON-RPC and fails the block if any mismatch is detected.
+			// Queries on-chain state via JSON-RPC and batch-corrects any detected mismatches.
 			blockchainBalancesByDenom := make(map[string]map[richlistutils.AddressWithID]sdkmath.Int)
 			for key, amountChange := range balanceMap {
 				// Query balance from blockchain via JSON-RPC for verification
@@ -169,6 +160,10 @@ func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.D
 						// Send error to Sentry with all structured fields
 						errMsg := fmt.Errorf("balance mismatch detected: db=%s, blockchain=%s for address %s, denom %s at height %d, balance change=%s",
 							dbBalance.String(), blockchainBalance.String(), key.Addr, key.Denom, currentHeight, amountChange.String())
+
+						// TODO: remove
+						panic(errMsg)
+
 						sentry_integration.CaptureExceptionWithContext(errMsg, sentry.LevelWarning,
 							map[string]string{
 								"denom":   key.Denom,
