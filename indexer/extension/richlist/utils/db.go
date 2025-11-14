@@ -16,20 +16,24 @@ import (
 // Uses exponential backoff retry logic for transient database errors.
 func GetCollectedBlock(ctx context.Context, db *gorm.DB, chainId string, height int64) (*types.CollectedBlock, error) {
 	var block types.CollectedBlock
-	var err error
-
-	for attempt := range MAX_ATTEMPTS {
-		if err = db.WithContext(ctx).
+	for attempt := 0; ; attempt++ {
+		err := db.WithContext(ctx).
 			Model(&types.CollectedBlock{}).
 			Where("chain_id = ?", chainId).
-			Where("height = ?", height).First(&block).Error; err != nil {
+			Where("height = ?", height).First(&block).Error
+		if err == nil {
+			return &block, nil
+		}
+		// Record not found is not a transient error, return immediately
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// Record not found is not a transient error, retry with exponential backoff
 			ExponentialBackoff(attempt)
 			continue
+		} else {
+			// For other errors, return immediately
+			return nil, err
 		}
-		return &block, nil
 	}
-
-	return nil, err
 }
 
 // GetBlockCollectedTxs retrieves all transactions for a specific block height.
