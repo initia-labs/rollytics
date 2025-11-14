@@ -156,10 +156,6 @@ func processEvmTransferEvent(logger *slog.Logger, event sdk.Event, balanceMap ma
 	// Extract the log attribute from the event
 	for _, attr := range event.Attributes {
 		if attr.Key == "log" {
-			if strings.Contains(attr.Value, "0x0000000000000000000000000000000000000000000000000014e9c004d5936c") {
-				logger.Info(attr.Value)
-			}
-
 			// Parse the JSON log
 			var evmLog EvmEventLog
 			if err := json.Unmarshal([]byte(attr.Value), &evmLog); err != nil {
@@ -191,11 +187,6 @@ func processEvmTransferEvent(logger *slog.Logger, event sdk.Event, balanceMap ma
 				} else {
 					balanceMap[fromKey] = balance.Sub(amount)
 				}
-
-				if fromAccAddr.String() == "init1g52ga5nsm0w0hc7pgg87myge66q7p0jqu3nzut" && denom == "0xe1ff7038eaaaf027031688e1535a055b2bac2546" {
-					logger.Info(fmt.Sprintf("=====> from init1g52ga5nsm0w0hc7pgg87myge66q7p0jqu3nzut: changes -%s", amount.String()))
-					logger.Info(fmt.Sprintf("=====> from init1g52ga5nsm0w0hc7pgg87myge66q7p0jqu3nzut: after %s", balanceMap[fromKey].String()))
-				}
 			}
 
 			// Update receiver's balance (add)
@@ -205,11 +196,6 @@ func processEvmTransferEvent(logger *slog.Logger, event sdk.Event, balanceMap ma
 					balanceMap[toKey] = amount
 				} else {
 					balanceMap[toKey] = balance.Add(amount)
-				}
-
-				if toAccAddr.String() == "init1g52ga5nsm0w0hc7pgg87myge66q7p0jqu3nzut" && denom == "0xe1ff7038eaaaf027031688e1535a055b2bac2546" {
-					logger.Info(fmt.Sprintf("=====> to init1g52ga5nsm0w0hc7pgg87myge66q7p0jqu3nzut: changes %s", amount.String()))
-					logger.Info(fmt.Sprintf("=====> to init1g52ga5nsm0w0hc7pgg87myge66q7p0jqu3nzut: after %s", balanceMap[toKey].String()))
 				}
 			}
 		}
