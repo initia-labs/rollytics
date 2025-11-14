@@ -82,18 +82,22 @@ func containsAddress(addresses []sdk.AccAddress, target sdk.AccAddress) bool {
 // processCosmosTransferEvent processes a Cosmos transfer event and updates the balance map.
 // It extracts transfer information from the event attributes and updates balances for both sender and receiver.
 // Returns true if the event was successfully processed, false otherwise.
-func processCosmosTransferEvent(logger *slog.Logger, cfg *config.Config, event sdk.Event, balanceMap map[BalanceChangeKey]sdkmath.Int, moduleAccounts []sdk.AccAddress) bool {
+func processCosmosTransferEvent(logger *slog.Logger, cfg *config.Config, event sdk.Event, balanceMap map[BalanceChangeKey]sdkmath.Int, moduleAccounts []sdk.AccAddress) {
 	// Extract attributes from the event
 	var recipient, sender sdk.AccAddress
 	var amount string
 	for _, attr := range event.Attributes {
 		switch attr.Key {
 		case "recipient":
-			if accAddress, err := util.AccAddressFromString(attr.Value); err == nil {
+			if accAddress, err := util.AccAddressFromString(attr.Value); err != nil {
+				logger.Error("failed to parse recipient", "recipient", attr.Value, "error", err)
+			} else {
 				recipient = accAddress
 			}
 		case "sender":
-			if accAddress, err := util.AccAddressFromString(attr.Value); err == nil {
+			if accAddress, err := util.AccAddressFromString(attr.Value); err != nil {
+				logger.Error("failed to parse sender", "sender", attr.Value, "error", err)
+			} else {
 				sender = accAddress
 			}
 		case "amount":
@@ -102,15 +106,16 @@ func processCosmosTransferEvent(logger *slog.Logger, cfg *config.Config, event s
 	}
 
 	// Validate required fields are present
-	if recipient.Empty() || sender.Empty() || amount == "" {
-		return false
+	if recipient.Empty() || sender.Empty() {
+		logger.Error("invalid either recipient or sender", "recipient", recipient, "sender", sender)
+		return
 	}
 
 	// Parse the amount string which can contain multiple coins (e.g., "100uinit,200utoken")
 	coins, err := sdk.ParseCoinsNormalized(amount)
 	if err != nil {
 		logger.Error("failed to parse coins", "amount", amount, "error", err)
-		return false
+		return
 	}
 
 	// Process each coin in the transfer
@@ -144,15 +149,13 @@ func processCosmosTransferEvent(logger *slog.Logger, cfg *config.Config, event s
 			}
 		}
 	}
-
-	return true
 }
 
 // processEvmTransferEvent processes an "evm" type event and updates the balance map.
 // It extracts the EVM log from the event's "log" attribute, parses the JSON-encoded log,
 // validates it's an ERC20 Transfer event, and updates balances for both sender (subtract) and receiver (add).
 // Returns true if the event was successfully processed, false otherwise.
-func processEvmTransferEvent(logger *slog.Logger, event sdk.Event, balanceMap map[BalanceChangeKey]sdkmath.Int) bool {
+func processEvmTransferEvent(logger *slog.Logger, event sdk.Event, balanceMap map[BalanceChangeKey]sdkmath.Int) {
 	// Extract the log attribute from the event
 	for _, attr := range event.Attributes {
 		if attr.Key == "log" {
@@ -200,8 +203,6 @@ func processEvmTransferEvent(logger *slog.Logger, event sdk.Event, balanceMap ma
 			}
 		}
 	}
-
-	return true
 }
 
 // ProcessBalanceChanges processes Cosmos transactions and calculates balance changes
