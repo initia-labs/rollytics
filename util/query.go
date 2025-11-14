@@ -343,8 +343,7 @@ func executeHTTPRequest(ctx context.Context, baseUrl, path string, config reques
 		}
 
 		// Check for any "invalid height" error message variations
-		if strings.Contains(res.Message, "codespace sdk code 26: invalid height") ||
-			strings.Contains(res.Message, "invalid height") {
+		if strings.Contains(res.Message, "codespace sdk code 26: invalid height") {
 			return nil, types.NewInvalidHeightError()
 		}
 	}
