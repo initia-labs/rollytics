@@ -24,9 +24,8 @@ func GetCollectedBlock(ctx context.Context, db *gorm.DB, chainId string, height 
 		if err == nil {
 			return &block, nil
 		}
-		// Record not found is not a transient error, return immediately
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			// Record not found is not a transient error, retry with exponential backoff
+			// Record not found, retry with exponential backoff
 			ExponentialBackoff(attempt)
 			continue
 		} else {
