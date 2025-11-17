@@ -108,11 +108,9 @@ func (h *NftHandler) GetNftTxs(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
+	query = pagination.ApplySequence(query)
 	var txs []types.CollectedTx
-	if err := query.
-		Offset(pagination.Offset).
-		Limit(pagination.Limit).
-		Find(&txs).Error; err != nil {
+	if err := query.Find(&txs).Error; err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 

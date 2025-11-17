@@ -37,11 +37,9 @@ func (h *BlockHandler) GetBlocks(c *fiber.Ctx) error {
 	total := lastBlock.Height
 
 	var blocks []types.CollectedBlock
-	if err := h.buildBaseBlockQuery().
-		Order(pagination.OrderBy("height")).
-		Offset(pagination.Offset).
-		Limit(pagination.Limit).
-		Find(&blocks).Error; err != nil {
+	query := h.buildBaseBlockQuery()
+	query = pagination.ApplyToBlock(query)
+	if err := query.Find(&blocks).Error; err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
