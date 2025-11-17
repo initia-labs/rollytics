@@ -96,7 +96,7 @@ func (h *NftHandler) GetTokensByAccount(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 	tokenId := c.Query("token_id")
-	pagination, err := common.ParsePagination(c)
+	pagination, err := common.ParsePagination(c, common.CursorTypeOffset)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
@@ -162,7 +162,7 @@ func (h *NftHandler) GetTokensByCollectionAddr(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 	tokenId := c.Query("token_id")
-	pagination, err := common.ParsePagination(c)
+	pagination, err := common.ParsePagination(c, common.CursorTypeComposite)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}

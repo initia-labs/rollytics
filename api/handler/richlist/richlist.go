@@ -42,7 +42,7 @@ func (h *RichListHandler) GetTokenHolders(c *fiber.Ctx) error {
 		denom = contract
 	}
 
-	pagination, err := common.ParsePagination(c)
+	pagination, err := common.ParsePagination(c, common.CursorTypeOffset)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}

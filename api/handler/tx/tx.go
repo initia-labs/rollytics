@@ -27,7 +27,7 @@ import (
 // @Router /indexer/tx/v1/txs [get]
 func (h *TxHandler) GetTxs(c *fiber.Ctx) error {
 	msgs := common.GetMsgsQuery(c)
-	pagination, err := common.ParsePagination(c)
+	pagination, err := common.ParsePagination(c, common.CursorTypeSequence)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
@@ -93,7 +93,7 @@ func (h *TxHandler) GetTxsByAccount(c *fiber.Ctx) error {
 	}
 	msgs := common.GetMsgsQuery(c)
 	isSigner := c.Query("is_signer", "false") == "true"
-	pagination, err := common.ParsePagination(c)
+	pagination, err := common.ParsePagination(c, common.CursorTypeSequence)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
@@ -167,7 +167,7 @@ func (h *TxHandler) GetTxsByHeight(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 	msgs := common.GetMsgsQuery(c)
-	pagination, err := common.ParsePagination(c)
+	pagination, err := common.ParsePagination(c, common.CursorTypeSequence)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
