@@ -161,9 +161,6 @@ func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.D
 						errMsg := fmt.Errorf("balance mismatch detected: db=%s, blockchain=%s for address %s, denom %s at height %d, balance change=%s",
 							dbBalance.String(), blockchainBalance.String(), key.Addr, key.Denom, currentHeight, amountChange.String())
 
-						// TODO: remove
-						panic(errMsg)
-
 						sentry_integration.CaptureExceptionWithContext(errMsg, sentry.LevelWarning,
 							map[string]string{
 								"denom":   key.Denom,
