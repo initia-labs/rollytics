@@ -239,6 +239,7 @@ func (p *Pagination) ToResponse(total int64, hasMore bool) (res PaginationRespon
 
 func (p *Pagination) ToResponseWithLastRecord(total int64, hasMore bool, lastRecord any) PaginationResponse {
 	// TODO: revisit this func
+	fmt.Println(p.UseCursor(), lastRecord)
 	if p.UseCursor() && lastRecord != nil {
 		if r, ok := lastRecord.(CursorRecord); ok {
 			nextCursor := r.GetCursorData()
