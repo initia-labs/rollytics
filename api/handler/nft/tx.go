@@ -36,7 +36,7 @@ func (h *NftHandler) GetNftTxs(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
-	pagination, err := common.ParsePagination(c)
+	pagination, err := common.ParsePagination(c, common.CursorTypeSequence)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
@@ -108,11 +108,9 @@ func (h *NftHandler) GetNftTxs(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
+	query = pagination.ApplySequence(query)
 	var txs []types.CollectedTx
-	if err := query.
-		Offset(pagination.Offset).
-		Limit(pagination.Limit).
-		Find(&txs).Error; err != nil {
+	if err := query.Find(&txs).Error; err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
@@ -121,8 +119,13 @@ func (h *NftHandler) GetNftTxs(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
+	var lastRecord any
+	if len(txs) > 0 {
+		lastRecord = txs[len(txs)-1]
+	}
+
 	return c.JSON(tx.TxsResponse{
 		Txs:        txsRes,
-		Pagination: pagination.ToResponse(total, len(txs) == pagination.Limit),
+		Pagination: pagination.ToResponseWithLastRecord(total, len(txsRes) == pagination.Limit, lastRecord),
 	})
 }

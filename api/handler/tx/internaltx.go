@@ -25,7 +25,7 @@ import (
 // @Param pagination.reverse query bool false "Reverse order default is true if set to true, the results will be ordered in descending order"
 // @Router /indexer/tx/v1/evm-internal-txs [get]
 func (h *TxHandler) GetEvmInternalTxs(c *fiber.Ctx) error {
-	pagination, err := common.ParsePagination(c)
+	pagination, err := common.ParsePagination(c, common.CursorTypeSequence)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
@@ -92,7 +92,7 @@ func (h *TxHandler) GetEvmInternalTxsByAccount(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
-	pagination, err := common.ParsePagination(c)
+	pagination, err := common.ParsePagination(c, common.CursorTypeSequence)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
@@ -135,9 +135,14 @@ func (h *TxHandler) GetEvmInternalTxsByAccount(c *fiber.Ctx) error {
 
 	txsRes := ToEvmInternalTxsResponse(txs, accounts, hashes)
 
+	var lastRecord any
+	if len(txs) > 0 {
+		lastRecord = txs[len(txs)-1]
+	}
+
 	return c.JSON(EvmInternalTxsResponse{
 		Txs:        txsRes,
-		Pagination: pagination.ToResponse(total, len(txsRes) == pagination.Limit),
+		Pagination: pagination.ToResponseWithLastRecord(total, len(txsRes) == pagination.Limit, lastRecord),
 	})
 }
 
@@ -183,7 +188,7 @@ func (h *TxHandler) GetEvmInternalTxsByHeight(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
-	pagination, err := common.ParsePagination(c)
+	pagination, err := common.ParsePagination(c, common.CursorTypeSequence)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
@@ -222,9 +227,14 @@ func (h *TxHandler) GetEvmInternalTxsByHeight(c *fiber.Ctx) error {
 
 	txsRes := ToEvmInternalTxsResponse(txs, accounts, hashes)
 
+	var lastRecord any
+	if len(txs) > 0 {
+		lastRecord = txs[len(txs)-1]
+	}
+
 	return c.JSON(EvmInternalTxsResponse{
 		Txs:        txsRes,
-		Pagination: pagination.ToResponse(total, len(txsRes) == pagination.Limit),
+		Pagination: pagination.ToResponseWithLastRecord(total, len(txsRes) == pagination.Limit, lastRecord),
 	})
 }
 
@@ -247,7 +257,7 @@ func (h *TxHandler) GetEvmInternalTxsByHash(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
-	pagination, err := common.ParsePagination(c)
+	pagination, err := common.ParsePagination(c, common.CursorTypeSequence)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
@@ -299,8 +309,13 @@ func (h *TxHandler) GetEvmInternalTxsByHash(c *fiber.Ctx) error {
 
 	txsRes := ToEvmInternalTxsResponse(txs, accounts, hashes)
 
+	var lastRecord any
+	if len(txs) > 0 {
+		lastRecord = txs[len(txs)-1]
+	}
+
 	return c.JSON(EvmInternalTxsResponse{
 		Txs:        txsRes,
-		Pagination: pagination.ToResponse(total, len(txsRes) == pagination.Limit),
+		Pagination: pagination.ToResponseWithLastRecord(total, len(txsRes) == pagination.Limit, lastRecord),
 	})
 }

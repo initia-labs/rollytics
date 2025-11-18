@@ -22,7 +22,7 @@ import (
 // @Param pagination.reverse query bool false "Reverse order, default is true. if set to true, the results will be ordered in descending order"
 // @Router /indexer/block/v1/blocks [get]
 func (h *BlockHandler) GetBlocks(c *fiber.Ctx) error {
-	pagination, err := common.ParsePagination(c)
+	pagination, err := common.ParsePagination(c, common.CursorTypeHeight)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
@@ -37,11 +37,9 @@ func (h *BlockHandler) GetBlocks(c *fiber.Ctx) error {
 	total := lastBlock.Height
 
 	var blocks []types.CollectedBlock
-	if err := h.buildBaseBlockQuery().
-		Order(pagination.OrderBy("height")).
-		Offset(pagination.Offset).
-		Limit(pagination.Limit).
-		Find(&blocks).Error; err != nil {
+	query := h.buildBaseBlockQuery()
+	query = pagination.ApplyToBlock(query)
+	if err := query.Find(&blocks).Error; err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
@@ -50,9 +48,14 @@ func (h *BlockHandler) GetBlocks(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
+	var lastRecord any
+	if len(blocks) > 0 {
+		lastRecord = blocks[len(blocks)-1]
+	}
+
 	return c.JSON(BlocksResponse{
 		Blocks:     blocksRes,
-		Pagination: pagination.ToResponse(total, len(blocks) == pagination.Limit),
+		Pagination: pagination.ToResponseWithLastRecord(total, len(blocks) == pagination.Limit, lastRecord),
 	})
 }
 

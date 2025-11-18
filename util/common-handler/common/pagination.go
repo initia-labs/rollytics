@@ -74,7 +74,7 @@ type PaginationResponse struct {
 	Total       string  `json:"total" extensions:"x-order:2"`
 }
 
-func ParsePagination(c *fiber.Ctx) (*Pagination, error) {
+func ParsePagination(c *fiber.Ctx, defaultCursorType CursorType) (*Pagination, error) {
 	limit := c.QueryInt("pagination.limit", DefaultLimit)
 	if limit < 1 || limit > MaxLimit {
 		return nil, fmt.Errorf("pagination.limit must be between 1 and %d", MaxLimit)
@@ -95,7 +95,7 @@ func ParsePagination(c *fiber.Ctx) (*Pagination, error) {
 		Offset:     offset,
 		Order:      getOrder(c),
 		CountTotal: countTotal,
-		CursorType: CursorTypeOffset, // default to offset-based pagination
+		CursorType: defaultCursorType,
 	}
 
 	if key != "" {

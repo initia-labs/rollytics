@@ -25,7 +25,7 @@ import (
 // @Success 200 {object} CollectionsResponse
 // @Router /indexer/nft/v1/collections [get]
 func (h *NftHandler) GetCollections(c *fiber.Ctx) error {
-	pagination, err := common.ParsePagination(c)
+	pagination, err := common.ParsePagination(c, common.CursorTypeOffset)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
@@ -86,7 +86,7 @@ func (h *NftHandler) GetCollectionsByAccount(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
-	pagination, err := common.ParsePagination(c)
+	pagination, err := common.ParsePagination(c, common.CursorTypeOffset)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
@@ -181,7 +181,7 @@ func (h *NftHandler) GetCollectionsByName(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
-	pagination, err := common.ParsePagination(c)
+	pagination, err := common.ParsePagination(c, common.CursorTypeOffset)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
