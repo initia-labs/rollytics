@@ -105,10 +105,12 @@ You can configure database, chain, logging, and indexer options via environment 
 					logger.Info("last migration completed successfully concurrently with indexer")
 				}()
 			} else {
+				logger.Info("running migration sequentially with indexer")
 				// Run last migration first, then start indexer
 				if err := migrateResult.RunLastMigration(); err != nil {
 					return err
 				}
+				logger.Info("last migration completed successfully sequentially with indexer")
 			}
 
 			// Apply patch
