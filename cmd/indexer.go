@@ -85,7 +85,7 @@ You can configure database, chain, logging, and indexer options via environment 
 			}
 
 			// Start DB migration (check status and conditionally handle last migration)
-			migrateResult, err := db.MigrateWithLastCheck()
+			migrateResult, err := db.MigrateWithLastCheck(logger)
 			if err != nil {
 				return err
 			}

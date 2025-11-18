@@ -125,7 +125,7 @@ type MigrateWithLastCheckResult struct {
 // MigrateWithLastCheck checks migration status and conditionally handles the last migration
 // If only 1 migration is pending, it checks if it has atlas:txmode none and returns info
 // If more than 1 is pending, it runs all migrations normally
-func (d Database) MigrateWithLastCheck() (*MigrateWithLastCheckResult, error) {
+func (d Database) MigrateWithLastCheck(logger *slog.Logger) (*MigrateWithLastCheckResult, error) {
 	if !d.config.AutoMigrate {
 		return &MigrateWithLastCheckResult{
 			LastMigrationHasTxModeNone: false,
@@ -193,7 +193,15 @@ func (d Database) MigrateWithLastCheck() (*MigrateWithLastCheckResult, error) {
 	if pendingCount == 1 {
 		return &MigrateWithLastCheckResult{
 			LastMigrationHasTxModeNone: hasTxModeNone,
-			RunLastMigration:           func() error { return d.Migrate() },
+			RunLastMigration: func() error {
+				logger.Info("running last migration")
+				if err := d.Migrate(); err != nil {
+					logger.Error("failed to run last migration", "error", err)
+					return err
+				}
+				logger.Info("last migration completed successfully")
+				return nil
+			},
 		}, nil
 	}
 
