@@ -48,9 +48,14 @@ func (h *BlockHandler) GetBlocks(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
+	var lastRecord any
+	if len(blocks) > 0 {
+		lastRecord = blocks[len(blocks)-1]
+	}
+
 	return c.JSON(BlocksResponse{
 		Blocks:     blocksRes,
-		Pagination: pagination.ToResponse(total, len(blocks) == pagination.Limit),
+		Pagination: pagination.ToResponseWithLastRecord(total, len(blocks) == pagination.Limit, lastRecord),
 	})
 }
 

@@ -119,8 +119,13 @@ func (h *NftHandler) GetNftTxs(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
+	var lastRecord any
+	if len(txs) > 0 {
+		lastRecord = txs[len(txs)-1]
+	}
+
 	return c.JSON(tx.TxsResponse{
 		Txs:        txsRes,
-		Pagination: pagination.ToResponse(total, len(txs) == pagination.Limit),
+		Pagination: pagination.ToResponseWithLastRecord(total, len(txsRes) == pagination.Limit, lastRecord),
 	})
 }
