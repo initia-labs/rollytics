@@ -42,23 +42,23 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *RichListExt
 }
 
 func (r *RichListExtension) Initialize(ctx context.Context) error {
-	// // Delete all richlist data
-	// r.logger.Info("deleting all richlist data")
+	// Delete all richlist data
+	r.logger.Info("deleting all richlist data")
 
-	// // Delete all rows from richlist table
-	// if err := r.db.WithContext(ctx).
-	// 	Exec("DELETE FROM rich_list").Error; err != nil {
-	// 	r.logger.Error("failed to delete richlist data", slog.Any("error", err))
-	// 	return nil
-	// }
+	// Delete all rows from richlist table
+	if err := r.db.WithContext(ctx).
+		Exec("DELETE FROM rich_list").Error; err != nil {
+		r.logger.Error("failed to delete richlist data", slog.Any("error", err))
+		return nil
+	}
 
-	// // Delete all rows from richlist_status table
-	// if err := r.db.WithContext(ctx).
-	// 	Exec("DELETE FROM rich_list_status").Error; err != nil {
-	// 	r.logger.Error("failed to delete richlist status data", slog.Any("error", err))
-	// 	return nil
-	// }
-	// r.logger.Info("successfully deleted all richlist data")
+	// Delete all rows from richlist_status table
+	if err := r.db.WithContext(ctx).
+		Exec("DELETE FROM rich_list_status").Error; err != nil {
+		r.logger.Error("failed to delete richlist status data", slog.Any("error", err))
+		return nil
+	}
+	r.logger.Info("successfully deleted all richlist data")
 
 	var lastHeight types.CollectedRichListStatus
 	err := r.db.WithContext(ctx).
