@@ -48,16 +48,16 @@ func (r *RichListExtension) Initialize(ctx context.Context) error {
 
 		// Delete all rows from richlist table
 		if err := r.db.WithContext(ctx).
-			Exec("DELETE FROM richlist").Error; err != nil {
+			Exec("DELETE FROM rich_list").Error; err != nil {
 			r.logger.Error("failed to delete richlist data", slog.Any("error", err))
-			return fmt.Errorf("failed to delete richlist data: %w", err)
+			return nil
 		}
 
 		// Delete all rows from richlist_status table
 		if err := r.db.WithContext(ctx).
-			Exec("DELETE FROM richlist_status").Error; err != nil {
+			Exec("DELETE FROM rich_list_status").Error; err != nil {
 			r.logger.Error("failed to delete richlist status data", slog.Any("error", err))
-			return fmt.Errorf("failed to delete richlist status data: %w", err)
+			return nil
 		}
 
 		r.logger.Info("successfully deleted all richlist data for yominet-1")
