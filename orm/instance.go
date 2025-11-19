@@ -116,21 +116,12 @@ func (d Database) GetDBStats() (*sql.DBStats, error) {
 	return &stats, nil
 }
 
-// MigrateWithLastCheckResult contains information about the last migration
-type MigrateWithLastCheckResult struct {
-	LastMigrationHasTxModeNone bool
-	RunLastMigration           func() error
-}
-
-// MigrateWithLastCheck checks migration status and conditionally handles the last migration
+// CheckLastMigrationConcurrency checks migration status and conditionally handles the last migration
 // If only 1 migration is pending, it checks if it has atlas:txmode none and returns info
 // If more than 1 is pending, it runs all migrations normally
-func (d Database) MigrateWithLastCheck() (*MigrateWithLastCheckResult, error) {
+func (d Database) CheckLastMigrationConcurrency() (bool, error) {
 	if !d.config.AutoMigrate {
-		return &MigrateWithLastCheckResult{
-			LastMigrationHasTxModeNone: false,
-			RunLastMigration:           func() error { return nil },
-		}, nil
+		return false, nil
 	}
 
 	workDir, err := atlasexec.NewWorkingDir(
@@ -139,13 +130,13 @@ func (d Database) MigrateWithLastCheck() (*MigrateWithLastCheckResult, error) {
 		),
 	)
 	if err != nil {
-		return nil, err
+		return false, err
 	}
 	defer func() { _ = workDir.Close() }()
 
 	client, err := atlasexec.NewClient(workDir.Path(), "atlas")
 	if err != nil {
-		return nil, err
+		return false, err
 	}
 
 	// Check migration status to see how many are pending
@@ -153,13 +144,13 @@ func (d Database) MigrateWithLastCheck() (*MigrateWithLastCheckResult, error) {
 		URL: d.config.DSN,
 	})
 	if err != nil {
-		return nil, err
+		return false, err
 	}
 
 	// Get all migration files to find the last one
 	files, err := filepath.Glob(filepath.Join(d.config.MigrationDir, "*.sql"))
 	if err != nil {
-		return nil, err
+		return false, err
 	}
 
 	var migrationFiles []string
@@ -170,10 +161,7 @@ func (d Database) MigrateWithLastCheck() (*MigrateWithLastCheckResult, error) {
 	}
 
 	if len(migrationFiles) == 0 {
-		return &MigrateWithLastCheckResult{
-			LastMigrationHasTxModeNone: false,
-			RunLastMigration:           func() error { return nil },
-		}, nil
+		return false, nil
 	}
 
 	sort.Strings(migrationFiles)
@@ -182,28 +170,17 @@ func (d Database) MigrateWithLastCheck() (*MigrateWithLastCheckResult, error) {
 	// Check if last migration has atlas:txmode none
 	content, err := os.ReadFile(lastFile)
 	if err != nil {
-		return nil, err
-	}
-	hasTxModeNone := strings.Contains(string(content), "atlas:txmode none")
-
-	// Count pending migrations
-	pendingCount := len(status.Pending)
-
-	// If only 1 migration is pending (the last one), we can handle it conditionally
-	if pendingCount == 1 {
-		return &MigrateWithLastCheckResult{
-			LastMigrationHasTxModeNone: hasTxModeNone,
-			RunLastMigration:           d.Migrate,
-		}, nil
+		return false, err
 	}
 
-	// If more than 1 pending, run all migrations normally
+	// If only 1 migration is pending (the last one) and it has atlas:txmode none, we can run it concurrently with indexer
+	if len(status.Pending) == 1 && strings.Contains(string(content), "atlas:txmode none") {
+		return true, nil
+	}
+
 	if err := d.Migrate(); err != nil {
-		return nil, err
+		return false, err
 	}
 
-	return &MigrateWithLastCheckResult{
-		LastMigrationHasTxModeNone: false,
-		RunLastMigration:           func() error { return nil },
-	}, nil
+	return false, nil
 }

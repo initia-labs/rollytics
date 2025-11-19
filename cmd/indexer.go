@@ -85,18 +85,18 @@ You can configure database, chain, logging, and indexer options via environment 
 			}
 
 			// Start DB migration (check status and conditionally handle last migration)
-			migrateResult, err := db.MigrateWithLastCheck()
+			concurrentLastMigration, err := db.CheckLastMigrationConcurrency()
 			if err != nil {
 				return err
 			}
 
 			// If last migration has atlas:txmode none, run it concurrently with indexer
 			// Otherwise, run it first and then start indexer
-			if migrateResult.LastMigrationHasTxModeNone {
+			if concurrentLastMigration {
 				// Run last migration concurrently with indexer
 				go func() {
 					logger.Info("running last migration concurrently with indexer")
-					if err := migrateResult.RunLastMigration(); err != nil {
+					if err := db.Migrate(); err != nil {
 						logger.Error("last migration failed", "error", err)
 						sentry.CaptureException(err)
 					} else {
@@ -104,13 +104,6 @@ You can configure database, chain, logging, and indexer options via environment 
 					}
 					logger.Info("last migration completed successfully concurrently with indexer")
 				}()
-			} else {
-				logger.Info("running migration sequentially with indexer")
-				// Run last migration first, then start indexer
-				if err := migrateResult.RunLastMigration(); err != nil {
-					return err
-				}
-				logger.Info("last migration completed successfully sequentially with indexer")
 			}
 
 			// Apply patch
