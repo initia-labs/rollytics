@@ -168,7 +168,7 @@ func (d Database) CheckLastMigrationConcurrency() (bool, error) {
 	lastFile := migrationFiles[len(migrationFiles)-1]
 
 	// Check if last migration has atlas:txmode none
-	content, err := os.ReadFile(lastFile)
+	content, err := os.ReadFile(lastFile) // #nosec G304 -- file path comes from filepath.Glob within MigrationDir
 	if err != nil {
 		return false, err
 	}

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -63,24 +64,9 @@ You can configure database, chain, logging, and indexer options via environment 
 			}()
 
 			if sentryCfg := cfg.GetSentryConfig(); sentryCfg != nil {
-				sentryClientOptions := sentry.ClientOptions{
-					Dsn:                sentryCfg.DSN,
-					ServerName:         cfg.GetChainConfig().ChainId + "-rollytics-indexer",
-					EnableTracing:      true,
-					ProfilesSampleRate: sentryCfg.ProfilesSampleRate,
-					SampleRate:         sentryCfg.SampleRate,
-					TracesSampleRate:   sentryCfg.TracesSampleRate,
-					Tags: map[string]string{
-						"chain":       cfg.GetChainConfig().ChainId,
-						"component":   "rollytics-indexer",
-						"environment": sentryCfg.Environment,
-					},
-					Environment: sentryCfg.Environment,
-				}
-				if err := sentry.Init(sentryClientOptions); err != nil {
+				if err := initializeSentry(cfg, logger, sentryCfg); err != nil {
 					return err
 				}
-				logger.Info("Sentry initialized", "chain", cfg.GetChainConfig().ChainId, "component", "rollytics-indexer", "environment", sentryCfg.Environment)
 				defer sentry.Flush(2 * time.Second)
 			}
 
@@ -91,9 +77,7 @@ You can configure database, chain, logging, and indexer options via environment 
 			}
 
 			// If last migration has atlas:txmode none, run it concurrently with indexer
-			// Otherwise, run it first and then start indexer
 			if concurrentLastMigration {
-				// Run last migration concurrently with indexer
 				go func() {
 					logger.Info("running last migration concurrently with indexer")
 					if err := db.Migrate(); err != nil {
@@ -102,7 +86,6 @@ You can configure database, chain, logging, and indexer options via environment 
 					} else {
 						logger.Info("last migration completed successfully")
 					}
-					logger.Info("last migration completed successfully concurrently with indexer")
 				}()
 			}
 
@@ -150,4 +133,26 @@ You can configure database, chain, logging, and indexer options via environment 
 	}
 
 	return cmd
+}
+
+func initializeSentry(cfg *config.Config, logger *slog.Logger, sentryCfg *config.SentryConfig) error {
+	sentryClientOptions := sentry.ClientOptions{
+		Dsn:                sentryCfg.DSN,
+		ServerName:         cfg.GetChainConfig().ChainId + "-rollytics-indexer",
+		EnableTracing:      true,
+		ProfilesSampleRate: sentryCfg.ProfilesSampleRate,
+		SampleRate:         sentryCfg.SampleRate,
+		TracesSampleRate:   sentryCfg.TracesSampleRate,
+		Tags: map[string]string{
+			"chain":       cfg.GetChainConfig().ChainId,
+			"component":   "rollytics-indexer",
+			"environment": sentryCfg.Environment,
+		},
+		Environment: sentryCfg.Environment,
+	}
+	if err := sentry.Init(sentryClientOptions); err != nil {
+		return err
+	}
+	logger.Info("Sentry initialized", "chain", cfg.GetChainConfig().ChainId, "component", "rollytics-indexer", "environment", sentryCfg.Environment)
+	return nil
 }
