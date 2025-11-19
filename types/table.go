@@ -52,8 +52,8 @@ type CollectedBlock struct {
 
 type CollectedTx struct {
 	Hash     []byte          `gorm:"type:bytea;primaryKey"`
-	Height   int64           `gorm:"type:bigint;primaryKey;autoIncrement:false;index:tx_height"`
-	Sequence int64           `gorm:"type:bigint;index:tx_sequence_desc,sort:desc;index:tx_account_sequence_partial,sort:desc;index:tx_nft_sequence_partial,sort:desc;index:tx_msg_type_sequence_partial,sort:desc"`
+	Height   int64           `gorm:"type:bigint;primaryKey;autoIncrement:false;index:tx_height;index:tx_height_sequence_desc,priority:1"`
+	Sequence int64           `gorm:"type:bigint;index:tx_sequence_desc,sort:desc;index:tx_account_sequence_partial,sort:desc;index:tx_nft_sequence_partial,sort:desc;index:tx_msg_type_sequence_partial,sort:desc;index:tx_height_sequence_desc,priority:2,sort:desc"`
 	SignerId int64           `gorm:"type:bigint;index:tx_signer_id"`
 	Data     json.RawMessage `gorm:"type:jsonb"`
 }

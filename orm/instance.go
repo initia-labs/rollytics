@@ -5,6 +5,9 @@ import (
 	"database/sql"
 	"log/slog"
 	"os"
+	"path/filepath"
+	"sort"
+	"strings"
 
 	"ariga.io/atlas-go-sdk/atlasexec"
 	_ "ariga.io/atlas-provider-gorm/gormschema"
@@ -111,4 +114,73 @@ func (d Database) GetDBStats() (*sql.DBStats, error) {
 
 	stats := sqlDB.Stats()
 	return &stats, nil
+}
+
+// CheckLastMigrationConcurrency checks migration status and conditionally handles the last migration
+// If only 1 migration is pending, it checks if it has atlas:txmode none and returns info
+// If more than 1 is pending, it runs all migrations normally
+func (d Database) CheckLastMigrationConcurrency() (bool, error) {
+	if !d.config.AutoMigrate {
+		return false, nil
+	}
+
+	workDir, err := atlasexec.NewWorkingDir(
+		atlasexec.WithMigrations(
+			os.DirFS(d.config.MigrationDir),
+		),
+	)
+	if err != nil {
+		return false, err
+	}
+	defer func() { _ = workDir.Close() }()
+
+	client, err := atlasexec.NewClient(workDir.Path(), "atlas")
+	if err != nil {
+		return false, err
+	}
+
+	// Check migration status to see how many are pending
+	status, err := client.MigrateStatus(context.Background(), &atlasexec.MigrateStatusParams{
+		URL: d.config.DSN,
+	})
+	if err != nil {
+		return false, err
+	}
+
+	// Get all migration files to find the last one
+	files, err := filepath.Glob(filepath.Join(d.config.MigrationDir, "*.sql"))
+	if err != nil {
+		return false, err
+	}
+
+	var migrationFiles []string
+	for _, f := range files {
+		if !strings.Contains(f, "atlas.sum") {
+			migrationFiles = append(migrationFiles, f)
+		}
+	}
+
+	if len(migrationFiles) == 0 {
+		return false, nil
+	}
+
+	sort.Strings(migrationFiles)
+	lastFile := migrationFiles[len(migrationFiles)-1]
+
+	// Check if last migration has atlas:txmode none
+	content, err := os.ReadFile(lastFile) // #nosec G304 -- file path comes from filepath.Glob within MigrationDir
+	if err != nil {
+		return false, err
+	}
+
+	// If only 1 migration is pending (the last one) and it has atlas:txmode none, we can run it concurrently with indexer
+	if len(status.Pending) == 1 && strings.Contains(string(content), "atlas:txmode none") {
+		return true, nil
+	}
+
+	if err := d.Migrate(); err != nil {
+		return false, err
+	}
+
+	return false, nil
 }
