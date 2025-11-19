@@ -193,12 +193,7 @@ func (d Database) MigrateWithLastCheck() (*MigrateWithLastCheckResult, error) {
 	if pendingCount == 1 {
 		return &MigrateWithLastCheckResult{
 			LastMigrationHasTxModeNone: hasTxModeNone,
-			RunLastMigration: func() error {
-				if err := d.Migrate(); err != nil {
-					return err
-				}
-				return nil
-			},
+			RunLastMigration:           d.Migrate,
 		}, nil
 	}
 
