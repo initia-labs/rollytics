@@ -42,6 +42,27 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *RichListExt
 }
 
 func (r *RichListExtension) Initialize(ctx context.Context) error {
+	// Delete all richlist data for yominet-1 chain
+	if r.cfg.GetChainId() == "yominet-1" {
+		r.logger.Info("deleting all richlist data for yominet-1")
+
+		// Delete all rows from richlist table
+		if err := r.db.WithContext(ctx).
+			Exec("DELETE FROM richlist").Error; err != nil {
+			r.logger.Error("failed to delete richlist data", slog.Any("error", err))
+			return fmt.Errorf("failed to delete richlist data: %w", err)
+		}
+
+		// Delete all rows from richlist_status table
+		if err := r.db.WithContext(ctx).
+			Exec("DELETE FROM richlist_status").Error; err != nil {
+			r.logger.Error("failed to delete richlist status data", slog.Any("error", err))
+			return fmt.Errorf("failed to delete richlist status data: %w", err)
+		}
+
+		r.logger.Info("successfully deleted all richlist data for yominet-1")
+	}
+
 	var lastHeight types.CollectedRichListStatus
 	err := r.db.WithContext(ctx).
 		Model(types.CollectedRichListStatus{}).Limit(1).First(&lastHeight).Error
