@@ -177,6 +177,11 @@ func queryBatchBalances(ctx context.Context, jsonrpcURL string, erc20Address str
 
 	balances := make(map[richlistutils.AddressWithID]sdkmath.Int, len(batch))
 	for _, rpcResp := range batchResponses {
+		// Skip the eth_blockNumber response (ID 0)
+		if rpcResp.ID == 0 {
+			continue
+		}
+
 		// Look up the address by response ID
 		addrWithID, found := idToAddr[rpcResp.ID]
 		if !found {
