@@ -155,6 +155,10 @@ func queryBatchBalances(ctx context.Context, jsonrpcURL string, erc20Address str
 
 		// Check if the latest height is less than the requested height
 		if latestHeight < height {
+			// Abort if context is done instead of sleeping indefinitely
+			if ctx.Err() != nil {
+				return nil, ctx.Err()
+			}
 			// Sleep before retrying with exponential backoff
 			richlistutils.ExponentialBackoff(attempt)
 			continue

@@ -42,7 +42,7 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *RichListExt
 }
 
 func (r *RichListExtension) Initialize(ctx context.Context) error {
-	// Delete all richlist data for chain
+	// Delete all richlist data
 	r.logger.Info("deleting all richlist data")
 
 	// Delete all rows from richlist table
@@ -58,7 +58,7 @@ func (r *RichListExtension) Initialize(ctx context.Context) error {
 		r.logger.Error("failed to delete richlist status data", slog.Any("error", err))
 		return nil
 	}
-	r.logger.Info("successfully deleted all richlist data for")
+	r.logger.Info("successfully deleted all richlist data")
 
 	var lastHeight types.CollectedRichListStatus
 	err := r.db.WithContext(ctx).
