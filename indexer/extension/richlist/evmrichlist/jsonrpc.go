@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -55,7 +56,7 @@ func queryERC20Balances(ctx context.Context, jsonrpcURL string, erc20Address str
 		batchData := batch
 		g.Go(func() error {
 			// queryBatchBalances uses utils.Post which already handles retries with exponential backoff
-			batchBalances, err := queryBatchBalances(ctx, jsonrpcURL, erc20Address, batchData, height, batchIdx*batchSize)
+			batchBalances, err := queryBatchBalances(ctx, jsonrpcURL, erc20Address, batchData, height)
 			if err != nil {
 				return fmt.Errorf("failed to query batch %d: %w", batchIdx, err)
 			}
@@ -78,11 +79,17 @@ func queryERC20Balances(ctx context.Context, jsonrpcURL string, erc20Address str
 }
 
 // queryBatchBalances queries balances for a batch of addresses at a specific height
-func queryBatchBalances(ctx context.Context, jsonrpcURL string, erc20Address string, batch []richlistutils.AddressWithID, height int64, idOffset int) (map[richlistutils.AddressWithID]sdkmath.Int, error) {
+func queryBatchBalances(ctx context.Context, jsonrpcURL string, erc20Address string, batch []richlistutils.AddressWithID, height int64) (map[richlistutils.AddressWithID]sdkmath.Int, error) {
 	// balanceOf function selector: keccak256("balanceOf(address)")[:4] = 0x70a08231
 	const balanceOfSelector = "0x70a08231"
 
 	batchRequests := make([]JSONRPCRequest, 0, len(batch))
+	batchRequests = append(batchRequests, JSONRPCRequest{
+		JSONRPC: "2.0",
+		Method:  "eth_blockNumber",
+		Params:  []any{},
+		ID:      0,
+	})
 
 	// Create batch of JSON-RPC requests
 	for idx, addrWithID := range batch {
@@ -111,7 +118,7 @@ func queryBatchBalances(ctx context.Context, jsonrpcURL string, erc20Address str
 				},
 				blockParam,
 			},
-			ID: idOffset + idx, // Unique ID for each request in the batch
+			ID: idx + 1, // Unique ID for each request in the batch
 		}
 
 		batchRequests = append(batchRequests, rpcReq)
@@ -122,26 +129,45 @@ func queryBatchBalances(ctx context.Context, jsonrpcURL string, erc20Address str
 		"Content-Type": "application/json",
 	}
 
-	respBody, err := util.Post(ctx, jsonrpcURL, "", batchRequests, headers)
-	if err != nil {
-		return nil, fmt.Errorf("failed to send JSON-RPC batch request: %w", err)
-	}
-
-	// Parse batch response
 	var batchResponses []JSONRPCResponse
-	if err := json.Unmarshal(respBody, &batchResponses); err != nil {
-		return nil, fmt.Errorf("failed to decode JSON-RPC batch response: %w", err)
-	}
 
-	// Process each response in the batch
-	if len(batchResponses) != len(batch) {
-		return nil, fmt.Errorf("batch response count mismatch: expected %d, got %d", len(batch), len(batchResponses))
+	for attempt := 0; ; attempt++ {
+		respBody, err := util.Post(ctx, jsonrpcURL, "", batchRequests, headers)
+		if err != nil {
+			return nil, fmt.Errorf("failed to send JSON-RPC batch request: %w", err)
+		}
+
+		// Parse batch response
+		if err := json.Unmarshal(respBody, &batchResponses); err != nil {
+			return nil, fmt.Errorf("failed to decode JSON-RPC batch response: %w", err)
+		}
+
+		// Process each response in the batch
+		if len(batchResponses) != len(batch)+1 {
+			return nil, fmt.Errorf("batch response count mismatch: expected %d, got %d", len(batch)+1, len(batchResponses))
+		}
+
+		// Parse the latest height from the batch response
+		latestHeight, err := parseLatestHeightFromBatch(batchResponses)
+		if err != nil {
+			return nil, err
+		}
+
+		// Check if the latest height is less than the requested height
+		if latestHeight < height {
+			// Sleep before retrying with exponential backoff
+			richlistutils.ExponentialBackoff(attempt)
+			continue
+		}
+
+		// Height is sufficient, break out of retry loop
+		break
 	}
 
 	// Build a map from request ID to the corresponding AddressWithID
 	idToAddr := make(map[int]richlistutils.AddressWithID, len(batch))
 	for idx, addrWithID := range batch {
-		requestID := idOffset + idx
+		requestID := idx + 1
 		idToAddr[requestID] = addrWithID
 	}
 
@@ -168,4 +194,24 @@ func queryBatchBalances(ctx context.Context, jsonrpcURL string, erc20Address str
 	}
 
 	return balances, nil
+}
+
+// parseLatestHeightFromBatch extracts and parses the latest block height from batch responses
+func parseLatestHeightFromBatch(batchResponses []JSONRPCResponse) (int64, error) {
+	for _, resp := range batchResponses {
+		if resp.ID == 0 {
+			// Check for JSON-RPC error
+			if resp.Error != nil {
+				return 0, fmt.Errorf("JSON-RPC error for eth_blockNumber: code=%d, message=%s", resp.Error.Code, resp.Error.Message)
+			}
+
+			// Remove 0x prefix and parse hex
+			heightValue, err := strconv.ParseInt(strings.TrimPrefix(resp.Result, "0x"), 16, 64)
+			if err != nil {
+				return 0, fmt.Errorf("failed to parse eth_blockNumber result: %w", err)
+			}
+			return heightValue, nil
+		}
+	}
+	return 0, fmt.Errorf("eth_blockNumber response (ID 0) not found in batch")
 }
