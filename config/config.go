@@ -139,6 +139,7 @@ type Config struct {
 	pollingInterval       time.Duration // for api only
 	internalTxConfig      *InternalTxConfig
 	richListConfig        *RichListConfig
+	evmRetCleanupConfig   *EvmRetCleanupConfig
 	metricsConfig         *MetricsConfig
 	cacheConfig           *CacheConfig
 	sentryConfig          *SentryConfig
@@ -205,8 +206,10 @@ func setVMSpecificDefaults(vmType types.VMType) {
 	switch vmType {
 	case types.EVM:
 		viper.SetDefault("INTERNAL_TX", true)
+		viper.SetDefault("EVM_RET_CLEANUP", true)
 	default:
 		viper.SetDefault("INTERNAL_TX", false)
+		viper.SetDefault("EVM_RET_CLEANUP", false)
 	}
 }
 
@@ -282,6 +285,9 @@ func loadConfig() (*Config, error) {
 		},
 		richListConfig: &RichListConfig{
 			Enabled: viper.GetBool("RICH_LIST"),
+		},
+		evmRetCleanupConfig: &EvmRetCleanupConfig{
+			Enabled: viper.GetBool("EVM_RET_CLEANUP"),
 		},
 		metricsConfig: &MetricsConfig{
 			Enabled: viper.GetBool("METRICS_ENABLED"),
@@ -436,6 +442,14 @@ func (c Config) GetRichListEnabled() bool {
 
 func (c Config) GetRichListConfig() *RichListConfig {
 	return c.richListConfig
+}
+
+func (c Config) EvmRetCleanupEnabled() bool {
+	return c.evmRetCleanupConfig.Enabled
+}
+
+func (c Config) GetEvmRetCleanupConfig() *EvmRetCleanupConfig {
+	return c.evmRetCleanupConfig
 }
 
 func (c Config) GetSentryConfig() *SentryConfig {

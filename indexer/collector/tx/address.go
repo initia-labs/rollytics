@@ -73,6 +73,10 @@ func grepAddressesFromTx(events []abci.Event, tx *gorm.DB) (grepped []string, er
 				}
 
 			default:
+				//if event.Type == evmtypes.EventTypeEVM && attr.Key == "ret" { // ret only address filtering
+				//	continue
+				//}
+
 				for _, attrVal := range strings.Split(attr.Value, ",") {
 					addrs = append(addrs, findAllBech32Address(attrVal)...)
 					addrs = append(addrs, findAllHexAddress(attrVal)...)
