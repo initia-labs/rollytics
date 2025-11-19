@@ -21,6 +21,8 @@ import (
 	"github.com/initia-labs/rollytics/util"
 )
 
+// TODO: Refactor this command to be more readable and maintainable.
+//
 //nolint:gocognit
 func indexerCmd() *cobra.Command {
 	cmd := &cobra.Command{
