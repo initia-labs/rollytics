@@ -73,7 +73,7 @@ func grepAddressesFromTx(events []abci.Event, tx *gorm.DB) (grepped []string, er
 				}
 
 			default:
-				//if event.Type == evmtypes.EventTypeEVM && attr.Key == "ret" { // ret only address filtering
+				//if event.Type == evmtypes.EventTypeEVM && attr.Key == evmtypes.AttributeKeyRet { // ret only address filtering
 				//	continue
 				//}
 
