@@ -92,9 +92,10 @@ func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.D
 
 			}
 
-			if err := richlistutils.FetchAndUpdateBalances(ctx, logger, dbTx, cfg, moduleAccounts, currentHeight); err != nil {
-				return fmt.Errorf("failed to fetch and update balances: %w", err)
-			}
+			// NOTE: EVM events don't care module account
+			// if err := richlistutils.FetchAndUpdateBalances(ctx, logger, dbTx, cfg, moduleAccounts, currentHeight); err != nil {
+			// 	return fmt.Errorf("failed to fetch and update balances: %w", err)
+			// }
 
 			if err := richlistutils.UpdateRichListStatus(ctx, dbTx, currentHeight); err != nil {
 				logger.Error("failed to update rich list processed height",
