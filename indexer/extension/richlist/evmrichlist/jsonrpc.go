@@ -83,7 +83,7 @@ func queryBatchBalances(ctx context.Context, jsonrpcURL string, erc20Address str
 	// balanceOf function selector: keccak256("balanceOf(address)")[:4] = 0x70a08231
 	const balanceOfSelector = "0x70a08231"
 
-	batchRequests := make([]JSONRPCRequest, 0, len(batch))
+	batchRequests := make([]JSONRPCRequest, 0, len(batch)+1)
 	batchRequests = append(batchRequests, JSONRPCRequest{
 		JSONRPC: "2.0",
 		Method:  "eth_blockNumber",
