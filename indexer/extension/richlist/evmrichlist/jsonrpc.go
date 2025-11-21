@@ -36,7 +36,7 @@ func queryERC20Balances(ctx context.Context, jsonrpcURL string, erc20Address str
 
 	balances := make(map[richlistutils.AddressWithID]sdkmath.Int, len(addresses))
 
-	const batchSize = 1000
+	const batchSize = 500
 	const maxConcurrent = 10
 
 	// Create batches
