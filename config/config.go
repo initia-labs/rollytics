@@ -452,6 +452,10 @@ func (c Config) GetEvmRetCleanupConfig() *EvmRetCleanupConfig {
 	return c.evmRetCleanupConfig
 }
 
+func (c *Config) SetEvmRetCleanupConfig(evmRetCleanCgf *EvmRetCleanupConfig) {
+	c.evmRetCleanupConfig = evmRetCleanCgf
+}
+
 func (c Config) GetSentryConfig() *SentryConfig {
 	if c.sentryConfig == nil || c.sentryConfig.DSN == "" {
 		return nil

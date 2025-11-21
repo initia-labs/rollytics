@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"gorm.io/gorm"
 
@@ -84,7 +85,7 @@ func (e *EvmRetCleanupExtension) Run(ctx context.Context) error {
 	}
 
 	currentHeight := status.LastCleanedHeight + 1
-	e.logger.Info("Starting EVM ret cleanup",
+	e.logger.Info("starting EVM ret cleanup",
 		slog.Int64("start_height", currentHeight))
 
 	// Continuous processing loop
@@ -92,7 +93,7 @@ func (e *EvmRetCleanupExtension) Run(ctx context.Context) error {
 		// Check for context cancellation
 		select {
 		case <-ctx.Done():
-			e.logger.Info("Cleanup stopped",
+			e.logger.Info("cleanup stopped",
 				slog.Int64("last_cleaned_height", status.LastCleanedHeight),
 				slog.Int64("corrected_records", status.CorrectedRecords))
 			return ctx.Err()
@@ -110,8 +111,15 @@ func (e *EvmRetCleanupExtension) Run(ctx context.Context) error {
 
 		// Wait if we've caught up to the current max height
 		if currentHeight > maxHeight {
-			// Continue checking for new blocks without sleeping
-			// The loop will query again immediately
+			// Small, context-aware backoff to avoid busy-polling the DB
+			select {
+			case <-ctx.Done():
+				e.logger.Info("cleanup stopped",
+					slog.Int64("last_cleaned_height", status.LastCleanedHeight),
+					slog.Int64("corrected_records", status.CorrectedRecords))
+				return ctx.Err()
+			case <-time.After(1 * time.Second):
+			}
 			continue
 		}
 

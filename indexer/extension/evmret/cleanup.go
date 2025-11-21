@@ -139,15 +139,10 @@ func GetAccountIds(ctx context.Context, db *gorm.DB, addresses []string) ([]int6
 	// Convert string addresses to bytes for comparison
 	addressBytes := make([][]byte, len(addresses))
 	for i, addr := range addresses {
-		// Remove 0x prefix and convert hex string to bytes
-		addrStr := addr
-		if len(addrStr) > 2 && addrStr[:2] == "0x" {
-			addrStr = addrStr[2:]
-		}
-		// Convert hex string to bytes
-		b := make([]byte, len(addrStr)/2)
-		for j := 0; j < len(addrStr); j += 2 {
-			b[j/2] = hexCharToByte(addrStr[j])<<4 | hexCharToByte(addrStr[j+1])
+		addrStr := strings.TrimPrefix(addr, "0x")
+		b, err := hex.DecodeString(addrStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid hex address %q: %w", addr, err)
 		}
 		addressBytes[i] = b
 	}

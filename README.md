@@ -101,7 +101,10 @@ You can configure rollytics using environment variables. All settings can be con
 
 ### EVM Ret Cleanup Settings
 
-- `EVM_RET_CLEANUP`: Enable EVM ret cleanup extension (optional, default: `false`)
+- `EVM_RET_CLEANUP`: Enable EVM ret cleanup extension
+    - Default: true when `VM_TYPE=evm`, false otherwise
+    - Safe to leave enabled for new deployments; it removes ret‑only address entries and is idempotent
+    - Set to `false` if you explicitly want to disable cleanup (e.g., troubleshooting or a custom pipeline)
 
 The EVM Ret Cleanup extension is a specialized tool that corrects historical indexing errors in the `tx_accounts` table for EVM chains. During initial indexing, some addresses were incorrectly extracted from EVM contract call return values (`ret` attributes) and stored in `tx_accounts` when they should not have been.
 
