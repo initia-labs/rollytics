@@ -36,7 +36,7 @@ func queryERC20Balances(ctx context.Context, jsonrpcURL string, erc20Address str
 
 	balances := make(map[richlistutils.AddressWithID]sdkmath.Int, len(addresses))
 
-	const batchSize = 1000
+	const batchSize = 500
 	const maxConcurrent = 10
 
 	// Create batches
@@ -132,25 +132,33 @@ func queryBatchBalances(ctx context.Context, jsonrpcURL string, erc20Address str
 	var batchResponses []JSONRPCResponse
 
 	for attempt := 0; ; attempt++ {
+		// TODO: handle more appropriately
 		respBody, err := util.Post(ctx, jsonrpcURL, "", batchRequests, headers)
 		if err != nil {
-			return nil, fmt.Errorf("failed to send JSON-RPC batch request: %w", err)
+			// return nil, fmt.Errorf("failed to send JSON-RPC batch request: %w", err)
+			continue
 		}
 
 		// Parse batch response
 		if err := json.Unmarshal(respBody, &batchResponses); err != nil {
-			return nil, fmt.Errorf("failed to decode JSON-RPC batch response: %w", err)
+			// return nil, fmt.Errorf("failed to decode JSON-RPC batch response: %w", err)
+			richlistutils.ExponentialBackoff(attempt)
+			continue
 		}
 
 		// Process each response in the batch
 		if len(batchResponses) != len(batch)+1 {
-			return nil, fmt.Errorf("batch response count mismatch: expected %d, got %d", len(batch)+1, len(batchResponses))
+			// return nil, fmt.Errorf("batch response count mismatch: expected %d, got %d", len(batch)+1, len(batchResponses))
+			richlistutils.ExponentialBackoff(attempt)
+			continue
 		}
 
 		// Parse the latest height from the batch response
 		latestHeight, err := parseLatestHeightFromBatch(batchResponses)
 		if err != nil {
-			return nil, err
+			// return nil, err
+			richlistutils.ExponentialBackoff(attempt)
+			continue
 		}
 
 		// Check if the latest height is less than the requested height
