@@ -97,7 +97,7 @@ func TestExtractAddressesFromValue(t *testing.T) {
 			value:    "0x",
 			expected: nil,
 		},
- 	{
+		{
 			name:     "mixed valid and invalid",
 			value:    "0x6ed1637781269560b204c27Cd42d95e057C4BE44,0x123,invalid",
 			expected: []string{"0x6ed1637781269560b204c27cd42d95e057c4be44", "0x0000000000000000000000000000000000000123"},
@@ -469,4 +469,17 @@ func hexToBytes(hexStr string) []byte {
 		b[i/2] = hexCharToByte(hexStr[i])<<4 | hexCharToByte(hexStr[i+1])
 	}
 	return b
+}
+
+// hexCharToByte converts a single hex character to its byte value
+func hexCharToByte(c byte) byte {
+	switch {
+	case '0' <= c && c <= '9':
+		return c - '0'
+	case 'a' <= c && c <= 'f':
+		return c - 'a' + 10
+	case 'A' <= c && c <= 'F':
+		return c - 'A' + 10
+	}
+	return 0
 }

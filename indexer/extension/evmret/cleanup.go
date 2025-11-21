@@ -99,17 +99,6 @@ func extractAddressesFromValue(value string) []string {
 	return addresses
 }
 
-// isHexString returns true if s contains only hex digits (0-9, a-f, A-F)
-func isHexString(s string) bool {
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
-			return false
-		}
-	}
-	return true
-}
-
 // isValidEVMAddress checks if a string is a valid EVM address
 func isValidEVMAddress(addr string) bool {
 	// Must start with 0x
@@ -160,19 +149,6 @@ func GetAccountIds(ctx context.Context, db *gorm.DB, addresses []string) ([]int6
 	}
 
 	return ids, nil
-}
-
-// hexCharToByte converts a single hex character to its byte value
-func hexCharToByte(c byte) byte {
-	switch {
-	case '0' <= c && c <= '9':
-		return c - '0'
-	case 'a' <= c && c <= 'f':
-		return c - 'a' + 10
-	case 'A' <= c && c <= 'F':
-		return c - 'A' + 10
-	}
-	return 0
 }
 
 // FilterNonSigners filters out account IDs that are signers for the given sequence
