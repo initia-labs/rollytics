@@ -142,12 +142,14 @@ func queryBatchBalances(ctx context.Context, jsonrpcURL string, erc20Address str
 		// Parse batch response
 		if err := json.Unmarshal(respBody, &batchResponses); err != nil {
 			// return nil, fmt.Errorf("failed to decode JSON-RPC batch response: %w", err)
+			richlistutils.ExponentialBackoff(attempt)
 			continue
 		}
 
 		// Process each response in the batch
 		if len(batchResponses) != len(batch)+1 {
 			// return nil, fmt.Errorf("batch response count mismatch: expected %d, got %d", len(batch)+1, len(batchResponses))
+			richlistutils.ExponentialBackoff(attempt)
 			continue
 		}
 
@@ -155,6 +157,7 @@ func queryBatchBalances(ctx context.Context, jsonrpcURL string, erc20Address str
 		latestHeight, err := parseLatestHeightFromBatch(batchResponses)
 		if err != nil {
 			// return nil, err
+			richlistutils.ExponentialBackoff(attempt)
 			continue
 		}
 
