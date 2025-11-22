@@ -99,6 +99,51 @@ You can configure rollytics using environment variables. All settings can be con
 
 > **Important**: Internal transaction tracking is **only supported for EVM chains**. Setting `INTERNAL_TX=true` for Move or Wasm chains will result in a configuration error. For EVM chains, it's automatically enabled by default as it's essential for EVM analytics.
 
+### EVM Ret Cleanup Settings
+
+- `EVM_RET_CLEANUP`: Enable EVM ret cleanup extension
+    - Default: true when `VM_TYPE=evm`, false otherwise
+    - Safe to leave enabled for new deployments; it removes ret‑only address entries and is idempotent
+    - Set to `false` if you explicitly want to disable cleanup (e.g., troubleshooting or a custom pipeline)
+
+The EVM Ret Cleanup extension is a specialized tool that corrects historical indexing errors in the `tx_accounts` table for EVM chains. During initial indexing, some addresses were incorrectly extracted from EVM contract call return values (`ret` attributes) and stored in `tx_accounts` when they should not have been.
+
+**What it does:**
+
+- Identifies addresses that appear **only** in `ret` attributes (return values) and nowhere else in transaction events
+- Removes these "ret-only" addresses from `tx_accounts` to maintain data accuracy
+- Runs continuously alongside the indexer, processing blocks in batches of 1000
+- Tracks progress in the `evm_ret_cleanup_status` table
+- Skips deletion for signer addresses (always legitimate participants)
+
+**When to enable:**
+
+- Enable this extension if your database was indexed before the ret-only address fix was implemented
+- Safe to run on existing databases - it only removes incorrect entries
+- Once all historical blocks are processed, the extension continues monitoring new blocks
+
+**Status monitoring:**
+
+The cleanup progress is available via the `/status` endpoint:
+
+```json
+{
+  "evm_ret_cleanup_height": 9500708
+}
+```
+
+**Example:**
+
+```sh
+export VM_TYPE='evm'
+export EVM_RET_CLEANUP='true'
+
+./rollytics indexer
+```
+
+> **Note**: This extension is **only supported for EVM chains**. It automatically ignores empty return values (`"0x"`) and correctly handles ABI-encoded addresses in 32-byte return values.
+
+
 ### Metrics Settings
 
 - `METRICS_ENABLED`: Enable metrics endpoint (optional, default: `false`)
@@ -144,6 +189,9 @@ export LOG_LEVEL='info'
 export DB_AUTO_MIGRATE='true'
 export MAX_CONCURRENT_REQUESTS='100'
 # INTERNAL_TX=true is automatically set for EVM chains
+
+# EVM-specific extensions
+export EVM_RET_CLEANUP='true'  # Clean up historical ret-only addresses
 
 # Start height
 export START_HEIGHT=9184

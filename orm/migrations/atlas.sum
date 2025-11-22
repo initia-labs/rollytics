@@ -1,4 +1,4 @@
-h1:VUxyBGGeHRROUFLHW1RqR8LkdB0Hq/rYSpNV3myKrig=
+h1:1HvK8udFAAFegJ2g7K819p9fwkT9Qs25al4GqdOeKYA=
 20250806084521_migration.sql h1:Qdn42AgebdtLQoc+aUfautynU10/oHxL8wjXusSqQaE=
 20250822034114_migration.sql h1:ybJSC6AlidSpXS+oup6aYHchZFaOEkJU9C8lOnF0S68=
 20250902111542_add_partial_indices.sql h1:Qc5PA4bCNP5tjhZrHFhscgc/Ap/Ee/mnmoPixefeRtw=
@@ -8,3 +8,4 @@ h1:VUxyBGGeHRROUFLHW1RqR8LkdB0Hq/rYSpNV3myKrig=
 20251030094500_add_evm_internal_tx_composite_indices.sql h1:qrtJMSUA8SxJWUIbQAcdoensRUOMjYLtifHOWwV/duA=
 20251105035559_add_richlist.sql h1:S43u8pW2zQ3YLJfdaveEAIFe+uuj1IMZPkEEM/r0ybA=
 20251112100000_add_tx_height_sequence_composite_index.sql h1:bgbWL2lGapZrH6cgc5z+ALSCh3QjeDvX1sdI+7kXHG4=
+20251119052849_migration.sql h1:hHv9owtwZfsRqC8Ad7ZL3FNP9aGPSbRPZbHgrpdtyu8=

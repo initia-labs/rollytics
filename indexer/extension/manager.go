@@ -8,6 +8,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/initia-labs/rollytics/config"
+	evmret "github.com/initia-labs/rollytics/indexer/extension/evmret"
 	internaltx "github.com/initia-labs/rollytics/indexer/extension/internaltx"
 	richlist "github.com/initia-labs/rollytics/indexer/extension/richlist"
 	"github.com/initia-labs/rollytics/indexer/extension/types"
@@ -30,6 +31,10 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *ExtensionMa
 	// Rich List
 	if rlIndexer := richlist.New(cfg, logger, db); rlIndexer != nil {
 		extensions = append(extensions, rlIndexer)
+	}
+	// EVM Ret Cleanup
+	if retCleanup := evmret.New(cfg, logger, db); retCleanup != nil {
+		extensions = append(extensions, retCleanup)
 	}
 	return &ExtensionManager{
 		cfg:        cfg,

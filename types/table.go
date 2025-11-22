@@ -177,6 +177,11 @@ type CollectedEvmTxHashDict struct {
 	Hash []byte `gorm:"type:bytea;uniqueIndex:evm_tx_hash_dict_hash"`
 }
 
+type CollectedEvmRetCleanupStatus struct {
+	LastCleanedHeight int64 `gorm:"type:bigint;column:last_cleaned_height"`
+	CorrectedRecords  int64 `gorm:"type:bigint;column:corrected_records"`
+}
+
 func (CollectedUpgradeHistory) TableName() string {
 	return "upgrade_history"
 }
@@ -263,6 +268,10 @@ func (CollectedRichListStatus) TableName() string {
 
 func (CollectedRichList) TableName() string {
 	return "rich_list"
+}
+
+func (CollectedEvmRetCleanupStatus) TableName() string {
+	return "evm_ret_cleanup_status"
 }
 
 // CursorRecord interface implementations
