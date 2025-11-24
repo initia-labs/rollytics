@@ -265,11 +265,12 @@ func TestGetTxsByHeight_EdgePathWithMsgFilter(t *testing.T) {
 	// Add transaction expectations for GetCountWithTimeout
 	mock.ExpectExec(`SAVEPOINT sp`).WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectExec(`SET LOCAL statement_timeout = '5s'`).WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectQuery(`SELECT count\(\*\) FROM "tx" WHERE height = \$1 AND sequence IN \(SELECT DISTINCT "sequence" FROM "`+types.CollectedTxMsgType{}.TableName()+`" WHERE msg_type_id = ANY\(\$2\)\)`).
+	// GORM generates: SELECT COUNT(DISTINCT("tx"."sequence")) FROM "tx" JOIN tx_msg_types ON tx_msg_types.sequence = tx.sequence WHERE tx.height = $1 AND tx_msg_types.msg_type_id = ANY($2)
+	mock.ExpectQuery(`SELECT COUNT\(DISTINCT\(.*\)\) FROM "`+types.CollectedTx{}.TableName()+`" JOIN `+types.CollectedTxMsgType{}.TableName()+` ON.*WHERE.*height.*=.*\$1.*AND.*msg_type_id.*=.*ANY`).
 		WithArgs(height, sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 	mock.ExpectExec(`RESET statement_timeout`).WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectQuery(`SELECT \* FROM "tx" WHERE height = \$1 AND sequence IN \(SELECT DISTINCT \"sequence\" FROM \"tx_msg_types\" WHERE msg_type_id = ANY\(\$2\)\) ORDER BY sequence DESC LIMIT \$3`).
+	mock.ExpectQuery(`SELECT \* FROM "`+types.CollectedTx{}.TableName()+`" WHERE sequence IN`).
 		WithArgs(height, sqlmock.AnyArg(), int64(common.DefaultLimit)).
 		WillReturnRows(row)
 	mock.ExpectRollback()
@@ -311,11 +312,12 @@ func TestGetTxsByHeight_EdgePathWithMsgFilter_CustomLimit(t *testing.T) {
 	// Add transaction expectations for GetCountWithTimeout
 	mock.ExpectExec(`SAVEPOINT sp`).WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectExec(`SET LOCAL statement_timeout = '5s'`).WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectQuery(`SELECT count\(\*\) FROM "tx" WHERE height = \$1 AND sequence IN \(SELECT DISTINCT "sequence" FROM "`+types.CollectedTxMsgType{}.TableName()+`" WHERE msg_type_id = ANY\(\$2\)\)`).
+	// GORM generates: SELECT COUNT(DISTINCT("tx"."sequence")) FROM "tx" JOIN tx_msg_types ON tx_msg_types.sequence = tx.sequence WHERE tx.height = $1 AND tx_msg_types.msg_type_id = ANY($2)
+	mock.ExpectQuery(`SELECT COUNT\(DISTINCT\(.*\)\) FROM "`+types.CollectedTx{}.TableName()+`" JOIN `+types.CollectedTxMsgType{}.TableName()+` ON.*WHERE.*height.*=.*\$1.*AND.*msg_type_id.*=.*ANY`).
 		WithArgs(height, sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 	mock.ExpectExec(`RESET statement_timeout`).WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectQuery(`SELECT \* FROM "tx" WHERE height = \$1 AND sequence IN \(SELECT DISTINCT \"sequence\" FROM \"tx_msg_types\" WHERE msg_type_id = ANY\(\$2\)\) ORDER BY sequence DESC LIMIT \$3`).
+	mock.ExpectQuery(`SELECT \* FROM "`+types.CollectedTx{}.TableName()+`" WHERE sequence IN`).
 		WithArgs(height, sqlmock.AnyArg(), int64(limit)).
 		WillReturnRows(row)
 	mock.ExpectRollback()

@@ -54,6 +54,26 @@ func buildSequenceQueryWithMsgTypeFilter(tx *gorm.DB, msgTypeIds []int64) *gorm.
 	return query.Distinct("sequence")
 }
 
+func buildSequenceQueryWithHeightAndMsgTypeFilter(tx *gorm.DB, height int64, msgTypeIds []int64) *gorm.DB {
+	txTable := types.CollectedTx{}.TableName()
+	mttTable := types.CollectedTxMsgType{}.TableName()
+
+	// Start from CollectedTx filtered by height (uses height index, gets small subset first)
+	// This is optimal because height is highly selective (one height = few transactions)
+	query := tx.Model(&types.CollectedTx{}).
+		Select(txTable+".sequence").
+		Where(txTable+".height = ?", height)
+
+	// If msg_type filter is needed, join to CollectedTxMsgType
+	if len(msgTypeIds) > 0 {
+		query = query.
+			Joins("JOIN "+mttTable+" ON "+mttTable+".sequence = "+txTable+".sequence").
+			Where(mttTable+".msg_type_id = ANY(?)", pq.Array(msgTypeIds))
+	}
+
+	return query.Distinct(txTable + ".sequence")
+}
+
 func buildEdgeQueryForGetTxs(tx *gorm.DB, msgTypeIds []int64, pagination *common.Pagination) (*gorm.DB, int64, error) {
 	sequenceQuery := buildSequenceQueryWithMsgTypeFilter(tx, msgTypeIds)
 
@@ -87,21 +107,34 @@ func buildEdgeQueryForGetTxs(tx *gorm.DB, msgTypeIds []int64, pagination *common
 }
 
 func buildEdgeQueryForGetTxsByHeight(tx *gorm.DB, height int64, msgTypeIds []int64, pagination *common.Pagination) (*gorm.DB, int64, error) {
-	sequenceQuery := buildSequenceQueryWithMsgTypeFilter(tx, msgTypeIds)
+	sequenceQuery := buildSequenceQueryWithHeightAndMsgTypeFilter(tx, height, msgTypeIds)
 
-	query := tx.Model(&types.CollectedTx{}).
-		Where("height = ?", height).
-		Where("sequence IN (?)", sequenceQuery)
+	hasFilters := len(msgTypeIds) > 0
 
-	var strategy types.CollectedTx
-	const hasFilters = true // always filtering by msg_type_ids and height
+	var total int64
+	var err error
+	if !hasFilters && pagination.CountTotal {
+		// Optimize: when no msg_type filter, count directly from CollectedTx by height
+		total, err = common.GetOptimizedCount(
+			tx.Model(&types.CollectedTx{}).Where("height = ?", height),
+			types.CollectedTx{},
+			true, // hasFilters (height filter)
+			pagination.CountTotal,
+		)
+	} else {
+		countQuery := buildSequenceQueryWithHeightAndMsgTypeFilter(tx, height, msgTypeIds)
+		total, err = common.GetCountWithTimeout(countQuery, pagination.CountTotal)
+	}
 
-	total, err := common.GetOptimizedCount(query, strategy, hasFilters, pagination.CountTotal)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	query = pagination.ApplySequence(query)
+	sequenceQuery = pagination.ApplySequence(sequenceQuery)
+
+	query := tx.Model(&types.CollectedTx{}).
+		Where("sequence IN (?)", sequenceQuery).
+		Order(pagination.OrderBy("sequence"))
 
 	return query, total, nil
 }
