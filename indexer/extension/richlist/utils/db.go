@@ -12,17 +12,51 @@ import (
 	"github.com/initia-labs/rollytics/util"
 )
 
+// GetLatestCollectedBlock retrieves the latest block height from the database for a given chain ID.
+func GetLatestCollectedBlock(ctx context.Context, db *gorm.DB, chainId string) (int64, error) {
+	var latestHeight int64
+	err := db.WithContext(ctx).
+		Model(&types.CollectedBlock{}).
+		Where("chain_id = ?", chainId).
+		Select("MAX(height)").
+		Scan(&latestHeight).Error
+	if err != nil {
+		return 0, err
+	}
+	return latestHeight, nil
+}
+
+// GetCollectedBlock retrieves a block from the database by chain ID and height.
+// Uses exponential backoff retry logic for transient database errors.
 // GetCollectedBlock retrieves a block from the database by chain ID and height.
 // Uses exponential backoff retry logic for transient database errors.
 func GetCollectedBlock(ctx context.Context, db *gorm.DB, chainId string, height int64) (*types.CollectedBlock, error) {
+	const BlockDelay = 3
 	var block types.CollectedBlock
 	for attempt := 0; ; attempt++ {
 		err := db.WithContext(ctx).
 			Model(&types.CollectedBlock{}).
 			Where("chain_id = ?", chainId).
-			Where("height = ?", height).First(&block).Error
+			Where("height = ?", height).
+			Omit("timestamp").
+			First(&block).Error
 		if err == nil {
-			return &block, nil
+			// Check if the block is safe to process (latest height - height > BlockDelay)
+			latestHeight, err := GetLatestCollectedBlock(ctx, db, chainId)
+			if err != nil {
+				// If we can't get the latest height, we should probably retry or error out.
+				// For now, let's treat it as a transient error and retry.
+				ExponentialBackoff(attempt)
+				continue
+			}
+
+			if latestHeight-height > BlockDelay {
+				return &block, nil
+			}
+
+			// Block is too recent, wait and retry
+			ExponentialBackoff(attempt)
+			continue
 		}
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			// Record not found, retry with exponential backoff
