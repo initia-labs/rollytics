@@ -12,7 +12,7 @@ import (
 	"github.com/initia-labs/rollytics/util"
 )
 
-const RICH_LIST_BLOCK_DELAY = 3
+const RICH_LIST_BLOCK_DELAY = 5
 
 // GetLatestCollectedBlock retrieves the latest block height from the database for a given chain ID.
 func GetLatestCollectedBlock(ctx context.Context, db *gorm.DB, chainId string) (int64, error) {
@@ -58,7 +58,7 @@ func GetCollectedBlock(ctx context.Context, db *gorm.DB, chainId string, height 
 				continue
 			}
 
-			if latestHeight-height > RICH_LIST_BLOCK_DELAY {
+			if latestHeight-height >= RICH_LIST_BLOCK_DELAY {
 				return &block, nil
 			}
 

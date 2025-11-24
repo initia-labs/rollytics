@@ -63,8 +63,8 @@ func TestGetCollectedBlock_BlockDelay(t *testing.T) {
 	assert.Nil(t, block)
 	assert.True(t, duration >= 200*time.Millisecond, "Should have waited until timeout")
 
-	// Case 2: Insert block 104. Now 104 - 100 = 4 > 3. Should succeed.
-	err = db.Create(&types.CollectedBlock{ChainId: chainId, Height: 100 + RICH_LIST_BLOCK_DELAY + 1, Hash: []byte("hash104"), Timestamp: time.Time{}}).Error
+	// Case 2: Insert block 106. Now 105 - 100 = 5 >= 5. Should succeed.
+	err = db.Create(&types.CollectedBlock{ChainId: chainId, Height: 100 + RICH_LIST_BLOCK_DELAY, Hash: []byte("hash104"), Timestamp: time.Time{}}).Error
 	assert.NoError(t, err)
 
 	ctx2, cancel2 := context.WithTimeout(context.Background(), 1*time.Second)
