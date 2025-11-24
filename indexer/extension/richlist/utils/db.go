@@ -35,6 +35,13 @@ func GetLatestCollectedBlock(ctx context.Context, db *gorm.DB, chainId string) (
 func GetCollectedBlock(ctx context.Context, db *gorm.DB, chainId string, height int64) (*types.CollectedBlock, error) {
 	var block types.CollectedBlock
 	for attempt := 0; ; attempt++ {
+		// Check context cancellation
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+
 		err := db.WithContext(ctx).
 			Model(&types.CollectedBlock{}).
 			Where("chain_id = ?", chainId).
