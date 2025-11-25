@@ -238,9 +238,9 @@ func executeWithRetry(ctx context.Context, baseUrl, path string, config requestC
 
 			backoffDelay := calculateBackoffDelay(rateLimitRetries)
 			select {
-			case <-attemptCtx.Done():
+			case <-ctx.Done():
 				cancel()
-				return nil, attemptCtx.Err()
+				return nil, ctx.Err()
 			case <-time.After(backoffDelay):
 				cancel()
 				continue
