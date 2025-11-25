@@ -204,9 +204,8 @@ func executeWithRetry(ctx context.Context, baseUrl, path string, config requestC
 	var err = types.NewTimeoutError("no attempts made")
 
 	for retryCount < maxRetries {
-		ctx, cancel := context.WithTimeout(ctx, timeout)
-
-		body, innerErr := executeHTTPRequest(ctx, baseUrl, path, config)
+		attemptCtx, cancel := context.WithTimeout(ctx, timeout)
+		body, innerErr := executeHTTPRequest(attemptCtx, baseUrl, path, config)
 		if innerErr == nil {
 			cancel()
 			return body, nil
@@ -239,9 +238,9 @@ func executeWithRetry(ctx context.Context, baseUrl, path string, config requestC
 
 			backoffDelay := calculateBackoffDelay(rateLimitRetries)
 			select {
-			case <-ctx.Done():
+			case <-attemptCtx.Done():
 				cancel()
-				return nil, ctx.Err()
+				return nil, attemptCtx.Err()
 			case <-time.After(backoffDelay):
 				cancel()
 				continue

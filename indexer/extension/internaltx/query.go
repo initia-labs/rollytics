@@ -78,7 +78,7 @@ func TraceCallByBlock(ctx context.Context, cfg *config.Config, client *fiber.Cli
 		"id": 1,
 	}
 	headers := map[string]string{"Content-Type": "application/json"}
-	body, err := util.Post(context.Background(), cfg.GetChainConfig().JsonRpcUrl, "", payload, headers, cfg.GetQueryTimeout()*10)
+	body, err := util.Post(ctx, cfg.GetChainConfig().JsonRpcUrl, "", payload, headers, cfg.GetQueryTimeout()*10)
 	if err != nil {
 		return nil, err
 	}
