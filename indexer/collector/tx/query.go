@@ -84,9 +84,7 @@ func fetchAllTxsWithPagination(cfg *config.Config, path string) ([]RestTx, error
 			params["pagination.key"] = base64.StdEncoding.EncodeToString(nextKey)
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), cfg.GetQueryTimeout())
-		defer cancel() // defer is safe here as tx pagination very rarely requires many iterations
-		body, err := util.Get(ctx, cfg.GetChainConfig().RestUrl, path, params, nil)
+		body, err := util.Get(context.Background(), cfg.GetChainConfig().RestUrl, path, params, nil, cfg.GetQueryTimeout())
 
 		if err != nil {
 			return allTxs, err
@@ -136,9 +134,7 @@ func getEvmTxs(cfg *config.Config, height int64) (txs []types.EvmTx, err error) 
 	headers := map[string]string{"Content-Type": "application/json"}
 	path := ""
 
-	ctx, cancel := context.WithTimeout(context.Background(), cfg.GetQueryTimeout())
-	defer cancel()
-	body, err := util.Post(ctx, cfg.GetChainConfig().JsonRpcUrl, path, payload, headers)
+	body, err := util.Post(context.Background(), cfg.GetChainConfig().JsonRpcUrl, path, payload, headers, cfg.GetQueryTimeout())
 	if err != nil {
 		return txs, err
 	}

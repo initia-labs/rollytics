@@ -74,7 +74,7 @@ func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.D
 				}
 
 				for _, negativeDenom := range negativeDenoms {
-					balances, err := queryERC20Balances(ctx, cfg.GetChainConfig().JsonRpcUrl, negativeDenom, addresses, currentHeight)
+					balances, err := queryERC20Balances(ctx, cfg, negativeDenom, addresses, currentHeight)
 					if err != nil {
 						logger.Error("failed to query balances",
 							slog.String("denom", negativeDenom),
@@ -111,7 +111,7 @@ func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.D
 				// Query balance from blockchain via JSON-RPC for verification
 				if sdkAddr, err := util.AccAddressFromString(key.Addr); err == nil {
 					hexAddr := util.BytesToHexWithPrefix(sdkAddr)
-					balances, err := queryERC20Balances(ctx, cfg.GetChainConfig().JsonRpcUrl, key.Denom, []richlistutils.AddressWithID{{HexAddress: hexAddr}}, currentHeight)
+					balances, err := queryERC20Balances(ctx, cfg, key.Denom, []richlistutils.AddressWithID{{HexAddress: hexAddr}}, currentHeight)
 					if err != nil {
 						logger.Error("failed to query balances",
 							slog.String("denom", key.Denom),

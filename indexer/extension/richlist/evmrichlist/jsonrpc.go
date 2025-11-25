@@ -12,6 +12,7 @@ import (
 	sdkmath "cosmossdk.io/math"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/initia-labs/rollytics/config"
 	richlistutils "github.com/initia-labs/rollytics/indexer/extension/richlist/utils"
 	"github.com/initia-labs/rollytics/util"
 )
@@ -21,7 +22,7 @@ import (
 //
 // Parameters:
 //   - ctx: Context for timeout and cancellation
-//   - jsonrpcURL: The JSON-RPC endpoint URL
+//   - cfg: Configuration
 //   - erc20Address: The ERC20 token contract address (with 0x prefix)
 //   - addresses: List of addresses with account IDs to query
 //   - height: The block height to query at
@@ -29,7 +30,7 @@ import (
 // The function uses the eth_call method to call the balanceOf function on the ERC20 contract.
 // The balanceOf function signature is: balanceOf(address) returns (uint256)
 // Function selector: 0x70a08231
-func queryERC20Balances(ctx context.Context, jsonrpcURL string, erc20Address string, addresses []richlistutils.AddressWithID, height int64) (map[richlistutils.AddressWithID]sdkmath.Int, error) {
+func queryERC20Balances(ctx context.Context, cfg *config.Config, erc20Address string, addresses []richlistutils.AddressWithID, height int64) (map[richlistutils.AddressWithID]sdkmath.Int, error) {
 	if len(addresses) == 0 {
 		return make(map[richlistutils.AddressWithID]sdkmath.Int), nil
 	}
@@ -56,7 +57,7 @@ func queryERC20Balances(ctx context.Context, jsonrpcURL string, erc20Address str
 		batchData := batch
 		g.Go(func() error {
 			// queryBatchBalances uses utils.Post which already handles retries with exponential backoff
-			batchBalances, err := queryBatchBalances(ctx, jsonrpcURL, erc20Address, batchData, height)
+			batchBalances, err := queryBatchBalances(ctx, cfg, erc20Address, batchData, height)
 			if err != nil {
 				return fmt.Errorf("failed to query batch %d: %w", batchIdx, err)
 			}
@@ -79,7 +80,7 @@ func queryERC20Balances(ctx context.Context, jsonrpcURL string, erc20Address str
 }
 
 // queryBatchBalances queries balances for a batch of addresses at a specific height
-func queryBatchBalances(ctx context.Context, jsonrpcURL string, erc20Address string, batch []richlistutils.AddressWithID, height int64) (map[richlistutils.AddressWithID]sdkmath.Int, error) {
+func queryBatchBalances(ctx context.Context, cfg *config.Config, erc20Address string, batch []richlistutils.AddressWithID, height int64) (map[richlistutils.AddressWithID]sdkmath.Int, error) {
 	// balanceOf function selector: keccak256("balanceOf(address)")[:4] = 0x70a08231
 	const balanceOfSelector = "0x70a08231"
 
@@ -133,7 +134,7 @@ func queryBatchBalances(ctx context.Context, jsonrpcURL string, erc20Address str
 
 	for attempt := 0; ; attempt++ {
 		// TODO: handle more appropriately
-		respBody, err := util.Post(ctx, jsonrpcURL, "", batchRequests, headers)
+		respBody, err := util.Post(ctx, cfg.GetChainConfig().JsonRpcUrl, "", batchRequests, headers, cfg.GetQueryTimeout())
 		if err != nil {
 			// return nil, fmt.Errorf("failed to send JSON-RPC batch request: %w", err)
 			continue

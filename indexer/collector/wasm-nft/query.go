@@ -69,16 +69,10 @@ func queryWasmContractInfo(collectionAddr string, cfg *config.Config, height int
 
 func querySmart(contractAddr, queryData string, cfg *config.Config, height int64) (response []byte, err error) {
 	path := fmt.Sprintf(querySmartDataPath, contractAddr, queryData)
-	ctx, cancel := context.WithTimeout(context.Background(), cfg.GetQueryTimeout())
-	defer cancel()
-
-	return util.Get(ctx, cfg.GetChainConfig().RestUrl, path, nil, map[string]string{"x-cosmos-block-height": fmt.Sprintf("%d", height)})
+	return util.Get(context.Background(), cfg.GetChainConfig().RestUrl, path, nil, map[string]string{"x-cosmos-block-height": fmt.Sprintf("%d", height)}, cfg.GetQueryTimeout())
 }
 
 func queryWasmContract(contractAddr string, cfg *config.Config, height int64) (response []byte, err error) {
 	path := fmt.Sprintf(queryWasmContractDataPath, contractAddr)
-	ctx, cancel := context.WithTimeout(context.Background(), cfg.GetQueryTimeout())
-	defer cancel()
-
-	return util.Get(ctx, cfg.GetChainConfig().RestUrl, path, nil, map[string]string{"x-cosmos-block-height": fmt.Sprintf("%d", height)})
+	return util.Get(context.Background(), cfg.GetChainConfig().RestUrl, path, nil, map[string]string{"x-cosmos-block-height": fmt.Sprintf("%d", height)}, cfg.GetQueryTimeout())
 }

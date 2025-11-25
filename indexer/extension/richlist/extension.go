@@ -81,7 +81,7 @@ func (r *RichListExtension) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to initialize rich list extension: %w", err)
 	}
 
-	moduleAccounts, err := richlistutils.FetchMinterBurnerModuleAccounts(ctx, r.cfg.GetChainConfig().RestUrl)
+	moduleAccounts, err := richlistutils.FetchMinterBurnerModuleAccounts(ctx, r.cfg)
 	if err != nil {
 		return fmt.Errorf("failed to fetch module accounts: %w", err)
 	}
