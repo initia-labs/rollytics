@@ -12,6 +12,7 @@ import (
 	"github.com/initia-labs/rollytics/util"
 )
 
+// RICH_LIST_BLOCK_DELAY requires richlist processing to lag by at least 5 blocks.
 const RICH_LIST_BLOCK_DELAY = 5
 
 // GetLatestCollectedBlock retrieves the latest block height from the database for a given chain ID.
@@ -20,7 +21,7 @@ func GetLatestCollectedBlock(ctx context.Context, db *gorm.DB, chainId string) (
 	err := db.WithContext(ctx).
 		Model(&types.CollectedBlock{}).
 		Where("chain_id = ?", chainId).
-		Select("MAX(height)").
+		Select("COALESCE(MAX(height), 0)").
 		Scan(&latestHeight).Error
 	if err != nil {
 		return 0, err

@@ -76,3 +76,12 @@ func TestGetCollectedBlock_BlockDelay(t *testing.T) {
 		assert.Equal(t, int64(100), block.Height)
 	}
 }
+
+func TestGetLatestCollectedBlock_EmptyDB(t *testing.T) {
+	db := setupTestDB(t)
+	chainId := "test-chain"
+
+	height, err := GetLatestCollectedBlock(context.Background(), db, chainId)
+	assert.NoError(t, err)
+	assert.Equal(t, int64(0), height)
+}
