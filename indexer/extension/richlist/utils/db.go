@@ -50,7 +50,7 @@ func GetCollectedBlock(ctx context.Context, db *gorm.DB, chainId string, height 
 			Omit("timestamp").
 			First(&block).Error
 		if err == nil {
-			// Check if the block is safe to process (latest height - height > BlockDelay)
+			// Check if the block is safe to process (latest height - height >= block delay)
 			latestHeight, err := GetLatestCollectedBlock(ctx, db, chainId)
 			if err != nil {
 				// If we can't get the latest height, we should probably retry or error out.
