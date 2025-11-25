@@ -495,7 +495,7 @@ func GetEvmContractByDenom(ctx context.Context, denom string) (string, error) {
 	path := "/minievm/evm/v1/contracts/by_denom"
 	params := map[string]string{"denom": denom}
 
-	body, err := Get(ctx, cfg.GetChainConfig().RestUrl, path, params, nil)
+	body, err := Get(ctx, cfg.GetChainConfig().RestUrl, path, params, nil, cfg.GetQueryTimeout())
 	if err != nil {
 		return "", fmt.Errorf("failed to query contract by denom %s: %w", denom, err)
 	}
