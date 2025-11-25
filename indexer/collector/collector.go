@@ -59,7 +59,12 @@ func (c *Collector) Prepare(sb indexertypes.ScrapedBlock) error {
 	for _, sub := range c.submodules {
 		s := sub
 		g.Go(func() error {
-			return s.Prepare(sb)
+			err := s.Prepare(sb)
+			if err != nil {
+				c.logger.Error("failed to prepare data", slog.String("submodule", s.Name()), slog.Int64("height", sb.Height), slog.Any("error", err))
+				return err
+			}
+			return nil
 		})
 	}
 

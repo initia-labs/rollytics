@@ -13,9 +13,7 @@ func getMoveResource(addr string, structTag string, cfg *config.Config, height i
 	params := map[string]string{"struct_tag": structTag}
 	headers := map[string]string{"x-cosmos-block-height": fmt.Sprintf("%d", height)}
 	path := fmt.Sprintf("/initia/move/v1/accounts/%s/resources/by_struct_tag", addr)
-	ctx, cancel := context.WithTimeout(context.Background(), cfg.GetQueryTimeout())
-	defer cancel()
-	body, err := util.Get(ctx, cfg.GetChainConfig().RestUrl, path, params, headers)
+	body, err := util.Get(context.Background(), cfg.GetChainConfig().RestUrl, path, params, headers, cfg.GetQueryTimeout())
 	if err != nil {
 		return resource, err
 	}

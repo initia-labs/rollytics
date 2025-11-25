@@ -179,35 +179,38 @@ type requestConfig struct {
 	headers map[string]string
 }
 
-func Get(ctx context.Context, baseUrl, path string, params map[string]string, headers map[string]string) ([]byte, error) {
+func Get(ctx context.Context, baseUrl, path string, params map[string]string, headers map[string]string, timeout time.Duration) ([]byte, error) {
 	config := requestConfig{
 		method:  fiber.MethodGet,
 		params:  params,
 		headers: headers,
 	}
-	return executeWithRetry(ctx, baseUrl, path, config)
+	return executeWithRetry(ctx, baseUrl, path, config, timeout)
 }
 
-func Post(ctx context.Context, baseUrl, path string, payload any, headers map[string]string) ([]byte, error) {
+func Post(ctx context.Context, baseUrl, path string, payload any, headers map[string]string, timeout time.Duration) ([]byte, error) {
 	config := requestConfig{
 		method:  fiber.MethodPost,
 		payload: payload,
 		headers: headers,
 	}
-	return executeWithRetry(ctx, baseUrl, path, config)
+	return executeWithRetry(ctx, baseUrl, path, config, timeout)
 }
 
-func executeWithRetry(ctx context.Context, baseUrl, path string, config requestConfig) ([]byte, error) {
+func executeWithRetry(ctx context.Context, baseUrl, path string, config requestConfig, timeout time.Duration) ([]byte, error) {
 	retryCount := 0
 	rateLimitRetries := 0
 	// Initialize with a default error to ensure err is never nil after retries
 	var err = types.NewTimeoutError("no attempts made")
 
 	for retryCount < maxRetries {
-		body, innerErr := executeHTTPRequest(ctx, baseUrl, path, config)
+		attemptCtx, cancel := context.WithTimeout(ctx, timeout)
+		body, innerErr := executeHTTPRequest(attemptCtx, baseUrl, path, config)
 		if innerErr == nil {
+			cancel()
 			return body, nil
 		}
+
 		err = innerErr
 
 		// handle case of querying future height using error type
@@ -216,15 +219,17 @@ func executeWithRetry(ctx context.Context, baseUrl, path string, config requestC
 			strings.Contains(standardErr.Message, "invalid height") {
 			select {
 			case <-ctx.Done():
+				cancel()
 				return nil, ctx.Err()
 			case <-time.After(cfg.GetCoolingDuration()):
+				cancel()
 				continue
 			}
 		}
 
 		// handle 429 Too Many Requests with exponential backoff
 		// This doesn't count against regular retry limit to allow for rate limit recovery
-		if errors.Is(innerErr, fiber.ErrTooManyRequests) {
+		if errors.Is(innerErr, fiber.ErrTooManyRequests) || errors.Is(innerErr, context.DeadlineExceeded) {
 			rateLimitRetries++
 
 			// Track rate limit hits using batching
@@ -234,8 +239,10 @@ func executeWithRetry(ctx context.Context, baseUrl, path string, config requestC
 			backoffDelay := calculateBackoffDelay(rateLimitRetries)
 			select {
 			case <-ctx.Done():
+				cancel()
 				return nil, ctx.Err()
 			case <-time.After(backoffDelay):
+				cancel()
 				continue
 			}
 		}
@@ -243,8 +250,10 @@ func executeWithRetry(ctx context.Context, baseUrl, path string, config requestC
 		retryCount++
 		select {
 		case <-ctx.Done():
+			cancel()
 			return nil, ctx.Err()
 		case <-time.After(cfg.GetCoolingDuration()):
+			cancel()
 		}
 	}
 

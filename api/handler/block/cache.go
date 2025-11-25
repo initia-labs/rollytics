@@ -45,9 +45,7 @@ func getValidator(validatorAddr string, cfg *config.Config) (*Validator, error) 
 		return cached, nil
 	}
 	path := fmt.Sprintf("/opinit/opchild/v1/validator/%s", validatorAddr)
-	ctx, cancel := context.WithTimeout(context.Background(), cfg.GetQueryTimeout())
-	defer cancel()
-	body, err := util.Get(ctx, cfg.GetChainConfig().RestUrl, path, nil, nil)
+	body, err := util.Get(context.Background(), cfg.GetChainConfig().RestUrl, path, nil, nil, cfg.GetQueryTimeout())
 	if err != nil {
 		return nil, err
 	}

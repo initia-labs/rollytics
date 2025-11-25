@@ -68,9 +68,8 @@ func evmCall(contractAddr string, input []byte, cfg *config.Config, height int64
 	}
 	headers := map[string]string{"x-cosmos-block-height": fmt.Sprintf("%d", height)}
 	path := "/minievm/evm/v1/call"
-	ctx, cancel := context.WithTimeout(context.Background(), cfg.GetQueryTimeout())
-	defer cancel()
-	body, err := util.Post(ctx, cfg.GetChainConfig().RestUrl, path, payload, headers)
+
+	body, err := util.Post(context.Background(), cfg.GetChainConfig().RestUrl, path, payload, headers, cfg.GetQueryTimeout())
 	if err != nil {
 		return response, err
 	}

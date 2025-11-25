@@ -65,7 +65,7 @@ func fetchAllAccountsWithPagination(ctx context.Context, cfg *config.Config, hei
 		}
 
 		// Fetch page using util.Get (has built-in retry with exponential backoff)
-		body, err := util.Get(ctx, cfg.GetChainConfig().RestUrl, path, params, headers)
+		body, err := util.Get(ctx, cfg.GetChainConfig().RestUrl, path, params, headers, cfg.GetQueryTimeout())
 		if err != nil {
 			return nil, err
 		}
@@ -113,13 +113,13 @@ func fetchAllAccountsWithPagination(ctx context.Context, cfg *config.Config, hei
 // FetchMinterBurnerModuleAccounts fetches module accounts with "minter" or "burner" permissions
 // from the Cosmos SDK blockchain using pagination. These accounts have the ability to mint or burn
 // tokens and need to be excluded from rich list calculations to avoid incorrect total supply values.
-func FetchMinterBurnerModuleAccounts(ctx context.Context, restURL string) ([]sdk.AccAddress, error) {
+func FetchMinterBurnerModuleAccounts(ctx context.Context, cfg *config.Config) ([]sdk.AccAddress, error) {
 	const path = "/cosmos/auth/v1beta1/module_accounts"
 
 	var moduleAccounts []sdk.AccAddress
 
 	// Fetch page using util.Get (has built-in retry with exponential backoff)
-	body, err := util.Get(ctx, restURL, path, nil, nil)
+	body, err := util.Get(ctx, cfg.GetChainConfig().RestUrl, path, nil, nil, cfg.GetQueryTimeout())
 	if err != nil {
 		return nil, err
 	}
@@ -177,7 +177,7 @@ func fetchAccountBalancesWithPagination(ctx context.Context, cfg *config.Config,
 		}
 
 		// Fetch page using util.Get (has built-in retry with exponential backoff)
-		body, err := util.Get(ctx, cfg.GetChainConfig().RestUrl, path, params, headers)
+		body, err := util.Get(ctx, cfg.GetChainConfig().RestUrl, path, params, headers, cfg.GetQueryTimeout())
 		if err != nil {
 			return nil, err
 		}
