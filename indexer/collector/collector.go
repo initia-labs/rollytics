@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"golang.org/x/sync/errgroup"
 	"gorm.io/gorm"
@@ -59,7 +60,28 @@ func (c *Collector) Prepare(sb indexertypes.ScrapedBlock) error {
 	for _, sub := range c.submodules {
 		s := sub
 		g.Go(func() error {
-			return s.Prepare(sb)
+			// TODO: revisit this again after implementing proper retry logic in the submodules
+			backoff := time.Second
+			maxAttempts := 5
+			for attempts := range maxAttempts {
+				err := s.Prepare(sb)
+				if err == nil {
+					return nil
+				}
+
+				c.logger.Error("prepare attempt failed, retrying",
+					slog.String("submodule", s.Name()),
+					slog.Int("attempt", attempts+1),
+					slog.Int64("height", sb.Height),
+					slog.Duration("backoff", backoff),
+					slog.String("err", err.Error()),
+				)
+
+				time.Sleep(backoff)
+				backoff <<= 1
+			}
+
+			return fmt.Errorf("failed to prepare data after %d attempts", maxAttempts)
 		})
 	}
 
