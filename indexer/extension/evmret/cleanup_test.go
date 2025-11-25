@@ -2,10 +2,14 @@ package evmret
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"log/slog"
+	"strings"
 	"testing"
 
+	"github.com/initia-labs/rollytics/config"
+	"github.com/initia-labs/rollytics/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/sqlite"
@@ -95,7 +99,7 @@ func TestExtractAddressesFromValue(t *testing.T) {
 		{
 			name:     "empty 0x",
 			value:    "0x",
-			expected: nil,
+			expected: []string{"0x0000000000000000000000000000000000000000"},
 		},
 		{
 			name:     "mixed valid and invalid",
@@ -179,7 +183,7 @@ func TestFindRetOnlyAddresses(t *testing.T) {
 					}
 				]
 			}`,
-			expected: []string{},
+			expected: []string{"0x0000000000000000000000000000000000000000"},
 			wantErr:  false,
 		},
 		{
@@ -199,56 +203,6 @@ func TestFindRetOnlyAddresses(t *testing.T) {
 				require.NoError(t, err)
 				assert.ElementsMatch(t, tt.expected, result)
 			}
-		})
-	}
-}
-
-func TestGetAccountIds(t *testing.T) {
-	db := setupTestDB(t)
-	ctx := context.Background()
-
-	// Insert test accounts (Account field is []byte in types.CollectedAccountDict)
-	accounts := []types.CollectedAccountDict{
-		{Id: 1, Account: hexToBytes("1111111111111111111111111111111111111111")},
-		{Id: 2, Account: hexToBytes("2222222222222222222222222222222222222222")},
-		{Id: 3, Account: hexToBytes("3333333333333333333333333333333333333333")},
-	}
-	for _, acc := range accounts {
-		require.NoError(t, db.Create(&acc).Error)
-	}
-
-	tests := []struct {
-		name      string
-		addresses []string
-		expected  []int64
-	}{
-		{
-			name:      "existing addresses",
-			addresses: []string{"0x1111111111111111111111111111111111111111", "0x2222222222222222222222222222222222222222"},
-			expected:  []int64{1, 2},
-		},
-		{
-			name:      "non-existing address",
-			addresses: []string{"0x9999999999999999999999999999999999999999"},
-			expected:  []int64{},
-		},
-		{
-			name:      "mixed existing and non-existing",
-			addresses: []string{"0x1111111111111111111111111111111111111111", "0x9999999999999999999999999999999999999999"},
-			expected:  []int64{1},
-		},
-		{
-			name:      "empty list",
-			addresses: []string{},
-			expected:  []int64{},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result, err := GetAccountIds(ctx, db, tt.addresses)
-			require.NoError(t, err)
-			assert.ElementsMatch(t, tt.expected, result)
 		})
 	}
 }
@@ -381,6 +335,16 @@ func TestProcessBatch(t *testing.T) {
 	db := setupTestDB(t)
 	ctx := context.Background()
 
+	// Ensure caches are initialized for any dictionary lookups inside processing
+	util.InitializeCaches(&config.CacheConfig{
+		AccountCacheSize:          1024,
+		NftCacheSize:              1024,
+		MsgTypeCacheSize:          256,
+		TypeTagCacheSize:          256,
+		EvmTxHashCacheSize:        1024,
+		EvmDenomContractCacheSize: 256,
+	})
+
 	// Insert test data (Account field is []byte in types.CollectedAccountDict)
 	accounts := []types.CollectedAccountDict{
 		{Id: 1, Account: hexToBytes("1111111111111111111111111111111111111111")},
@@ -482,4 +446,24 @@ func hexCharToByte(c byte) byte {
 		return c - 'A' + 10
 	}
 	return 0
+}
+
+// isValidEVMAddress checks if a string is a valid EVM address
+func isValidEVMAddress(addr string) bool {
+	// Must start with 0x
+	if !strings.HasPrefix(addr, "0x") {
+		return false
+	}
+
+	// Remove 0x prefix
+	hexPart := addr[2:]
+
+	// Must be exactly 40 hex characters (20 bytes)
+	if len(hexPart) != 40 {
+		return false
+	}
+
+	// Must be valid hex
+	_, err := hex.DecodeString(hexPart)
+	return err == nil
 }

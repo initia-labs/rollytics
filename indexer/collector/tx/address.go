@@ -73,17 +73,7 @@ func grepAddressesFromTx(events []abci.Event, tx *gorm.DB) (grepped []string, er
 				}
 
 			default:
-				// Do not extract addresses from any attribute with key "ret".
-				// By filtering purely on attr.Key == "ret" (regardless of event.Type), we avoid
-				// indexing any address that originates from a "ret" attribute and stay consistent
-				// with the cleanup policy.
-				//
-				// This does NOT affect EVM logs: EVM log addresses are handled in the EVM log
-				// branch above (attr.Key == evmtypes.AttributeKeyLog), which continues to index
-				// log-derived addresses normally.
-				// If any module legitimately encodes real addresses under the key "ret", they
-				// will be ignored by design here. Adjust this policy only if such a use case exists.
-				if attr.Key == evmtypes.AttributeKeyRet {
+				if event.Type == evmtypes.EventTypeCall && attr.Key == evmtypes.AttributeKeyRet {
 					continue
 				}
 

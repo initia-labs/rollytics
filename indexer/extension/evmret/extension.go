@@ -49,11 +49,6 @@ func (e *EvmRetCleanupExtension) Name() string {
 
 // Initialize ensures the status table exists and retrieves current status
 func (e *EvmRetCleanupExtension) Initialize(ctx context.Context) (*types.CollectedEvmRetCleanupStatus, error) {
-	// Create status table if it doesn't exist
-	if err := e.db.WithContext(ctx).AutoMigrate(&types.CollectedEvmRetCleanupStatus{}); err != nil {
-		return nil, fmt.Errorf("failed to create status table: %w", err)
-	}
-
 	// Try to retrieve existing status
 	var status types.CollectedEvmRetCleanupStatus
 	err := e.db.WithContext(ctx).First(&status).Error
@@ -67,7 +62,7 @@ func (e *EvmRetCleanupExtension) Initialize(ctx context.Context) (*types.Collect
 			if err := e.db.WithContext(ctx).Create(&status).Error; err != nil {
 				return nil, fmt.Errorf("failed to create initial status: %w", err)
 			}
-			e.logger.Info("Initialized cleanup status")
+			e.logger.Info("initialized cleanup status")
 			return &status, nil
 		}
 		return nil, fmt.Errorf("failed to retrieve cleanup status: %w", err)
@@ -123,10 +118,7 @@ func (e *EvmRetCleanupExtension) Run(ctx context.Context) error {
 			continue
 		}
 
-		endHeight := currentHeight + BatchSize - 1
-		if endHeight > maxHeight {
-			endHeight = maxHeight
-		}
+		endHeight := min(currentHeight+BatchSize-1, maxHeight)
 
 		// Process batch
 		deleted, err := ProcessBatch(ctx, e.db.DB, e.logger, currentHeight, endHeight)

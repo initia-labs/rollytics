@@ -6,7 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"regexp"
+	"maps"
+	"slices"
 	"strings"
 
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -61,94 +62,24 @@ func FindRetOnlyAddresses(txData json.RawMessage) ([]string, error) {
 
 // extractAddressesFromValue extracts valid EVM addresses from an attribute value
 // It should produce the exact same results as grepAddressesFromTx for non-log attributes:
-// - Split the value by commas
-// - Accept tokens matching anchored regex ^0x[0-9a-fA-F]{1,64}$
-// - Normalize to a 20-byte address by taking the last 40 hex chars or left-padding
 func extractAddressesFromValue(value string) []string {
 	var addresses []string
-
-	// Anchored regex used by historical indexer logic(findAllHexAddress in address.go)
-	anchoredHex := regexp.MustCompile(`^0x(?:[a-fA-F0-9]{1,64})$`)
 
 	// Split on commas like grepAddressesFromTx does
 	parts := strings.Split(value, ",")
 	for _, part := range parts {
 		token := strings.TrimSpace(part)
-		if !anchoredHex.MatchString(token) {
+
+		acc, err := util.AccAddressFromString(token)
+		if err != nil {
 			continue
 		}
 
-		// Drop 0x
-		hexPart := token[2:]
-		// Normalize to lowercase
-		hexPart = strings.ToLower(hexPart)
-
-		// Derive a 20-byte address from up to 64 hex chars
-		if len(hexPart) >= 40 {
-			hexPart = hexPart[len(hexPart)-40:]
-		} else {
-			hexPart = strings.Repeat("0", 40-len(hexPart)) + hexPart
-		}
-
-		addr := "0x" + hexPart
-		if isValidEVMAddress(addr) {
-			addresses = append(addresses, addr)
-		}
+		addr := util.BytesToHexWithPrefix(acc.Bytes())
+		addresses = append(addresses, addr)
 	}
 
 	return addresses
-}
-
-// isValidEVMAddress checks if a string is a valid EVM address
-func isValidEVMAddress(addr string) bool {
-	// Must start with 0x
-	if !strings.HasPrefix(addr, "0x") {
-		return false
-	}
-
-	// Remove 0x prefix
-	hexPart := addr[2:]
-
-	// Must be exactly 40 hex characters (20 bytes)
-	if len(hexPart) != 40 {
-		return false
-	}
-
-	// Must be valid hex
-	_, err := hex.DecodeString(hexPart)
-	return err == nil
-}
-
-// GetAccountIds converts addresses to account IDs using account_dict
-func GetAccountIds(ctx context.Context, db *gorm.DB, addresses []string) ([]int64, error) {
-	if len(addresses) == 0 {
-		return []int64{}, nil
-	}
-
-	// Convert string addresses to bytes for comparison
-	addressBytes := make([][]byte, len(addresses))
-	for i, addr := range addresses {
-		addrStr := strings.TrimPrefix(addr, "0x")
-		b, err := hex.DecodeString(addrStr)
-		if err != nil {
-			return nil, fmt.Errorf("invalid hex address %q: %w", addr, err)
-		}
-		addressBytes[i] = b
-	}
-
-	var accounts []types.CollectedAccountDict
-	if err := db.WithContext(ctx).
-		Where("account IN ?", addressBytes).
-		Find(&accounts).Error; err != nil {
-		return nil, fmt.Errorf("failed to get account IDs: %w", err)
-	}
-
-	ids := make([]int64, 0, len(accounts))
-	for _, acc := range accounts {
-		ids = append(ids, acc.Id)
-	}
-
-	return ids, nil
 }
 
 // FilterNonSigners filters out account IDs that are signers for the given sequence
@@ -205,7 +136,7 @@ func ProcessBatch(ctx context.Context, db *gorm.DB, logger *slog.Logger, startHe
 	var txs []types.CollectedTx
 	if err := db.WithContext(ctx).
 		Where("height >= ? AND height <= ?", startHeight, endHeight).
-		Order("height ASC, sequence ASC").
+		Order("height ASC").
 		Find(&txs).Error; err != nil {
 		return 0, fmt.Errorf("failed to query transactions: %w", err)
 	}
@@ -237,7 +168,7 @@ func ProcessBatch(ctx context.Context, db *gorm.DB, logger *slog.Logger, startHe
 		}
 
 		// Convert addresses to account IDs
-		accountIds, err := GetAccountIds(ctx, db, retOnlyAddrs)
+		accountIds, err := util.GetOrCreateAccountIds(db, retOnlyAddrs, false)
 		if err != nil {
 			hashStr := hex.EncodeToString(tx.Hash)
 			return totalDeleted, fmt.Errorf("failed to get account IDs for tx %s: %w", hashStr, err)
@@ -248,7 +179,7 @@ func ProcessBatch(ctx context.Context, db *gorm.DB, logger *slog.Logger, startHe
 		}
 
 		// Filter out signers
-		nonSignerIds, err := FilterNonSigners(ctx, db, accountIds, tx.Sequence)
+		nonSignerIds, err := FilterNonSigners(ctx, db, slices.Collect(maps.Values(accountIds)), tx.Sequence)
 		if err != nil {
 			hashStr := hex.EncodeToString(tx.Hash)
 			return totalDeleted, fmt.Errorf("failed to filter signers for tx %s: %w", hashStr, err)
