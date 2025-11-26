@@ -12,6 +12,7 @@ import (
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	evmtypes "github.com/initia-labs/minievm/x/evm/types"
 	"gorm.io/gorm"
 
 	"github.com/initia-labs/rollytics/types"
@@ -35,14 +36,33 @@ func FindRetOnlyAddresses(txData json.RawMessage) ([]string, error) {
 
 	for _, event := range txDataWithEvents.Events {
 		for _, attr := range event.Attributes {
-			addresses := extractAddressesFromValue(attr.Value)
+			var addrs []string
 
-			if attr.Key == "ret" {
-				for _, addr := range addresses {
+			switch {
+			case event.Type == evmtypes.EventTypeEVM && attr.Key == evmtypes.AttributeKeyLog:
+				var log evmtypes.Log
+				if err := json.Unmarshal([]byte(attr.Value), &log); err != nil {
+					return nil, fmt.Errorf("failed to unmarshal evm log: %w", err)
+				}
+
+				addrs = append(addrs, extractAddressesFromValue(log.Address)...)
+				for idx, topic := range log.Topics {
+					if idx > 0 && strings.HasPrefix(topic, "0x000000000000000000000000") {
+						addrs = append(addrs, topic)
+					}
+				}
+			case event.Type == evmtypes.EventTypeCall && attr.Key == evmtypes.AttributeKeyRet:
+				addrs = append(addrs, extractAddressesFromValue(attr.Value)...)
+			default:
+				continue
+			}
+
+			if attr.Key == evmtypes.AttributeKeyRet {
+				for _, addr := range addrs {
 					retAddresses[addr] = struct{}{}
 				}
 			} else {
-				for _, addr := range addresses {
+				for _, addr := range addrs {
 					nonRetAddresses[addr] = struct{}{}
 				}
 			}
