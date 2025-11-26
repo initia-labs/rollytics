@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	abci "github.com/cometbft/cometbft/abci/types"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	evmtypes "github.com/initia-labs/minievm/x/evm/types"
 	"gorm.io/gorm"
 
@@ -55,7 +54,7 @@ func FindRetOnlyAddresses(txData json.RawMessage) ([]string, error) {
 				addrs = append(addrs, extractAddressesFromValue(attr.Value)...)
 			}
 
-			if attr.Key == evmtypes.AttributeKeyRet {
+			if event.Type == evmtypes.EventTypeCall && attr.Key == evmtypes.AttributeKeyRet {
 				for _, addr := range addrs {
 					retAddresses[addr] = struct{}{}
 				}
@@ -100,30 +99,16 @@ func extractAddressesFromValue(value string) []string {
 	return addresses
 }
 
-// FilterNonSigners filters out account IDs that are signers for the given sequence
-func FilterNonSigners(ctx context.Context, db *gorm.DB, accountIds []int64, sequence int64) ([]int64, error) {
+// FilterNonSigners filters out account IDs that are signers for the given signerId
+func FilterNonSigners(ctx context.Context, db *gorm.DB, accountIds []int64, signerId int64) ([]int64, error) {
 	if len(accountIds) == 0 {
 		return []int64{}, nil
-	}
-
-	// Get all accounts that are signers for this sequence
-	var signerRecords []types.CollectedTxAccount
-	if err := db.WithContext(ctx).
-		Where("sequence = ? AND account_id IN ? AND signer = ?", sequence, accountIds, true).
-		Find(&signerRecords).Error; err != nil {
-		return nil, fmt.Errorf("failed to check signers: %w", err)
-	}
-
-	// Create a set of signer IDs
-	signerSet := make(map[int64]struct{})
-	for _, record := range signerRecords {
-		signerSet[record.AccountId] = struct{}{}
 	}
 
 	// Filter out signers
 	var nonSigners []int64
 	for _, id := range accountIds {
-		if _, isSigner := signerSet[id]; !isSigner {
+		if id != signerId {
 			nonSigners = append(nonSigners, id)
 		}
 	}
@@ -197,7 +182,7 @@ func ProcessBatch(ctx context.Context, db *gorm.DB, logger *slog.Logger, startHe
 		}
 
 		// Filter out signers
-		nonSignerIds, err := FilterNonSigners(ctx, db, slices.Collect(maps.Values(accountIds)), tx.Sequence)
+		nonSignerIds, err := FilterNonSigners(ctx, db, slices.Collect(maps.Values(accountIds)), tx.SignerId)
 		if err != nil {
 			hashStr := hex.EncodeToString(tx.Hash)
 			return totalDeleted, fmt.Errorf("failed to filter signers for tx %s: %w", hashStr, err)
@@ -214,36 +199,7 @@ func ProcessBatch(ctx context.Context, db *gorm.DB, logger *slog.Logger, startHe
 			return totalDeleted, fmt.Errorf("failed to delete records for tx %s: %w", hashStr, err)
 		}
 
-		if deleted > 0 {
-			totalDeleted += deleted
-			hashStr := hex.EncodeToString(tx.Hash)
-
-			var accRows []types.CollectedAccountDict
-			if err := db.WithContext(ctx).
-				Where("id IN ?", nonSignerIds).
-				Find(&accRows).Error; err != nil {
-				logger.Warn("failed to load accounts for logging corrected entries",
-					slog.Any("account_ids", nonSignerIds),
-					slog.Any("error", err))
-			}
-
-			var hexAddrs []string
-			var bech32Addrs []string
-			for _, acc := range accRows {
-				hexAddrs = append(hexAddrs, util.BytesToHexWithPrefix(acc.Account))
-				// Convert to bech32 (uses global bech32 config/prefix)
-				bech32Addrs = append(bech32Addrs, sdk.AccAddress(acc.Account).String())
-			}
-
-			logger.Info("corrected ret-only entries",
-				slog.String("tx_hash", hashStr),
-				slog.Int64("height", tx.Height),
-				slog.Int64("sequence", tx.Sequence),
-				slog.Any("account_ids", nonSignerIds),
-				slog.Any("hex_addresses", hexAddrs),
-				slog.Any("bech32_addresses", bech32Addrs),
-				slog.Int64("deleted", deleted))
-		}
+		totalDeleted += deleted
 	}
 
 	return totalDeleted, nil
