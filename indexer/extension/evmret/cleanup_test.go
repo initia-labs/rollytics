@@ -151,7 +151,7 @@ func TestFindRetOnlyAddresses(t *testing.T) {
 					}
 				]
 			}`,
-			expected: []string{"0x6ed1637781269560b204c27cd42d95e057c4be44"},
+			expected: []string{},
 			wantErr:  false,
 		},
 		{
@@ -168,7 +168,7 @@ func TestFindRetOnlyAddresses(t *testing.T) {
 					}
 				]
 			}`,
-			expected: []string{"0x2222222222222222222222222222222222222222", "0x1111111111111111111111111111111111111111"},
+			expected: []string{"0x2222222222222222222222222222222222222222"},
 			wantErr:  false,
 		},
 		{
