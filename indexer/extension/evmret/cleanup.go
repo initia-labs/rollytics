@@ -51,10 +51,8 @@ func FindRetOnlyAddresses(txData json.RawMessage) ([]string, error) {
 						addrs = append(addrs, extractAddressesFromValue(topic)...)
 					}
 				}
-			case event.Type == evmtypes.EventTypeCall && attr.Key == evmtypes.AttributeKeyRet:
-				addrs = append(addrs, extractAddressesFromValue(attr.Value)...)
 			default:
-				continue
+				addrs = append(addrs, extractAddressesFromValue(attr.Value)...)
 			}
 
 			if attr.Key == evmtypes.AttributeKeyRet {
