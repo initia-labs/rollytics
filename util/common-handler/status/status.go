@@ -15,6 +15,7 @@ import (
 var (
 	lastEvmInternalTxHeight atomic.Int64
 	lastRichListHeight      atomic.Int64
+	lastEvmRetCleanupHeight atomic.Int64
 )
 
 // status handles GET /status
@@ -58,13 +59,23 @@ func (h *StatusHandler) GetStatus(c *fiber.Ctx) error {
 		richListHeight = height
 	}
 
+	var evmRetCleanupHeight int64
+	if h.isEvmRetCleanupEnabled() {
+		height, err := h.getEvmRetCleanupStatus(tx)
+		if err != nil {
+			return err
+		}
+		evmRetCleanupHeight = height
+	}
+
 	return c.JSON(&StatusResponse{
-		Version:          config.Version,
-		CommitHash:       config.CommitHash,
-		ChainId:          h.GetChainId(),
-		Height:           lastBlock.Height,
-		InternalTxHeight: internalTxHeight,
-		RichListHeight:   richListHeight,
+		Version:             config.Version,
+		CommitHash:          config.CommitHash,
+		ChainId:             h.GetChainId(),
+		Height:              lastBlock.Height,
+		InternalTxHeight:    internalTxHeight,
+		RichListHeight:      richListHeight,
+		EvmRetCleanupHeight: evmRetCleanupHeight,
 	})
 }
 
@@ -131,4 +142,28 @@ func (h *StatusHandler) getRichListHeight(tx *gorm.DB) (int64, error) {
 	}
 
 	return richListHeight, nil
+}
+
+func (h *StatusHandler) isEvmRetCleanupEnabled() bool {
+	return (h.GetChainConfig().VmType == types.EVM) && h.GetConfig().EvmRetCleanupEnabled()
+}
+
+func (h *StatusHandler) getEvmRetCleanupStatus(tx *gorm.DB) (int64, error) {
+	height := lastEvmRetCleanupHeight.Load()
+
+	var cleanupStatus types.CollectedEvmRetCleanupStatus
+	err := tx.Model(&types.CollectedEvmRetCleanupStatus{}).First(&cleanupStatus).Error
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return 0, fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	if cleanupStatus.LastCleanedHeight > height {
+		if lastEvmRetCleanupHeight.CompareAndSwap(height, cleanupStatus.LastCleanedHeight) {
+			height = cleanupStatus.LastCleanedHeight
+		} else {
+			height = lastEvmRetCleanupHeight.Load()
+		}
+	}
+
+	return height, nil
 }
