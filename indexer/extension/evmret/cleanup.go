@@ -48,7 +48,7 @@ func FindRetOnlyAddresses(txData json.RawMessage) ([]string, error) {
 				addrs = append(addrs, extractAddressesFromValue(log.Address)...)
 				for idx, topic := range log.Topics {
 					if idx > 0 && strings.HasPrefix(topic, "0x000000000000000000000000") {
-						addrs = append(addrs, topic)
+						addrs = append(addrs, extractAddressesFromValue(topic)...)
 					}
 				}
 			case event.Type == evmtypes.EventTypeCall && attr.Key == evmtypes.AttributeKeyRet:
