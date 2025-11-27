@@ -52,10 +52,7 @@ func runIndexer(cmd *cobra.Command, args []string) error {
 	}
 	defer func() { _ = db.Close() }()
 
-	metricsServer, err := initializeMetrics(cfg, logger)
-	if err != nil {
-		return err
-	}
+	metricsServer := initializeMetrics(cfg, logger)
 
 	shouldFlushSentry, err := initializeSentryIfConfigured(cfg, logger)
 	if err != nil {
@@ -76,10 +73,7 @@ func runIndexer(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	indexerAPI, err := initializeAPIServer(cfg, logger, db)
-	if err != nil {
-		return err
-	}
+	indexerAPI := initializeAPIServer(cfg, logger, db)
 
 	setupGracefulShutdown(ctx, cancel, logger, indexerAPI, metricsServer)
 
@@ -99,7 +93,7 @@ func initializeDatabase(cfg *config.Config, logger *slog.Logger) (*orm.Database,
 	return orm.OpenDB(cfg.GetDBConfig(), logger)
 }
 
-func initializeMetrics(cfg *config.Config, logger *slog.Logger) (*metrics.MetricsServer, error) {
+func initializeMetrics(cfg *config.Config, logger *slog.Logger) *metrics.MetricsServer {
 	metrics.Init()
 	metricsServer := metrics.NewServer(cfg, logger)
 
@@ -109,7 +103,7 @@ func initializeMetrics(cfg *config.Config, logger *slog.Logger) (*metrics.Metric
 		}
 	}()
 
-	return metricsServer, nil
+	return metricsServer
 }
 
 func initializeSentryIfConfigured(cfg *config.Config, logger *slog.Logger) (bool, error) {
@@ -167,7 +161,7 @@ func handleMigrations(ctx context.Context, db *orm.Database, logger *slog.Logger
 	return nil
 }
 
-func initializeAPIServer(cfg *config.Config, logger *slog.Logger, db *orm.Database) (*indexerapi.Api, error) {
+func initializeAPIServer(cfg *config.Config, logger *slog.Logger, db *orm.Database) *indexerapi.Api {
 	indexerAPI := indexerapi.New(cfg, logger, db)
 
 	go func() {
@@ -176,7 +170,7 @@ func initializeAPIServer(cfg *config.Config, logger *slog.Logger, db *orm.Databa
 		}
 	}()
 
-	return indexerAPI, nil
+	return indexerAPI
 }
 
 func setupGracefulShutdown(ctx context.Context, cancel context.CancelFunc, logger *slog.Logger, indexerAPI *indexerapi.Api, metricsServer *metrics.MetricsServer) {
