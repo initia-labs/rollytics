@@ -120,7 +120,7 @@ func initializeSentryIfConfigured(cfg *config.Config, logger *slog.Logger) (bool
 }
 
 func handleMigrations(ctx context.Context, db *orm.Database, logger *slog.Logger) error {
-	concurrentLastMigration, err := db.CheckLastMigrationConcurrency()
+	concurrentLastMigration, err := db.CheckLastMigrationConcurrency(ctx)
 	if err != nil {
 		return err
 	}
@@ -140,7 +140,7 @@ func handleMigrations(ctx context.Context, db *orm.Database, logger *slog.Logger
 			// Run migration in a goroutine so we can monitor context cancellation
 			migrationDone := make(chan error, 1)
 			go func() {
-				migrationDone <- db.Migrate()
+				migrationDone <- db.Migrate(ctx)
 			}()
 
 			select {

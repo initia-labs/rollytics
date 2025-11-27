@@ -64,7 +64,7 @@ func OpenDB(config *config.Config, logger *slog.Logger) (*Database, error) {
 	return &Database{DB: instance, config: config}, nil
 }
 
-func (d Database) Migrate() error {
+func (d Database) Migrate(ctx context.Context) error {
 	if !d.config.AutoMigrate {
 		return nil
 	}
@@ -84,7 +84,7 @@ func (d Database) Migrate() error {
 		return err
 	}
 
-	if _, err := client.MigrateApply(context.Background(), &atlasexec.MigrateApplyParams{
+	if _, err := client.MigrateApply(ctx, &atlasexec.MigrateApplyParams{
 		URL: d.config.DSN,
 	}); err != nil {
 		return err
@@ -119,7 +119,7 @@ func (d Database) GetDBStats() (*sql.DBStats, error) {
 // CheckLastMigrationConcurrency checks migration status and conditionally handles the last migration
 // If only 1 migration is pending, it checks if it has atlas:txmode none and returns info
 // If more than 1 is pending, it runs all migrations normally
-func (d Database) CheckLastMigrationConcurrency() (bool, error) {
+func (d Database) CheckLastMigrationConcurrency(ctx context.Context) (bool, error) {
 	if !d.config.AutoMigrate {
 		return false, nil
 	}
@@ -178,7 +178,7 @@ func (d Database) CheckLastMigrationConcurrency() (bool, error) {
 		return true, nil
 	}
 
-	if err := d.Migrate(); err != nil {
+	if err := d.Migrate(ctx); err != nil {
 		return false, err
 	}
 
