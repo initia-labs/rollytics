@@ -208,9 +208,6 @@ func TestFindRetOnlyAddresses(t *testing.T) {
 }
 
 func TestFilterNonSigners(t *testing.T) {
-	db := setupTestDB(t)
-	ctx := context.Background()
-
 	tests := []struct {
 		name       string
 		accountIds []int64
@@ -251,7 +248,7 @@ func TestFilterNonSigners(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := FilterNonSigners(ctx, db, tt.accountIds, tt.signerId)
+			result, err := FilterNonSigners(tt.accountIds, tt.signerId)
 			require.NoError(t, err)
 			assert.ElementsMatch(t, tt.expected, result)
 		})

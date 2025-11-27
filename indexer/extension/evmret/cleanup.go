@@ -99,8 +99,8 @@ func extractAddressesFromValue(value string) []string {
 	return addresses
 }
 
-// FilterNonSigners filters out account IDs that are signers for the given signerId
-func FilterNonSigners(ctx context.Context, db *gorm.DB, accountIds []int64, signerId int64) ([]int64, error) {
+// FilterNonSigners filters out account IDs that match signerId
+func FilterNonSigners(accountIds []int64, signerId int64) ([]int64, error) {
 	if len(accountIds) == 0 {
 		return []int64{}, nil
 	}
@@ -112,7 +112,6 @@ func FilterNonSigners(ctx context.Context, db *gorm.DB, accountIds []int64, sign
 			nonSigners = append(nonSigners, id)
 		}
 	}
-
 	return nonSigners, nil
 }
 
@@ -182,7 +181,7 @@ func ProcessBatch(ctx context.Context, db *gorm.DB, logger *slog.Logger, startHe
 		}
 
 		// Filter out signers
-		nonSignerIds, err := FilterNonSigners(ctx, db, slices.Collect(maps.Values(accountIds)), tx.SignerId)
+		nonSignerIds, err := FilterNonSigners(slices.Collect(maps.Values(accountIds)), tx.SignerId)
 		if err != nil {
 			hashStr := hex.EncodeToString(tx.Hash)
 			return totalDeleted, fmt.Errorf("failed to filter signers for tx %s: %w", hashStr, err)
