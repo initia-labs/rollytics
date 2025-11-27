@@ -158,7 +158,7 @@ func queryBatchBalances(ctx context.Context, cfg *config.Config, erc20Address st
 
 		// Process each response in the batch
 		if len(batchResponses) != len(batch)+1 {
-			if attempt >= MAX_RETRY_ATTEMPTS_BEFORE_SENTRY {
+			if attempt == MAX_RETRY_ATTEMPTS_BEFORE_SENTRY {
 				sentry_integration.CaptureCurrentHubException(fmt.Errorf("batch response count mismatch: expected %d, got %d", len(batch)+1, len(batchResponses)), sentry.LevelError)
 			}
 			richlistutils.ExponentialBackoff(attempt)
