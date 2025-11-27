@@ -65,7 +65,10 @@ func runIndexer(cmd *cobra.Command, args []string) error {
 		defer sentry.Flush(2 * time.Second)
 	}
 
-	if err := handleMigrations(db, logger); err != nil {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	if err := handleMigrations(ctx, db, logger); err != nil {
 		return err
 	}
 
@@ -78,8 +81,7 @@ func runIndexer(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	ctx, cancel := setupGracefulShutdown(logger, indexerAPI, metricsServer)
-	defer cancel()
+	setupGracefulShutdown(ctx, cancel, logger, indexerAPI, metricsServer)
 
 	metrics.StartDBStatsUpdater(db, logger)
 	defer metrics.StopDBStatsUpdater()
@@ -123,7 +125,7 @@ func initializeSentryIfConfigured(cfg *config.Config, logger *slog.Logger) (bool
 	return true, nil
 }
 
-func handleMigrations(db *orm.Database, logger *slog.Logger) error {
+func handleMigrations(ctx context.Context, db *orm.Database, logger *slog.Logger) error {
 	concurrentLastMigration, err := db.CheckLastMigrationConcurrency()
 	if err != nil {
 		return err
@@ -131,12 +133,33 @@ func handleMigrations(db *orm.Database, logger *slog.Logger) error {
 
 	if concurrentLastMigration {
 		go func() {
+			// Check if context is already cancelled before starting migration
+			select {
+			case <-ctx.Done():
+				logger.Info("shutdown requested, skipping migration")
+				return
+			default:
+			}
+
 			logger.Info("running last migration concurrently with indexer")
-			if err := db.Migrate(); err != nil {
-				logger.Error("last migration failed", "error", err)
-				sentry.CaptureException(err)
-			} else {
-				logger.Info("last migration completed successfully")
+
+			// Run migration in a goroutine so we can monitor context cancellation
+			migrationDone := make(chan error, 1)
+			go func() {
+				migrationDone <- db.Migrate()
+			}()
+
+			select {
+			case <-ctx.Done():
+				logger.Info("shutdown requested, migration may still be running")
+				return
+			case err := <-migrationDone:
+				if err != nil {
+					logger.Error("last migration failed", "error", err)
+					sentry.CaptureException(err)
+				} else {
+					logger.Info("last migration completed successfully")
+				}
 			}
 		}()
 	}
@@ -156,9 +179,7 @@ func initializeAPIServer(cfg *config.Config, logger *slog.Logger, db *orm.Databa
 	return indexerAPI, nil
 }
 
-func setupGracefulShutdown(logger *slog.Logger, indexerAPI *indexerapi.Api, metricsServer *metrics.MetricsServer) (context.Context, context.CancelFunc) {
-	ctx, cancel := context.WithCancel(context.Background())
-
+func setupGracefulShutdown(ctx context.Context, cancel context.CancelFunc, logger *slog.Logger, indexerAPI *indexerapi.Api, metricsServer *metrics.MetricsServer) {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
@@ -173,8 +194,6 @@ func setupGracefulShutdown(logger *slog.Logger, indexerAPI *indexerapi.Api, metr
 		}
 		cancel()
 	}()
-
-	return ctx, cancel
 }
 
 func initializeSentry(cfg *config.Config, logger *slog.Logger, sentryCfg *config.SentryConfig) error {
