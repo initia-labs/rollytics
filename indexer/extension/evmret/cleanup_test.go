@@ -208,61 +208,47 @@ func TestFindRetOnlyAddresses(t *testing.T) {
 }
 
 func TestFilterNonSigners(t *testing.T) {
-	db := setupTestDB(t)
-	ctx := context.Background()
-
-	// Insert test tx_accounts records
-	txAccounts := []types.CollectedTxAccount{
-		{AccountId: 1, Sequence: 100, Signer: true},
-		{AccountId: 2, Sequence: 100, Signer: false},
-		{AccountId: 3, Sequence: 100, Signer: false},
-		{AccountId: 4, Sequence: 200, Signer: true},
-	}
-	for _, ta := range txAccounts {
-		require.NoError(t, db.Create(&ta).Error)
-	}
-
 	tests := []struct {
 		name       string
 		accountIds []int64
-		sequence   int64
+		signerId   int64
 		expected   []int64
 	}{
 		{
 			name:       "filter out signer",
 			accountIds: []int64{1, 2, 3},
-			sequence:   100,
+			signerId:   1,
 			expected:   []int64{2, 3},
 		},
 		{
 			name:       "all non-signers",
 			accountIds: []int64{2, 3},
-			sequence:   100,
+			signerId:   1,
 			expected:   []int64{2, 3},
 		},
 		{
 			name:       "all signers",
 			accountIds: []int64{1},
-			sequence:   100,
+			signerId:   1,
 			expected:   []int64{},
 		},
 		{
 			name:       "different sequence",
 			accountIds: []int64{4},
-			sequence:   200,
+			signerId:   4,
 			expected:   []int64{},
 		},
 		{
 			name:       "empty list",
 			accountIds: []int64{},
-			sequence:   100,
+			signerId:   1,
 			expected:   []int64{},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := FilterNonSigners(ctx, db, tt.accountIds, tt.sequence)
+			result, err := FilterNonSigners(tt.accountIds, tt.signerId)
 			require.NoError(t, err)
 			assert.ElementsMatch(t, tt.expected, result)
 		})
