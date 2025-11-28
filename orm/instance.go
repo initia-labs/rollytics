@@ -140,7 +140,7 @@ func (d Database) CheckLastMigrationConcurrency(ctx context.Context) (bool, erro
 	}
 
 	// Check migration status to see how many are pending
-	status, err := client.MigrateStatus(context.Background(), &atlasexec.MigrateStatusParams{
+	status, err := client.MigrateStatus(ctx, &atlasexec.MigrateStatusParams{
 		URL: d.config.DSN,
 	})
 	if err != nil {

@@ -10,12 +10,16 @@ import (
 	"sync"
 
 	sdkmath "cosmossdk.io/math"
+	"github.com/getsentry/sentry-go"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/initia-labs/rollytics/config"
 	richlistutils "github.com/initia-labs/rollytics/indexer/extension/richlist/utils"
+	"github.com/initia-labs/rollytics/sentry_integration"
 	"github.com/initia-labs/rollytics/util"
 )
+
+const MAX_RETRY_ATTEMPTS_BEFORE_SENTRY = 10
 
 // queryERC20Balances queries the balances of multiple addresses for a specific ERC20 token via JSON-RPC.
 // It returns a map of AddressWithID to balance (as sdkmath.Int).
@@ -136,20 +140,27 @@ func queryBatchBalances(ctx context.Context, cfg *config.Config, erc20Address st
 		// TODO: handle more appropriately
 		respBody, err := util.Post(ctx, cfg.GetChainConfig().JsonRpcUrl, "", batchRequests, headers, cfg.GetQueryTimeout())
 		if err != nil {
-			// return nil, fmt.Errorf("failed to send JSON-RPC batch request: %w", err)
+			if attempt == MAX_RETRY_ATTEMPTS_BEFORE_SENTRY {
+				sentry_integration.CaptureCurrentHubException(fmt.Errorf("failed to send JSON-RPC batch request: %w", err), sentry.LevelError)
+			}
+			richlistutils.ExponentialBackoff(attempt)
 			continue
 		}
 
 		// Parse batch response
 		if err := json.Unmarshal(respBody, &batchResponses); err != nil {
-			// return nil, fmt.Errorf("failed to decode JSON-RPC batch response: %w", err)
+			if attempt == MAX_RETRY_ATTEMPTS_BEFORE_SENTRY {
+				sentry_integration.CaptureCurrentHubException(fmt.Errorf("failed to decode JSON-RPC batch response: %w", err), sentry.LevelError)
+			}
 			richlistutils.ExponentialBackoff(attempt)
 			continue
 		}
 
 		// Process each response in the batch
 		if len(batchResponses) != len(batch)+1 {
-			// return nil, fmt.Errorf("batch response count mismatch: expected %d, got %d", len(batch)+1, len(batchResponses))
+			if attempt == MAX_RETRY_ATTEMPTS_BEFORE_SENTRY {
+				sentry_integration.CaptureCurrentHubException(fmt.Errorf("batch response count mismatch: expected %d, got %d", len(batch)+1, len(batchResponses)), sentry.LevelError)
+			}
 			richlistutils.ExponentialBackoff(attempt)
 			continue
 		}
@@ -157,7 +168,9 @@ func queryBatchBalances(ctx context.Context, cfg *config.Config, erc20Address st
 		// Parse the latest height from the batch response
 		latestHeight, err := parseLatestHeightFromBatch(batchResponses)
 		if err != nil {
-			// return nil, err
+			if attempt == MAX_RETRY_ATTEMPTS_BEFORE_SENTRY {
+				sentry_integration.CaptureCurrentHubException(fmt.Errorf("failed to parse latest height from batch response: %w", err), sentry.LevelError)
+			}
 			richlistutils.ExponentialBackoff(attempt)
 			continue
 		}
@@ -169,6 +182,9 @@ func queryBatchBalances(ctx context.Context, cfg *config.Config, erc20Address st
 				return nil, ctx.Err()
 			}
 			// Sleep before retrying with exponential backoff
+			if attempt == MAX_RETRY_ATTEMPTS_BEFORE_SENTRY {
+				sentry_integration.CaptureCurrentHubException(fmt.Errorf("latest height is less than requested height: %d < %d", latestHeight, height), sentry.LevelError)
+			}
 			richlistutils.ExponentialBackoff(attempt)
 			continue
 		}
