@@ -21,9 +21,6 @@ import (
 	"github.com/initia-labs/rollytics/util"
 )
 
-// TODO: Refactor this command to be more readable and maintainable.
-//
-//nolint:gocognit
 func indexerCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "indexer",
@@ -34,108 +31,163 @@ Run the rollytics indexer service.
 This command starts the blockchain indexer, which collects and processes on-chain data for analytics and storage.
 
 You can configure database, chain, logging, and indexer options via environment variables.`,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := config.GetConfig()
-			if err != nil {
-				return err
-			}
-
-			logger := log.NewLogger(cfg)
-
-			// Initialize the request limiter
-			util.InitUtil(cfg)
-
-			// Initialize dictionary caches
-			util.InitializeCaches(cfg.GetCacheConfig())
-
-			// Initialize database
-			db, err := orm.OpenDB(cfg.GetDBConfig(), logger)
-			if err != nil {
-				return err
-			}
-			defer func() { _ = db.Close() }()
-
-			// Initialize metrics
-			metrics.Init()
-			metricsServer := metrics.NewServer(cfg, logger)
-
-			// Start metrics server in background
-			go func() {
-				if err := metricsServer.Start(); err != nil {
-					logger.Error("metrics server failed", "error", err)
-				}
-			}()
-
-			if sentryCfg := cfg.GetSentryConfig(); sentryCfg != nil {
-				if err := initializeSentry(cfg, logger, sentryCfg); err != nil {
-					return err
-				}
-				defer sentry.Flush(2 * time.Second)
-			}
-
-			// Start DB migration (check status and conditionally handle last migration)
-			concurrentLastMigration, err := db.CheckLastMigrationConcurrency()
-			if err != nil {
-				return err
-			}
-
-			// If last migration has atlas:txmode none, run it concurrently with indexer
-			if concurrentLastMigration {
-				go func() {
-					logger.Info("running last migration concurrently with indexer")
-					if err := db.Migrate(); err != nil {
-						logger.Error("last migration failed", "error", err)
-						sentry.CaptureException(err)
-					} else {
-						logger.Info("last migration completed successfully")
-					}
-				}()
-			}
-
-			// Apply patch
-			if err := patcher.Patch(cfg, db, logger); err != nil {
-				return err
-			}
-
-			// Initialize API server
-			indexerAPI := indexerapi.New(cfg, logger, db)
-
-			// Start API server in background
-			go func() {
-				if err := indexerAPI.Start(); err != nil {
-					logger.Error("indexer API server failed", "error", err)
-				}
-			}()
-
-			// Setup graceful shutdown
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-
-			sigChan := make(chan os.Signal, 1)
-			signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
-
-			go func() {
-				<-sigChan
-				logger.Info("shutting down indexer...")
-				if err := indexerAPI.Shutdown(); err != nil {
-					logger.Error("failed to shutdown indexer API server", "error", err)
-				}
-				if err := metricsServer.Shutdown(ctx); err != nil {
-					logger.Error("failed to shutdown metrics server", "error", err)
-				}
-				cancel()
-			}()
-
-			// Start DB stats collection
-			metrics.StartDBStatsUpdater(db, logger)
-			defer metrics.StopDBStatsUpdater()
-
-			idxer := indexer.New(cfg, logger, db)
-			return idxer.Run(ctx)
-		},
+		RunE: runIndexer,
 	}
 
 	return cmd
+}
+
+func runIndexer(cmd *cobra.Command, args []string) error {
+	cfg, err := config.GetConfig()
+	if err != nil {
+		return err
+	}
+
+	logger := log.NewLogger(cfg)
+	initializeUtilities(cfg)
+
+	db, err := initializeDatabase(cfg, logger)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = db.Close() }()
+
+	metricsServer := initializeMetrics(cfg, logger)
+
+	shouldFlushSentry, err := initializeSentryIfConfigured(cfg, logger)
+	if err != nil {
+		return err
+	}
+	if shouldFlushSentry {
+		defer sentry.Flush(2 * time.Second)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	if err := handleMigrations(ctx, db, logger); err != nil {
+		return err
+	}
+
+	if err := patcher.Patch(cfg, db, logger); err != nil {
+		return err
+	}
+
+	indexerAPI := initializeAPIServer(cfg, logger, db)
+
+	setupGracefulShutdown(ctx, cancel, logger, indexerAPI, metricsServer)
+
+	metrics.StartDBStatsUpdater(db, logger)
+	defer metrics.StopDBStatsUpdater()
+
+	idxer := indexer.New(cfg, logger, db)
+	return idxer.Run(ctx)
+}
+
+func initializeUtilities(cfg *config.Config) {
+	util.InitUtil(cfg)
+	util.InitializeCaches(cfg.GetCacheConfig())
+}
+
+func initializeDatabase(cfg *config.Config, logger *slog.Logger) (*orm.Database, error) {
+	return orm.OpenDB(cfg.GetDBConfig(), logger)
+}
+
+func initializeMetrics(cfg *config.Config, logger *slog.Logger) *metrics.MetricsServer {
+	metrics.Init()
+	metricsServer := metrics.NewServer(cfg, logger)
+
+	go func() {
+		if err := metricsServer.Start(); err != nil {
+			logger.Error("metrics server failed", "error", err)
+		}
+	}()
+
+	return metricsServer
+}
+
+func initializeSentryIfConfigured(cfg *config.Config, logger *slog.Logger) (bool, error) {
+	sentryCfg := cfg.GetSentryConfig()
+	if sentryCfg == nil {
+		return false, nil
+	}
+
+	if err := initializeSentry(cfg, logger, sentryCfg); err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+func handleMigrations(ctx context.Context, db *orm.Database, logger *slog.Logger) error {
+	concurrentLastMigration, err := db.CheckLastMigrationConcurrency(ctx)
+	if err != nil {
+		return err
+	}
+
+	if concurrentLastMigration {
+		go func() {
+			// Check if context is already cancelled before starting migration
+			select {
+			case <-ctx.Done():
+				logger.Info("shutdown requested, skipping migration")
+				return
+			default:
+			}
+
+			logger.Info("running last migration concurrently with indexer")
+
+			// Run migration in a goroutine so we can monitor context cancellation
+			migrationDone := make(chan error, 1)
+			go func() {
+				migrationDone <- db.Migrate(ctx)
+			}()
+
+			select {
+			case <-ctx.Done():
+				logger.Info("shutdown requested, migration may still be running")
+				return
+			case err := <-migrationDone:
+				if err != nil {
+					logger.Error("last migration failed", "error", err)
+					sentry.CaptureException(err)
+				} else {
+					logger.Info("last migration completed successfully")
+				}
+			}
+		}()
+	}
+
+	return nil
+}
+
+func initializeAPIServer(cfg *config.Config, logger *slog.Logger, db *orm.Database) *indexerapi.Api {
+	indexerAPI := indexerapi.New(cfg, logger, db)
+
+	go func() {
+		if err := indexerAPI.Start(); err != nil {
+			logger.Error("indexer API server failed", "error", err)
+		}
+	}()
+
+	return indexerAPI
+}
+
+func setupGracefulShutdown(ctx context.Context, cancel context.CancelFunc, logger *slog.Logger, indexerAPI *indexerapi.Api, metricsServer *metrics.MetricsServer) {
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
+	go func() {
+		<-sigChan
+		logger.Info("shutting down indexer...")
+		if err := indexerAPI.Shutdown(); err != nil {
+			logger.Error("failed to shutdown indexer API server", "error", err)
+		}
+		if err := metricsServer.Shutdown(ctx); err != nil {
+			logger.Error("failed to shutdown metrics server", "error", err)
+		}
+		cancel()
+	}()
 }
 
 func initializeSentry(cfg *config.Config, logger *slog.Logger, sentryCfg *config.SentryConfig) error {
