@@ -10,9 +10,9 @@ import (
 	"sync"
 
 	sdkmath "cosmossdk.io/math"
+	"github.com/getsentry/sentry-go"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/getsentry/sentry-go"
 	"github.com/initia-labs/rollytics/config"
 	richlistutils "github.com/initia-labs/rollytics/indexer/extension/richlist/utils"
 	"github.com/initia-labs/rollytics/sentry_integration"
