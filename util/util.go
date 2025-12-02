@@ -2,7 +2,6 @@ package util
 
 import (
 	"encoding/hex"
-	"fmt"
 	"strings"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -18,10 +17,6 @@ func AccAddressFromString(addrStr string) (sdk.AccAddress, error) {
 		}
 	}
 
-	if addrStr == "0x" {
-		fmt.Println("empty address")
-	}
-
 	hexStr := strings.ToLower(strings.TrimLeft(strings.TrimPrefix(addrStr, "0x"), "0"))
 
 	if len(hexStr) <= 40 { //nolint:gocritic
@@ -30,10 +25,6 @@ func AccAddressFromString(addrStr string) (sdk.AccAddress, error) {
 		hexStr = strings.Repeat("0", 64-len(hexStr)) + hexStr
 	} else {
 		return nil, commontypes.NewInvalidValueError("address", addrStr, "invalid address format")
-	}
-
-	if addrStr == "0x" {
-		fmt.Println(hexStr)
 	}
 
 	return hex.DecodeString(hexStr)
