@@ -99,7 +99,7 @@ func TestExtractAddressesFromValue(t *testing.T) {
 		{
 			name:     "empty 0x",
 			value:    "0x",
-			expected: []string{"0x0000000000000000000000000000000000000000"},
+			expected: nil,
 		},
 		{
 			name:     "mixed valid and invalid",
@@ -172,6 +172,170 @@ func TestFindRetOnlyAddresses(t *testing.T) {
 			wantErr:  false,
 		},
 		{
+			name: "0x1 value",
+			txData: `{
+				"events": [
+					{
+						"type": "call",
+						"attributes": [
+						{
+							"key": "contract",
+							"value": "0x2eE7007DF876084d4C74685e90bB7f4cd7c86e22",
+							"index": false
+						},
+						{
+							"key": "ret",
+							"value": "0x",
+							"index": false
+						}
+						]
+					},
+					{
+						"type": "evm",
+						"attributes": [
+						{
+							"key": "log",
+							"value": "{\"address\":\"0x2eE7007DF876084d4C74685e90bB7f4cd7c86e22\",\"topics\":[\"0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef\",\"0x000000000000000000000000bdd8635cc1cd8fbc6f43d2d1858a6e4d953ea359\",\"0x000000000000000000000000f1829676db577682e944fc3493d451b67ff3e29f\"],\"data\":\"0x000000000000000000000000000000000000000000000000019ae52ad073b500\"}",
+							"index": false
+						}
+						]
+					},
+					{
+						"type": "call",
+						"attributes": [
+						{
+							"key": "contract",
+							"value": "0x2eE7007DF876084d4C74685e90bB7f4cd7c86e22",
+							"index": false
+						},
+						{
+							"key": "ret",
+							"value": "0x0000000000000000000000000000000000000000000000000000000000000001",
+							"index": false
+						},
+						{
+							"key": "msg_index",
+							"value": "0",
+							"index": false
+						}
+						]
+					},
+					{
+						"type": "evm",
+						"attributes": [
+						{
+							"key": "log",
+							"value": "{\"address\":\"0x2eE7007DF876084d4C74685e90bB7f4cd7c86e22\",\"topics\":[\"0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925\",\"0x000000000000000000000000bdd8635cc1cd8fbc6f43d2d1858a6e4d953ea359\",\"0x0000000000000000000000007fd385d69908247436f49de2a1aff6438d75c3c0\"],\"data\":\"0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\"}",
+							"index": false
+						},
+						{
+							"key": "msg_index",
+							"value": "0",
+							"index": false
+						}
+						]
+					},
+					{
+						"type": "call",
+						"attributes": [
+						{
+							"key": "contract",
+							"value": "0x7FD385d69908247436f49de2A1AFf6438d75C3c0",
+							"index": false
+						},
+						{
+							"key": "ret",
+							"value": "0x0000000000000000000000001d14ae89516e15e050bf6c4a1f549b9deb5f6efb00000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000006",
+							"index": false
+						},
+						{
+							"key": "msg_index",
+							"value": "1",
+							"index": false
+						}
+						]
+					},
+					{
+						"type": "evm",
+						"attributes": [
+						{
+							"key": "log",
+							"value": "{\"address\":\"0x2eE7007DF876084d4C74685e90bB7f4cd7c86e22\",\"topics\":[\"0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef\",\"0x000000000000000000000000bdd8635cc1cd8fbc6f43d2d1858a6e4d953ea359\",\"0x0000000000000000000000000000000000000000000000000000000000000000\"],\"data\":\"0x00000000000000000000000000000000000000000000000000000574fbde6000\"}",
+							"index": false
+						},
+						{
+							"key": "log",
+							"value": "{\"address\":\"0x1D14AE89516E15E050bf6C4A1f549b9deB5f6EFb\",\"topics\":[\"0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef\",\"0x0000000000000000000000007fd385d69908247436f49de2a1aff6438d75c3c0\",\"0x000000000000000000000000bdd8635cc1cd8fbc6f43d2d1858a6e4d953ea359\"],\"data\":\"0x0000000000000000000000000000000000000000000000000000000000000006\"}",
+							"index": false
+						},
+						{
+							"key": "log",
+							"value": "{\"address\":\"0x7FD385d69908247436f49de2A1AFf6438d75C3c0\",\"topics\":[\"0xa115381c3e3d88df4f33d381b1fee8644c837f96f60a1e630c5da72e27f769a3\"],\"data\":\"0x00000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000012000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000574fbde6000000000000000000000000000000000000000000000000000000000000000002c65766d2f32654537303037444638373630383464344337343638356539306242376634636437633836653232000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000436c322f323266323966396533386136303263323239636636663365383637336466643439633266383663623833323439353133663433366666333565613331376363610000000000000000000000000000000000000000000000000000000000\"}",
+							"index": false
+						},
+						{
+							"key": "msg_index",
+							"value": "1",
+							"index": false
+						}
+						]
+					},
+					{
+						"type": "call",
+						"attributes": [
+						{
+							"key": "contract",
+							"value": "0x1D14AE89516E15E050bf6C4A1f549b9deB5f6EFb",
+							"index": false
+						},
+						{
+							"key": "ret",
+							"value": "0x",
+							"index": false
+						},
+						{
+							"key": "msg_index",
+							"value": "2",
+							"index": false
+						}
+						]
+					},
+					{
+						"type": "evm",
+						"attributes": [
+						{
+							"key": "log",
+							"value": "{\"address\":\"0x1D14AE89516E15E050bf6C4A1f549b9deB5f6EFb\",\"topics\":[\"0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef\",\"0x000000000000000000000000bdd8635cc1cd8fbc6f43d2d1858a6e4d953ea359\",\"0x000000000000000000000000ed23c6f4443f49c4b08f856350a5d2c65a203235\"],\"data\":\"0x0000000000000000000000000000000000000000000000000000000000000006\"}",
+							"index": false
+						},
+						{
+							"key": "msg_index",
+							"value": "2",
+							"index": false
+						}
+						]
+					}
+				]
+			}`,
+			expected: []string{"0x0000000000000000000000000000000000000001"},
+			wantErr:  false,
+		},
+		{
+			name: "0x0 ret value",
+			txData: `{
+				"events": [
+					{
+						"type": "call",
+						"attributes": [
+							{"key": "ret", "value": "0x0"}
+						]
+					}
+				]
+			}`,
+			expected: []string{"0x0000000000000000000000000000000000000000"},
+			wantErr:  false,
+		},
+		{
 			name: "empty ret value",
 			txData: `{
 				"events": [
@@ -183,7 +347,7 @@ func TestFindRetOnlyAddresses(t *testing.T) {
 					}
 				]
 			}`,
-			expected: []string{"0x0000000000000000000000000000000000000000"},
+			expected: []string{},
 			wantErr:  false,
 		},
 		{

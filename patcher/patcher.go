@@ -12,6 +12,7 @@ import (
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/patcher/v1_0_12"
 	"github.com/initia-labs/rollytics/patcher/v1_0_14"
+	"github.com/initia-labs/rollytics/patcher/v1_0_15"
 	"github.com/initia-labs/rollytics/patcher/v1_0_2"
 	"github.com/initia-labs/rollytics/types"
 )
@@ -27,6 +28,7 @@ var patches = []PatchHandler{
 	{"v1.0.2", v1_0_2.Patch},
 	{"v1.0.12", v1_0_12.Patch},
 	{"v1.0.14", v1_0_14.Patch},
+	{"v1.0.15", v1_0_15.Patch},
 }
 
 // Patch applies data migration patches to fix or update existing data in the database.

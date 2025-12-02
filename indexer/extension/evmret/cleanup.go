@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"maps"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -21,6 +22,39 @@ import (
 // TxDataWithEvents represents the structure of tx.data field containing events
 type TxDataWithEvents struct {
 	Events []abci.Event `json:"events"`
+}
+
+const (
+	InitBech32Regex = "^init1(?:[a-z0-9]{38}|[a-z0-9]{58})$"
+	InitHexRegex    = "^0x(?:[a-fA-F0-9]{1,64})$"
+	MoveHexRegex    = "0x(?:[a-fA-F0-9]{1,64})"
+)
+
+var (
+	regexInitBech = regexp.MustCompile(InitBech32Regex)
+	regexHex      = regexp.MustCompile(InitHexRegex)
+)
+
+// extractAddressesFromValue extracts valid EVM addresses from an attribute value
+// It should produce the exact same results as grepAddressesFromTx for non-log attributes:
+func extractAddressesFromValue(value string) []string {
+	var addresses []string
+
+	// Split on commas like grepAddressesFromTx does
+	for _, attrVal := range strings.Split(value, ",") {
+		addresses = append(addresses, regexInitBech.FindAllString(attrVal, -1)...)
+		addresses = append(addresses, regexHex.FindAllString(attrVal, -1)...)
+	}
+
+	var validAddresses []string
+	for _, addr := range addresses {
+		accAddr, err := util.AccAddressFromString(addr)
+		if err == nil {
+			validAddresses = append(validAddresses, util.BytesToHexWithPrefix(accAddr))
+		}
+	}
+
+	return validAddresses
 }
 
 // FindRetOnlyAddresses parses Cosmos TX data and finds addresses that appear ONLY in ret attributes
@@ -75,28 +109,6 @@ func FindRetOnlyAddresses(txData json.RawMessage) ([]string, error) {
 	}
 
 	return retOnlyAddrs, nil
-}
-
-// extractAddressesFromValue extracts valid EVM addresses from an attribute value
-// It should produce the exact same results as grepAddressesFromTx for non-log attributes:
-func extractAddressesFromValue(value string) []string {
-	var addresses []string
-
-	// Split on commas like grepAddressesFromTx does
-	parts := strings.Split(value, ",")
-	for _, part := range parts {
-		token := strings.TrimSpace(part)
-
-		acc, err := util.AccAddressFromString(token)
-		if err != nil {
-			continue
-		}
-
-		addr := util.BytesToHexWithPrefix(acc.Bytes())
-		addresses = append(addresses, addr)
-	}
-
-	return addresses
 }
 
 // FilterNonSigners filters out account IDs that match signerId
