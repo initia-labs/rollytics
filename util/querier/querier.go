@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/getsentry/sentry-go"
+
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/sentry_integration"
 	"github.com/initia-labs/rollytics/types"
