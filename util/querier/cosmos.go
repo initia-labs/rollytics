@@ -212,7 +212,10 @@ func (q *Querier) GetAllBalances(ctx context.Context, address sdk.AccAddress, he
 	useOffset := false
 
 	for {
-		balancesResp, err := executeWithEndpointRotation(ctx, q.RestUrls, fetchCosmosBalances(address, height, useOffset, nextKey))
+		balancesResp, err := executeWithEndpointRotation(
+			ctx, q.RestUrls,
+			fetchCosmosBalances(address, height, useOffset, nextKey),
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -254,12 +257,12 @@ func (q *Querier) GetAllBalances(ctx context.Context, address sdk.AccAddress, he
 	return allBalances, nil
 }
 
-func fetchAllAccountsWithPagination(height int64, useOffset bool, offset int, nextKey []byte) func(ctx context.Context, endpointURL string) (*types.CosmosAccountsResponse, error) {
+func fetchAllAccountsWithPagination(height int64, useOffset bool, nextKey []byte) func(ctx context.Context, endpointURL string) (*types.CosmosAccountsResponse, error) {
 	return func(ctx context.Context, endpointURL string) (*types.CosmosAccountsResponse, error) {
 		// Build pagination parameters
 		params := map[string]string{"pagination.limit": paginationLimit}
 		if useOffset {
-			params["pagination.offset"] = strconv.Itoa(offset)
+			params["pagination.offset"] = "0"
 		} else if len(nextKey) > 0 {
 			params["pagination.key"] = base64.StdEncoding.EncodeToString(nextKey)
 		}
@@ -283,11 +286,10 @@ func (q *Querier) FetchAllAccountsWithPagination(ctx context.Context, height int
 	var allAddresses []sdk.AccAddress
 	var nextKey []byte
 	useOffset := false
-	offset := 0
 
 	for {
 
-		accountsResp, err := executeWithEndpointRotation(ctx, q.RestUrls, fetchAllAccountsWithPagination(height, useOffset, offset, nextKey))
+		accountsResp, err := executeWithEndpointRotation(ctx, q.RestUrls, fetchAllAccountsWithPagination(height, useOffset, nextKey))
 		if err != nil {
 			return nil, err
 		}
