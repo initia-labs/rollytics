@@ -9,12 +9,10 @@ import (
 	"strings"
 	"time"
 
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/initia-labs/minievm/x/evm/contracts/erc721"
 
 	"github.com/initia-labs/rollytics/sentry_integration"
 	"github.com/initia-labs/rollytics/types"
-	"github.com/initia-labs/rollytics/util"
 	"github.com/initia-labs/rollytics/util/cache"
 )
 
@@ -170,7 +168,7 @@ func (q *Querier) GetEvmContractByDenom(ctx context.Context, denom string) (stri
 		denom = "GAS"
 	}
 
-	response, err := executeWithEndpointRotation(ctx, q.JsonRpcUrls, fetchEvmContractByDenom(denom))
+	response, err := executeWithEndpointRotation(ctx, q.RestUrls, fetchEvmContractByDenom(denom))
 	if err != nil {
 		return "", err
 	}
@@ -185,14 +183,6 @@ func (q *Querier) GetEvmContractByDenom(ctx context.Context, denom string) (stri
 	cache.SetEvmDenomContractCache(denom, address)
 
 	return address, nil
-}
-
-func normalizeAccountToBech32(account string) (string, error) {
-	accBytes, err := util.AccAddressFromString(account)
-	if err != nil {
-		return "", err
-	}
-	return sdk.AccAddress(accBytes).String(), nil
 }
 
 func fetchTraceCallByBlock(height int64, timeout time.Duration) func(ctx context.Context, endpointURL string) (*types.DebugCallTraceBlockResponse, error) {
@@ -217,7 +207,7 @@ func fetchTraceCallByBlock(height int64, timeout time.Duration) func(ctx context
 		}
 
 		errResp, err := extractResponse[types.JSONRPCErrorResponse](body)
-		if errResp.Error != nil {
+		if err == nil && errResp.Error != nil {
 			return nil, fmt.Errorf("RPC error (code: %d): %s", errResp.Error.Code, errResp.Error.Message)
 		}
 

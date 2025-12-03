@@ -281,8 +281,6 @@ func fetchAllAccountsWithPagination(height int64, useOffset bool, offset int, ne
 }
 
 func (q *Querier) FetchAllAccountsWithPagination(ctx context.Context, height int64) ([]sdk.AccAddress, error) {
-	const path = "/cosmos/auth/v1beta1/accounts"
-
 	var allAddresses []sdk.AccAddress
 	var nextKey []byte
 	useOffset := false

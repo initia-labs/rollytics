@@ -14,8 +14,6 @@ import (
 	"github.com/initia-labs/rollytics/util/querier"
 )
 
-const MAX_RETRY_ATTEMPTS_BEFORE_SENTRY = 10
-
 // queryERC20Balances queries the balances of multiple addresses for a specific ERC20 token via JSON-RPC.
 // It returns a map of AddressWithID to balance (as sdkmath.Int).
 //
@@ -46,6 +44,7 @@ func queryERC20Balances(ctx context.Context, cfg *config.Config, erc20Address st
 		batches = append(batches, addresses[i:end])
 	}
 
+	querier := querier.NewQuerier(cfg.GetChainConfig())
 	// Process batches with parallelization using errgroup
 	var mu sync.Mutex
 	g, ctx := errgroup.WithContext(ctx)
@@ -57,7 +56,7 @@ func queryERC20Balances(ctx context.Context, cfg *config.Config, erc20Address st
 		g.Go(func() error {
 			// queryBatchBalances uses utils.Post which already handles retries with exponential backoff
 			// TODO: revisit
-			batchBalances, err := queryBatchBalances(ctx, querier.NewQuerier(cfg.GetChainConfig()), erc20Address, batchData, height)
+			batchBalances, err := queryBatchBalances(ctx, querier, erc20Address, batchData, height)
 			if err != nil {
 				return fmt.Errorf("failed to query batch %d: %w", batchIdx, err)
 			}

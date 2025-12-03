@@ -8,7 +8,6 @@ import (
 
 	"github.com/initia-labs/rollytics/types"
 	"github.com/initia-labs/rollytics/util/common-handler/common"
-	"github.com/initia-labs/rollytics/util/querier"
 )
 
 // GetBlocks handles GET /block/v1/blocks
@@ -84,8 +83,7 @@ func (h *BlockHandler) GetBlockByHeight(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, types.NewDatabaseError("get block", err).Error())
 	}
 
-	querier := querier.NewQuerier(h.GetConfig().GetChainConfig())
-	blockRes, err := ToBlockResponse(c.UserContext(), block, querier)
+	blockRes, err := ToBlockResponse(c.UserContext(), block, h.querier)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}

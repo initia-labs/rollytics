@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/gofiber/fiber/v2"
 	"golang.org/x/mod/semver"
 
 	"github.com/initia-labs/rollytics/util/querier"
@@ -15,9 +14,6 @@ const (
 )
 
 func CheckNodeVersion(ctx context.Context, querier *querier.Querier) error {
-	client := fiber.AcquireClient()
-	defer fiber.ReleaseClient(client)
-
 	nodeInfo, err := querier.GetNodeInfo(ctx)
 	if err != nil {
 		return err
