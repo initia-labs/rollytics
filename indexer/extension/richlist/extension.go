@@ -36,9 +36,10 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *RichListExt
 	}
 
 	return &RichListExtension{
-		cfg:    cfg,
-		logger: logger.With("extension", ExtensionName),
-		db:     db,
+		cfg:     cfg,
+		logger:  logger.With("extension", ExtensionName),
+		db:      db,
+		querier: querier.NewQuerier(cfg.GetChainConfig()),
 	}
 }
 
