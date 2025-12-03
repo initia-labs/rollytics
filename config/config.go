@@ -259,9 +259,9 @@ func loadConfig() (*Config, error) {
 	cc := &ChainConfig{
 		ChainId:              viper.GetString("CHAIN_ID"),
 		VmType:               vmType,
-		RpcUrls:              splitAndTrim(viper.GetString("RPC_URLS")),
-		RestUrls:             splitAndTrim(viper.GetString("REST_URLS")),
-		JsonRpcUrls:          splitAndTrim(viper.GetString("JSON_RPC_URLS")),
+		RpcUrls:              splitAndTrim(viper.GetString("RPC_URL")),
+		RestUrls:             splitAndTrim(viper.GetString("REST_URL")),
+		JsonRpcUrls:          splitAndTrim(viper.GetString("JSON_RPC_URL")),
 		AccountAddressPrefix: viper.GetString("ACCOUNT_ADDRESS_PREFIX"),
 	}
 
