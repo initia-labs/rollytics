@@ -201,8 +201,7 @@ func executeWithRetry(ctx context.Context, baseUrl, path string, config requestC
 	retryCount := 0
 	rateLimitRetries := 0
 	timeoutRetries := 0
-	// Initialize with a default error to ensure err is never nil after retries
-	var err = types.NewTimeoutError("no attempts made")
+	var err error
 
 	for {
 		// Check if parent context is cancelled (Ctrl+C) - this is the only way to stop

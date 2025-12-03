@@ -26,6 +26,33 @@ const (
 	cosmosNodeInfoPath       = "/cosmos/base/tendermint/v1beta1/node_info"
 )
 
+// handlePaginationNextKey handles pagination logic for broken APIs that return null next_key prematurely.
+// Returns (shouldContinue, shouldBreak) where:
+// - shouldContinue: true if we should continue with offset pagination
+// - shouldBreak: true if we should break (no more pages)
+func handlePaginationNextKey(pagination types.Pagination, currentCount, pageSize int, useOffset *bool) (bool, bool) {
+	if len(pagination.NextKey) != 0 {
+		return false, false // Continue with next key
+	}
+
+	// Workaround for broken API that returns null next_key prematurely.
+	if pagination.Total == "" {
+		return false, true // No more pages
+	}
+
+	total, err := strconv.Atoi(pagination.Total)
+	if err != nil {
+		return false, true // Can't parse total, assume done
+	}
+
+	if currentCount < total && pageSize == paginationLimitInt {
+		*useOffset = true
+		return true, false // Continue with offset
+	}
+
+	return false, true // No more pages
+}
+
 func (q *Querier) GetCosmosTxs(ctx context.Context, height int64, txCount int) (txs []types.RestTx, err error) {
 	for {
 		allTxs, err := q.fetchAllTxsWithPagination(ctx, height)
@@ -76,20 +103,12 @@ func (q *Querier) fetchAllTxsWithPagination(ctx context.Context, height int64) (
 		allTxs = append(allTxs, response.Txs...)
 		offset = len(allTxs)
 
-		if len(response.Pagination.NextKey) == 0 {
-			// Workaround for broken API that returns null next_key prematurely.
-			if response.Pagination.Total != "" {
-				total, err := strconv.Atoi(response.Pagination.Total)
-				if err != nil {
-					return allTxs, fmt.Errorf("failed to parse pagination.total: %w", err)
-				}
-
-				if len(allTxs) < total && len(response.Txs) == paginationLimitInt {
-					useOffset = true
-					continue // try next page with offset
-				}
-			}
+		shouldContinue, shouldBreak := handlePaginationNextKey(response.Pagination, len(allTxs), len(response.Txs), &useOffset)
+		if shouldBreak {
 			break // No more pages
+		}
+		if shouldContinue {
+			continue // try next page with offset
 		}
 
 		nextKey = response.Pagination.NextKey
@@ -237,20 +256,12 @@ func (q *Querier) GetAllBalances(ctx context.Context, address sdk.AccAddress, he
 			})
 		}
 		// Check if there are more pages
-		if len(balancesResp.Pagination.NextKey) == 0 {
-			// Workaround for broken API that returns null next_key prematurely.
-			if balancesResp.Pagination.Total != "" {
-				total, err := strconv.Atoi(balancesResp.Pagination.Total)
-				if err != nil {
-					return nil, fmt.Errorf("failed to parse pagination.total: %w", err)
-				}
-
-				if len(allBalances) < total && len(balancesResp.Balances) == paginationLimitInt {
-					useOffset = true
-					continue // try next page with offset
-				}
-			}
+		shouldContinue, shouldBreak := handlePaginationNextKey(balancesResp.Pagination, len(allBalances), len(balancesResp.Balances), &useOffset)
+		if shouldBreak {
 			break
+		}
+		if shouldContinue {
+			continue // try next page with offset
 		}
 		nextKey = balancesResp.Pagination.NextKey
 	}
@@ -288,45 +299,45 @@ func (q *Querier) FetchAllAccountsWithPagination(ctx context.Context, height int
 	useOffset := false
 
 	for {
-
 		accountsResp, err := executeWithEndpointRotation(ctx, q.RestUrls, fetchAllAccountsWithPagination(height, useOffset, nextKey))
 		if err != nil {
 			return nil, err
 		}
 
-		// Extract addresses from accounts
-		for _, account := range accountsResp.Accounts {
-			if account.Address != "" {
-				if accAddress, err := util.AccAddressFromString(account.Address); err == nil {
-					if q.VmType == types.EVM && len(accAddress) > 20 {
-						continue
-					}
-					allAddresses = append(allAddresses, accAddress)
-				}
-			}
-		}
+		extracted := q.extractAddressesFromAccounts(accountsResp.Accounts)
+		allAddresses = append(allAddresses, extracted...)
 
 		// Check if there are more pages
-		if len(accountsResp.Pagination.NextKey) == 0 {
-			// Workaround for broken API that returns null next_key prematurely.
-			if accountsResp.Pagination.Total != "" {
-				total, err := strconv.Atoi(accountsResp.Pagination.Total)
-				if err != nil {
-					return allAddresses, fmt.Errorf("failed to parse pagination.total: %w", err)
-				}
-
-				if len(allAddresses) < total && len(accountsResp.Accounts) == paginationLimitInt {
-					useOffset = true
-					continue // try next page with offset
-				}
-			}
+		shouldContinue, shouldBreak := handlePaginationNextKey(accountsResp.Pagination, len(allAddresses), len(accountsResp.Accounts), &useOffset)
+		if shouldBreak {
 			break
+		}
+		if shouldContinue {
+			continue // try next page with offset
 		}
 
 		nextKey = accountsResp.Pagination.NextKey
 	}
 
 	return allAddresses, nil
+}
+
+func (q *Querier) extractAddressesFromAccounts(accounts []types.CosmosAccount) []sdk.AccAddress {
+	var addresses []sdk.AccAddress
+	for _, account := range accounts {
+		if account.Address == "" {
+			continue
+		}
+		accAddress, err := util.AccAddressFromString(account.Address)
+		if err != nil {
+			continue
+		}
+		if q.VmType == types.EVM && len(accAddress) > 20 {
+			continue
+		}
+		addresses = append(addresses, accAddress)
+	}
+	return addresses
 }
 
 func fetchNodeInfo() func(ctx context.Context, endpointURL string) (*types.NodeInfo, error) {

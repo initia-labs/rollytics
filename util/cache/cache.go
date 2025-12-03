@@ -45,7 +45,6 @@ var (
 // InitializeCaches initializes all dictionary caches with the given configuration
 // This function is safe to call multiple times - it will only initialize once
 func InitializeCaches(cfg *config.CacheConfig) {
-
 	cacheInitOnce.Do(func() {
 		accountCache = cache.New[string, int64](cfg.AccountCacheSize)
 		nftCache = cache.New[NftKey, int64](cfg.NftCacheSize)

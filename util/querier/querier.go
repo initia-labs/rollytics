@@ -124,5 +124,4 @@ func executeWithEndpointRotation[T any](ctx context.Context, endpoints []string,
 		case <-time.After(backoffDelay):
 		}
 	}
-
 }
