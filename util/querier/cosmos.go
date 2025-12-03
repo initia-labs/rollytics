@@ -181,12 +181,12 @@ func (q *Querier) GetMinterBurnerModuleAccounts(ctx context.Context) ([]sdk.AccA
 	return moduleAccounts, nil
 }
 
-func fetchCosmosBalances(address sdk.AccAddress, height int64, useOffset bool, offset int, nextKey []byte) func(ctx context.Context, endpointURL string) (*types.QueryAllBalancesResponse, error) {
+func fetchCosmosBalances(address sdk.AccAddress, height int64, useOffset bool, nextKey []byte) func(ctx context.Context, endpointURL string) (*types.QueryAllBalancesResponse, error) {
 	return func(ctx context.Context, endpointURL string) (*types.QueryAllBalancesResponse, error) {
 		// Build pagination parameters
 		params := map[string]string{"pagination.limit": paginationLimit}
 		if useOffset {
-			params["pagination.offset"] = strconv.Itoa(offset)
+			params["pagination.offset"] = "0"
 		} else if len(nextKey) > 0 {
 			params["pagination.key"] = base64.StdEncoding.EncodeToString(nextKey)
 		}
@@ -210,10 +210,9 @@ func (q *Querier) GetAllBalances(ctx context.Context, address sdk.AccAddress, he
 	var allBalances []sdk.Coin
 	var nextKey []byte
 	useOffset := false
-	offset := 0
 
 	for {
-		balancesResp, err := executeWithEndpointRotation(ctx, q.RestUrls, fetchCosmosBalances(address, height, useOffset, offset, nextKey))
+		balancesResp, err := executeWithEndpointRotation(ctx, q.RestUrls, fetchCosmosBalances(address, height, useOffset, nextKey))
 		if err != nil {
 			return nil, err
 		}
@@ -341,6 +340,7 @@ func fetchNodeInfo() func(ctx context.Context, endpointURL string) (*types.NodeI
 		return &nodeInfo, nil
 	}
 }
+
 func (q *Querier) GetNodeInfo(ctx context.Context) (*types.NodeInfo, error) {
 	res, err := executeWithEndpointRotation(ctx, q.RestUrls, fetchNodeInfo())
 	if err != nil {
