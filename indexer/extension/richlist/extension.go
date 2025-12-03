@@ -10,10 +10,10 @@ import (
 
 	"github.com/initia-labs/rollytics/config"
 	evmrichlist "github.com/initia-labs/rollytics/indexer/extension/richlist/evmrichlist"
-	richlistutils "github.com/initia-labs/rollytics/indexer/extension/richlist/utils"
 	exttypes "github.com/initia-labs/rollytics/indexer/extension/types"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
+	"github.com/initia-labs/rollytics/util/querier"
 )
 
 const ExtensionName = "rich-list"
@@ -26,6 +26,7 @@ type RichListExtension struct {
 	db          *orm.Database
 	startHeight int64 // Last produced/queued height
 	requireInit bool
+	querier     *querier.Querier
 }
 
 func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *RichListExtension {
@@ -35,9 +36,10 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *RichListExt
 	}
 
 	return &RichListExtension{
-		cfg:    cfg,
-		logger: logger.With("extension", ExtensionName),
-		db:     db,
+		cfg:     cfg,
+		logger:  logger.With("extension", ExtensionName),
+		db:      db,
+		querier: querier.NewQuerier(cfg.GetChainConfig()),
 	}
 }
 
@@ -81,7 +83,7 @@ func (r *RichListExtension) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to initialize rich list extension: %w", err)
 	}
 
-	moduleAccounts, err := richlistutils.FetchMinterBurnerModuleAccounts(ctx, r.cfg)
+	moduleAccounts, err := r.querier.GetMinterBurnerModuleAccounts(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to fetch module accounts: %w", err)
 	}

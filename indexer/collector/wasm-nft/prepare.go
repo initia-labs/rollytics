@@ -1,6 +1,7 @@
 package wasm_nft
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"sync"
@@ -22,7 +23,7 @@ var (
 	parseErrRegex = regexp.MustCompile(`Error parsing into type [^:]+::msg::QueryMsg: unknown variant`)
 )
 
-func (sub *WasmNftSubmodule) prepare(block indexertypes.ScrapedBlock) error {
+func (sub *WasmNftSubmodule) prepare(ctx context.Context, block indexertypes.ScrapedBlock) error {
 	collectionAddrs := filterCollectionAddrs(block)
 
 	colInfos := make(map[string]CollectionInfo)
@@ -36,7 +37,7 @@ func (sub *WasmNftSubmodule) prepare(block indexertypes.ScrapedBlock) error {
 		}
 
 		g.Go(func() error {
-			name, creatorAddr, err := GetCollectionData(addr, sub.cfg, block.Height)
+			name, creatorAddr, err := sub.querier.GetCollectionData(ctx, addr, block.Height)
 			if err != nil {
 				errString := fmt.Sprintf("%+v", err)
 				if parseErrRegex.MatchString(errString) {

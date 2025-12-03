@@ -8,11 +8,13 @@ import (
 	"github.com/initia-labs/rollytics/api/cache"
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/util/common-handler/common"
+	"github.com/initia-labs/rollytics/util/querier"
 )
 
 type RichListHandler struct {
 	*common.BaseHandler
-	cfg *config.Config
+	cfg     *config.Config
+	querier *querier.Querier
 }
 
 var _ common.HandlerRegistrar = (*RichListHandler)(nil)
@@ -21,6 +23,7 @@ func NewRichListHandler(base *common.BaseHandler, cfg *config.Config) *RichListH
 	return &RichListHandler{
 		BaseHandler: base,
 		cfg:         cfg,
+		querier:     querier.NewQuerier(cfg.GetChainConfig()),
 	}
 }
 

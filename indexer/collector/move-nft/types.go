@@ -6,15 +6,6 @@ type CacheData struct {
 	NftResources map[string]string // nft addr -> nft resource
 }
 
-type QueryMoveResourceResponse struct {
-	Resource struct {
-		Address      string `json:"address"`
-		StructTag    string `json:"struct_tag"`
-		MoveResource string `json:"move_resource"`
-		RawBytes     string `json:"raw_bytes"`
-	} `json:"resource"`
-}
-
 type CreateCollectionEvent struct {
 	Collection string `json:"collection"`
 	Creator    string `json:"creator"`

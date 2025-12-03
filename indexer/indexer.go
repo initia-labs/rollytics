@@ -16,10 +16,10 @@ import (
 	"github.com/initia-labs/rollytics/indexer/extension"
 	"github.com/initia-labs/rollytics/indexer/scraper"
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
-	"github.com/initia-labs/rollytics/indexer/util"
 	"github.com/initia-labs/rollytics/metrics"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
+	"github.com/initia-labs/rollytics/util/querier"
 )
 
 const (
@@ -42,6 +42,7 @@ type Indexer struct {
 	height           int64
 	prepareCount     int
 	ctx              context.Context
+	querier          *querier.Querier
 }
 
 func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Indexer {
@@ -55,6 +56,7 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Indexer {
 		blockMap:         make(map[int64]indexertypes.ScrapedBlock),
 		blockChan:        make(chan indexertypes.ScrapedBlock),
 		controlChan:      make(chan string),
+		querier:          querier.NewQuerier(cfg.GetChainConfig()),
 	}
 }
 
@@ -76,8 +78,8 @@ func (i *Indexer) Run(ctx context.Context) error {
 
 	// get the current chain height for validation/clamping
 	client := fiber.AcquireClient()
-	chainHeight, err := util.GetLatestHeight(client, i.cfg)
-	fiber.ReleaseClient(client)
+	defer fiber.ReleaseClient(client)
+	chainHeight, err := i.querier.GetLatestHeight(ctx)
 	if err != nil {
 		i.logger.Error("failed to get chain height", slog.Any("error", err))
 		return err
@@ -153,7 +155,7 @@ func (i *Indexer) wait() {
 	client := fiber.AcquireClient()
 	defer fiber.ReleaseClient(client)
 	for {
-		chainHeight, err := util.GetLatestHeight(client, i.cfg)
+		chainHeight, err := i.querier.GetLatestHeight(i.ctx)
 		if err != nil {
 			i.logger.Error("failed to get chain height", slog.Any("error", err))
 			time.Sleep(5 * time.Second)
@@ -200,18 +202,65 @@ func (i *Indexer) prepare() {
 
 				start := time.Now()
 				indexerMetrics := metrics.GetMetrics().IndexerMetrics()
-				if err := i.collector.Prepare(b); err != nil {
+
+				// Retry prepare operation indefinitely for timeouts, only stop on context cancellation (Ctrl+C)
+				for {
+					// Check if context is cancelled (Ctrl+C) - this is the only way to stop
+					select {
+					case <-i.ctx.Done():
+						i.logger.Info("prepare cancelled, stopping", slog.Int64("height", b.Height))
+						i.mtx.Lock()
+						i.prepareCount--
+						i.mtx.Unlock()
+						return
+					default:
+					}
+
+					err := i.collector.Prepare(i.ctx, b)
+					if err == nil {
+						// Success - break out of retry loop
+						indexerMetrics.BlockProcessingTime.WithLabelValues("prepare").Observe(time.Since(start).Seconds())
+						i.mtx.Lock()
+						i.blockMap[b.Height] = b
+						i.prepareCount--
+						i.mtx.Unlock()
+						return
+					}
+
+					// Handle context cancellation (Ctrl+C) - stop immediately
+					if errors.Is(err, context.Canceled) {
+						i.logger.Info("prepare cancelled, stopping", slog.Int64("height", b.Height))
+						i.mtx.Lock()
+						i.prepareCount--
+						i.mtx.Unlock()
+						return
+					}
+
+					// Handle timeout - retry indefinitely
+					if errors.Is(err, context.DeadlineExceeded) {
+						i.logger.Warn("prepare timed out, retrying", slog.Int64("height", b.Height))
+						indexerMetrics.ProcessingErrors.WithLabelValues("prepare", "timeout_retry").Inc()
+						metrics.TrackError("indexer", "prepare_timeout_retry")
+						// Wait a bit before retrying
+						select {
+						case <-i.ctx.Done():
+							i.logger.Info("prepare cancelled during retry wait, stopping", slog.Int64("height", b.Height))
+							i.mtx.Lock()
+							i.prepareCount--
+							i.mtx.Unlock()
+							return
+						case <-time.After(i.cfg.GetCoolingDuration()):
+							// Continue retry loop
+						}
+						continue
+					}
+
+					// For other errors, log and panic (unchanged behavior)
 					i.logger.Error("failed to prepare block", slog.Int64("height", b.Height), slog.Any("error", err))
 					indexerMetrics.ProcessingErrors.WithLabelValues("prepare", "collector_error").Inc()
 					metrics.TrackError("indexer", "prepare_error")
 					panic(err)
 				}
-				indexerMetrics.BlockProcessingTime.WithLabelValues("prepare").Observe(time.Since(start).Seconds())
-
-				i.mtx.Lock()
-				i.blockMap[b.Height] = b
-				i.prepareCount--
-				i.mtx.Unlock()
 			}()
 		}
 	}
