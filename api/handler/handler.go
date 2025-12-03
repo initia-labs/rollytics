@@ -19,7 +19,7 @@ func Register(router fiber.Router, db *orm.Database, cfg *config.Config, logger 
 	base := common.NewBaseHandler(db, cfg, logger)
 	handlers := []common.HandlerRegistrar{
 		status.NewStatusHandler(base),
-		block.NewBlockHandler(base),
+		block.NewBlockHandler(base, cfg),
 		tx.NewTxHandler(base),
 		nft.NewNftHandler(base),
 		richlist.NewRichListHandler(base, cfg),

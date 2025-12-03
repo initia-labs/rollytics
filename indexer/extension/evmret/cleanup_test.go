@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/initia-labs/rollytics/config"
-	"github.com/initia-labs/rollytics/util"
+	"github.com/initia-labs/rollytics/util/cache"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/sqlite"
@@ -322,7 +322,7 @@ func TestProcessBatch(t *testing.T) {
 	ctx := context.Background()
 
 	// Ensure caches are initialized for any dictionary lookups inside processing
-	util.InitializeCaches(&config.CacheConfig{
+	cache.InitializeCaches(&config.CacheConfig{
 		AccountCacheSize:          1024,
 		NftCacheSize:              1024,
 		MsgTypeCacheSize:          256,

@@ -10,15 +10,16 @@ import (
 	"github.com/initia-labs/rollytics/config"
 	richlistutils "github.com/initia-labs/rollytics/indexer/extension/richlist/utils"
 	"github.com/initia-labs/rollytics/orm"
+	"github.com/initia-labs/rollytics/util/querier"
 )
 
 func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.Database, startHeight int64, moduleAccounts []sdk.AccAddress, requireInit bool) error {
 	currentHeight := startHeight
-
+	querier := querier.NewQuerier(cfg.GetChainConfig())
 	if requireInit {
 		logger.Info("reinitializing rich list", slog.Int64("start_height", currentHeight))
 		if err := db.Transaction(func(tx *gorm.DB) error {
-			err := richlistutils.InitializeBalances(ctx, logger, tx, cfg, currentHeight)
+			err := richlistutils.InitializeBalances(ctx, querier, logger, tx, cfg, currentHeight)
 			return err
 		}); err != nil {
 			return err
@@ -49,7 +50,7 @@ func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.D
 			}
 
 			// Process cosmos transactions to calculate balance changes
-			balanceMap := richlistutils.ProcessBalanceChanges(logger, cfg, cosmosTxs, moduleAccounts)
+			balanceMap := richlistutils.ProcessBalanceChanges(ctx, querier, logger, cfg, cosmosTxs, moduleAccounts)
 
 			// Update balance changes to the database
 			negativeDenoms, err := richlistutils.UpdateBalanceChanges(ctx, dbTx, balanceMap)

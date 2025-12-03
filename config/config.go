@@ -108,6 +108,7 @@ type CacheConfig struct {
 	TypeTagCacheSize          int `json:"type_tag_cache_size"`
 	EvmTxHashCacheSize        int `json:"evm_tx_hash_cache_size"`
 	EvmDenomContractCacheSize int `json:"evm_denom_contract_cache_size"`
+	ValidatorCacheSize        int `json:"validator_cache_size"`
 }
 
 // SentryConfig contains configuration for Sentry integration
@@ -258,9 +259,9 @@ func loadConfig() (*Config, error) {
 	cc := &ChainConfig{
 		ChainId:              viper.GetString("CHAIN_ID"),
 		VmType:               vmType,
-		RpcUrl:               viper.GetString("RPC_URL"),
-		RestUrl:              viper.GetString("REST_URL"),
-		JsonRpcUrl:           viper.GetString("JSON_RPC_URL"),
+		RpcUrls:              splitAndTrim(viper.GetString("RPC_URLS")),
+		RestUrls:             splitAndTrim(viper.GetString("REST_URLS")),
+		JsonRpcUrls:          splitAndTrim(viper.GetString("JSON_RPC_URLS")),
 		AccountAddressPrefix: viper.GetString("ACCOUNT_ADDRESS_PREFIX"),
 	}
 
@@ -301,6 +302,8 @@ func loadConfig() (*Config, error) {
 			TypeTagCacheSize:          viper.GetInt("TYPE_TAG_CACHE_SIZE"),
 			EvmTxHashCacheSize:        viper.GetInt("EVM_TX_HASH_CACHE_SIZE"),
 			EvmDenomContractCacheSize: viper.GetInt("EVM_DENOM_CONTRACT_CACHE_SIZE"),
+			// TODO: revisit
+			ValidatorCacheSize: viper.GetInt("CACHE_SIZE"),
 		},
 		sentryConfig: &SentryConfig{
 			DSN:                viper.GetString("SENTRY_DSN"),

@@ -35,7 +35,7 @@ func (h *RichListHandler) GetTokenHolders(c *fiber.Ctx) error {
 	denom = strings.ReplaceAll(denom, "%2F", "/")
 	denom = strings.ToLower(denom)
 	if h.cfg.GetVmType() == types.EVM {
-		contract, err := util.GetEvmContractByDenom(c.Context(), denom)
+		contract, err := h.querier.GetEvmContractByDenom(c.Context(), denom)
 		if err != nil {
 			return fiber.NewError(fiber.StatusBadRequest, err.Error())
 		}

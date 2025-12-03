@@ -1,6 +1,7 @@
 package evm_nft
 
 import (
+	"context"
 	"log/slog"
 	"sync"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/initia-labs/rollytics/cache"
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/indexer/types"
+	"github.com/initia-labs/rollytics/util/querier"
 )
 
 const SubmoduleName = "evm-nft"
@@ -21,6 +23,7 @@ type EvmNftSubmodule struct {
 	cache     map[int64]CacheData
 	blacklist *cache.Cache[string, interface{}]
 	mtx       sync.Mutex
+	querier   *querier.Querier
 }
 
 func New(logger *slog.Logger, cfg *config.Config) *EvmNftSubmodule {
@@ -30,6 +33,7 @@ func New(logger *slog.Logger, cfg *config.Config) *EvmNftSubmodule {
 		cfg:       cfg,
 		cache:     make(map[int64]CacheData),
 		blacklist: cache.New[string, interface{}](cacheSize),
+		querier:   querier.NewQuerier(cfg.GetChainConfig()),
 	}
 }
 
@@ -37,8 +41,8 @@ func (sub *EvmNftSubmodule) Name() string {
 	return SubmoduleName
 }
 
-func (sub *EvmNftSubmodule) Prepare(block types.ScrapedBlock) error {
-	if err := sub.prepare(block); err != nil {
+func (sub *EvmNftSubmodule) Prepare(ctx context.Context, block types.ScrapedBlock) error {
+	if err := sub.prepare(ctx, block); err != nil {
 		sub.logger.Error("failed to prepare data", slog.Int64("height", block.Height), slog.Any("error", err))
 		return err
 	}

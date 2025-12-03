@@ -10,10 +10,10 @@ import (
 	"github.com/initia-labs/rollytics/types"
 )
 
-func grepMsgTypesFromRestTx(tx RestTx) (msgTypes []string, err error) {
+func grepMsgTypesFromRestTx(tx types.RestTx) (msgTypes []string, err error) {
 	msgTypeMap := make(map[string]interface{})
 
-	var body RestTxBody
+	var body types.RestTxBody
 	if err := json.Unmarshal(tx.Body, &body); err != nil {
 		return msgTypes, err
 	}

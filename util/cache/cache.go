@@ -1,10 +1,6 @@
-package util
+package cache
 
 import (
-	"context"
-	"encoding/json"
-	"fmt"
-	"strings"
 	"sync"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -14,11 +10,23 @@ import (
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
+	"github.com/initia-labs/rollytics/util"
 )
 
 type NftKey struct {
 	CollectionAddr string
 	TokenId        string
+}
+
+type Validator struct {
+	Moniker         string          `json:"moniker"`
+	OperatorAddress string          `json:"operator_address"`
+	ConsensusPubkey ConsensusPubkey `json:"consensus_pubkey"`
+}
+
+type ConsensusPubkey struct {
+	Type string `json:"@type"`
+	Key  string `json:"key"`
 }
 
 var (
@@ -28,6 +36,7 @@ var (
 	typeTagCache          *cache.Cache[string, int64]
 	evmTxHashCache        *cache.Cache[string, int64]
 	evmDenomContractCache *cache.Cache[string, string]
+	validatorCache        *cache.Cache[string, *types.Validator]
 
 	// Singleton initialization
 	cacheInitOnce sync.Once
@@ -36,6 +45,7 @@ var (
 // InitializeCaches initializes all dictionary caches with the given configuration
 // This function is safe to call multiple times - it will only initialize once
 func InitializeCaches(cfg *config.CacheConfig) {
+
 	cacheInitOnce.Do(func() {
 		accountCache = cache.New[string, int64](cfg.AccountCacheSize)
 		nftCache = cache.New[NftKey, int64](cfg.NftCacheSize)
@@ -43,7 +53,16 @@ func InitializeCaches(cfg *config.CacheConfig) {
 		typeTagCache = cache.New[string, int64](cfg.TypeTagCacheSize)
 		evmTxHashCache = cache.New[string, int64](cfg.EvmTxHashCacheSize)
 		evmDenomContractCache = cache.New[string, string](cfg.EvmDenomContractCacheSize)
+		validatorCache = cache.New[string, *types.Validator](cfg.ValidatorCacheSize)
 	})
+}
+
+func normalizeAccountToBech32(account string) (string, error) {
+	accBytes, err := util.AccAddressFromString(account)
+	if err != nil {
+		return "", err
+	}
+	return sdk.AccAddress(accBytes).String(), nil
 }
 
 // checkAccountCache checks the cache for accounts and returns cached IDs and uncached accounts
@@ -71,7 +90,7 @@ func fetchAccountsFromDB(db *gorm.DB, uncached []string) (map[string]int64, erro
 	// Convert strings to bytes for the query
 	var uncachedBytes [][]byte
 	for _, account := range uncached {
-		accBytes, err := AccAddressFromString(account)
+		accBytes, err := util.AccAddressFromString(account)
 		if err != nil {
 			return nil, err
 		}
@@ -96,7 +115,7 @@ func createNewAccountEntries(db *gorm.DB, uncached []string, accountIdMap map[st
 	var newEntries []types.CollectedAccountDict
 	for _, account := range uncached {
 		if _, ok := accountIdMap[account]; !ok {
-			accBytes, err := AccAddressFromString(account)
+			accBytes, err := util.AccAddressFromString(account)
 			if err != nil {
 				return err
 			}
@@ -129,14 +148,6 @@ func updateAccountCacheAndResult(uncached []string, accountIdMap map[string]int6
 			idMap[account] = id
 		}
 	}
-}
-
-func normalizeAccountToBech32(account string) (string, error) {
-	accBytes, err := AccAddressFromString(account)
-	if err != nil {
-		return "", err
-	}
-	return sdk.AccAddress(accBytes).String(), nil
 }
 
 func GetOrCreateAccountIds(db *gorm.DB, accounts []string, createNew bool) (idMap map[string]int64, err error) {
@@ -185,7 +196,7 @@ func fetchNftsFromDB(db *gorm.DB, uncached []NftKey) (map[NftKey]int64, error) {
 	tx := db.Model(&types.CollectedNftDict{})
 	for i, key := range uncached {
 		// Convert collection address to bytes
-		colAddrBytes, err := AccAddressFromString(key.CollectionAddr)
+		colAddrBytes, err := util.AccAddressFromString(key.CollectionAddr)
 		if err != nil {
 			return nil, err
 		}
@@ -205,7 +216,7 @@ func fetchNftsFromDB(db *gorm.DB, uncached []NftKey) (map[NftKey]int64, error) {
 	for _, entry := range entries {
 		// Convert bytes back to string for map key
 		key := NftKey{
-			CollectionAddr: BytesToHexWithPrefix(entry.CollectionAddr),
+			CollectionAddr: util.BytesToHexWithPrefix(entry.CollectionAddr),
 			TokenId:        entry.TokenId,
 		}
 		nftIdMap[key] = entry.Id
@@ -219,7 +230,7 @@ func createNewNftEntries(db *gorm.DB, uncached []NftKey, nftIdMap map[NftKey]int
 	for _, key := range uncached {
 		if _, ok := nftIdMap[key]; !ok {
 			// Convert collection address to bytes
-			colAddrBytes, err := AccAddressFromString(key.CollectionAddr)
+			colAddrBytes, err := util.AccAddressFromString(key.CollectionAddr)
 			if err != nil {
 				return err
 			}
@@ -236,7 +247,7 @@ func createNewNftEntries(db *gorm.DB, uncached []NftKey, nftIdMap map[NftKey]int
 		}
 		for _, entry := range newEntries {
 			key := NftKey{
-				CollectionAddr: BytesToHexWithPrefix(entry.CollectionAddr),
+				CollectionAddr: util.BytesToHexWithPrefix(entry.CollectionAddr),
 				TokenId:        entry.TokenId,
 			}
 			nftIdMap[key] = entry.Id
@@ -408,7 +419,7 @@ func GetOrCreateEvmTxHashIds(db *gorm.DB, hashes [][]byte, createNew bool) (idMa
 	// check cache and collect uncached
 	var uncached [][]byte
 	for _, hash := range hashes {
-		hashHex := BytesToHex(hash)
+		hashHex := util.BytesToHex(hash)
 		if id, ok := evmTxHashCache.Get(hashHex); ok {
 			idMap[hashHex] = id
 		} else {
@@ -427,7 +438,7 @@ func GetOrCreateEvmTxHashIds(db *gorm.DB, hashes [][]byte, createNew bool) (idMa
 	}
 	hashIdMap := make(map[string]int64) // hash hex -> id
 	for _, entry := range entries {
-		hashHex := BytesToHex(entry.Hash)
+		hashHex := util.BytesToHex(entry.Hash)
 		hashIdMap[hashHex] = entry.Id
 	}
 
@@ -435,7 +446,7 @@ func GetOrCreateEvmTxHashIds(db *gorm.DB, hashes [][]byte, createNew bool) (idMa
 		// create new entries if not in DB
 		var newEntries []types.CollectedEvmTxHashDict
 		for _, hash := range uncached {
-			hashHex := BytesToHex(hash)
+			hashHex := util.BytesToHex(hash)
 			if _, ok := hashIdMap[hashHex]; !ok {
 				newEntries = append(newEntries, types.CollectedEvmTxHashDict{Hash: hash})
 			}
@@ -447,7 +458,7 @@ func GetOrCreateEvmTxHashIds(db *gorm.DB, hashes [][]byte, createNew bool) (idMa
 			}
 			// Add newly created entries to the map
 			for i, entry := range newEntries {
-				hashHex := BytesToHex(entry.Hash)
+				hashHex := util.BytesToHex(entry.Hash)
 				hashIdMap[hashHex] = newEntries[i].Id
 			}
 		}
@@ -455,7 +466,7 @@ func GetOrCreateEvmTxHashIds(db *gorm.DB, hashes [][]byte, createNew bool) (idMa
 
 	// set cache and add to result map
 	for _, hash := range uncached {
-		hashHex := BytesToHex(hash)
+		hashHex := util.BytesToHex(hash)
 		if id, ok := hashIdMap[hashHex]; ok {
 			evmTxHashCache.Set(hashHex, id)
 			idMap[hashHex] = id
@@ -465,55 +476,32 @@ func GetOrCreateEvmTxHashIds(db *gorm.DB, hashes [][]byte, createNew bool) (idMa
 	return idMap, nil
 }
 
-// EvmContractByDenomResponse represents the response from /minievm/evm/v1/contracts/by_denom
-type EvmContractByDenomResponse struct {
-	Address string `json:"address"`
+func GetEvmDenomContractCache(denom string) (string, bool) {
+	if address, ok := evmDenomContractCache.Get(denom); ok {
+		return address, true
+	}
+	return "", false
 }
 
-// GetEvmContractByDenom queries the MiniEVM API for a contract address by denom
-// and caches the result. It returns the contract address or an error.
-func GetEvmContractByDenom(ctx context.Context, denom string) (string, error) {
-	if strings.HasPrefix(denom, "0x") {
-		return denom, nil
-	}
-
-	// Check cache first
-	if address, ok := evmDenomContractCache.Get(denom); ok {
-		return address, nil
-	}
-
-	// ibc/UPPERCASE
-	// l2/lowercase
-	// evm/AnyCase
-	if strings.HasPrefix(denom, "ibc/") {
-		denom = fmt.Sprintf("ibc/%s", strings.ToUpper(denom[4:]))
-	} else if strings.ToLower(denom) == "gas" {
-		denom = "GAS"
-	}
-
-	// Query the API
-	path := "/minievm/evm/v1/contracts/by_denom"
-	params := map[string]string{"denom": denom}
-
-	body, err := Get(ctx, cfg.GetChainConfig().RestUrl, path, params, nil, cfg.GetQueryTimeout())
-	if err != nil {
-		return "", fmt.Errorf("failed to query contract by denom %s: %w", denom, err)
-	}
-
-	// Parse the response
-	var response EvmContractByDenomResponse
-	if err := json.Unmarshal(body, &response); err != nil {
-		return "", fmt.Errorf("failed to parse contract by denom response: %w", err)
-	}
-
-	// Validate the response
-	if response.Address == "" {
-		return "", fmt.Errorf("empty contract address returned for denom %s", denom)
-	}
-
-	// Cache the result
-	address := strings.ToLower(response.Address)
+func SetEvmDenomContractCache(denom string, address string) {
 	evmDenomContractCache.Set(denom, address)
+}
 
-	return address, nil
+func GetAccountCache(account string) (int64, bool) {
+	if id, ok := accountCache.Get(account); ok {
+		return id, true
+	}
+
+	return 0, false
+}
+
+func GetValidatorCache(validatorAddr string) (*types.Validator, bool) {
+	if cached, ok := validatorCache.Get(validatorAddr); ok {
+		return cached, true
+	}
+	return nil, false
+}
+
+func SetValidatorCache(validator *types.Validator) {
+	validatorCache.Set(validator.OperatorAddress, validator)
 }

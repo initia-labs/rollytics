@@ -8,7 +8,7 @@ import (
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
-	"github.com/initia-labs/rollytics/util"
+	"github.com/initia-labs/rollytics/util/cache"
 )
 
 type HandlerRegistrar interface {
@@ -45,7 +45,7 @@ func (h *BaseHandler) GetVmType() types.VMType {
 }
 
 func (h *BaseHandler) GetAccountIds(accounts []string) ([]int64, error) {
-	idMap, err := util.GetOrCreateAccountIds(h.db.DB, accounts, false)
+	idMap, err := cache.GetOrCreateAccountIds(h.db.DB, accounts, false)
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +60,7 @@ func (h *BaseHandler) GetAccountIds(accounts []string) ([]int64, error) {
 }
 
 func (h *BaseHandler) GetMsgTypeIds(msgs []string) ([]int64, error) {
-	idMap, err := util.GetOrCreateMsgTypeIds(h.db.DB, msgs, false)
+	idMap, err := cache.GetOrCreateMsgTypeIds(h.db.DB, msgs, false)
 	if err != nil {
 		return nil, err
 	}
@@ -74,8 +74,8 @@ func (h *BaseHandler) GetMsgTypeIds(msgs []string) ([]int64, error) {
 	return ids, nil
 }
 
-func (h *BaseHandler) GetNftIds(keys []util.NftKey) ([]int64, error) {
-	idMap, err := util.GetOrCreateNftIds(h.db.DB, keys, false)
+func (h *BaseHandler) GetNftIds(keys []cache.NftKey) ([]int64, error) {
+	idMap, err := cache.GetOrCreateNftIds(h.db.DB, keys, false)
 	if err != nil {
 		return nil, err
 	}

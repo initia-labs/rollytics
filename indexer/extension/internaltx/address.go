@@ -3,6 +3,7 @@ package internaltx
 import (
 	"strings"
 
+	"github.com/initia-labs/rollytics/types"
 	"github.com/initia-labs/rollytics/util"
 )
 
@@ -10,7 +11,7 @@ const (
 	addressPrefix = "0x000000000000000000000000"
 )
 
-func GrepAddressesFromEvmInternalTx(evmInternalTx EvmInternalTx) (grepped []string, err error) {
+func GrepAddressesFromEvmInternalTx(evmInternalTx types.EvmInternalTx) (grepped []string, err error) {
 	addrs := make(map[string]interface{})
 
 	if evmInternalTx.From != "" {

@@ -1,15 +1,16 @@
 package block
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
-	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/types"
 	"github.com/initia-labs/rollytics/util"
 	"github.com/initia-labs/rollytics/util/common-handler/common"
+	"github.com/initia-labs/rollytics/util/querier"
 )
 
 type BlocksResponse struct {
@@ -49,10 +50,10 @@ type Proposer struct {
 	OperatorAddress string `json:"operator_address" extensions:"x-order:2"`
 }
 
-func ToBlocksResponse(cbs []types.CollectedBlock, cfg *config.Config) ([]Block, error) {
+func ToBlocksResponse(ctx context.Context, cbs []types.CollectedBlock, querier *querier.Querier) ([]Block, error) {
 	blocks := make([]Block, 0, len(cbs))
 	for _, cb := range cbs {
-		block, err := ToBlockResponse(cb, cfg)
+		block, err := ToBlockResponse(ctx, cb, querier)
 		if err != nil {
 			return nil, err
 		}
@@ -61,13 +62,13 @@ func ToBlocksResponse(cbs []types.CollectedBlock, cfg *config.Config) ([]Block, 
 	return blocks, nil
 }
 
-func ToBlockResponse(cb types.CollectedBlock, cfg *config.Config) (block Block, err error) {
+func ToBlockResponse(ctx context.Context, cb types.CollectedBlock, querier *querier.Querier) (block Block, err error) {
 	var fees []Fee
 	if err := json.Unmarshal(cb.TotalFee, &fees); err != nil {
 		return block, err
 	}
 
-	validator, err := getValidator(cb.Proposer, cfg)
+	validator, err := getValidator(ctx, querier, cb.Proposer)
 	if err != nil {
 		return block, err
 	}

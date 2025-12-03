@@ -15,7 +15,8 @@ import (
 	"github.com/initia-labs/rollytics/log"
 	"github.com/initia-labs/rollytics/metrics"
 	"github.com/initia-labs/rollytics/orm"
-	"github.com/initia-labs/rollytics/util"
+	"github.com/initia-labs/rollytics/util/cache"
+	"github.com/initia-labs/rollytics/util/querier"
 )
 
 func apiCmd() *cobra.Command {
@@ -37,10 +38,11 @@ You can configure database, chain, logging, and server options via environment v
 			logger := log.NewLogger(cfg)
 
 			// Initialize the request limiter
-			util.InitUtil(cfg)
+			// TODO: revisit
+			querier.InitUtil(cfg)
 
 			// Initialize dictionary caches
-			util.InitializeCaches(cfg.GetCacheConfig())
+			cache.InitializeCaches(cfg.GetCacheConfig())
 
 			// Initialize metrics
 			metrics.Init()

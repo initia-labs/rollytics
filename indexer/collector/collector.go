@@ -1,15 +1,15 @@
 package collector
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"golang.org/x/sync/errgroup"
 	"gorm.io/gorm"
-
-	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/indexer/collector/block"
@@ -53,13 +53,13 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Collector {
 	}
 }
 
-func (c *Collector) Prepare(sb indexertypes.ScrapedBlock) error {
-	var g errgroup.Group
+func (c *Collector) Prepare(ctx context.Context, sb indexertypes.ScrapedBlock) error {
+	g, gCtx := errgroup.WithContext(ctx)
 
 	for _, sub := range c.submodules {
 		s := sub
 		g.Go(func() error {
-			err := s.Prepare(sb)
+			err := s.Prepare(gCtx, sb)
 			if err != nil {
 				c.logger.Error("failed to prepare data", slog.String("submodule", s.Name()), slog.Int64("height", sb.Height), slog.Any("error", err))
 				return err

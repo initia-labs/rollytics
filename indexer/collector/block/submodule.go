@@ -1,6 +1,7 @@
 package block
 
 import (
+	"context"
 	"log/slog"
 
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -32,7 +33,7 @@ func (sub *BlockSubmodule) Name() string {
 	return SubmoduleName
 }
 
-func (sub *BlockSubmodule) Prepare(block types.ScrapedBlock) error {
+func (sub *BlockSubmodule) Prepare(ctx context.Context, block types.ScrapedBlock) error {
 	return nil
 }
 

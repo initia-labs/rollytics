@@ -1,6 +1,7 @@
 package types
 
 import (
+	"context"
 	"time"
 
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -9,7 +10,7 @@ import (
 
 type Submodule interface {
 	Name() string
-	Prepare(block ScrapedBlock) error
+	Prepare(ctx context.Context, block ScrapedBlock) error
 	Collect(block ScrapedBlock, tx *gorm.DB) error
 }
 

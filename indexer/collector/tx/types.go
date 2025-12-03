@@ -7,7 +7,7 @@ import (
 )
 
 type CacheData struct {
-	RestTxs []RestTx
+	RestTxs []types.RestTx
 	EvmTxs  []types.EvmTx
 }
 

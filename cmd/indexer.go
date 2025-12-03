@@ -18,7 +18,8 @@ import (
 	"github.com/initia-labs/rollytics/metrics"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/patcher"
-	"github.com/initia-labs/rollytics/util"
+	"github.com/initia-labs/rollytics/util/cache"
+	"github.com/initia-labs/rollytics/util/querier"
 )
 
 func indexerCmd() *cobra.Command {
@@ -85,8 +86,9 @@ func runIndexer(cmd *cobra.Command, args []string) error {
 }
 
 func initializeUtilities(cfg *config.Config) {
-	util.InitUtil(cfg)
-	util.InitializeCaches(cfg.GetCacheConfig())
+	// TODO: revisit
+	querier.InitUtil(cfg)
+	cache.InitializeCaches(cfg.GetCacheConfig())
 }
 
 func initializeDatabase(cfg *config.Config, logger *slog.Logger) (*orm.Database, error) {

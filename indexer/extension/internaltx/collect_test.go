@@ -11,12 +11,13 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/initia-labs/rollytics/config"
-	internal_tx "github.com/initia-labs/rollytics/indexer/extension/internaltx"
+	"github.com/initia-labs/rollytics/indexer/extension/internaltx"
 	"github.com/initia-labs/rollytics/orm"
 	dbconfig "github.com/initia-labs/rollytics/orm/config"
 	"github.com/initia-labs/rollytics/orm/testutil"
 	"github.com/initia-labs/rollytics/types"
 	"github.com/initia-labs/rollytics/util"
+	"github.com/initia-labs/rollytics/util/cache"
 )
 
 func setupTestDB(t *testing.T) (*orm.Database, sqlmock.Sqlmock) {
@@ -50,9 +51,9 @@ func setupTestConfig() *config.Config {
 	return cfg
 }
 
-func getTestResponse() *internal_tx.InternalTxResult {
-	callTraceRes := &internal_tx.DebugCallTraceBlockResponse{
-		Result: []internal_tx.TransactionTrace{
+func getTestResponse() *internaltx.InternalTxResult {
+	callTraceRes := &types.DebugCallTraceBlockResponse{
+		Result: []types.TransactionTrace{
 			{
 				TxHash: "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
 			},
@@ -66,7 +67,7 @@ func getTestResponse() *internal_tx.InternalTxResult {
 	callTraceRes.Result[0].Result.Gas = "0x5208"
 	callTraceRes.Result[0].Result.GasUsed = "0x5208"
 	callTraceRes.Result[0].Result.Input = "0x"
-	callTraceRes.Result[0].Result.Calls = []internal_tx.InternalTransaction{
+	callTraceRes.Result[0].Result.Calls = []types.InternalTransaction{
 		{
 			Type:    "CALL",
 			From:    "0x0987654321098765432109876543210987654321",
@@ -76,7 +77,7 @@ func getTestResponse() *internal_tx.InternalTxResult {
 			GasUsed: "0x1302",
 			Input:   "0x",
 			Output:  "0x00fedcba",
-			Calls: []internal_tx.InternalTransaction{
+			Calls: []types.InternalTransaction{
 				{
 					Type:    "STATICCALL",
 					From:    "0x1111111111111111111111111111111111111111",
@@ -101,7 +102,7 @@ func getTestResponse() *internal_tx.InternalTxResult {
 		},
 	}
 
-	return &internal_tx.InternalTxResult{
+	return &internaltx.InternalTxResult{
 		Height:    100,
 		CallTrace: callTraceRes,
 	}
@@ -113,16 +114,17 @@ func TestIndexer_CollectInternalTxs(t *testing.T) {
 	cfg := setupTestConfig()
 
 	// Initialize caches for testing
-	util.InitializeCaches(&config.CacheConfig{
+	cache.InitializeCaches(&config.CacheConfig{
 		AccountCacheSize:          1000,
 		NftCacheSize:              1000,
 		MsgTypeCacheSize:          100,
 		TypeTagCacheSize:          100,
 		EvmTxHashCacheSize:        1000,
 		EvmDenomContractCacheSize: 1000,
+		ValidatorCacheSize:        100,
 	})
 
-	indexer := internal_tx.New(cfg, logger, db)
+	indexer := internaltx.New(cfg, logger, db)
 
 	mock.ExpectBegin()
 	mock.ExpectQuery(`SELECT \* FROM "seq_info" WHERE name = \$1 ORDER BY "seq_info"\."name" LIMIT \$2`).
@@ -306,19 +308,20 @@ func TestIndexer_CollectInternalTxs(t *testing.T) {
 
 func TestIndexer_CollectInternalTxs_EmptyInternalTxs(t *testing.T) {
 	// Initialize caches for testing
-	util.InitializeCaches(&config.CacheConfig{
+	cache.InitializeCaches(&config.CacheConfig{
 		AccountCacheSize:          1000,
 		NftCacheSize:              1000,
 		MsgTypeCacheSize:          100,
 		TypeTagCacheSize:          100,
 		EvmTxHashCacheSize:        1000,
 		EvmDenomContractCacheSize: 1000,
+		ValidatorCacheSize:        100,
 	})
 
 	db, mock := setupTestDB(t)
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelWarn}))
 	cfg := setupTestConfig()
-	indexer := internal_tx.New(cfg, logger, db)
+	indexer := internaltx.New(cfg, logger, db)
 
 	mock.ExpectBegin()
 
@@ -371,8 +374,8 @@ func TestIndexer_CollectInternalTxs_EmptyInternalTxs(t *testing.T) {
 
 	mock.ExpectCommit()
 
-	callTraceRes := &internal_tx.DebugCallTraceBlockResponse{
-		Result: []internal_tx.TransactionTrace{
+	callTraceRes := &types.DebugCallTraceBlockResponse{
+		Result: []types.TransactionTrace{
 			{TxHash: "0x112233445566778899aabbccddeeff00112233445566778899aabbccddeeff00"},
 		},
 	}
@@ -384,7 +387,7 @@ func TestIndexer_CollectInternalTxs_EmptyInternalTxs(t *testing.T) {
 	callTraceRes.Result[0].Result.GasUsed = "0x5208"
 	callTraceRes.Result[0].Result.Input = "0x"
 
-	err := indexer.CollectInternalTxs(context.Background(), db, &internal_tx.InternalTxResult{
+	err := indexer.CollectInternalTxs(context.Background(), db, &internaltx.InternalTxResult{
 		Height:    100,
 		CallTrace: callTraceRes,
 	})
