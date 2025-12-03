@@ -329,6 +329,7 @@ func TestProcessBatch(t *testing.T) {
 		TypeTagCacheSize:          256,
 		EvmTxHashCacheSize:        1024,
 		EvmDenomContractCacheSize: 256,
+		ValidatorCacheSize:        1024,
 	})
 
 	// Insert test data (Account field is []byte in types.CollectedAccountDict)
