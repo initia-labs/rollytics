@@ -220,7 +220,7 @@ func fetchTraceCallByBlock(height int64, timeout time.Duration) func(ctx context
 }
 
 func (q *Querier) TraceCallByBlock(ctx context.Context, height int64) (*types.DebugCallTraceBlockResponse, error) {
-	res, err := executeWithEndpointRotation(ctx, q.JsonRpcUrls, fetchTraceCallByBlock(height, queryTimeout))
+	res, err := executeWithEndpointRotation(ctx, q.JsonRpcUrls, fetchTraceCallByBlock(height, 10*queryTimeout))
 	if err != nil {
 		return nil, err
 	}
