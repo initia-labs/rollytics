@@ -113,8 +113,6 @@ func executeWithEndpointRotation[T any](ctx context.Context, endpoints []string,
 
 		if totalRetries == loopSize {
 			sentry_integration.CaptureCurrentHubException(lastErr, sentry.LevelError)
-			// If we've exhausted all retries, return the last error
-			return nil, fmt.Errorf("exhausted all retries: %w", lastErr)
 		}
 
 		// Perform backoff before retrying
