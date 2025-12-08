@@ -109,10 +109,10 @@ func (s *Scraper) fastSync(ctx context.Context, client *fiber.Client, height int
 				}
 
 				// retry until max err count
-				if errCount += 1; errCount > commontypes.MaxScrapeErrCount {
-					s.logger.Error("failed to scrap block", slog.Int64("height", h), slog.Any("error", err))
-					panic(err)
-				}
+				// if errCount += 1; errCount > commontypes.MaxScrapeErrCount {
+				// 	s.logger.Error("failed to scrap block", slog.Int64("height", h), slog.Any("error", err))
+				// 	panic(err)
+				// }
 
 				s.logger.Info("error while scraping block", slog.Int64("height", h), slog.Any("error", err))
 				time.Sleep(s.cfg.GetCoolingDuration())
