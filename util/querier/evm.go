@@ -211,7 +211,6 @@ func fetchTraceCallByBlock(height int64, timeout time.Duration) func(ctx context
 			return nil, fmt.Errorf("RPC error (code: %d): %s", errResp.Error.Code, errResp.Error.Message)
 		}
 
-		// success case: unmarshal the response into DebugCallTraceBlockResponse
 		response, err := extractResponse[types.DebugCallTraceBlockResponse](body)
 		if err != nil {
 			return nil, err

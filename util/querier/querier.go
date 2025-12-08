@@ -110,7 +110,8 @@ func executeWithEndpointRotation[T any](ctx context.Context, endpoints []string,
 		lastErr = err
 		retriesPerEndpoint++
 		totalRetries++
-
+		fmt.Println("totalRetries", totalRetries)
+		fmt.Println("error", err)
 		if totalRetries == loopSize {
 			sentry_integration.CaptureCurrentHubException(lastErr, sentry.LevelError)
 		}
