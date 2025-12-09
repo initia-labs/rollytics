@@ -43,7 +43,7 @@ func (h *BlockHandler) GetBlocks(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	blocksRes, err := ToBlocksResponse(blocks, h.GetConfig())
+	blocksRes, err := ToBlocksResponse(c.UserContext(), blocks, h.querier)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
@@ -83,7 +83,7 @@ func (h *BlockHandler) GetBlockByHeight(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, types.NewDatabaseError("get block", err).Error())
 	}
 
-	blockRes, err := ToBlockResponse(block, h.GetConfig())
+	blockRes, err := ToBlockResponse(c.UserContext(), block, h.querier)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}

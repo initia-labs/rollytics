@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/initia-labs/rollytics/types"
-	"github.com/initia-labs/rollytics/util"
+	"github.com/initia-labs/rollytics/util/cache"
 )
 
 // RICH_LIST_BLOCK_DELAY requires richlist processing to lag by at least 5 blocks.
@@ -115,7 +115,7 @@ func UpdateBalanceChanges(ctx context.Context, db *gorm.DB, balanceMap map[Balan
 	}
 
 	// Step 2: Convert addresses to account IDs
-	accountIdMap, err := util.GetOrCreateAccountIds(db, addresses, true)
+	accountIdMap, err := cache.GetOrCreateAccountIds(db, addresses, true)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get or create account IDs: %w", err)
 	}
@@ -261,7 +261,7 @@ func UpdateBalances(ctx context.Context, db *gorm.DB, denom string, addressBalan
 
 func QueryBalance(ctx context.Context, db *gorm.DB, denom string, address string) (types.CollectedRichList, error) {
 	var accountId int64
-	idMap, err := util.GetOrCreateAccountIds(db, []string{address}, false)
+	idMap, err := cache.GetOrCreateAccountIds(db, []string{address}, false)
 	if err != nil {
 		return types.CollectedRichList{}, fmt.Errorf("failed to get account ID: %w", err)
 	}

@@ -10,6 +10,7 @@ import (
 	"github.com/initia-labs/rollytics/api/handler/tx"
 	"github.com/initia-labs/rollytics/types"
 	"github.com/initia-labs/rollytics/util"
+	"github.com/initia-labs/rollytics/util/cache"
 	"github.com/initia-labs/rollytics/util/common-handler/common"
 )
 
@@ -77,11 +78,11 @@ func (h *NftHandler) GetNftTxs(c *fiber.Ctx) error {
 		query = query.Where("sequence IN (?)", sequenceSubQuery)
 
 	case types.WasmVM, types.EVM:
-		nftKey := util.NftKey{
+		nftKey := cache.NftKey{
 			CollectionAddr: util.BytesToHexWithPrefixIfPresent(nft.CollectionAddr),
 			TokenId:        nft.TokenId,
 		}
-		nftIds, err := h.GetNftIds([]util.NftKey{nftKey})
+		nftIds, err := h.GetNftIds([]cache.NftKey{nftKey})
 		if err != nil {
 			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 		}

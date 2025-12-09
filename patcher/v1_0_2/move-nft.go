@@ -14,6 +14,7 @@ import (
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
 	"github.com/initia-labs/rollytics/util"
+	"github.com/initia-labs/rollytics/util/cache"
 )
 
 func PatchMoveNFT(tx *gorm.DB, cfg *config.Config, logger *slog.Logger) error {
@@ -56,7 +57,7 @@ func (p *MoveNFTPatcher) Run() error {
 	}
 
 	// Get or create account IDs for NFT addresses
-	accountIdMap, err := util.GetOrCreateAccountIds(p.db, nftAddresses, true)
+	accountIdMap, err := cache.GetOrCreateAccountIds(p.db, nftAddresses, true)
 	if err != nil {
 		return fmt.Errorf("failed to get account IDs: %w", err)
 	}
@@ -307,7 +308,7 @@ func (p *MoveNFTPatcher) handleTransferNft(transferMap map[string]TransferInfo) 
 	}
 
 	// Get account IDs
-	accountIdMap, err := util.GetOrCreateAccountIds(p.db, allAddresses, true)
+	accountIdMap, err := cache.GetOrCreateAccountIds(p.db, allAddresses, true)
 	if err != nil {
 		return err
 	}

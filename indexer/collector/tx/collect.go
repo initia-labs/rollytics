@@ -21,6 +21,7 @@ import (
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
 	"github.com/initia-labs/rollytics/util"
+	"github.com/initia-labs/rollytics/util/cache"
 )
 
 func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) error {
@@ -48,7 +49,7 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) er
 	}
 
 	// create rest tx map
-	restTxMap := make(map[string]RestTx) // signatures -> rest tx
+	restTxMap := make(map[string]types.RestTx) // signatures -> rest tx
 	for _, restTx := range cacheData.RestTxs {
 		sigKey := strings.Join(restTx.Signatures, ",")
 		if sigKey != "" {
@@ -97,7 +98,7 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) er
 		}
 
 		// convert to msg type ids
-		msgTypeIdMap, err := util.GetOrCreateMsgTypeIds(tx, msgTypes, true)
+		msgTypeIdMap, err := cache.GetOrCreateMsgTypeIds(tx, msgTypes, true)
 		if err != nil {
 			return err
 		}
@@ -114,7 +115,7 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) er
 		typeTags := grepTypeTagsFromEvents(sub.cfg, res.Events)
 
 		// convert to type tag ids
-		typeTagIdMap, err := util.GetOrCreateTypeTagIds(tx, typeTags, true)
+		typeTagIdMap, err := cache.GetOrCreateTypeTagIds(tx, typeTags, true)
 		if err != nil {
 			return err
 		}
@@ -165,7 +166,7 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) er
 			uniqueAccounts = append(uniqueAccounts, account)
 		}
 
-		accountIdMap, err := util.GetOrCreateAccountIds(tx, uniqueAccounts, true)
+		accountIdMap, err := cache.GetOrCreateAccountIds(tx, uniqueAccounts, true)
 		if err != nil {
 			return err
 		}
@@ -349,7 +350,7 @@ func (sub *TxSubmodule) collectEvm(block indexertypes.ScrapedBlock, evmTxs []typ
 			uniqueAccounts = append(uniqueAccounts, account)
 		}
 
-		accountIdMap, err := util.GetOrCreateAccountIds(tx, uniqueAccounts, true)
+		accountIdMap, err := cache.GetOrCreateAccountIds(tx, uniqueAccounts, true)
 		if err != nil {
 			return err
 		}

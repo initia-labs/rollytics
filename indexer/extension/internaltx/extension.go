@@ -17,6 +17,7 @@ import (
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/sentry_integration"
 	"github.com/initia-labs/rollytics/types"
+	"github.com/initia-labs/rollytics/util/querier"
 )
 
 const ExtensionName = "internal-tx"
@@ -26,7 +27,7 @@ var _ exttypes.Extension = (*InternalTxExtension)(nil)
 // WorkItem represents a work item containing scraped internal transaction data
 type WorkItem struct {
 	Height    int64
-	CallTrace *DebugCallTraceBlockResponse
+	CallTrace *types.DebugCallTraceBlockResponse
 }
 
 // WorkQueue represents a thread-safe queue for work items using channels
@@ -90,6 +91,7 @@ type InternalTxExtension struct {
 	db                 *orm.Database
 	lastProducedHeight int64 // Last produced/queued height
 	workQueue          *WorkQueue
+	querier            *querier.Querier
 }
 
 func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *InternalTxExtension {
@@ -102,6 +104,7 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *InternalTxE
 		logger:    logger.With("extension", ExtensionName),
 		db:        db,
 		workQueue: NewWorkQueue(cfg.GetInternalTxConfig().GetQueueSize()),
+		querier:   querier.NewQuerier(cfg.GetChainConfig()),
 	}
 }
 
@@ -119,7 +122,7 @@ func (i *InternalTxExtension) Initialize(ctx context.Context) error {
 }
 
 func (i *InternalTxExtension) Run(ctx context.Context) error {
-	if err := CheckNodeVersion(i.cfg); err != nil {
+	if err := CheckNodeVersion(ctx, i.querier); err != nil {
 		i.logger.Warn("skipping internal transaction indexing", slog.Any("reason", err.Error()))
 		return nil
 	}
@@ -309,7 +312,7 @@ func (i *InternalTxExtension) scrapeHeight(ctx context.Context, height int64) (*
 	defer fiber.ReleaseClient(client)
 
 	// Scrape internal transaction data
-	callTraceRes, err := TraceCallByBlock(ctx, i.cfg, client, height)
+	callTraceRes, err := i.querier.TraceCallByBlock(ctx, height)
 	if err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			i.logger.Info("scraping cancelled", slog.Int64("height", height))
