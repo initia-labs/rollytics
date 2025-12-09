@@ -71,6 +71,7 @@ func executeWithEndpointRotation[T any](ctx context.Context, endpoints []string,
 	loopSize := len(endpoints) * maxRetriesPerURL
 	var lastErr error
 	startEndpointIndex := 0
+	totalDelay := time.Duration(0)
 
 	for {
 		// Check if context is cancelled before proceeding
@@ -84,6 +85,7 @@ func executeWithEndpointRotation[T any](ctx context.Context, endpoints []string,
 		if retriesPerEndpoint >= maxRetriesPerURL {
 			// Perform backoff before rotating to next endpoint
 			backoffDelay := calculateBackoffDelay(retriesPerEndpoint)
+			totalDelay += backoffDelay
 			select {
 			case <-ctx.Done():
 				return nil, ctx.Err()
@@ -112,6 +114,11 @@ func executeWithEndpointRotation[T any](ctx context.Context, endpoints []string,
 		totalRetries++
 		if totalRetries == loopSize {
 			sentry_integration.CaptureCurrentHubException(lastErr, sentry.LevelError)
+		}
+
+		// TODO: remove this after feature stabilization
+		if totalDelay > 5*time.Minute {
+			return nil, fmt.Errorf("total delay exceeded 5 minutes: %w", lastErr)
 		}
 
 		// Perform backoff before retrying
