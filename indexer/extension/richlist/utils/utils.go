@@ -169,7 +169,7 @@ func processEvmTransferEvent(logger *slog.Logger, event sdk.Event, balanceMap ma
 			}
 
 			// Validate it's a Transfer event with the correct number of topics
-			if len(evmLog.Topics) != 3 || evmLog.Topics[0] != EVM_TRANSFER_TOPIC {
+			if len(evmLog.Topics) != 3 || evmLog.Topics[0] != types.EvmTransferTopic {
 				continue
 			}
 
@@ -185,7 +185,7 @@ func processEvmTransferEvent(logger *slog.Logger, event sdk.Event, balanceMap ma
 			}
 
 			// Update sender's balance (subtract)
-			if fromAccAddr, err := util.AccAddressFromString(fromAddr); fromAddr != EMPTY_ADDRESS && err == nil {
+			if fromAccAddr, err := util.AccAddressFromString(fromAddr); fromAddr != types.EvmEmptyAddress && err == nil {
 				fromKey := NewBalanceChangeKey(denom, fromAccAddr)
 				if balance, exists := balanceMap[fromKey]; !exists {
 					balanceMap[fromKey] = sdkmath.ZeroInt().Sub(amount)
@@ -195,7 +195,7 @@ func processEvmTransferEvent(logger *slog.Logger, event sdk.Event, balanceMap ma
 			}
 
 			// Update receiver's balance (add)
-			if toAccAddr, err := util.AccAddressFromString(toAddr); toAddr != EMPTY_ADDRESS && err == nil {
+			if toAccAddr, err := util.AccAddressFromString(toAddr); toAddr != types.EvmEmptyAddress && err == nil {
 				toKey := NewBalanceChangeKey(denom, toAccAddr)
 				if balance, exists := balanceMap[toKey]; !exists {
 					balanceMap[toKey] = amount

@@ -14,13 +14,8 @@ import (
 	"github.com/initia-labs/rollytics/util"
 )
 
-const (
-	nftTopic  = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
-	emptyAddr = "0x0000000000000000000000000000000000000000000000000000000000000000"
-)
-
 func isEvmNftLog(log evmtypes.Log) bool {
-	return len(log.Topics) == 4 && log.Topics[0] == nftTopic && log.Data == "0x"
+	return len(log.Topics) == 4 && log.Topics[0] == types.EvmTransferTopic && log.Data == "0x"
 }
 
 func convertHexStringToDecString(hex string) (string, error) {

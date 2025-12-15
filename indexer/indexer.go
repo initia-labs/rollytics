@@ -209,9 +209,7 @@ func (i *Indexer) prepare() {
 					select {
 					case <-i.ctx.Done():
 						i.logger.Info("prepare cancelled, stopping", slog.Int64("height", b.Height))
-						i.mtx.Lock()
-						i.prepareCount--
-						i.mtx.Unlock()
+						i.decrementPrepareCount()
 						return
 					default:
 					}
@@ -220,19 +218,13 @@ func (i *Indexer) prepare() {
 					if err == nil {
 						// Success - break out of retry loop
 						indexerMetrics.BlockProcessingTime.WithLabelValues("prepare").Observe(time.Since(start).Seconds())
-						i.mtx.Lock()
-						i.blockMap[b.Height] = b
-						i.prepareCount--
-						i.mtx.Unlock()
-						return
+						break
 					}
 
 					// Handle context cancellation (Ctrl+C) - stop immediately
 					if errors.Is(err, context.Canceled) {
 						i.logger.Info("prepare cancelled, stopping", slog.Int64("height", b.Height))
-						i.mtx.Lock()
-						i.prepareCount--
-						i.mtx.Unlock()
+						i.decrementPrepareCount()
 						return
 					}
 
@@ -245,9 +237,7 @@ func (i *Indexer) prepare() {
 						select {
 						case <-i.ctx.Done():
 							i.logger.Info("prepare cancelled during retry wait, stopping", slog.Int64("height", b.Height))
-							i.mtx.Lock()
-							i.prepareCount--
-							i.mtx.Unlock()
+							i.decrementPrepareCount()
 							return
 						case <-time.After(i.cfg.GetCoolingDuration()):
 							// Continue retry loop
@@ -261,9 +251,22 @@ func (i *Indexer) prepare() {
 					metrics.TrackError("indexer", "prepare_error")
 					panic(err)
 				}
+
+				// Success case: add to blockMap and decrement prepareCount after breaking from retry loop
+				i.mtx.Lock()
+				i.blockMap[b.Height] = b
+				i.prepareCount--
+				i.mtx.Unlock()
 			}()
 		}
 	}
+}
+
+// decrementPrepareCount safely decrements the prepareCount counter
+func (i *Indexer) decrementPrepareCount() {
+	i.mtx.Lock()
+	i.prepareCount--
+	i.mtx.Unlock()
 }
 
 func (i *Indexer) collect() {

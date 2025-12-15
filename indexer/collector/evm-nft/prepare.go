@@ -11,6 +11,7 @@ import (
 
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
 	"github.com/initia-labs/rollytics/indexer/util"
+	"github.com/initia-labs/rollytics/types"
 )
 
 func (sub *EvmNftSubmodule) prepare(ctx context.Context, block indexertypes.ScrapedBlock) error {
@@ -118,13 +119,13 @@ func filterEvmData(block indexertypes.ScrapedBlock) (targetMap map[string]map[st
 				return targetMap, err
 			}
 
-			if from == emptyAddr && to != emptyAddr {
+			if from == types.EvmEmptyAddress && to != types.EvmEmptyAddress {
 				// handle mint
 				if _, ok := targetMap[collectionAddr]; !ok {
 					targetMap[collectionAddr] = make(map[string]interface{})
 				}
 				targetMap[collectionAddr][tokenId] = nil
-			} else if from != emptyAddr && to == emptyAddr {
+			} else if from != types.EvmEmptyAddress && to == types.EvmEmptyAddress {
 				// handle burn
 				delete(targetMap[collectionAddr], tokenId)
 			}

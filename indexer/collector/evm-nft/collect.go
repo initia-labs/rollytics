@@ -74,15 +74,15 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB
 			}
 
 			switch {
-			case from == emptyAddr && to != emptyAddr:
+			case from == types.EvmEmptyAddress && to != types.EvmEmptyAddress:
 				// handle mint
 				mintMap[nftKey] = toAddr.String()
 				delete(burnMap, nftKey)
 				updateCountMap[collectionAddr] = nil
-			case from != emptyAddr && to != emptyAddr:
+			case from != types.EvmEmptyAddress && to != types.EvmEmptyAddress:
 				// handle transfer
 				transferMap[nftKey] = toAddr.String()
-			case from != emptyAddr && to == emptyAddr:
+			case from != types.EvmEmptyAddress && to == types.EvmEmptyAddress:
 				// handle burn
 				burnMap[nftKey] = nil
 				delete(mintMap, nftKey)
