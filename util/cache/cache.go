@@ -18,17 +18,6 @@ type NftKey struct {
 	TokenId        string
 }
 
-type Validator struct {
-	Moniker         string          `json:"moniker"`
-	OperatorAddress string          `json:"operator_address"`
-	ConsensusPubkey ConsensusPubkey `json:"consensus_pubkey"`
-}
-
-type ConsensusPubkey struct {
-	Type string `json:"@type"`
-	Key  string `json:"key"`
-}
-
 var (
 	accountCache          *cache.Cache[string, int64]
 	nftCache              *cache.Cache[NftKey, int64]
@@ -487,7 +476,11 @@ func SetEvmDenomContractCache(denom string, address string) {
 }
 
 func GetAccountCache(account string) (int64, bool) {
-	if id, ok := accountCache.Get(account); ok {
+	key, err := normalizeAccountToBech32(account)
+	if err != nil {
+		return 0, false
+	}
+	if id, ok := accountCache.Get(key); ok {
 		return id, true
 	}
 
