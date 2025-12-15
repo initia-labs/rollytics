@@ -9,8 +9,6 @@ import (
 
 	"gorm.io/gorm"
 
-	"github.com/gofiber/fiber/v2"
-
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/indexer/collector"
 	"github.com/initia-labs/rollytics/indexer/extension"
@@ -76,9 +74,6 @@ func (i *Indexer) Run(ctx context.Context) error {
 	}
 	dbNext := lastBlock.Height + 1
 
-	// get the current chain height for validation/clamping
-	client := fiber.AcquireClient()
-	defer fiber.ReleaseClient(client)
 	chainHeight, err := i.querier.GetLatestHeight(ctx)
 	if err != nil {
 		i.logger.Error("failed to get chain height", slog.Any("error", err))
@@ -152,8 +147,6 @@ func (i *Indexer) Run(ctx context.Context) error {
 }
 
 func (i *Indexer) wait() {
-	client := fiber.AcquireClient()
-	defer fiber.ReleaseClient(client)
 	for {
 		chainHeight, err := i.querier.GetLatestHeight(i.ctx)
 		if err != nil {
