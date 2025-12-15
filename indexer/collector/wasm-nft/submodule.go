@@ -1,6 +1,7 @@
 package wasm_nft
 
 import (
+	"context"
 	"log/slog"
 	"sync"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/initia-labs/rollytics/cache"
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/indexer/types"
+	"github.com/initia-labs/rollytics/util/querier"
 )
 
 const SubmoduleName = "wasm-nft"
@@ -21,6 +23,7 @@ type WasmNftSubmodule struct {
 	cache     map[int64]CacheData
 	blacklist *cache.Cache[string, interface{}]
 	mtx       sync.Mutex
+	querier   *querier.Querier
 }
 
 func New(logger *slog.Logger, cfg *config.Config) *WasmNftSubmodule {
@@ -37,8 +40,8 @@ func (sub *WasmNftSubmodule) Name() string {
 	return SubmoduleName
 }
 
-func (sub *WasmNftSubmodule) Prepare(block types.ScrapedBlock) error {
-	if err := sub.prepare(block); err != nil {
+func (sub *WasmNftSubmodule) Prepare(ctx context.Context, block types.ScrapedBlock) error {
+	if err := sub.prepare(ctx, block); err != nil {
 		sub.logger.Error("failed to prepare data", slog.Int64("height", block.Height), slog.Any("error", err))
 		return err
 	}

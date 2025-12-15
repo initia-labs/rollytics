@@ -1,6 +1,7 @@
 package move_nft
 
 import (
+	"context"
 	"log/slog"
 	"sync"
 
@@ -8,6 +9,7 @@ import (
 
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/indexer/types"
+	"github.com/initia-labs/rollytics/util/querier"
 )
 
 const SubmoduleName = "move-nft"
@@ -15,17 +17,19 @@ const SubmoduleName = "move-nft"
 var _ types.Submodule = &MoveNftSubmodule{}
 
 type MoveNftSubmodule struct {
-	logger *slog.Logger
-	cfg    *config.Config
-	cache  map[int64]CacheData
-	mtx    sync.Mutex
+	logger  *slog.Logger
+	cfg     *config.Config
+	cache   map[int64]CacheData
+	mtx     sync.Mutex
+	querier *querier.Querier
 }
 
 func New(logger *slog.Logger, cfg *config.Config) *MoveNftSubmodule {
 	return &MoveNftSubmodule{
-		logger: logger.With("submodule", SubmoduleName),
-		cfg:    cfg,
-		cache:  make(map[int64]CacheData),
+		logger:  logger.With("submodule", SubmoduleName),
+		cfg:     cfg,
+		cache:   make(map[int64]CacheData),
+		querier: querier.NewQuerier(cfg.GetChainConfig()),
 	}
 }
 
@@ -33,8 +37,8 @@ func (sub *MoveNftSubmodule) Name() string {
 	return SubmoduleName
 }
 
-func (sub *MoveNftSubmodule) Prepare(block types.ScrapedBlock) error {
-	if err := sub.prepare(block); err != nil {
+func (sub *MoveNftSubmodule) Prepare(ctx context.Context, block types.ScrapedBlock) error {
+	if err := sub.prepare(ctx, block); err != nil {
 		sub.logger.Error("failed to prepare data", slog.Int64("height", block.Height), slog.Any("error", err))
 		return err
 	}

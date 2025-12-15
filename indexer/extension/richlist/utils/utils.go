@@ -18,6 +18,8 @@ import (
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/types"
 	"github.com/initia-labs/rollytics/util"
+	"github.com/initia-labs/rollytics/util/cache"
+	"github.com/initia-labs/rollytics/util/querier"
 )
 
 const MAX_ATTEMPTS = 10
@@ -82,7 +84,7 @@ func containsAddress(addresses []sdk.AccAddress, target sdk.AccAddress) bool {
 // processCosmosTransferEvent processes a Cosmos transfer event and updates the balance map.
 // It extracts transfer information from the event attributes and updates balances for both sender and receiver.
 // Returns true if the event was successfully processed, false otherwise.
-func processCosmosTransferEvent(logger *slog.Logger, cfg *config.Config, event sdk.Event, balanceMap map[BalanceChangeKey]sdkmath.Int, moduleAccounts []sdk.AccAddress) {
+func processCosmosTransferEvent(ctx context.Context, querier *querier.Querier, logger *slog.Logger, cfg *config.Config, event sdk.Event, balanceMap map[BalanceChangeKey]sdkmath.Int, moduleAccounts []sdk.AccAddress) {
 	// Extract attributes from the event
 	var recipient, sender sdk.AccAddress
 	var amount string
@@ -122,7 +124,7 @@ func processCosmosTransferEvent(logger *slog.Logger, cfg *config.Config, event s
 	for _, coin := range coins {
 		denom := strings.ToLower(strings.ToLower(coin.Denom))
 		if cfg.GetChainConfig().VmType == types.EVM {
-			contract, err := util.GetEvmContractByDenom(context.Background(), denom)
+			contract, err := querier.GetEvmContractByDenom(ctx, denom)
 			if err != nil {
 				continue
 			}
@@ -167,7 +169,7 @@ func processEvmTransferEvent(logger *slog.Logger, event sdk.Event, balanceMap ma
 			}
 
 			// Validate it's a Transfer event with the correct number of topics
-			if len(evmLog.Topics) != 3 || evmLog.Topics[0] != EVM_TRANSFER_TOPIC {
+			if len(evmLog.Topics) != 3 || evmLog.Topics[0] != types.EvmTransferTopic {
 				continue
 			}
 
@@ -183,7 +185,7 @@ func processEvmTransferEvent(logger *slog.Logger, event sdk.Event, balanceMap ma
 			}
 
 			// Update sender's balance (subtract)
-			if fromAccAddr, err := util.AccAddressFromString(fromAddr); fromAddr != EMPTY_ADDRESS && err == nil {
+			if fromAccAddr, err := util.AccAddressFromString(fromAddr); fromAddr != types.EvmEmptyAddress && err == nil {
 				fromKey := NewBalanceChangeKey(denom, fromAccAddr)
 				if balance, exists := balanceMap[fromKey]; !exists {
 					balanceMap[fromKey] = sdkmath.ZeroInt().Sub(amount)
@@ -193,7 +195,7 @@ func processEvmTransferEvent(logger *slog.Logger, event sdk.Event, balanceMap ma
 			}
 
 			// Update receiver's balance (add)
-			if toAccAddr, err := util.AccAddressFromString(toAddr); toAddr != EMPTY_ADDRESS && err == nil {
+			if toAccAddr, err := util.AccAddressFromString(toAddr); toAddr != types.EvmEmptyAddress && err == nil {
 				toKey := NewBalanceChangeKey(denom, toAccAddr)
 				if balance, exists := balanceMap[toKey]; !exists {
 					balanceMap[toKey] = amount
@@ -207,7 +209,7 @@ func processEvmTransferEvent(logger *slog.Logger, event sdk.Event, balanceMap ma
 
 // ProcessBalanceChanges processes Cosmos transactions and calculates balance changes
 // for each address. Returns a map of BalanceChangeKey to balance change amounts.
-func ProcessBalanceChanges(logger *slog.Logger, cfg *config.Config, txs []types.CollectedTx, moduleAccounts []sdk.AccAddress) map[BalanceChangeKey]sdkmath.Int {
+func ProcessBalanceChanges(ctx context.Context, querier *querier.Querier, logger *slog.Logger, cfg *config.Config, txs []types.CollectedTx, moduleAccounts []sdk.AccAddress) map[BalanceChangeKey]sdkmath.Int {
 	balanceMap := make(map[BalanceChangeKey]sdkmath.Int)
 
 	// Process each transaction
@@ -225,7 +227,7 @@ func ProcessBalanceChanges(logger *slog.Logger, cfg *config.Config, txs []types.
 
 		for _, event := range events {
 			if event.Type == banktypes.EventTypeTransfer && cfg.GetChainConfig().VmType != types.EVM {
-				processCosmosTransferEvent(logger, cfg, event, balanceMap, moduleAccounts)
+				processCosmosTransferEvent(ctx, querier, logger, cfg, event, balanceMap, moduleAccounts)
 			} else if event.Type == "evm" {
 				processEvmTransferEvent(logger, event, balanceMap)
 			}
@@ -250,9 +252,9 @@ func ProcessBalanceChanges(logger *slog.Logger, cfg *config.Config, txs []types.
 //   - error if any step fails
 func FetchAndUpdateBalances(
 	ctx context.Context,
+	q *querier.Querier,
 	logger *slog.Logger,
 	db *gorm.DB,
-	cfg *config.Config,
 	accounts []sdk.AccAddress,
 	height int64,
 ) error {
@@ -274,7 +276,7 @@ func FetchAndUpdateBalances(
 		}
 
 		// Fetch balances for this account
-		balances, err := fetchAccountBalancesWithPagination(ctx, cfg, address, height)
+		balances, err := q.GetAllBalances(ctx, address, height)
 		if err != nil {
 			return fmt.Errorf("failed to fetch balances for address %s: %w", address, err)
 		}
@@ -319,10 +321,10 @@ func FetchAndUpdateBalances(
 //
 // Returns:
 //   - error if any step fails
-func InitializeBalances(ctx context.Context, logger *slog.Logger, db *gorm.DB, cfg *config.Config, height int64) error {
+func InitializeBalances(ctx context.Context, querier *querier.Querier, logger *slog.Logger, db *gorm.DB, cfg *config.Config, height int64) error {
 	// Step 1: Fetch all accounts with pagination
 	logger.Info("fetching all accounts with pagination", slog.Int64("height", height))
-	accounts, err := fetchAllAccountsWithPagination(ctx, cfg, height)
+	accounts, err := querier.FetchAllAccountsWithPagination(ctx, height)
 	if err != nil {
 		return fmt.Errorf("failed to fetch accounts: %w", err)
 	}
@@ -334,7 +336,7 @@ func InitializeBalances(ctx context.Context, logger *slog.Logger, db *gorm.DB, c
 
 	// Step 2: Fetch balances for each account and update by denomination
 	logger.Info("fetching and updating balances", slog.Int64("height", height))
-	if err := FetchAndUpdateBalances(ctx, logger, db, cfg, accounts, height); err != nil {
+	if err := FetchAndUpdateBalances(ctx, querier, logger, db, accounts, height); err != nil {
 		return fmt.Errorf("failed to fetch and accumulate balances: %w", err)
 	}
 
@@ -352,5 +354,5 @@ func getOrCreateAccountIds(db *gorm.DB, accounts []sdk.AccAddress, createNew boo
 	for _, account := range accounts {
 		addresses = append(addresses, account.String())
 	}
-	return util.GetOrCreateAccountIds(db, addresses, createNew)
+	return cache.GetOrCreateAccountIds(db, addresses, createNew)
 }

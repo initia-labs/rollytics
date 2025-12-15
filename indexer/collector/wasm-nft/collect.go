@@ -12,6 +12,7 @@ import (
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
 	"github.com/initia-labs/rollytics/util"
+	"github.com/initia-labs/rollytics/util/cache"
 )
 
 func (sub *WasmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) error {
@@ -25,9 +26,9 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 	}
 
 	batchSize := sub.cfg.GetDBBatchSize()
-	mintMap := make(map[util.NftKey]map[string]string)
-	transferMap := make(map[util.NftKey]string)
-	burnMap := make(map[util.NftKey]interface{})
+	mintMap := make(map[cache.NftKey]map[string]string)
+	transferMap := make(map[cache.NftKey]string)
+	burnMap := make(map[cache.NftKey]interface{})
 	updateCountMap := make(map[string]interface{})
 	nftTxMap := make(map[string]map[string]map[string]interface{})
 
@@ -63,7 +64,7 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 				continue
 			}
 
-			nftKey := util.NftKey{
+			nftKey := cache.NftKey{
 				CollectionAddr: collectionAddr,
 				TokenId:        tokenId,
 			}
@@ -92,7 +93,7 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 				continue
 			}
 
-			nftKey := util.NftKey{
+			nftKey := cache.NftKey{
 				CollectionAddr: collectionAddr,
 				TokenId:        tokenId,
 			}
@@ -111,7 +112,7 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 				continue
 			}
 
-			nftKey := util.NftKey{
+			nftKey := cache.NftKey{
 				CollectionAddr: collectionAddr,
 				TokenId:        tokenId,
 			}
@@ -146,7 +147,7 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 		allAddresses = append(allAddresses, recipient)
 	}
 
-	accountIdMap, err := util.GetOrCreateAccountIds(tx, allAddresses, true)
+	accountIdMap, err := cache.GetOrCreateAccountIds(tx, allAddresses, true)
 	if err != nil {
 		return err
 	}
@@ -268,15 +269,15 @@ func (sub *WasmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 			continue
 		}
 
-		var keys []util.NftKey
+		var keys []cache.NftKey
 		for collectionAddr, nftMap := range collectionMap {
 			for tokenId := range nftMap {
-				key := util.NftKey{CollectionAddr: collectionAddr, TokenId: tokenId}
+				key := cache.NftKey{CollectionAddr: collectionAddr, TokenId: tokenId}
 				keys = append(keys, key)
 			}
 		}
 
-		nftIdMap, err := util.GetOrCreateNftIds(tx, keys, true)
+		nftIdMap, err := cache.GetOrCreateNftIds(tx, keys, true)
 		if err != nil {
 			return err
 		}

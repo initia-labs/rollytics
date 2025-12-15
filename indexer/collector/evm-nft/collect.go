@@ -17,6 +17,7 @@ import (
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
 	"github.com/initia-labs/rollytics/util"
+	"github.com/initia-labs/rollytics/util/cache"
 )
 
 func (sub *EvmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) error {
@@ -30,9 +31,9 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB
 	}
 
 	batchSize := sub.cfg.GetDBBatchSize()
-	mintMap := make(map[util.NftKey]string)     // NftKey -> owner
-	transferMap := make(map[util.NftKey]string) // NftKey -> new owner
-	burnMap := make(map[util.NftKey]interface{})
+	mintMap := make(map[cache.NftKey]string)     // NftKey -> owner
+	transferMap := make(map[cache.NftKey]string) // NftKey -> new owner
+	burnMap := make(map[cache.NftKey]interface{})
 	updateCountMap := make(map[string]interface{})
 	nftTxMap := make(map[string]map[string]map[string]interface{})
 	events, err := indexerutil.ExtractEvents(block, "evm")
@@ -67,21 +68,21 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB
 				return err
 			}
 
-			nftKey := util.NftKey{
+			nftKey := cache.NftKey{
 				CollectionAddr: collectionAddr,
 				TokenId:        tokenId,
 			}
 
 			switch {
-			case from == emptyAddr && to != emptyAddr:
+			case from == types.EvmEmptyAddress && to != types.EvmEmptyAddress:
 				// handle mint
 				mintMap[nftKey] = toAddr.String()
 				delete(burnMap, nftKey)
 				updateCountMap[collectionAddr] = nil
-			case from != emptyAddr && to != emptyAddr:
+			case from != types.EvmEmptyAddress && to != types.EvmEmptyAddress:
 				// handle transfer
 				transferMap[nftKey] = toAddr.String()
-			case from != emptyAddr && to == emptyAddr:
+			case from != types.EvmEmptyAddress && to == types.EvmEmptyAddress:
 				// handle burn
 				burnMap[nftKey] = nil
 				delete(mintMap, nftKey)
@@ -104,7 +105,7 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB
 	var mintedCols []types.CollectedNftCollection
 	var mintedNfts []types.CollectedNft
 
-	mintedCollections := make(map[string][]util.NftKey) // collectionAddr -> []NftKey
+	mintedCollections := make(map[string][]cache.NftKey) // collectionAddr -> []NftKey
 	var allAddresses []string
 
 	for nftKey, owner := range mintMap {
@@ -143,7 +144,7 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB
 		allAddresses = append(allAddresses, creationInfo.Creator)
 	}
 
-	accountIdMap, err := util.GetOrCreateAccountIds(tx, allAddresses, true)
+	accountIdMap, err := cache.GetOrCreateAccountIds(tx, allAddresses, true)
 	if err != nil {
 		return err
 	}
@@ -279,15 +280,15 @@ func (sub *EvmNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB
 			continue
 		}
 
-		var keys []util.NftKey
+		var keys []cache.NftKey
 		for collectionAddr, nftMap := range collectionMap {
 			for tokenId := range nftMap {
-				key := util.NftKey{CollectionAddr: collectionAddr, TokenId: tokenId}
+				key := cache.NftKey{CollectionAddr: collectionAddr, TokenId: tokenId}
 				keys = append(keys, key)
 			}
 		}
 
-		nftIdMap, err := util.GetOrCreateNftIds(tx, keys, true)
+		nftIdMap, err := cache.GetOrCreateNftIds(tx, keys, true)
 		if err != nil {
 			return err
 		}

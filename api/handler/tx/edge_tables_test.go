@@ -18,17 +18,19 @@ import (
 	"github.com/initia-labs/rollytics/orm/testutil"
 	"github.com/initia-labs/rollytics/types"
 	"github.com/initia-labs/rollytics/util"
+	"github.com/initia-labs/rollytics/util/cache"
 	"github.com/initia-labs/rollytics/util/common-handler/common"
 )
 
 func init() {
-	util.InitializeCaches(&config.CacheConfig{
+	cache.InitializeCaches(&config.CacheConfig{
 		AccountCacheSize:          1024,
 		NftCacheSize:              1024,
 		MsgTypeCacheSize:          256,
 		TypeTagCacheSize:          256,
 		EvmTxHashCacheSize:        1024,
 		EvmDenomContractCacheSize: 1024,
+		ValidatorCacheSize:        1024,
 	})
 }
 

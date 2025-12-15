@@ -1,6 +1,7 @@
 package evm_nft
 
 import (
+	"context"
 	"encoding/json"
 	"strings"
 	"sync"
@@ -10,9 +11,10 @@ import (
 
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
 	"github.com/initia-labs/rollytics/indexer/util"
+	"github.com/initia-labs/rollytics/types"
 )
 
-func (sub *EvmNftSubmodule) prepare(block indexertypes.ScrapedBlock) error {
+func (sub *EvmNftSubmodule) prepare(ctx context.Context, block indexertypes.ScrapedBlock) error {
 	targetMap, err := filterEvmData(block)
 	if err != nil {
 		return err
@@ -32,7 +34,7 @@ func (sub *EvmNftSubmodule) prepare(block indexertypes.ScrapedBlock) error {
 
 		addr := collectionAddr
 		g.Go(func() error {
-			name, err := getCollectionName(addr, sub.cfg, block.Height)
+			name, err := sub.querier.GetCollectionName(ctx, addr, block.Height)
 			if err != nil {
 				if isEvmRevertError(err) {
 					sub.AddToBlacklist(addr)
@@ -52,7 +54,7 @@ func (sub *EvmNftSubmodule) prepare(block indexertypes.ScrapedBlock) error {
 		for tokenId := range tokenIdMap {
 			id := tokenId
 			g.Go(func() error {
-				tokenUri, err := getTokenUri(addr, id, sub.cfg, block.Height)
+				tokenUri, err := sub.querier.GetTokenUri(ctx, addr, id, block.Height)
 				if err != nil {
 					if isEvmRevertError(err) {
 						return nil
@@ -117,13 +119,13 @@ func filterEvmData(block indexertypes.ScrapedBlock) (targetMap map[string]map[st
 				return targetMap, err
 			}
 
-			if from == emptyAddr && to != emptyAddr {
+			if from == types.EvmEmptyAddress && to != types.EvmEmptyAddress {
 				// handle mint
 				if _, ok := targetMap[collectionAddr]; !ok {
 					targetMap[collectionAddr] = make(map[string]interface{})
 				}
 				targetMap[collectionAddr][tokenId] = nil
-			} else if from != emptyAddr && to == emptyAddr {
+			} else if from != types.EvmEmptyAddress && to == types.EvmEmptyAddress {
 				// handle burn
 				delete(targetMap[collectionAddr], tokenId)
 			}
