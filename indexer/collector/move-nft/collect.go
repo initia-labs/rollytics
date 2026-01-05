@@ -13,6 +13,7 @@ import (
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
 	"github.com/initia-labs/rollytics/util"
+	"github.com/initia-labs/rollytics/util/cache"
 )
 
 func (sub *MoveNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) error {
@@ -118,7 +119,7 @@ func (sub *MoveNftSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.D
 		allAddresses = append(allAddresses, owner)
 	}
 
-	accountIdMap, err := util.GetOrCreateAccountIds(tx, allAddresses, true)
+	accountIdMap, err := cache.GetOrCreateAccountIds(tx, allAddresses, true)
 	if err != nil {
 		return err
 	}

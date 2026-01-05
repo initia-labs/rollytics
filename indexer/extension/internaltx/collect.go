@@ -17,11 +17,12 @@ import (
 	"github.com/initia-labs/rollytics/sentry_integration"
 	"github.com/initia-labs/rollytics/types"
 	"github.com/initia-labs/rollytics/util"
+	"github.com/initia-labs/rollytics/util/cache"
 )
 
 type InternalTxResult struct {
 	Height    int64
-	CallTrace *DebugCallTraceBlockResponse
+	CallTrace *types.DebugCallTraceBlockResponse
 }
 
 func (i *InternalTxExtension) CollectInternalTxs(ctx context.Context, db *orm.Database, internalTx *InternalTxResult) error {
@@ -40,7 +41,7 @@ func (i *InternalTxExtension) CollectInternalTxs(ctx context.Context, db *orm.Da
 			hashes = append(hashes, hashBytes)
 		}
 
-		hashIdMap, err := util.GetOrCreateEvmTxHashIds(tx, hashes, true)
+		hashIdMap, err := cache.GetOrCreateEvmTxHashIds(tx, hashes, true)
 		if err != nil {
 			return fmt.Errorf("failed to create hash dictionary entries: %w", err)
 		}
@@ -69,7 +70,7 @@ func (i *InternalTxExtension) CollectInternalTxs(ctx context.Context, db *orm.Da
 				return types.NewNotFoundError(fmt.Sprintf("hash ID for hash %s", hashHex))
 			}
 
-			topLevelCall := InternalTransaction{
+			topLevelCall := types.InternalTransaction{
 				Type:    trace.Result.Type,
 				From:    trace.Result.From,
 				To:      trace.Result.To,
@@ -81,7 +82,7 @@ func (i *InternalTxExtension) CollectInternalTxs(ctx context.Context, db *orm.Da
 				Calls:   trace.Result.Calls,
 			}
 
-			txInfo := &InternalTxInfo{
+			txInfo := &types.InternalTxInfo{
 				Height:      height,
 				HashId:      hashId,
 				Index:       0,  // Top-level starts at index 0

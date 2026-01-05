@@ -1,4 +1,11 @@
-package internaltx
+package types
+
+type InternalTxInfo struct {
+	Height      int64
+	HashId      int64
+	Index       int64
+	ParentIndex int64
+}
 
 // DebugCallTraceBlockResponse represents the response from debug_traceBlockByNumber RPC call
 type DebugCallTraceBlockResponse struct {

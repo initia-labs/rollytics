@@ -5,23 +5,17 @@ import (
 
 	"github.com/initia-labs/rollytics/types"
 	"github.com/initia-labs/rollytics/util"
+	"github.com/initia-labs/rollytics/util/cache"
 )
-
-type InternalTxInfo struct {
-	Height      int64
-	HashId      int64
-	Index       int64
-	ParentIndex int64
-}
 
 func processInternalCall(
 	db *gorm.DB,
-	tx *InternalTxInfo,
-	call *InternalTransaction,
+	tx *types.InternalTxInfo,
+	call *types.InternalTransaction,
 	seqInfo *types.CollectedSeqInfo,
 	edges *[]types.CollectedEvmInternalTxAccount,
 ) ([]types.CollectedEvmInternalTx, error) {
-	evmInternalTx := EvmInternalTx{
+	evmInternalTx := types.EvmInternalTx{
 		Type:    call.Type,
 		From:    call.From,
 		To:      call.To,
@@ -36,7 +30,7 @@ func processInternalCall(
 		return nil, err
 	}
 
-	accIdMap, err := util.GetOrCreateAccountIds(db, accounts, true)
+	accIdMap, err := cache.GetOrCreateAccountIds(db, accounts, true)
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +118,7 @@ func processInternalCall(
 	// Process nested calls recursively
 	nextIndex := tx.Index + 1
 	for _, nestedCall := range call.Calls {
-		nestedTxInfo := &InternalTxInfo{
+		nestedTxInfo := &types.InternalTxInfo{
 			Height:      tx.Height,
 			HashId:      tx.HashId,
 			Index:       nextIndex,

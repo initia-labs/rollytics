@@ -33,7 +33,7 @@ func Patch(tx *gorm.DB, cfg *config.Config, logger *slog.Logger) error {
 	case types.EVM:
 		return nil
 	case types.WasmVM:
-		return PatchWasmNFT(tx, cfg, logger)
+		// return PatchWasmNFT(tx, cfg, logger)
 	case types.MoveVM:
 		return nil
 	}

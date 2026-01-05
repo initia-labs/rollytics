@@ -2,24 +2,17 @@ package evmrichlist
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"maps"
-	"strconv"
-	"strings"
 	"sync"
 
 	sdkmath "cosmossdk.io/math"
-	"github.com/getsentry/sentry-go"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/initia-labs/rollytics/config"
 	richlistutils "github.com/initia-labs/rollytics/indexer/extension/richlist/utils"
-	"github.com/initia-labs/rollytics/sentry_integration"
-	"github.com/initia-labs/rollytics/util"
+	"github.com/initia-labs/rollytics/util/querier"
 )
-
-const MAX_RETRY_ATTEMPTS_BEFORE_SENTRY = 10
 
 // queryERC20Balances queries the balances of multiple addresses for a specific ERC20 token via JSON-RPC.
 // It returns a map of AddressWithID to balance (as sdkmath.Int).
@@ -51,6 +44,7 @@ func queryERC20Balances(ctx context.Context, cfg *config.Config, erc20Address st
 		batches = append(batches, addresses[i:end])
 	}
 
+	querier := querier.NewQuerier(cfg.GetChainConfig())
 	// Process batches with parallelization using errgroup
 	var mu sync.Mutex
 	g, ctx := errgroup.WithContext(ctx)
@@ -61,7 +55,8 @@ func queryERC20Balances(ctx context.Context, cfg *config.Config, erc20Address st
 		batchData := batch
 		g.Go(func() error {
 			// queryBatchBalances uses utils.Post which already handles retries with exponential backoff
-			batchBalances, err := queryBatchBalances(ctx, cfg, erc20Address, batchData, height)
+			// TODO: revisit
+			batchBalances, err := queryBatchBalances(ctx, querier, erc20Address, batchData, height)
 			if err != nil {
 				return fmt.Errorf("failed to query batch %d: %w", batchIdx, err)
 			}
@@ -84,120 +79,21 @@ func queryERC20Balances(ctx context.Context, cfg *config.Config, erc20Address st
 }
 
 // queryBatchBalances queries balances for a batch of addresses at a specific height
-func queryBatchBalances(ctx context.Context, cfg *config.Config, erc20Address string, batch []richlistutils.AddressWithID, height int64) (map[richlistutils.AddressWithID]sdkmath.Int, error) {
-	// balanceOf function selector: keccak256("balanceOf(address)")[:4] = 0x70a08231
-	const balanceOfSelector = "0x70a08231"
-
-	batchRequests := make([]JSONRPCRequest, 0, len(batch)+1)
-	batchRequests = append(batchRequests, JSONRPCRequest{
-		JSONRPC: "2.0",
-		Method:  "eth_blockNumber",
-		Params:  []any{},
-		ID:      0,
-	})
-
-	// Create batch of JSON-RPC requests
-	for idx, addrWithID := range batch {
-		// Prepare the call data: balanceOf(address)
-		// Format: 0x70a08231 + 000000000000000000000000 + address (without 0x)
-		addressParam := strings.TrimPrefix(addrWithID.HexAddress, "0x")
-
-		// Pad address to 32 bytes (64 hex chars) - efficient single allocation
-		if len(addressParam) < 64 {
-			addressParam = strings.Repeat("0", 64-len(addressParam)) + strings.TrimPrefix(addrWithID.HexAddress, "0x")
-		}
-
-		callData := balanceOfSelector + addressParam
-
-		// Convert height to hex format (0x prefix)
-		blockParam := fmt.Sprintf("0x%x", height)
-
-		// Create JSON-RPC request with unique ID
-		rpcReq := JSONRPCRequest{
-			JSONRPC: "2.0",
-			Method:  "eth_call",
-			Params: []any{
-				map[string]string{
-					"to":   erc20Address,
-					"data": callData,
-				},
-				blockParam,
-			},
-			ID: idx + 1, // Unique ID for each request in the batch
-		}
-
-		batchRequests = append(batchRequests, rpcReq)
+func queryBatchBalances(ctx context.Context, querier *querier.Querier, erc20Address string, batch []richlistutils.AddressWithID, height int64) (map[richlistutils.AddressWithID]sdkmath.Int, error) {
+	addresses := make([]string, 0, len(batch))
+	for _, addrWithID := range batch {
+		addresses = append(addresses, addrWithID.HexAddress)
 	}
 
-	// Send JSON-RPC batch request using util.Post
-	headers := map[string]string{
-		"Content-Type": "application/json",
-	}
-
-	var batchResponses []JSONRPCResponse
-
-	for attempt := 0; ; attempt++ {
-		// TODO: handle more appropriately
-		respBody, err := util.Post(ctx, cfg.GetChainConfig().JsonRpcUrl, "", batchRequests, headers, cfg.GetQueryTimeout())
-		if err != nil {
-			if attempt == MAX_RETRY_ATTEMPTS_BEFORE_SENTRY {
-				sentry_integration.CaptureCurrentHubException(fmt.Errorf("failed to send JSON-RPC batch request: %w", err), sentry.LevelError)
-			}
-			richlistutils.ExponentialBackoff(attempt)
-			continue
-		}
-
-		// Parse batch response
-		if err := json.Unmarshal(respBody, &batchResponses); err != nil {
-			if attempt == MAX_RETRY_ATTEMPTS_BEFORE_SENTRY {
-				sentry_integration.CaptureCurrentHubException(fmt.Errorf("failed to decode JSON-RPC batch response: %w", err), sentry.LevelError)
-			}
-			richlistutils.ExponentialBackoff(attempt)
-			continue
-		}
-
-		// Process each response in the batch
-		if len(batchResponses) != len(batch)+1 {
-			if attempt == MAX_RETRY_ATTEMPTS_BEFORE_SENTRY {
-				sentry_integration.CaptureCurrentHubException(fmt.Errorf("batch response count mismatch: expected %d, got %d", len(batch)+1, len(batchResponses)), sentry.LevelError)
-			}
-			richlistutils.ExponentialBackoff(attempt)
-			continue
-		}
-
-		// Parse the latest height from the batch response
-		latestHeight, err := parseLatestHeightFromBatch(batchResponses)
-		if err != nil {
-			if attempt == MAX_RETRY_ATTEMPTS_BEFORE_SENTRY {
-				sentry_integration.CaptureCurrentHubException(fmt.Errorf("failed to parse latest height from batch response: %w", err), sentry.LevelError)
-			}
-			richlistutils.ExponentialBackoff(attempt)
-			continue
-		}
-
-		// Check if the latest height is less than the requested height
-		if latestHeight < height {
-			// Abort if context is done instead of sleeping indefinitely
-			if ctx.Err() != nil {
-				return nil, ctx.Err()
-			}
-			// Sleep before retrying with exponential backoff
-			if attempt == MAX_RETRY_ATTEMPTS_BEFORE_SENTRY {
-				sentry_integration.CaptureCurrentHubException(fmt.Errorf("latest height is less than requested height: %d < %d", latestHeight, height), sentry.LevelError)
-			}
-			richlistutils.ExponentialBackoff(attempt)
-			continue
-		}
-
-		// Height is sufficient, break out of retry loop
-		break
+	batchResponses, err := querier.QueryERC20Balances(ctx, erc20Address, addresses, height)
+	if err != nil {
+		return nil, err
 	}
 
 	// Build a map from request ID to the corresponding AddressWithID
 	idToAddr := make(map[int]richlistutils.AddressWithID, len(batch))
 	for idx, addrWithID := range batch {
-		requestID := idx + 1
-		idToAddr[requestID] = addrWithID
+		idToAddr[idx+1] = addrWithID
 	}
 
 	balances := make(map[richlistutils.AddressWithID]sdkmath.Int, len(batch))
@@ -228,24 +124,4 @@ func queryBatchBalances(ctx context.Context, cfg *config.Config, erc20Address st
 	}
 
 	return balances, nil
-}
-
-// parseLatestHeightFromBatch extracts and parses the latest block height from batch responses
-func parseLatestHeightFromBatch(batchResponses []JSONRPCResponse) (int64, error) {
-	for _, resp := range batchResponses {
-		if resp.ID == 0 {
-			// Check for JSON-RPC error
-			if resp.Error != nil {
-				return 0, fmt.Errorf("JSON-RPC error for eth_blockNumber: code=%d, message=%s", resp.Error.Code, resp.Error.Message)
-			}
-
-			// Remove 0x prefix and parse hex
-			heightValue, err := strconv.ParseInt(strings.TrimPrefix(resp.Result, "0x"), 16, 64)
-			if err != nil {
-				return 0, fmt.Errorf("failed to parse eth_blockNumber result: %w", err)
-			}
-			return heightValue, nil
-		}
-	}
-	return 0, fmt.Errorf("eth_blockNumber response (ID 0) not found in batch")
 }

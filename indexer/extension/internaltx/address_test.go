@@ -6,17 +6,18 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/initia-labs/rollytics/indexer/extension/internaltx"
+	"github.com/initia-labs/rollytics/types"
 )
 
 func TestGrepAddressesFromEvmInternalTx(t *testing.T) {
 	tests := []struct {
 		name     string
-		tx       internaltx.EvmInternalTx
+		tx       types.EvmInternalTx
 		expected []string
 	}{
 		{
 			name: "basic call with proper input",
-			tx: internaltx.EvmInternalTx{
+			tx: types.EvmInternalTx{
 				Type:   "CALL",
 				From:   "0x1234567890123456789012345678901234567890",
 				To:     "0x0987654321098765432109876543210987654321",
@@ -30,7 +31,7 @@ func TestGrepAddressesFromEvmInternalTx(t *testing.T) {
 		},
 		{
 			name: "empty input",
-			tx: internaltx.EvmInternalTx{
+			tx: types.EvmInternalTx{
 				Type:   "CALL",
 				From:   "0x1234567890123456789012345678901234567890",
 				To:     "0x0987654321098765432109876543210987654321",
@@ -44,7 +45,7 @@ func TestGrepAddressesFromEvmInternalTx(t *testing.T) {
 		},
 		{
 			name: "short input",
-			tx: internaltx.EvmInternalTx{
+			tx: types.EvmInternalTx{
 				Type:   "CALL",
 				From:   "0x1234567890123456789012345678901234567890",
 				To:     "0x0987654321098765432109876543210987654321",
@@ -58,7 +59,7 @@ func TestGrepAddressesFromEvmInternalTx(t *testing.T) {
 		},
 		{
 			name: "delegatecall with zero value",
-			tx: internaltx.EvmInternalTx{
+			tx: types.EvmInternalTx{
 				Type:   "DELEGATECALL",
 				From:   "0x1234567890123456789012345678901234567890",
 				To:     "0x2222222222222222222222222222222222222222",

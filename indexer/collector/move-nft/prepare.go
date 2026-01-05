@@ -1,6 +1,7 @@
 package move_nft
 
 import (
+	"context"
 	"encoding/json"
 	"sync"
 
@@ -12,7 +13,7 @@ import (
 
 const nftStructTag = "0x1::nft::Nft"
 
-func (sub *MoveNftSubmodule) prepare(block indexertypes.ScrapedBlock) error {
+func (sub *MoveNftSubmodule) prepare(ctx context.Context, block indexertypes.ScrapedBlock) error {
 	nftAddrs, err := filterMoveData(block)
 	if err != nil {
 		return err
@@ -20,13 +21,13 @@ func (sub *MoveNftSubmodule) prepare(block indexertypes.ScrapedBlock) error {
 
 	nftResources := make(map[string]string) // nft addr -> nft resource
 
-	var g errgroup.Group
+	g, gCtx := errgroup.WithContext(ctx)
 	var mtx sync.Mutex
 
 	for _, nftAddr := range nftAddrs {
 		addr := nftAddr
 		g.Go(func() error {
-			resource, err := getMoveResource(addr, nftStructTag, sub.cfg, block.Height)
+			resource, err := sub.querier.GetMoveResource(gCtx, addr, nftStructTag, block.Height)
 			if err != nil {
 				return err
 			}

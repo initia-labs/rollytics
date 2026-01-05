@@ -1,19 +1,21 @@
 package tx
 
 import (
+	"context"
+
 	"golang.org/x/sync/errgroup"
 
 	indexertypes "github.com/initia-labs/rollytics/indexer/types"
 	"github.com/initia-labs/rollytics/types"
 )
 
-func (sub *TxSubmodule) prepare(block indexertypes.ScrapedBlock) error {
+func (sub *TxSubmodule) prepare(ctx context.Context, block indexertypes.ScrapedBlock) error {
 	var g errgroup.Group
-	var restTxs []RestTx
+	var restTxs []types.RestTx
 	var evmTxs []types.EvmTx
 
 	g.Go(func() error {
-		txs, err := getCosmosTxs(sub.cfg, block.Height, len(block.Txs))
+		txs, err := sub.querier.GetCosmosTxs(ctx, block.Height, len(block.Txs))
 		if err != nil {
 			return err
 		}
@@ -23,7 +25,7 @@ func (sub *TxSubmodule) prepare(block indexertypes.ScrapedBlock) error {
 	})
 
 	g.Go(func() error {
-		txs, err := getEvmTxs(sub.cfg, block.Height)
+		txs, err := sub.querier.GetEvmTxs(ctx, block.Height)
 		if err != nil {
 			return err
 		}

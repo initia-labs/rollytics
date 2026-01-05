@@ -1,4 +1,4 @@
-package util
+package querier
 
 import (
 	"context"
@@ -200,10 +200,17 @@ func Post(ctx context.Context, baseUrl, path string, payload any, headers map[st
 func executeWithRetry(ctx context.Context, baseUrl, path string, config requestConfig, timeout time.Duration) ([]byte, error) {
 	retryCount := 0
 	rateLimitRetries := 0
-	// Initialize with a default error to ensure err is never nil after retries
-	var err = types.NewTimeoutError("no attempts made")
+	timeoutRetries := 0
+	var err error
 
-	for retryCount < maxRetries {
+	for {
+		// Check if parent context is cancelled (Ctrl+C) - this is the only way to stop
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+
 		attemptCtx, cancel := context.WithTimeout(ctx, timeout)
 		body, innerErr := executeHTTPRequest(attemptCtx, baseUrl, path, config)
 		if innerErr == nil {
@@ -227,9 +234,28 @@ func executeWithRetry(ctx context.Context, baseUrl, path string, config requestC
 			}
 		}
 
+		// handle timeout errors - retry indefinitely until success or context cancellation
+		if errors.Is(innerErr, context.DeadlineExceeded) {
+			timeoutRetries++
+
+			// Track timeout retries using batching
+			endpointCategory := endpointCategorizer.Categorize(path)
+			metrics.GetGlobalMetricsBatcher().RecordRateLimitHit(endpointCategory)
+
+			backoffDelay := calculateBackoffDelay(timeoutRetries)
+			select {
+			case <-ctx.Done():
+				cancel()
+				return nil, ctx.Err()
+			case <-time.After(backoffDelay):
+				cancel()
+				continue // Retry indefinitely for timeouts
+			}
+		}
+
 		// handle 429 Too Many Requests with exponential backoff
 		// This doesn't count against regular retry limit to allow for rate limit recovery
-		if errors.Is(innerErr, fiber.ErrTooManyRequests) || errors.Is(innerErr, context.DeadlineExceeded) {
+		if errors.Is(innerErr, fiber.ErrTooManyRequests) {
 			rateLimitRetries++
 
 			// Track rate limit hits using batching
@@ -247,7 +273,13 @@ func executeWithRetry(ctx context.Context, baseUrl, path string, config requestC
 			}
 		}
 
+		// For other errors, use maxRetries limit
 		retryCount++
+		if retryCount >= maxRetries {
+			cancel()
+			return nil, err
+		}
+
 		select {
 		case <-ctx.Done():
 			cancel()
@@ -256,8 +288,6 @@ func executeWithRetry(ctx context.Context, baseUrl, path string, config requestC
 			cancel()
 		}
 	}
-
-	return nil, err
 }
 
 func executeHTTPRequest(ctx context.Context, baseUrl, path string, config requestConfig) (body []byte, err error) {

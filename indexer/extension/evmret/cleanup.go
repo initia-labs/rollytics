@@ -17,6 +17,7 @@ import (
 
 	"github.com/initia-labs/rollytics/types"
 	"github.com/initia-labs/rollytics/util"
+	"github.com/initia-labs/rollytics/util/cache"
 )
 
 // TxDataWithEvents represents the structure of tx.data field containing events
@@ -182,7 +183,7 @@ func ProcessBatch(ctx context.Context, db *gorm.DB, logger *slog.Logger, startHe
 		}
 
 		// Convert addresses to account IDs
-		accountIds, err := util.GetOrCreateAccountIds(db, retOnlyAddrs, false)
+		accountIds, err := cache.GetOrCreateAccountIds(db, retOnlyAddrs, false)
 		if err != nil {
 			hashStr := hex.EncodeToString(tx.Hash)
 			return totalDeleted, fmt.Errorf("failed to get account IDs for tx %s: %w", hashStr, err)
