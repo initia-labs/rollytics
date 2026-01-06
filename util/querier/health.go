@@ -8,8 +8,8 @@ import (
 
 const (
 	// Circuit breaker thresholds
-	failureThreshold = 3                // Number of consecutive failures before marking unhealthy
-	recoveryTimeout  = 30 * time.Second // Time before retrying an unhealthy endpoint
+	failureThreshold = 3               // Number of consecutive failures before marking unhealthy
+	recoveryTimeout  = 5 * time.Minute // Time before retrying an unhealthy endpoint
 )
 
 // endpointHealth tracks health status of an endpoint
