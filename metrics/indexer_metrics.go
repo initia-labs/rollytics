@@ -26,40 +26,46 @@ func NewIndexerMetrics() *IndexerMetrics {
 	return &IndexerMetrics{
 		BlocksProcessedTotal: prometheus.NewCounter(
 			prometheus.CounterOpts{
-				Name: "rollytics_blocks_processed_total",
-				Help: "Total number of blocks processed",
+				Name:        "rollytics_blocks_processed_total",
+				Help:        "Total number of blocks processed",
+				ConstLabels: constLabels(),
 			},
 		),
 		CurrentBlockHeight: prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Name: "rollytics_current_block_height",
-				Help: "Current block height being processed",
+				Name:        "rollytics_current_block_height",
+				Help:        "Current block height being processed",
+				ConstLabels: constLabels(),
 			},
 		),
 		BlockProcessingTime: prometheus.NewHistogramVec(
 			prometheus.HistogramOpts{
-				Name:    "rollytics_block_processing_duration_seconds",
-				Help:    "Time spent processing blocks",
-				Buckets: IndexerLatencyBuckets,
+				Name:        "rollytics_block_processing_duration_seconds",
+				Help:        "Time spent processing blocks",
+				Buckets:     IndexerLatencyBuckets,
+				ConstLabels: constLabels(),
 			},
 			[]string{"stage"}, // "scrape", "prepare", "collect"
 		),
 		InflightBlocksCount: prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Name: "rollytics_inflight_blocks_count",
-				Help: "Number of blocks currently being processed",
+				Name:        "rollytics_inflight_blocks_count",
+				Help:        "Number of blocks currently being processed",
+				ConstLabels: constLabels(),
 			},
 		),
 		ProcessingSpeed: prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Name: "rollytics_processing_speed_blocks_per_second",
-				Help: "Current processing speed in blocks per second",
+				Name:        "rollytics_processing_speed_blocks_per_second",
+				Help:        "Current processing speed in blocks per second",
+				ConstLabels: constLabels(),
 			},
 		),
 		ProcessingErrors: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
-				Name: "rollytics_processing_errors_total",
-				Help: "Total number of processing errors",
+				Name:        "rollytics_processing_errors_total",
+				Help:        "Total number of processing errors",
+				ConstLabels: constLabels(),
 			},
 			[]string{"stage", "error_type"}, // stage: scrape, prepare, collect
 		),

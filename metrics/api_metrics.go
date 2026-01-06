@@ -21,36 +21,41 @@ func NewExternalAPIMetrics() *ExternalAPIMetrics {
 	return &ExternalAPIMetrics{
 		RequestsTotal: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
-				Name: "rollytics_external_api_requests_total",
-				Help: "Total number of external API requests",
+				Name:        "rollytics_external_api_requests_total",
+				Help:        "Total number of external API requests",
+				ConstLabels: constLabels(),
 			},
 			[]string{"endpoint", "status_code"},
 		),
 		Latency: prometheus.NewHistogramVec(
 			prometheus.HistogramOpts{
-				Name:    "rollytics_external_api_latency_seconds",
-				Help:    "External API request latency in seconds",
-				Buckets: LatencyBuckets,
+				Name:        "rollytics_external_api_latency_seconds",
+				Help:        "External API request latency in seconds",
+				Buckets:     LatencyBuckets,
+				ConstLabels: constLabels(),
 			},
 			[]string{"endpoint"},
 		),
 		ConcurrentActive: prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Name: "rollytics_concurrent_requests_active",
-				Help: "Number of currently active external API requests",
+				Name:        "rollytics_concurrent_requests_active",
+				Help:        "Number of currently active external API requests",
+				ConstLabels: constLabels(),
 			},
 		),
 		SemaphoreWaitDuration: prometheus.NewHistogram(
 			prometheus.HistogramOpts{
-				Name:    "rollytics_semaphore_wait_duration_seconds",
-				Help:    "Time spent waiting for semaphore acquisition",
-				Buckets: SemaphoreBuckets,
+				Name:        "rollytics_semaphore_wait_duration_seconds",
+				Help:        "Time spent waiting for semaphore acquisition",
+				Buckets:     SemaphoreBuckets,
+				ConstLabels: constLabels(),
 			},
 		),
 		RateLimitHitsTotal: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
-				Name: "rollytics_rate_limit_hits_total",
-				Help: "Total number of rate limit hits (429 errors)",
+				Name:        "rollytics_rate_limit_hits_total",
+				Help:        "Total number of rate limit hits (429 errors)",
+				ConstLabels: constLabels(),
 			},
 			[]string{"endpoint"},
 		),

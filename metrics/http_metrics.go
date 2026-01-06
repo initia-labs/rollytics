@@ -30,43 +30,49 @@ func NewHTTPMetrics() *HTTPMetrics {
 	return &HTTPMetrics{
 		RequestsTotal: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
-				Name: "rollytics_http_requests_total",
-				Help: "Total number of HTTP requests",
+				Name:        "rollytics_http_requests_total",
+				Help:        "Total number of HTTP requests",
+				ConstLabels: constLabels(),
 			},
 			[]string{"method", "handler", "status_class"}, // status_class: 2xx, 3xx, 4xx, 5xx
 		),
 		RequestDuration: prometheus.NewHistogramVec(
 			prometheus.HistogramOpts{
-				Name:    "rollytics_http_request_duration_seconds",
-				Help:    "HTTP request duration in seconds",
-				Buckets: HTTPLatencyBuckets,
+				Name:        "rollytics_http_request_duration_seconds",
+				Help:        "HTTP request duration in seconds",
+				Buckets:     HTTPLatencyBuckets,
+				ConstLabels: constLabels(),
 			},
 			[]string{"method", "handler"},
 		),
 		RequestsInFlight: prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Name: "rollytics_http_requests_in_flight",
-				Help: "Number of HTTP requests currently being processed",
+				Name:        "rollytics_http_requests_in_flight",
+				Help:        "Number of HTTP requests currently being processed",
+				ConstLabels: constLabels(),
 			},
 		),
 		ErrorsTotal: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
-				Name: "rollytics_http_errors_total",
-				Help: "Total number of HTTP errors",
+				Name:        "rollytics_http_errors_total",
+				Help:        "Total number of HTTP errors",
+				ConstLabels: constLabels(),
 			},
 			[]string{"handler", "error_type"},
 		),
 		SlowRequests: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
-				Name: "rollytics_http_slow_requests_total",
-				Help: "Total number of slow requests (>1s) with full path for debugging",
+				Name:        "rollytics_http_slow_requests_total",
+				Help:        "Total number of slow requests (>1s) with full path for debugging",
+				ConstLabels: constLabels(),
 			},
 			[]string{"method", "path", "duration_bucket"}, // "1-2s", "2-5s", "5s+"
 		),
 		TopEndpoints: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
-				Name: "rollytics_http_top_endpoints_duration_p99",
-				Help: "P99 duration of top slow endpoints (updated every 5min)",
+				Name:        "rollytics_http_top_endpoints_duration_p99",
+				Help:        "P99 duration of top slow endpoints (updated every 5min)",
+				ConstLabels: constLabels(),
 			},
 			[]string{"path"}, // Only for top N slowest endpoints
 		),

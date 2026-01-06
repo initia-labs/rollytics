@@ -39,7 +39,18 @@ var (
 
 	// Singleton initialization
 	initOnce sync.Once
+
+	// Chain identifier for metrics labeling
+	rollupChainId string
 )
+
+// constLabels returns the constant labels to be added to all metrics
+func constLabels() prometheus.Labels {
+	if rollupChainId == "" {
+		return nil
+	}
+	return prometheus.Labels{"rollup_chain_id": rollupChainId}
+}
 
 // MetricsServer represents the Prometheus metrics HTTP server
 type MetricsServer struct {
@@ -50,8 +61,10 @@ type MetricsServer struct {
 
 // Init initializes the Prometheus metrics registry and registers all metrics
 // This function is safe to call multiple times - it will only initialize once
-func Init() {
+// chainId is used as the rollup_chain_id label value for all metrics
+func Init(chainId string) {
 	initOnce.Do(func() {
+		rollupChainId = chainId
 		registry = prometheus.NewRegistry()
 
 		// Create metric groups
@@ -85,7 +98,7 @@ func NewServer(cfg *config.Config, logger *slog.Logger) *MetricsServer {
 
 	// Ensure metrics subsystem is initialized
 	if registry == nil || metrics == nil {
-		Init()
+		Init(cfg.GetChainId())
 	}
 
 	mux := http.NewServeMux()

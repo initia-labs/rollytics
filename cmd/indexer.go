@@ -96,7 +96,7 @@ func initializeDatabase(cfg *config.Config, logger *slog.Logger) (*orm.Database,
 }
 
 func initializeMetrics(cfg *config.Config, logger *slog.Logger) *metrics.MetricsServer {
-	metrics.Init()
+	metrics.Init(cfg.GetChainId())
 	metricsServer := metrics.NewServer(cfg, logger)
 
 	go func() {

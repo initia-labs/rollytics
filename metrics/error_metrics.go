@@ -17,22 +17,25 @@ func NewErrorMetrics() *ErrorMetrics {
 	return &ErrorMetrics{
 		PanicsTotal: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
-				Name: "rollytics_panics_total",
-				Help: "Total number of panics occurred",
+				Name:        "rollytics_panics_total",
+				Help:        "Total number of panics occurred",
+				ConstLabels: constLabels(),
 			},
 			[]string{"component"},
 		),
 		ErrorsTotal: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
-				Name: "rollytics_errors_total",
-				Help: "Total number of errors by component and type",
+				Name:        "rollytics_errors_total",
+				Help:        "Total number of errors by component and type",
+				ConstLabels: constLabels(),
 			},
 			[]string{"component", "error_type"},
 		),
 		ComponentHealth: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
-				Name: "rollytics_component_health",
-				Help: "Health status of components (1=healthy, 0=unhealthy)",
+				Name:        "rollytics_component_health",
+				Help:        "Health status of components (1=healthy, 0=unhealthy)",
+				ConstLabels: constLabels(),
 			},
 			[]string{"component"},
 		),
