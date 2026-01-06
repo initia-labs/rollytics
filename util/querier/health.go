@@ -13,9 +13,24 @@ const (
 )
 
 // endpointHealth tracks health status of an endpoint
+// Uses a single atomic value to avoid race conditions between failure count and timestamp
 type endpointHealth struct {
-	consecutiveFailures atomic.Int32
-	lastFailureTime     atomic.Int64 // Unix nanoseconds
+	// Packed state in a single atomic uint64:
+	// - Upper 32 bits: failure count (int32)
+	// - Lower 32 bits: timestamp in seconds since epoch (uint32, good until year 2106)
+	state atomic.Uint64
+}
+
+// packState combines failure count and timestamp into a single uint64
+func packState(failures int32, timestampSec uint32) uint64 {
+	return (uint64(failures) << 32) | uint64(timestampSec)
+}
+
+// unpackState extracts failure count and timestamp from state
+func unpackState(state uint64) (failures int32, timestampSec uint32) {
+	failures = int32(state >> 32)
+	timestampSec = uint32(state & 0xFFFFFFFF)
+	return
 }
 
 // Global health tracker for all endpoints (keyed by endpoint URL)
@@ -50,33 +65,47 @@ func getEndpointHealth(endpoint string) *endpointHealth {
 // recordEndpointSuccess marks an endpoint as healthy
 func recordEndpointSuccess(endpoint string) {
 	h := getEndpointHealth(endpoint)
-	h.consecutiveFailures.Store(0)
+	// Reset to zero failures, timestamp doesn't matter
+	h.state.Store(0)
 }
 
-// recordEndpointFailure increments failure count and updates last failure time
+// recordEndpointFailure increments failure count and updates last failure time atomically
 func recordEndpointFailure(endpoint string) {
 	h := getEndpointHealth(endpoint)
-	h.consecutiveFailures.Add(1)
-	h.lastFailureTime.Store(time.Now().UnixNano())
+	now := uint32(time.Now().Unix())
+
+	// Use compare-and-swap to atomically update both failure count and timestamp
+	for {
+		oldState := h.state.Load()
+		oldFailures, _ := unpackState(oldState)
+		newFailures := oldFailures + 1
+		newState := packState(newFailures, now)
+
+		if h.state.CompareAndSwap(oldState, newState) {
+			break
+		}
+		// CAS failed due to concurrent update, retry
+	}
 }
 
 // isEndpointHealthy checks if an endpoint is healthy enough to use
 func isEndpointHealthy(endpoint string) bool {
 	h := getEndpointHealth(endpoint)
-	failures := h.consecutiveFailures.Load()
+	state := h.state.Load()
+	failures, timestampSec := unpackState(state)
 
 	// If below failure threshold, endpoint is healthy
 	if failures < failureThreshold {
 		return true
 	}
 
-	// If above threshold, check if recovery timeout has passed
-	lastFailure := h.lastFailureTime.Load()
-	if lastFailure == 0 {
-		return true
+	// At or above threshold - check if recovery timeout has passed
+	if timestampSec == 0 {
+		// Should not happen, but treat as unhealthy to be safe
+		return false
 	}
 
-	timeSinceFailure := time.Since(time.Unix(0, lastFailure))
+	timeSinceFailure := time.Since(time.Unix(int64(timestampSec), 0))
 	return timeSinceFailure >= recoveryTimeout
 }
 

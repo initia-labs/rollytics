@@ -47,14 +47,16 @@ func TestRecordEndpointSuccess(t *testing.T) {
 	recordEndpointFailure(endpoint)
 
 	h := getEndpointHealth(endpoint)
-	if h.consecutiveFailures.Load() != 3 {
-		t.Errorf("Expected 3 failures, got %d", h.consecutiveFailures.Load())
+	failures, _ := unpackState(h.state.Load())
+	if failures != 3 {
+		t.Errorf("Expected 3 failures, got %d", failures)
 	}
 
 	// Record success should reset failures to 0
 	recordEndpointSuccess(endpoint)
-	if h.consecutiveFailures.Load() != 0 {
-		t.Errorf("Expected 0 failures after success, got %d", h.consecutiveFailures.Load())
+	failures, _ = unpackState(h.state.Load())
+	if failures != 0 {
+		t.Errorf("Expected 0 failures after success, got %d", failures)
 	}
 }
 
@@ -64,31 +66,31 @@ func TestRecordEndpointFailure(t *testing.T) {
 	endpoint := "https://test-failure.com"
 
 	h := getEndpointHealth(endpoint)
-	initialFailures := h.consecutiveFailures.Load()
+	initialFailures, _ := unpackState(h.state.Load())
 
 	// Record a failure
 	recordEndpointFailure(endpoint)
-	if h.consecutiveFailures.Load() != initialFailures+1 {
+	failures, timestamp := unpackState(h.state.Load())
+	if failures != initialFailures+1 {
 		t.Errorf("Expected failures to increment by 1")
 	}
 
-	// Check that last failure time was set
-	lastFailure := h.lastFailureTime.Load()
-	if lastFailure == 0 {
-		t.Error("Expected last failure time to be set")
+	// Check that timestamp was set
+	if timestamp == 0 {
+		t.Error("Expected timestamp to be set")
 	}
 
 	// Record another failure
-	time.Sleep(1 * time.Millisecond)
+	time.Sleep(1 * time.Second) // Sleep for 1 second to ensure timestamp changes
 	recordEndpointFailure(endpoint)
-	if h.consecutiveFailures.Load() != initialFailures+2 {
+	failures2, timestamp2 := unpackState(h.state.Load())
+	if failures2 != initialFailures+2 {
 		t.Errorf("Expected failures to increment by 2")
 	}
 
-	// Last failure time should be updated
-	newLastFailure := h.lastFailureTime.Load()
-	if newLastFailure <= lastFailure {
-		t.Error("Expected last failure time to be updated")
+	// Timestamp should be updated (or at least not earlier)
+	if timestamp2 < timestamp {
+		t.Error("Expected timestamp to be updated")
 	}
 }
 
@@ -141,10 +143,10 @@ func TestIsEndpointHealthyRecovery(t *testing.T) {
 		t.Error("Endpoint should be unhealthy after 3 failures")
 	}
 
-	// Manually set last failure time to past (simulate recovery timeout)
+	// Manually set timestamp to past (simulate recovery timeout)
 	h := getEndpointHealth(endpoint)
-	pastTime := time.Now().Add(-recoveryTimeout - 1*time.Second).UnixNano()
-	h.lastFailureTime.Store(pastTime)
+	pastTimeSec := uint32(time.Now().Add(-recoveryTimeout - 1*time.Second).Unix())
+	h.state.Store(packState(3, pastTimeSec))
 
 	// Should be healthy again after recovery timeout
 	if !isEndpointHealthy(endpoint) {
@@ -231,7 +233,7 @@ func TestConcurrentHealthOperations(t *testing.T) {
 
 	// Verify no race conditions occurred (test should not panic)
 	h := getEndpointHealth(endpoint)
-	failures := h.consecutiveFailures.Load()
+	failures, _ := unpackState(h.state.Load())
 
 	// Failures should be either 0 (from success) or some positive number (from failures)
 	// The exact value is non-deterministic due to concurrent operations
@@ -304,18 +306,21 @@ func TestHealthTrackingIndependentEndpoints(t *testing.T) {
 
 	// Verify each endpoint has correct failure count
 	h0 := getEndpointHealth(endpoints[0])
-	if h0.consecutiveFailures.Load() != 1 {
-		t.Errorf("Endpoint 0 expected 1 failure, got %d", h0.consecutiveFailures.Load())
+	failures0, _ := unpackState(h0.state.Load())
+	if failures0 != 1 {
+		t.Errorf("Endpoint 0 expected 1 failure, got %d", failures0)
 	}
 
 	h1 := getEndpointHealth(endpoints[1])
-	if h1.consecutiveFailures.Load() != 2 {
-		t.Errorf("Endpoint 1 expected 2 failures, got %d", h1.consecutiveFailures.Load())
+	failures1, _ := unpackState(h1.state.Load())
+	if failures1 != 2 {
+		t.Errorf("Endpoint 1 expected 2 failures, got %d", failures1)
 	}
 
 	h2 := getEndpointHealth(endpoints[2])
-	if h2.consecutiveFailures.Load() != 3 {
-		t.Errorf("Endpoint 2 expected 3 failures, got %d", h2.consecutiveFailures.Load())
+	failures2, _ := unpackState(h2.state.Load())
+	if failures2 != 3 {
+		t.Errorf("Endpoint 2 expected 3 failures, got %d", failures2)
 	}
 
 	// Verify health status
@@ -340,15 +345,17 @@ func TestSuccessResetsFailureCount(t *testing.T) {
 	recordEndpointFailure(endpoint)
 
 	h := getEndpointHealth(endpoint)
-	if h.consecutiveFailures.Load() != 2 {
-		t.Errorf("Expected 2 failures, got %d", h.consecutiveFailures.Load())
+	failures, _ := unpackState(h.state.Load())
+	if failures != 2 {
+		t.Errorf("Expected 2 failures, got %d", failures)
 	}
 
 	// Record success - should reset to 0
 	recordEndpointSuccess(endpoint)
 
-	if h.consecutiveFailures.Load() != 0 {
-		t.Errorf("Expected 0 failures after success, got %d", h.consecutiveFailures.Load())
+	failures, _ = unpackState(h.state.Load())
+	if failures != 0 {
+		t.Errorf("Expected 0 failures after success, got %d", failures)
 	}
 
 	// Record 2 more failures
@@ -356,8 +363,9 @@ func TestSuccessResetsFailureCount(t *testing.T) {
 	recordEndpointFailure(endpoint)
 
 	// Should have 2 failures again (not 4)
-	if h.consecutiveFailures.Load() != 2 {
-		t.Errorf("Expected 2 failures after reset and new failures, got %d", h.consecutiveFailures.Load())
+	failures, _ = unpackState(h.state.Load())
+	if failures != 2 {
+		t.Errorf("Expected 2 failures after reset and new failures, got %d", failures)
 	}
 
 	// Should still be healthy (threshold is 3)
