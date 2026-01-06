@@ -12,27 +12,28 @@ const (
 	recoveryTimeout  = 5 * time.Minute // Time before retrying an unhealthy endpoint
 )
 
+// healthState represents the state of an endpoint
+type healthState struct {
+	failures      int32
+	lastFailureAt time.Time
+}
+
 // endpointHealth tracks health status of an endpoint
-// Uses a single atomic value to avoid race conditions between failure count and timestamp
+// Uses atomic.Value to avoid race conditions between failure count and timestamp
 type endpointHealth struct {
-	// Packed state in a single atomic uint64:
-	// - Upper 32 bits: failure count (int32)
-	// - Lower 32 bits: timestamp in seconds since epoch (uint32, good until year 2106)
-	state atomic.Uint64
+	state atomic.Value // stores *healthState
 }
 
-// packState combines failure count and timestamp into a single uint64
-func packState(failures int32, timestampSec uint32) uint64 {
-	// Safe conversion: int32 range fits in upper 32 bits of uint64
-	return (uint64(uint32(failures)) << 32) | uint64(timestampSec) // #nosec G115
+func (h *endpointHealth) load() *healthState {
+	v := h.state.Load()
+	if v == nil {
+		return &healthState{}
+	}
+	return v.(*healthState)
 }
 
-// unpackState extracts failure count and timestamp from state
-func unpackState(state uint64) (failures int32, timestampSec uint32) {
-	// Safe conversion: extracting original int32 value from packed uint64
-	failures = int32(state >> 32)             // #nosec G115
-	timestampSec = uint32(state & 0xFFFFFFFF) // #nosec G115
-	return
+func (h *endpointHealth) store(s *healthState) {
+	h.state.Store(s)
 }
 
 // Global health tracker for all endpoints (keyed by endpoint URL)
@@ -67,48 +68,43 @@ func getEndpointHealth(endpoint string) *endpointHealth {
 // recordEndpointSuccess marks an endpoint as healthy
 func recordEndpointSuccess(endpoint string) {
 	h := getEndpointHealth(endpoint)
-	// Reset to zero failures, timestamp doesn't matter
-	h.state.Store(0)
+	h.store(&healthState{
+		failures:      0,
+		lastFailureAt: time.Time{},
+	})
 }
 
 // recordEndpointFailure increments failure count and updates last failure time atomically
 func recordEndpointFailure(endpoint string) {
 	h := getEndpointHealth(endpoint)
-	// Safe conversion: Unix timestamp will fit in uint32 until year 2106
-	now := uint32(time.Now().Unix()) // #nosec G115
+	now := time.Now()
 
-	// Use compare-and-swap to atomically update both failure count and timestamp
-	for {
-		oldState := h.state.Load()
-		oldFailures, _ := unpackState(oldState)
-		newFailures := oldFailures + 1
-		newState := packState(newFailures, now)
-
-		if h.state.CompareAndSwap(oldState, newState) {
-			break
-		}
-		// CAS failed due to concurrent update, retry
+	// Atomically update by creating new state based on old state
+	oldState := h.load()
+	newState := &healthState{
+		failures:      oldState.failures + 1,
+		lastFailureAt: now,
 	}
+	h.store(newState)
 }
 
 // isEndpointHealthy checks if an endpoint is healthy enough to use
 func isEndpointHealthy(endpoint string) bool {
 	h := getEndpointHealth(endpoint)
-	state := h.state.Load()
-	failures, timestampSec := unpackState(state)
+	state := h.load()
 
 	// If below failure threshold, endpoint is healthy
-	if failures < failureThreshold {
+	if state.failures < failureThreshold {
 		return true
 	}
 
 	// At or above threshold - check if recovery timeout has passed
-	if timestampSec == 0 {
+	if state.lastFailureAt.IsZero() {
 		// Should not happen, but treat as unhealthy to be safe
 		return false
 	}
 
-	timeSinceFailure := time.Since(time.Unix(int64(timestampSec), 0))
+	timeSinceFailure := time.Since(state.lastFailureAt)
 	return timeSinceFailure >= recoveryTimeout
 }
 
