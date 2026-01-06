@@ -27,12 +27,15 @@ var (
 // getEndpointHealth returns or creates health status for an endpoint (thread-safe)
 func getEndpointHealth(endpoint string) *endpointHealth {
 	healthTrackerMu.RLock()
-	defer healthTrackerMu.Unlock()
-
 	h, exists := healthTracker[endpoint]
+	healthTrackerMu.RUnlock()
+
 	if exists {
 		return h
 	}
+
+	healthTrackerMu.Lock()
+	defer healthTrackerMu.Unlock()
 
 	// Double-check after acquiring write lock
 	if h, exists := healthTracker[endpoint]; exists {
