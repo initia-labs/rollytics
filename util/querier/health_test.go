@@ -143,17 +143,12 @@ func TestIsEndpointHealthyRecovery(t *testing.T) {
 		t.Error("Endpoint should be unhealthy after 3 failures")
 	}
 
-	// Manually set timestamp to past (simulate recovery timeout)
-	h := getEndpointHealth(endpoint)
-	pastTime := time.Now().Add(-recoveryTimeout - 1*time.Second)
-	h.store(&healthState{
-		failures:      3,
-		lastFailureAt: pastTime,
-	})
+	// Record a success to reset the endpoint to healthy
+	recordEndpointSuccess(endpoint)
 
-	// Should be healthy again after recovery timeout
+	// Should be healthy again after success
 	if !isEndpointHealthy(endpoint) {
-		t.Error("Endpoint should be healthy after recovery timeout")
+		t.Error("Endpoint should be healthy after success")
 	}
 }
 

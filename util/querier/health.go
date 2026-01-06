@@ -19,8 +19,9 @@ type healthState struct {
 }
 
 // endpointHealth tracks health status of an endpoint
-// Uses atomic.Value to avoid race conditions between failure count and timestamp
+// Uses atomic.Value for reads and mutex for updates to ensure atomicity
 type endpointHealth struct {
+	mu    sync.Mutex
 	state atomic.Value // stores *healthState
 }
 
@@ -32,8 +33,25 @@ func (h *endpointHealth) load() *healthState {
 	return v.(*healthState)
 }
 
-func (h *endpointHealth) store(s *healthState) {
-	h.state.Store(s)
+// clear resets the endpoint to healthy state
+func (h *endpointHealth) clear() {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.state.Store(&healthState{
+		failures:      0,
+		lastFailureAt: time.Time{},
+	})
+}
+
+// increment atomically increments the failure count and updates timestamp
+func (h *endpointHealth) increment() {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	oldState := h.load()
+	h.state.Store(&healthState{
+		failures:      oldState.failures + 1,
+		lastFailureAt: time.Now(),
+	})
 }
 
 // Global health tracker for all endpoints (keyed by endpoint URL)
@@ -68,24 +86,13 @@ func getEndpointHealth(endpoint string) *endpointHealth {
 // recordEndpointSuccess marks an endpoint as healthy
 func recordEndpointSuccess(endpoint string) {
 	h := getEndpointHealth(endpoint)
-	h.store(&healthState{
-		failures:      0,
-		lastFailureAt: time.Time{},
-	})
+	h.clear()
 }
 
 // recordEndpointFailure increments failure count and updates last failure time atomically
 func recordEndpointFailure(endpoint string) {
 	h := getEndpointHealth(endpoint)
-	now := time.Now()
-
-	// Atomically update by creating new state based on old state
-	oldState := h.load()
-	newState := &healthState{
-		failures:      oldState.failures + 1,
-		lastFailureAt: now,
-	}
-	h.store(newState)
+	h.increment()
 }
 
 // isEndpointHealthy checks if an endpoint is healthy enough to use
