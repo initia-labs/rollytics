@@ -25,30 +25,34 @@ func NewDatabaseMetrics() *DatabaseMetrics {
 	return &DatabaseMetrics{
 		ConnectionsActive: prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Name: "rollytics_db_connections_active",
-				Help: "Number of active database connections",
+				Name:        "rollytics_db_connections_active",
+				Help:        "Number of active database connections",
+				ConstLabels: constLabels(),
 			},
 		),
 		QueriesTotal: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
-				Name: "rollytics_db_queries_total",
-				Help: "Total number of database queries",
+				Name:        "rollytics_db_queries_total",
+				Help:        "Total number of database queries",
+				ConstLabels: constLabels(),
 			},
 			[]string{"operation", "status"},
 		),
 		QueryDuration: prometheus.NewHistogramVec(
 			prometheus.HistogramOpts{
-				Name:    "rollytics_db_query_duration_seconds",
-				Help:    "Database query execution time in seconds",
-				Buckets: DBLatencyBuckets,
+				Name:        "rollytics_db_query_duration_seconds",
+				Help:        "Database query execution time in seconds",
+				Buckets:     DBLatencyBuckets,
+				ConstLabels: constLabels(),
 			},
 			[]string{"operation", "table"},
 		),
 		RowsAffected: prometheus.NewHistogramVec(
 			prometheus.HistogramOpts{
-				Name:    "rollytics_db_rows_affected",
-				Help:    "Number of rows affected by database operations",
-				Buckets: RowCountBuckets,
+				Name:        "rollytics_db_rows_affected",
+				Help:        "Number of rows affected by database operations",
+				Buckets:     RowCountBuckets,
+				ConstLabels: constLabels(),
 			},
 			[]string{"operation"},
 		),

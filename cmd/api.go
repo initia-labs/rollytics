@@ -45,7 +45,7 @@ You can configure database, chain, logging, and server options via environment v
 			cache.InitializeCaches(cfg.GetCacheConfig())
 
 			// Initialize metrics
-			metrics.Init()
+			metrics.Init(cfg.GetChainId())
 			metricsServer := metrics.NewServer(cfg, logger)
 
 			// Start metrics server in background
