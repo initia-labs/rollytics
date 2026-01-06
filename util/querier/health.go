@@ -23,13 +23,15 @@ type endpointHealth struct {
 
 // packState combines failure count and timestamp into a single uint64
 func packState(failures int32, timestampSec uint32) uint64 {
-	return (uint64(failures) << 32) | uint64(timestampSec)
+	// Safe conversion: int32 range fits in upper 32 bits of uint64
+	return (uint64(uint32(failures)) << 32) | uint64(timestampSec) // #nosec G115
 }
 
 // unpackState extracts failure count and timestamp from state
 func unpackState(state uint64) (failures int32, timestampSec uint32) {
-	failures = int32(state >> 32)
-	timestampSec = uint32(state & 0xFFFFFFFF)
+	// Safe conversion: extracting original int32 value from packed uint64
+	failures = int32(state >> 32)             // #nosec G115
+	timestampSec = uint32(state & 0xFFFFFFFF) // #nosec G115
 	return
 }
 
@@ -72,7 +74,8 @@ func recordEndpointSuccess(endpoint string) {
 // recordEndpointFailure increments failure count and updates last failure time atomically
 func recordEndpointFailure(endpoint string) {
 	h := getEndpointHealth(endpoint)
-	now := uint32(time.Now().Unix())
+	// Safe conversion: Unix timestamp will fit in uint32 until year 2106
+	now := uint32(time.Now().Unix()) // #nosec G115
 
 	// Use compare-and-swap to atomically update both failure count and timestamp
 	for {

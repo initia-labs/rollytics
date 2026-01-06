@@ -145,7 +145,8 @@ func TestIsEndpointHealthyRecovery(t *testing.T) {
 
 	// Manually set timestamp to past (simulate recovery timeout)
 	h := getEndpointHealth(endpoint)
-	pastTimeSec := uint32(time.Now().Add(-recoveryTimeout - 1*time.Second).Unix())
+	// Safe conversion: Unix timestamp will fit in uint32 until year 2106
+	pastTimeSec := uint32(time.Now().Add(-recoveryTimeout - 1*time.Second).Unix()) // #nosec G115
 	h.state.Store(packState(3, pastTimeSec))
 
 	// Should be healthy again after recovery timeout
@@ -294,6 +295,10 @@ func TestHealthTrackingIndependentEndpoints(t *testing.T) {
 		"https://independent3.com",
 	}
 
+	if len(endpoints) != 3 {
+		t.Fatal("Test requires exactly 3 endpoints")
+	}
+
 	// Record different failure counts for each endpoint
 	recordEndpointFailure(endpoints[0])
 
@@ -324,13 +329,13 @@ func TestHealthTrackingIndependentEndpoints(t *testing.T) {
 	}
 
 	// Verify health status
-	if !isEndpointHealthy(endpoints[0]) {
+	if !isEndpointHealthy(endpoints[0]) { // #nosec G602
 		t.Error("Endpoint 0 should be healthy with 1 failure")
 	}
-	if !isEndpointHealthy(endpoints[1]) {
+	if !isEndpointHealthy(endpoints[1]) { // #nosec G602
 		t.Error("Endpoint 1 should be healthy with 2 failures")
 	}
-	if isEndpointHealthy(endpoints[2]) {
+	if isEndpointHealthy(endpoints[2]) { // #nosec G602
 		t.Error("Endpoint 2 should be unhealthy with 3 failures")
 	}
 }
