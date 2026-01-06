@@ -59,18 +59,21 @@ func NewQuerier(cfg *config.ChainConfig) *Querier {
 
 // executeWithEndpointRotation executes a request function with endpoint rotation and backoff.
 // It rotates through the provided endpoints when maxRetriesPerURL is exceeded for the current endpoint.
+// It uses health tracking to prefer healthy endpoints and avoid repeatedly trying failing ones.
 func executeWithEndpointRotation[T any](ctx context.Context, endpoints []string, requestFn requestFunc[T]) (*T, error) {
 	if len(endpoints) == 0 {
 		return nil, fmt.Errorf("no endpoints configured")
 	}
 
+	// Start with the first healthy endpoint instead of always starting at index 0
+	currentEndpointIndex := findHealthyEndpoint(endpoints)
+	startEndpointIndex := currentEndpointIndex
+
 	// Track retries per endpoint
 	retriesPerEndpoint := 0
-	currentEndpointIndex := 0
 	totalRetries := 0
 	loopSize := len(endpoints) * maxRetriesPerURL
 	var lastErr error
-	startEndpointIndex := 0
 	totalDelay := time.Duration(0)
 
 	for {
@@ -103,12 +106,16 @@ func executeWithEndpointRotation[T any](ctx context.Context, endpoints []string,
 		}
 
 		// Execute the request with current endpoint
-		res, err := requestFn(ctx, endpoints[currentEndpointIndex])
+		currentEndpoint := endpoints[currentEndpointIndex]
+		res, err := requestFn(ctx, currentEndpoint)
 		if err == nil {
+			// Success - record it and return
+			recordEndpointSuccess(currentEndpoint)
 			return res, nil
 		}
 
-		// Request failed (including timeout), increment retry counters
+		// Request failed - record the failure
+		recordEndpointFailure(currentEndpoint)
 		lastErr = err
 		retriesPerEndpoint++
 		totalRetries++
