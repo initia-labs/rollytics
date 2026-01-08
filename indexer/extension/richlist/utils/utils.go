@@ -81,29 +81,124 @@ func containsAddress(addresses []sdk.AccAddress, target sdk.AccAddress) bool {
 	return false
 }
 
+func parseCoinsNormalizedDenom(ctx context.Context, querier *querier.Querier, logger *slog.Logger, cfg *config.Config, amount string) (sdk.Coins, error) {
+	coins, err := sdk.ParseCoinsNormalized(amount)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range coins {
+		denom := strings.ToLower(strings.ToLower(coins[i].Denom))
+		if cfg.GetChainConfig().VmType == types.EVM {
+			contract, err := querier.GetEvmContractByDenom(ctx, denom)
+			if err != nil {
+				continue
+			}
+			denom = contract
+		}
+		coins[i].Denom = denom
+	}
+
+	return coins, nil
+}
+
+func processCosmosMintEvent(ctx context.Context, querier *querier.Querier, logger *slog.Logger, cfg *config.Config, event sdk.Event, balanceMap map[BalanceChangeKey]sdkmath.Int) {
+	// Extract attributes from the event
+	var minter sdk.AccAddress
+	var coins sdk.Coins
+	var err error
+	for _, attr := range event.Attributes {
+		switch attr.Key {
+		case "minter":
+			if minter, err = util.AccAddressFromString(attr.Value); err != nil {
+				logger.Error("failed to parse minter", "minter", attr.Value, "error", err)
+			}
+		case "amount":
+			if coins, err = parseCoinsNormalizedDenom(ctx, querier, logger, cfg, attr.Value); err != nil {
+				logger.Error("failed to parse minted coins", "amount", attr.Value, "error", err)
+				return
+			}
+		}
+	}
+
+	// Validate required fields are present
+	if minter.Empty() {
+		logger.Error("invalid minter", "minter", minter)
+		return
+	}
+
+	// Process each coin in the transfer
+	for _, coin := range coins {
+		// Update minter's balance (add)
+		minterKey := NewBalanceChangeKey(coin.Denom, minter)
+		if balance, ok := balanceMap[minterKey]; !ok {
+			balanceMap[minterKey] = coin.Amount
+		} else {
+			balanceMap[minterKey] = balance.Add(coin.Amount)
+		}
+	}
+}
+
+func processCosmosBurnEvent(ctx context.Context, querier *querier.Querier, logger *slog.Logger, cfg *config.Config, event sdk.Event, balanceMap map[BalanceChangeKey]sdkmath.Int) {
+	// Extract attributes from the event
+	var burner sdk.AccAddress
+	var coins sdk.Coins
+	var err error
+	for _, attr := range event.Attributes {
+		switch attr.Key {
+		case "burner":
+			if burner, err = util.AccAddressFromString(attr.Value); err != nil {
+				logger.Error("failed to parse burner", "burner", attr.Value, "error", err)
+			}
+		case "amount":
+			if coins, err = parseCoinsNormalizedDenom(ctx, querier, logger, cfg, attr.Value); err != nil {
+				logger.Error("failed to parse burned coins", "amount", attr.Value, "error", err)
+				return
+			}
+		}
+	}
+
+	// Validate required fields are present
+	if burner.Empty() {
+		logger.Error("invalid burner", "burner", burner)
+		return
+	}
+
+	// Process each coin in the transfer
+	for _, coin := range coins {
+		// Update burner's balance (subtract)
+		burnerKey := NewBalanceChangeKey(coin.Denom, burner)
+		if balance, ok := balanceMap[burnerKey]; !ok {
+			balanceMap[burnerKey] = coin.Amount.Neg()
+		} else {
+			balanceMap[burnerKey] = balance.Sub(coin.Amount)
+		}
+	}
+}
+
 // processCosmosTransferEvent processes a Cosmos transfer event and updates the balance map.
 // It extracts transfer information from the event attributes and updates balances for both sender and receiver.
 // Returns true if the event was successfully processed, false otherwise.
 func processCosmosTransferEvent(ctx context.Context, querier *querier.Querier, logger *slog.Logger, cfg *config.Config, event sdk.Event, balanceMap map[BalanceChangeKey]sdkmath.Int, moduleAccounts []sdk.AccAddress) {
 	// Extract attributes from the event
 	var recipient, sender sdk.AccAddress
-	var amount string
+	var coins sdk.Coins
+	var err error
 	for _, attr := range event.Attributes {
 		switch attr.Key {
 		case "recipient":
-			if accAddress, err := util.AccAddressFromString(attr.Value); err != nil {
+			if recipient, err = util.AccAddressFromString(attr.Value); err != nil {
 				logger.Error("failed to parse recipient", "recipient", attr.Value, "error", err)
-			} else {
-				recipient = accAddress
 			}
 		case "sender":
-			if accAddress, err := util.AccAddressFromString(attr.Value); err != nil {
+			if sender, err = util.AccAddressFromString(attr.Value); err != nil {
 				logger.Error("failed to parse sender", "sender", attr.Value, "error", err)
-			} else {
-				sender = accAddress
 			}
 		case "amount":
-			amount = attr.Value
+			if coins, err = parseCoinsNormalizedDenom(ctx, querier, logger, cfg, attr.Value); err != nil {
+				logger.Error("failed to parse transferred coins", "amount", attr.Value, "error", err)
+				return
+			}
 		}
 	}
 
@@ -113,29 +208,13 @@ func processCosmosTransferEvent(ctx context.Context, querier *querier.Querier, l
 		return
 	}
 
-	// Parse the amount string which can contain multiple coins (e.g., "100uinit,200utoken")
-	coins, err := sdk.ParseCoinsNormalized(amount)
-	if err != nil {
-		logger.Error("failed to parse coins", "amount", amount, "error", err)
-		return
-	}
-
 	// Process each coin in the transfer
 	for _, coin := range coins {
-		denom := strings.ToLower(strings.ToLower(coin.Denom))
-		if cfg.GetChainConfig().VmType == types.EVM {
-			contract, err := querier.GetEvmContractByDenom(ctx, denom)
-			if err != nil {
-				continue
-			}
-			denom = contract
-		}
-
 		if !containsAddress(moduleAccounts, sender) {
 			// Update sender's balance (subtract)
-			senderKey := NewBalanceChangeKey(denom, sender)
+			senderKey := NewBalanceChangeKey(coin.Denom, sender)
 			if balance, ok := balanceMap[senderKey]; !ok {
-				balanceMap[senderKey] = sdkmath.ZeroInt().Sub(coin.Amount)
+				balanceMap[senderKey] = coin.Amount.Neg()
 			} else {
 				balanceMap[senderKey] = balance.Sub(coin.Amount)
 			}
@@ -143,7 +222,7 @@ func processCosmosTransferEvent(ctx context.Context, querier *querier.Querier, l
 
 		if !containsAddress(moduleAccounts, recipient) {
 			// Update recipient's balance (add)
-			recipientKey := NewBalanceChangeKey(denom, recipient)
+			recipientKey := NewBalanceChangeKey(coin.Denom, recipient)
 			if balance, ok := balanceMap[recipientKey]; !ok {
 				balanceMap[recipientKey] = coin.Amount
 			} else {
@@ -226,8 +305,15 @@ func ProcessBalanceChanges(ctx context.Context, querier *querier.Querier, logger
 		}
 
 		for _, event := range events {
-			if event.Type == banktypes.EventTypeTransfer && cfg.GetChainConfig().VmType != types.EVM {
-				processCosmosTransferEvent(ctx, querier, logger, cfg, event, balanceMap, moduleAccounts)
+			if cfg.GetChainConfig().VmType != types.EVM {
+				switch event.Type {
+				case banktypes.EventTypeCoinMint:
+					processCosmosMintEvent(ctx, querier, logger, cfg, event, balanceMap)
+				case banktypes.EventTypeCoinBurn:
+					processCosmosBurnEvent(ctx, querier, logger, cfg, event, balanceMap)
+				case banktypes.EventTypeTransfer:
+					processCosmosTransferEvent(ctx, querier, logger, cfg, event, balanceMap, moduleAccounts)
+				}
 			} else if event.Type == "evm" {
 				processEvmTransferEvent(logger, event, balanceMap)
 			}
