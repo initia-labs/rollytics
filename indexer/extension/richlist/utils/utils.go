@@ -88,7 +88,7 @@ func parseCoinsNormalizedDenom(ctx context.Context, querier *querier.Querier, lo
 	}
 
 	for i := range coins {
-		denom := strings.ToLower(strings.ToLower(coins[i].Denom))
+		denom := strings.ToLower(coins[i].Denom)
 		if cfg.GetChainConfig().VmType == types.EVM {
 			contract, err := querier.GetEvmContractByDenom(ctx, denom)
 			if err != nil {
