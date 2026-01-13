@@ -2,10 +2,13 @@ package querier
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/initia-labs/rollytics/types"
+	"github.com/initia-labs/rollytics/util/cache"
 )
 
 const (
@@ -28,10 +31,47 @@ func fetchMoveResource(addr string, structTag string, height int64, timeout time
 		return &resource, nil
 	}
 }
+
 func (q *Querier) GetMoveResource(ctx context.Context, addr string, structTag string, height int64) (resource *types.QueryMoveResourceResponse, err error) {
-	res, err := executeWithEndpointRotation[types.QueryMoveResourceResponse](ctx, q.RestUrls, fetchMoveResource(addr, structTag, height, queryTimeout))
+	res, err := executeWithEndpointRotation(ctx, q.RestUrls, fetchMoveResource(addr, structTag, height, queryTimeout))
 	if err != nil {
 		return nil, err
 	}
 	return res, nil
+}
+
+func (q *Querier) GetMoveDenomByMetadataAddr(ctx context.Context, metadataAddr string) (denom string, err error) {
+	// Check cache first
+	if denom, ok := cache.GetMoveDenomCache(metadataAddr); ok {
+		return denom, nil
+	}
+
+	resourceResponse, err := q.GetMoveResource(ctx, metadataAddr, types.MoveMetadataTypeTag, 0)
+	if err != nil {
+		return "", err
+	}
+
+	resource := &types.MoveResource{}
+	err = json.Unmarshal([]byte(resourceResponse.Resource.MoveResource), resource)
+	if err != nil {
+		return "", err
+	}
+
+	metadata := &types.MoveFungibleAssetMetadata{}
+	err = json.Unmarshal([]byte(resource.Data), metadata)
+	if err != nil {
+		return "", err
+	}
+
+	if metadata.Decimals == 0 {
+		denom = metadata.Symbol
+	} else {
+		denom = strings.Replace(metadataAddr, "0x", "move/", 1)
+	}
+
+	// Cache the result
+	address := strings.ToLower(metadataAddr)
+	cache.SetMoveDenomCache(address, denom)
+
+	return denom, nil
 }

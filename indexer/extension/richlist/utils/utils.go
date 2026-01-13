@@ -22,6 +22,7 @@ import (
 	"github.com/initia-labs/rollytics/util/querier"
 )
 
+// MAX_ATTEMPTS defines the maximum number of retry attempts for operations with exponential backoff.
 const MAX_ATTEMPTS = 10
 
 // ExponentialBackoff sleeps for an exponentially increasing duration based on the attempt number.
@@ -55,6 +56,8 @@ func ParseHexAmountToSDKInt(data string) (sdkmath.Int, bool) {
 	return sdkmath.NewIntFromBigInt(amountBigInt), true
 }
 
+// NewAddressWithID creates an AddressWithID struct from an account address and ID.
+// It converts the address to both Bech32 and hex formats.
 func NewAddressWithID(address sdk.AccAddress, id int64) AddressWithID {
 	return AddressWithID{
 		BechAddress: address.String(),
@@ -81,7 +84,9 @@ func containsAddress(addresses []sdk.AccAddress, target sdk.AccAddress) bool {
 	return false
 }
 
-func parseCoinsNormalizedDenom(ctx context.Context, querier *querier.Querier, logger *slog.Logger, cfg *config.Config, amount string) (sdk.Coins, error) {
+// parseCoinsNormalizedDenom parses a coin amount string and normalizes the denomination.
+// For EVM chains, it converts the denom to the contract address if available.
+func parseCoinsNormalizedDenom(ctx context.Context, querier *querier.Querier, cfg *config.Config, amount string) (sdk.Coins, error) {
 	coins, err := sdk.ParseCoinsNormalized(amount)
 	if err != nil {
 		return nil, err
@@ -102,6 +107,8 @@ func parseCoinsNormalizedDenom(ctx context.Context, querier *querier.Querier, lo
 	return coins, nil
 }
 
+// processCosmosMintEvent processes a Cosmos coin mint event and updates the balance map.
+// It extracts the minter address and amount from the event, then adds the minted coins to the minter's balance.
 func processCosmosMintEvent(ctx context.Context, querier *querier.Querier, logger *slog.Logger, cfg *config.Config, event sdk.Event, balanceMap map[BalanceChangeKey]sdkmath.Int) {
 	// Extract attributes from the event
 	var minter sdk.AccAddress
@@ -114,7 +121,7 @@ func processCosmosMintEvent(ctx context.Context, querier *querier.Querier, logge
 				logger.Error("failed to parse minter", "minter", attr.Value, "error", err)
 			}
 		case "amount":
-			if coins, err = parseCoinsNormalizedDenom(ctx, querier, logger, cfg, attr.Value); err != nil {
+			if coins, err = parseCoinsNormalizedDenom(ctx, querier, cfg, attr.Value); err != nil {
 				logger.Error("failed to parse minted coins", "amount", attr.Value, "error", err)
 				return
 			}
@@ -139,6 +146,8 @@ func processCosmosMintEvent(ctx context.Context, querier *querier.Querier, logge
 	}
 }
 
+// processCosmosBurnEvent processes a Cosmos coin burn event and updates the balance map.
+// It extracts the burner address and amount from the event, then subtracts the burned coins from the burner's balance.
 func processCosmosBurnEvent(ctx context.Context, querier *querier.Querier, logger *slog.Logger, cfg *config.Config, event sdk.Event, balanceMap map[BalanceChangeKey]sdkmath.Int) {
 	// Extract attributes from the event
 	var burner sdk.AccAddress
@@ -151,7 +160,7 @@ func processCosmosBurnEvent(ctx context.Context, querier *querier.Querier, logge
 				logger.Error("failed to parse burner", "burner", attr.Value, "error", err)
 			}
 		case "amount":
-			if coins, err = parseCoinsNormalizedDenom(ctx, querier, logger, cfg, attr.Value); err != nil {
+			if coins, err = parseCoinsNormalizedDenom(ctx, querier, cfg, attr.Value); err != nil {
 				logger.Error("failed to parse burned coins", "amount", attr.Value, "error", err)
 				return
 			}
@@ -178,7 +187,7 @@ func processCosmosBurnEvent(ctx context.Context, querier *querier.Querier, logge
 
 // processCosmosTransferEvent processes a Cosmos transfer event and updates the balance map.
 // It extracts transfer information from the event attributes and updates balances for both sender and receiver.
-// Returns true if the event was successfully processed, false otherwise.
+// Module accounts are excluded from balance tracking to avoid tracking treasury and system accounts.
 func processCosmosTransferEvent(ctx context.Context, querier *querier.Querier, logger *slog.Logger, cfg *config.Config, event sdk.Event, balanceMap map[BalanceChangeKey]sdkmath.Int, moduleAccounts []sdk.AccAddress) {
 	// Extract attributes from the event
 	var recipient, sender sdk.AccAddress
@@ -195,7 +204,7 @@ func processCosmosTransferEvent(ctx context.Context, querier *querier.Querier, l
 				logger.Error("failed to parse sender", "sender", attr.Value, "error", err)
 			}
 		case "amount":
-			if coins, err = parseCoinsNormalizedDenom(ctx, querier, logger, cfg, attr.Value); err != nil {
+			if coins, err = parseCoinsNormalizedDenom(ctx, querier, cfg, attr.Value); err != nil {
 				logger.Error("failed to parse transferred coins", "amount", attr.Value, "error", err)
 				return
 			}
@@ -232,62 +241,163 @@ func processCosmosTransferEvent(ctx context.Context, querier *querier.Querier, l
 	}
 }
 
-// processEvmTransferEvent processes an "evm" type event and updates the balance map.
-// It extracts the EVM log from the event's "log" attribute, parses the JSON-encoded log,
-// validates it's an ERC20 Transfer event, and updates balances for both sender (subtract) and receiver (add).
-// Returns true if the event was successfully processed, false otherwise.
-func processEvmTransferEvent(logger *slog.Logger, event sdk.Event, balanceMap map[BalanceChangeKey]sdkmath.Int) {
-	// Extract the log attribute from the event
-	for _, attr := range event.Attributes {
-		if attr.Key == "log" {
-			// Parse the JSON log
-			var evmLog EvmEventLog
-			if err := json.Unmarshal([]byte(attr.Value), &evmLog); err != nil {
-				logger.Error("failed to unmarshal evm log", "error", err)
+// processMoveTransferEvents processes Move VM transfer events (deposit/withdraw) and updates the balance map.
+// It handles fungible asset transfers in the Move primary store by matching deposit/withdraw events with their owner events.
+// Module accounts are excluded from balance tracking.
+func processMoveTransferEvents(ctx context.Context, querier *querier.Querier, logger *slog.Logger, events sdk.Events, balanceMap map[BalanceChangeKey]sdkmath.Int, moduleAccounts []sdk.AccAddress) {
+	for idx, event := range events {
+		if idx == len(events)-1 || event.Type != "move" || event.Attributes[0].Key != "type_tag" {
+			continue
+		}
+
+		// Support only Fungible Asset in primary store (always following with an owner event)
+		// - 0x1::fungible_asset::DepositEvent => 0x1::fungible_asset::DepositOwnerEvent
+		// - 0x1::fungible_asset::WithdrawEvent => 0x1::fungible_asset::WithdrawOwnerEvent
+		if event.Attributes[0].Value == types.MoveDepositEventTypeTag && events[idx+1].Attributes[0].Value == types.MoveDepositOwnerEventTypeTag {
+			var depositEvent MoveDepositEvent
+			err := json.Unmarshal([]byte(event.Attributes[1].Value), &depositEvent)
+			if err != nil {
+				logger.Error("failed to unmarshal deposit event", "error", err)
 				continue
 			}
 
-			// Validate it's a Transfer event with the correct number of topics
-			if len(evmLog.Topics) != 3 || evmLog.Topics[0] != types.EvmTransferTopic {
+			var depositOwnerEvent MoveDepositOwnerEvent
+			err = json.Unmarshal([]byte(events[idx+1].Attributes[1].Value), &depositOwnerEvent)
+			if err != nil {
+				logger.Error("failed to unmarshal deposit owner event", "error", err)
 				continue
 			}
 
-			denom := strings.ToLower(evmLog.Address)
-			fromAddr := evmLog.Topics[1]
-			toAddr := evmLog.Topics[2]
-
-			// Parse amount from hex string in evmLog.Data
-			amount, ok := ParseHexAmountToSDKInt(evmLog.Data)
+			recipient, err := util.AccAddressFromString(depositOwnerEvent.Owner)
+			if err != nil {
+				logger.Error("failed to parse recipient", "recipient", depositOwnerEvent.Owner, "error", err)
+				continue
+			}
+			denom, err := querier.GetMoveDenomByMetadataAddr(ctx, depositEvent.MetadataAddr)
+			if err != nil {
+				logger.Error("failed to get move denom", "metadataAddr", depositEvent.MetadataAddr, "error", err)
+				continue
+			}
+			amount, ok := sdkmath.NewIntFromString(depositEvent.Amount)
 			if !ok {
-				logger.Error("failed to parse amount from evm log data", "data", evmLog.Data)
+				logger.Error("failed to parse coin", "coin", depositEvent.Amount, "error", err)
 				continue
 			}
 
-			// Update sender's balance (subtract)
-			if fromAccAddr, err := util.AccAddressFromString(fromAddr); fromAddr != types.EvmEmptyAddress && err == nil {
-				fromKey := NewBalanceChangeKey(denom, fromAccAddr)
-				if balance, exists := balanceMap[fromKey]; !exists {
-					balanceMap[fromKey] = sdkmath.ZeroInt().Sub(amount)
+			if !containsAddress(moduleAccounts, recipient) {
+				// Update recipient's balance (add)
+				recipientKey := NewBalanceChangeKey(denom, recipient)
+				if balance, ok := balanceMap[recipientKey]; !ok {
+					balanceMap[recipientKey] = amount
 				} else {
-					balanceMap[fromKey] = balance.Sub(amount)
+					balanceMap[recipientKey] = balance.Add(amount)
 				}
 			}
+		}
 
-			// Update receiver's balance (add)
-			if toAccAddr, err := util.AccAddressFromString(toAddr); toAddr != types.EvmEmptyAddress && err == nil {
-				toKey := NewBalanceChangeKey(denom, toAccAddr)
-				if balance, exists := balanceMap[toKey]; !exists {
-					balanceMap[toKey] = amount
+		if event.Attributes[0].Value == types.MoveWithdrawEventTypeTag && events[idx+1].Attributes[0].Value == types.MoveWithdrawOwnerEventTypeTag {
+			var withdrawEvent MoveWithdrawEvent
+			err := json.Unmarshal([]byte(event.Attributes[1].Value), &withdrawEvent)
+			if err != nil {
+				logger.Error("failed to unmarshal withdraw event", "error", err)
+				continue
+			}
+
+			var withdrawOwnerEvent MoveWithdrawOwnerEvent
+			err = json.Unmarshal([]byte(events[idx+1].Attributes[1].Value), &withdrawOwnerEvent)
+			if err != nil {
+				logger.Error("failed to unmarshal withdraw owner event", "error", err)
+				continue
+			}
+
+			sender, err := util.AccAddressFromString(withdrawOwnerEvent.Owner)
+			if err != nil {
+				logger.Error("failed to parse sender", "sender", withdrawOwnerEvent.Owner, "error", err)
+				continue
+			}
+			denom, err := querier.GetMoveDenomByMetadataAddr(ctx, withdrawEvent.MetadataAddr)
+			if err != nil {
+				logger.Error("failed to get move denom", "metadataAddr", withdrawEvent.MetadataAddr, "error", err)
+				continue
+			}
+			amount, ok := sdkmath.NewIntFromString(withdrawEvent.Amount)
+			if !ok {
+				logger.Error("failed to parse coin", "coin", withdrawEvent.Amount, "error", err)
+				continue
+			}
+
+			if !containsAddress(moduleAccounts, sender) {
+				// Update sender's balance (subtract)
+				senderKey := NewBalanceChangeKey(denom, sender)
+				if balance, ok := balanceMap[senderKey]; !ok {
+					balanceMap[senderKey] = amount
 				} else {
-					balanceMap[toKey] = balance.Add(amount)
+					balanceMap[senderKey] = balance.Sub(amount)
 				}
 			}
 		}
 	}
 }
 
-// ProcessBalanceChanges processes Cosmos transactions and calculates balance changes
-// for each address. Returns a map of BalanceChangeKey to balance change amounts.
+// processEvmTransferEvents processes EVM events and updates the balance map.
+// It extracts the EVM log from the event's "log" attribute, parses the JSON-encoded log,
+// validates it's an ERC20 Transfer event (by checking the transfer topic), and updates balances
+// for both sender (subtract) and receiver (add). The empty address (0x0) is skipped for mint/burn operations.
+func processEvmTransferEvents(logger *slog.Logger, events sdk.Events, balanceMap map[BalanceChangeKey]sdkmath.Int) {
+	// Extract the log attribute from the event
+	for _, event := range events {
+		for _, attr := range event.Attributes {
+			if attr.Key == "log" {
+				// Parse the JSON log
+				var evmLog EvmEventLog
+				if err := json.Unmarshal([]byte(attr.Value), &evmLog); err != nil {
+					logger.Error("failed to unmarshal evm log", "error", err)
+					continue
+				}
+
+				// Validate it's a Transfer event with the correct number of topics
+				if len(evmLog.Topics) != 3 || evmLog.Topics[0] != types.EvmTransferTopic {
+					continue
+				}
+
+				denom := strings.ToLower(evmLog.Address)
+				fromAddr := evmLog.Topics[1]
+				toAddr := evmLog.Topics[2]
+
+				// Parse amount from hex string in evmLog.Data
+				amount, ok := ParseHexAmountToSDKInt(evmLog.Data)
+				if !ok {
+					logger.Error("failed to parse amount from evm log data", "data", evmLog.Data)
+					continue
+				}
+
+				// Update sender's balance (subtract)
+				if fromAccAddr, err := util.AccAddressFromString(fromAddr); fromAddr != types.EvmEmptyAddress && err == nil {
+					fromKey := NewBalanceChangeKey(denom, fromAccAddr)
+					if balance, exists := balanceMap[fromKey]; !exists {
+						balanceMap[fromKey] = sdkmath.ZeroInt().Sub(amount)
+					} else {
+						balanceMap[fromKey] = balance.Sub(amount)
+					}
+				}
+
+				// Update receiver's balance (add)
+				if toAccAddr, err := util.AccAddressFromString(toAddr); toAddr != types.EvmEmptyAddress && err == nil {
+					toKey := NewBalanceChangeKey(denom, toAccAddr)
+					if balance, exists := balanceMap[toKey]; !exists {
+						balanceMap[toKey] = amount
+					} else {
+						balanceMap[toKey] = balance.Add(amount)
+					}
+				}
+			}
+		}
+	}
+}
+
+// ProcessBalanceChanges processes blockchain transactions and calculates balance changes for each address.
+// It routes events to the appropriate processor based on the chain's VM type (MoveVM, EVM, or Cosmos).
+// Returns a map of BalanceChangeKey to balance change amounts (positive for increases, negative for decreases).
 func ProcessBalanceChanges(ctx context.Context, querier *querier.Querier, logger *slog.Logger, cfg *config.Config, txs []types.CollectedTx, moduleAccounts []sdk.AccAddress) map[BalanceChangeKey]sdkmath.Int {
 	balanceMap := make(map[BalanceChangeKey]sdkmath.Int)
 
@@ -304,8 +414,13 @@ func ProcessBalanceChanges(ctx context.Context, querier *querier.Querier, logger
 			continue
 		}
 
-		for _, event := range events {
-			if cfg.GetChainConfig().VmType != types.EVM {
+		switch cfg.GetChainConfig().VmType {
+		case types.MoveVM:
+			processMoveTransferEvents(ctx, querier, logger, events, balanceMap, moduleAccounts)
+		case types.EVM:
+			processEvmTransferEvents(logger, events, balanceMap)
+		default:
+			for _, event := range events {
 				switch event.Type {
 				case banktypes.EventTypeCoinMint:
 					processCosmosMintEvent(ctx, querier, logger, cfg, event, balanceMap)
@@ -314,8 +429,6 @@ func ProcessBalanceChanges(ctx context.Context, querier *querier.Querier, logger
 				case banktypes.EventTypeTransfer:
 					processCosmosTransferEvent(ctx, querier, logger, cfg, event, balanceMap, moduleAccounts)
 				}
-			} else if event.Type == "evm" {
-				processEvmTransferEvent(logger, event, balanceMap)
 			}
 		}
 	}
@@ -394,12 +507,13 @@ func FetchAndUpdateBalances(
 	return nil
 }
 
-// initializeBalances fetches all accounts, creates account IDs, queries their balances,
+// InitializeBalances fetches all accounts, creates account IDs, queries their balances,
 // and upserts them to the rich_list table. This is useful for initializing the rich list
-// from scratch or syncing absolute balances.
+// from scratch or syncing absolute balances at a specific block height.
 //
 // Parameters:
 //   - ctx: Context for timeout and cancellation
+//   - querier: Querier instance for fetching blockchain data
 //   - logger: Logger for progress tracking
 //   - db: Database connection for transaction
 //   - cfg: Configuration containing REST API endpoint and other settings
@@ -435,6 +549,17 @@ func InitializeBalances(ctx context.Context, querier *querier.Querier, logger *s
 	return nil
 }
 
+// getOrCreateAccountIds retrieves or creates database IDs for a list of account addresses.
+// It converts SDK addresses to strings and delegates to the cache utility.
+//
+// Parameters:
+//   - db: Database connection
+//   - accounts: List of account addresses
+//   - createNew: If true, creates new IDs for addresses that don't exist in the database
+//
+// Returns:
+//   - idMap: Map of address string to database ID
+//   - err: Error if the operation fails
 func getOrCreateAccountIds(db *gorm.DB, accounts []sdk.AccAddress, createNew bool) (idMap map[string]int64, err error) {
 	var addresses []string
 	for _, account := range accounts {
