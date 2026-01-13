@@ -10,6 +10,7 @@ import (
 
 	"github.com/initia-labs/rollytics/config"
 	evmrichlist "github.com/initia-labs/rollytics/indexer/extension/richlist/evmrichlist"
+	"github.com/initia-labs/rollytics/indexer/extension/richlist/moverichlist"
 	exttypes "github.com/initia-labs/rollytics/indexer/extension/types"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
@@ -89,6 +90,10 @@ func (r *RichListExtension) Run(ctx context.Context) error {
 	}
 
 	switch r.cfg.GetVmType() {
+	case types.MoveVM:
+		if err := moverichlist.Run(ctx, r.cfg, r.logger, r.db, r.startHeight, moduleAccounts, r.requireInit); err != nil {
+			return err
+		}
 	case types.EVM:
 		if err := evmrichlist.Run(ctx, r.cfg, r.logger, r.db, r.startHeight, moduleAccounts, r.requireInit); err != nil {
 			return err
