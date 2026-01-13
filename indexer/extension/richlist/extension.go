@@ -31,7 +31,7 @@ type RichListExtension struct {
 
 func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *RichListExtension {
 	// TODO: remove EVM check after all implementation
-	if cfg.GetVmType() != types.EVM || !cfg.GetRichListEnabled() {
+	if cfg.GetVmType() == types.WasmVM || !cfg.GetRichListEnabled() {
 		return nil
 	}
 
