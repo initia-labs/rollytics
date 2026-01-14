@@ -239,9 +239,6 @@ func UpdateBalances(ctx context.Context, db *gorm.DB, denom string, addressBalan
 
 	// Update balances in the database using raw SQL for atomic updates
 	for addrWithID, balance := range addressBalances {
-		if len(addrWithID.BechAddress) > 44 {
-			continue
-		}
 		// Use raw SQL to insert or update with ON CONFLICT
 		result := db.WithContext(ctx).Exec(`
 			INSERT INTO rich_list (id, denom, amount)
