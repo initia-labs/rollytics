@@ -480,6 +480,10 @@ func FetchAndUpdateBalances(
 			return fmt.Errorf("failed to fetch balances for address %s: %w", address, err)
 		}
 
+		if address.String() == "init1r6yzq8fzcjfjq9m6eqzkl796fdfg060xt4z530944jz5rkyzyudqat9mpx" {
+			fmt.Println("======> balances", balances)
+		}
+
 		// Process each balance (denom) for this account
 		for _, balance := range balances {
 			// Skip zero balances
