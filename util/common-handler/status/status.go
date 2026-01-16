@@ -122,7 +122,7 @@ func (h *StatusHandler) getInternalTxHeight(tx *gorm.DB, lastBlockHeight int64) 
 
 func (h *StatusHandler) isRichListEnabled() bool {
 	// TODO: remove EVM check after all implementation
-	return (h.GetChainConfig().VmType == types.EVM) && h.GetConfig().GetRichListEnabled()
+	return (h.GetChainConfig().VmType != types.WasmVM) && h.GetConfig().GetRichListEnabled()
 }
 
 func (h *StatusHandler) getRichListHeight(tx *gorm.DB) (int64, error) {
