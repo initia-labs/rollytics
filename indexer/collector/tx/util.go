@@ -2,6 +2,7 @@ package tx
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -54,4 +55,30 @@ func grepTypeTagsFromEvents(cfg *config.Config, events []abci.Event) (typeTags [
 	}
 
 	return
+}
+
+// sanitizeJSONBytes removes null bytes and other problematic control characters
+// from JSON bytes that cannot be stored in PostgreSQL. It replaces null bytes
+// with the Unicode replacement character (\uFFFD) and handles Unicode escape
+// sequences in JSON strings.
+func sanitizeJSONBytes(data []byte) []byte {
+	// Convert to string to use strings.ReplaceAll
+	str := string(data)
+
+	// Replace raw null bytes with Unicode replacement character
+	str = strings.ReplaceAll(str, "\x00", "\uFFFD")
+
+	// Replace null byte Unicode escape sequences in JSON strings
+	str = strings.ReplaceAll(str, "\\u0000", "\\uFFFD")
+
+	// Replace other problematic control character escape sequences (except valid whitespace)
+	// \u0001 through \u0008, \u000B, \u000C, \u000E through \u001F
+	for i := 1; i < 0x20; i++ {
+		if i != 0x09 && i != 0x0A && i != 0x0D { // Skip tab, newline, carriage return
+			escapeSeq := fmt.Sprintf("\\u%04X", i)
+			str = strings.ReplaceAll(str, escapeSeq, "\\uFFFD")
+		}
+	}
+
+	return []byte(str)
 }
