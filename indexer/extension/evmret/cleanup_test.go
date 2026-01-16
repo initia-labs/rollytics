@@ -491,6 +491,7 @@ func TestProcessBatch(t *testing.T) {
 		NftCacheSize:              1024,
 		MsgTypeCacheSize:          256,
 		TypeTagCacheSize:          256,
+		MoveDenomCacheSize:        1024,
 		EvmTxHashCacheSize:        1024,
 		EvmDenomContractCacheSize: 256,
 		ValidatorCacheSize:        1024,

@@ -246,7 +246,7 @@ func processCosmosTransferEvent(ctx context.Context, querier *querier.Querier, l
 // Module accounts are excluded from balance tracking.
 func processMoveTransferEvents(ctx context.Context, querier *querier.Querier, logger *slog.Logger, events sdk.Events, balanceMap map[BalanceChangeKey]sdkmath.Int, moduleAccounts []sdk.AccAddress) {
 	for idx, event := range events {
-		if idx == len(events)-1 || event.Type != "move" || event.Attributes[0].Key != "type_tag" {
+		if idx == len(events)-1 || event.Type != "move" || len(event.Attributes) < 2 || event.Attributes[0].Key != "type_tag" || len(events[idx+1].Attributes) < 2 || events[idx+1].Attributes[0].Key != "type_tag" {
 			continue
 		}
 
@@ -330,7 +330,7 @@ func processMoveTransferEvents(ctx context.Context, querier *querier.Querier, lo
 				// Update sender's balance (subtract)
 				senderKey := NewBalanceChangeKey(denom, sender)
 				if balance, ok := balanceMap[senderKey]; !ok {
-					balanceMap[senderKey] = amount
+					balanceMap[senderKey] = amount.Neg()
 				} else {
 					balanceMap[senderKey] = balance.Sub(amount)
 				}
@@ -375,7 +375,7 @@ func processEvmTransferEvents(logger *slog.Logger, events sdk.Events, balanceMap
 				if fromAccAddr, err := util.AccAddressFromString(fromAddr); fromAddr != types.EvmEmptyAddress && err == nil {
 					fromKey := NewBalanceChangeKey(denom, fromAccAddr)
 					if balance, exists := balanceMap[fromKey]; !exists {
-						balanceMap[fromKey] = sdkmath.ZeroInt().Sub(amount)
+						balanceMap[fromKey] = amount.Neg()
 					} else {
 						balanceMap[fromKey] = balance.Sub(amount)
 					}

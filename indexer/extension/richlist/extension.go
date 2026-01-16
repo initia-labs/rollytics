@@ -34,8 +34,7 @@ type RichListExtension struct {
 }
 
 func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *RichListExtension {
-	// TODO: remove EVM check after all implementation
-	if cfg.GetVmType() == types.WasmVM || !cfg.GetRichListEnabled() {
+	if !cfg.GetRichListEnabled() {
 		return nil
 	}
 
@@ -56,11 +55,18 @@ func (r *RichListExtension) Initialize(ctx context.Context) error {
 			// If no richlist status found, use the latest block height
 			var lastBlockHeight int64
 			for {
+				if ctx.Err() != nil {
+					return ctx.Err()
+				}
 				if lastBlockHeight, err = richlistutils.GetLatestCollectedBlock(ctx, r.db.DB, r.cfg.GetChainId()); err != nil {
 					if errors.Is(err, gorm.ErrRecordNotFound) {
 						r.logger.Warn("no blocks found in database, waiting for blocks to be indexed")
-						time.Sleep(5 * time.Second)
-						continue
+						select {
+						case <-time.After(5 * time.Second):
+							continue
+						case <-ctx.Done():
+							return ctx.Err()
+						}
 					}
 					r.logger.Error("failed to get the latest block height", slog.Any("error", err))
 					return err

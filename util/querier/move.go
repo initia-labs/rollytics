@@ -42,7 +42,8 @@ func (q *Querier) GetMoveResource(ctx context.Context, addr string, structTag st
 
 func (q *Querier) GetMoveDenomByMetadataAddr(ctx context.Context, metadataAddr string) (denom string, err error) {
 	// Check cache first
-	if denom, ok := cache.GetMoveDenomCache(metadataAddr); ok {
+	key := strings.ToLower(metadataAddr)
+	if denom, ok := cache.GetMoveDenomCache(key); ok {
 		return denom, nil
 	}
 
@@ -63,15 +64,14 @@ func (q *Querier) GetMoveDenomByMetadataAddr(ctx context.Context, metadataAddr s
 		return "", err
 	}
 
-	if metadata.Decimals == 0 {
+	if metadata.Decimals == 0 && metadata.Symbol != "" {
 		denom = metadata.Symbol
 	} else {
 		denom = strings.Replace(metadataAddr, "0x", "move/", 1)
 	}
 
 	// Cache the result
-	address := strings.ToLower(metadataAddr)
-	cache.SetMoveDenomCache(address, denom)
+	cache.SetMoveDenomCache(key, denom)
 
 	return denom, nil
 }

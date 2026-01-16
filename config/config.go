@@ -444,6 +444,10 @@ func (c Config) GetInternalTxConfig() *InternalTxConfig {
 }
 
 func (c Config) GetRichListEnabled() bool {
+	// TODO: remove VM check
+	if c.GetVmType() == types.WasmVM {
+		return false
+	}
 	return c.richListConfig.Enabled
 }
 
