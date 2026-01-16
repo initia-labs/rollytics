@@ -184,10 +184,12 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) er
 		if err != nil {
 			return err
 		}
+		txJSON = sanitizeJSONBytes(txJSON)
 		events, err := cbjson.Marshal(res.Events)
 		if err != nil {
 			return err
 		}
+		events = sanitizeJSONBytes(events)
 		parsedLogs, _ := sdk.ParseABCILogs(res.Log)
 		if parsedLogs == nil {
 			parsedLogs = []sdk.ABCIMessageLog{}
@@ -211,6 +213,7 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) er
 		if err != nil {
 			return err
 		}
+		txResJSON = sanitizeJSONBytes(txResJSON)
 
 		hashBytes, err := util.HexToBytes(txHash)
 		if err != nil {
@@ -325,6 +328,7 @@ func (sub *TxSubmodule) collectEvm(block indexertypes.ScrapedBlock, evmTxs []typ
 		if err != nil {
 			return err
 		}
+		txJSON = sanitizeJSONBytes(txJSON)
 
 		// grep addresses from events
 		addrs, err := grepAddressesFromEvmTx(evmTx)
