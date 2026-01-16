@@ -103,9 +103,6 @@ func UpdateBalanceChanges(ctx context.Context, db *gorm.DB, balanceMap map[Balan
 	// Step 1: Collect all unique addresses that need account ID conversion
 	addressSet := make(map[string]bool)
 	for key := range balanceMap {
-		if len(key.Addr) > 44 {
-			continue
-		}
 		addressSet[key.Addr] = true
 	}
 
