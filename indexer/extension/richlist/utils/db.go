@@ -17,18 +17,19 @@ const RICH_LIST_BLOCK_DELAY = 5
 
 // GetLatestCollectedBlock retrieves the latest block height from the database for a given chain ID.
 func GetLatestCollectedBlock(ctx context.Context, db *gorm.DB, chainId string) (int64, error) {
-	var latestHeight int64
+	var latestHeight *int64
 	err := db.WithContext(ctx).
 		Model(&types.CollectedBlock{}).
 		Where("chain_id = ?", chainId).
-		Order("height DESC").
-		Select("height").
-		Limit(1).
+		Select("MAX(height)").
 		Scan(&latestHeight).Error
 	if err != nil {
 		return 0, err
 	}
-	return latestHeight, nil
+	if latestHeight == nil {
+		return 0, gorm.ErrRecordNotFound
+	}
+	return *latestHeight, nil
 }
 
 // GetCollectedBlock retrieves a block from the database by chain ID and height.
