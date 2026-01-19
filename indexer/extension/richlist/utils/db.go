@@ -21,7 +21,9 @@ func GetLatestCollectedBlock(ctx context.Context, db *gorm.DB, chainId string) (
 	err := db.WithContext(ctx).
 		Model(&types.CollectedBlock{}).
 		Where("chain_id = ?", chainId).
-		Select("COALESCE(MAX(height), 0)").
+		Order("height DESC").
+		Select("height").
+		Limit(1).
 		Scan(&latestHeight).Error
 	if err != nil {
 		return 0, err
