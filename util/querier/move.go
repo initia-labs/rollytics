@@ -52,14 +52,14 @@ func (q *Querier) GetMoveDenomByMetadataAddr(ctx context.Context, metadataAddr s
 		return "", err
 	}
 
-	resource := &types.MoveResource{}
-	err = json.Unmarshal([]byte(resourceResponse.Resource.MoveResource), resource)
+	var resource types.MoveResource
+	err = json.Unmarshal([]byte(resourceResponse.Resource.MoveResource), &resource)
 	if err != nil {
 		return "", err
 	}
 
-	metadata := &types.MoveFungibleAssetMetadata{}
-	err = json.Unmarshal([]byte(resource.Data), metadata)
+	var metadata types.MoveFungibleAssetMetadata
+	err = json.Unmarshal(resource.Data, &metadata)
 	if err != nil {
 		return "", err
 	}

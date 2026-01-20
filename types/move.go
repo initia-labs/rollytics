@@ -1,5 +1,7 @@
 package types
 
+import "encoding/json"
+
 const (
 	MoveMetadataTypeTag           = "0x1::fungible_asset::Metadata"
 	MoveDepositEventTypeTag       = "0x1::fungible_asset::DepositEvent"
@@ -18,8 +20,8 @@ type QueryMoveResourceResponse struct {
 }
 
 type MoveResource struct {
-	Type string `json:"type"`
-	Data string `json:"data"`
+	Type string          `json:"type"`
+	Data json.RawMessage `json:"data"`
 }
 
 type MoveFungibleAssetMetadata struct {
