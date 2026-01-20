@@ -2,16 +2,91 @@ package moverichlist
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log/slog"
 
+	sdkmath "cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"gorm.io/gorm"
 
 	"github.com/initia-labs/rollytics/config"
 	richlistutils "github.com/initia-labs/rollytics/indexer/extension/richlist/utils"
 	"github.com/initia-labs/rollytics/orm"
+	"github.com/initia-labs/rollytics/util"
 	"github.com/initia-labs/rollytics/util/querier"
 )
+
+func sanityCheckBalances(
+	ctx context.Context,
+	querier *querier.Querier,
+	dbTx *gorm.DB,
+	balanceMap map[richlistutils.BalanceChangeKey]sdkmath.Int,
+	height int64,
+) error {
+	if len(balanceMap) == 0 {
+		return nil
+	}
+
+	addressDenoms := make(map[string]map[string]struct{})
+	for key := range balanceMap {
+		if addressDenoms[key.Addr] == nil {
+			addressDenoms[key.Addr] = make(map[string]struct{})
+		}
+		addressDenoms[key.Addr][key.Denom] = struct{}{}
+	}
+
+	for addr, denomSet := range addressDenoms {
+		accAddr, err := util.AccAddressFromString(addr)
+		if err != nil {
+			return fmt.Errorf("failed to parse address %s: %w", addr, err)
+		}
+
+		onChainBalances, err := querier.GetAllBalances(ctx, accAddr, height)
+		if err != nil {
+			return fmt.Errorf("failed to fetch on-chain balances for %s: %w", addr, err)
+		}
+
+		onChainMap := make(map[string]sdkmath.Int, len(onChainBalances))
+		for _, coin := range onChainBalances {
+			if coin.Amount.IsZero() {
+				continue
+			}
+			onChainMap[coin.Denom] = coin.Amount
+		}
+
+		for denom := range denomSet {
+			onChainAmount := onChainMap[denom]
+			dbAmount := sdkmath.ZeroInt()
+
+			dbBalance, err := richlistutils.QueryBalance(ctx, dbTx, denom, addr)
+			if err != nil {
+				if !errors.Is(err, gorm.ErrRecordNotFound) {
+					return fmt.Errorf("failed to query db balance for %s (%s): %w", addr, denom, err)
+				}
+			} else {
+				amount, ok := sdkmath.NewIntFromString(dbBalance.Amount)
+				if !ok {
+					return fmt.Errorf("failed to parse db amount for %s (%s): %s", addr, denom, dbBalance.Amount)
+				}
+				dbAmount = amount
+			}
+
+			if !onChainAmount.Equal(dbAmount) {
+				panic(fmt.Sprintf(
+					"rich list sanity check failed: address=%s denom=%s height=%d chain=%s db=%s",
+					addr,
+					denom,
+					height,
+					onChainAmount.String(),
+					dbAmount.String(),
+				))
+			}
+		}
+	}
+
+	return nil
+}
 
 func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.Database, startHeight int64, moduleAccounts []sdk.AccAddress, requireInit bool) error {
 	currentHeight := startHeight
@@ -56,6 +131,11 @@ func Run(ctx context.Context, cfg *config.Config, logger *slog.Logger, db *orm.D
 			negativeDenoms, err := richlistutils.UpdateBalanceChanges(ctx, dbTx, balanceMap)
 			if err != nil {
 				logger.Error("failed to update balance changes", slog.Any("error", err))
+				return err
+			}
+
+			if err := sanityCheckBalances(ctx, querier, dbTx, balanceMap, currentHeight); err != nil {
+				logger.Error("failed rich list sanity check", slog.Int64("height", currentHeight), slog.Any("error", err))
 				return err
 			}
 
