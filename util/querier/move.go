@@ -65,7 +65,7 @@ func (q *Querier) GetMoveDenomByMetadataAddr(ctx context.Context, metadataAddr s
 	}
 
 	if metadata.Decimals == 0 && metadata.Symbol != "" {
-		denom = metadata.Symbol
+		denom = strings.ToLower(metadata.Symbol)
 	} else {
 		denom = strings.Replace(metadataAddr, "0x", "move/", 1)
 	}
