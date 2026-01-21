@@ -56,7 +56,10 @@ func sanityCheckBalances(
 		}
 
 		for denom := range denomSet {
-			onChainAmount := onChainMap[denom]
+			onChainAmount, ok := onChainMap[denom]
+			if !ok {
+				panic(fmt.Sprintf("denom missing from on-chain balances: %s", denom))
+			}
 			dbAmount := sdkmath.ZeroInt()
 
 			dbBalance, err := richlistutils.QueryBalance(ctx, dbTx, denom, addr)
