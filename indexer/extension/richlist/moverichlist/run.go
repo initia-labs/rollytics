@@ -34,6 +34,8 @@ func sanityCheckBalances(
 			addressDenoms[key.Addr] = make(map[string]struct{})
 		}
 		addressDenoms[key.Addr][key.Denom] = struct{}{}
+		// TODO: Remove this
+		fmt.Println(key.Addr, key.Denom)
 	}
 
 	for addr, denomSet := range addressDenoms {
