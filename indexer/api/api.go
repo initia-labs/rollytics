@@ -62,7 +62,7 @@ func (a *Api) Start() error {
 	port := a.cfg.GetIndexerListenPort()
 	listenAddr := ":" + port
 
-	a.logger.Info("starting API server", slog.String("addr", listenAddr))
+	a.logger.Info("starting API server", slog.String("addr", listenAddr), slog.Uint64("recv_buffer_size", uint64(a.cfg.GetRecvBufferSize())))
 	return a.app.Listen(listenAddr)
 }
 
