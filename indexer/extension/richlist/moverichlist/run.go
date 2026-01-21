@@ -58,7 +58,8 @@ func sanityCheckBalances(
 		for denom := range denomSet {
 			onChainAmount, ok := onChainMap[denom]
 			if !ok {
-				panic(fmt.Sprintf("denom missing from on-chain balances: %s", denom))
+				// Missing denom implies zero balance on-chain.
+				onChainAmount = sdkmath.ZeroInt()
 			}
 			dbAmount := sdkmath.ZeroInt()
 
