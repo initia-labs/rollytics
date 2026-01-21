@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	sdkmath "cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -50,9 +51,12 @@ func sanityCheckBalances(
 		}
 
 		// TODO: Remove this
-		fmt.Println(addr, onChainBalances)
 		onChainMap := make(map[string]sdkmath.Int, len(onChainBalances))
 		for _, coin := range onChainBalances {
+			if strings.HasPrefix(coin.Denom, "ibc/") {
+				coin.Denom = "ibc/" + strings.ToUpper(strings.TrimPrefix(coin.Denom, "ibc/"))
+			}
+
 			if coin.Amount.IsZero() {
 				continue
 			}
