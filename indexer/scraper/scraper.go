@@ -12,6 +12,7 @@ import (
 	"github.com/initia-labs/rollytics/indexer/types"
 	"github.com/initia-labs/rollytics/metrics"
 	commontypes "github.com/initia-labs/rollytics/types"
+	"github.com/initia-labs/rollytics/util/querier"
 )
 
 const (
@@ -20,6 +21,7 @@ const (
 
 type Scraper struct {
 	cfg            *config.Config
+	querier        *querier.Querier
 	logger         *slog.Logger
 	mtx            sync.Mutex
 	lastScrapeTime time.Time
@@ -29,6 +31,7 @@ type Scraper struct {
 func New(cfg *config.Config, logger *slog.Logger) *Scraper {
 	return &Scraper{
 		cfg:            cfg,
+		querier:        querier.NewQuerier(cfg.GetChainConfig()),
 		logger:         logger.With("module", "scraper"),
 		lastScrapeTime: time.Now(),
 		scrapedCount:   0,
