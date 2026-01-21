@@ -50,7 +50,7 @@ func sanityCheckBalances(
 		}
 
 		// TODO: Remove this
-		fmt.Println(accAddr, onChainBalances)
+		fmt.Println(addr, onChainBalances)
 		onChainMap := make(map[string]sdkmath.Int, len(onChainBalances))
 		for _, coin := range onChainBalances {
 			if coin.Amount.IsZero() {
