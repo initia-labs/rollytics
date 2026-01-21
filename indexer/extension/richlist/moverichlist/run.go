@@ -61,6 +61,8 @@ func sanityCheckBalances(
 				continue
 			}
 			onChainMap[coin.Denom] = coin.Amount
+
+			fmt.Println("->", addr, coin.Denom, coin.Amount.String())
 		}
 
 		for denom := range denomSet {
