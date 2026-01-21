@@ -27,10 +27,11 @@ var (
 
 // Default configuration constants
 const (
-	// Port settings
+	// Port and Network settings
 	DefaultAPIPort        = "8080"
 	DefaultIndexerAPIPort = "8081"
 	DefaultMetricsPort    = "9090"
+	DefaultRecvBufferSize = "16384" // 16k
 	MinPortNumber         = 1
 	MaxPortNumber         = 65535
 
@@ -127,6 +128,7 @@ func SetBuildInfo(v, commit string) {
 
 type Config struct {
 	listenPort            string
+	recvBufSize           uint
 	indexerListenPort     string
 	dbConfig              *dbconfig.Config
 	chainConfig           *ChainConfig
@@ -153,6 +155,7 @@ type Config struct {
 
 func setDefaults() {
 	viper.SetDefault("PORT", DefaultAPIPort)
+	viper.SetDefault("RECV_BUFFER_SIZE", DefaultRecvBufferSize)
 	viper.SetDefault("INDEXER_PORT", DefaultIndexerAPIPort)
 	viper.SetDefault("DB_AUTO_MIGRATE", false)
 	viper.SetDefault("DB_BATCH_SIZE", DefaultDBBatchSize)
@@ -267,6 +270,7 @@ func loadConfig() (*Config, error) {
 
 	config := &Config{
 		listenPort:            viper.GetString("PORT"),
+		recvBufSize:           viper.GetUint("RECV_BUFFER_SIZE"),
 		indexerListenPort:     viper.GetString("INDEXER_PORT"),
 		dbConfig:              dc,
 		chainConfig:           cc,
@@ -368,6 +372,10 @@ func splitAndTrim(s string) []string {
 
 func (c Config) GetListenPort() string {
 	return c.listenPort
+}
+
+func (c Config) GetRecvBufferSize() uint {
+	return c.recvBufSize
 }
 
 func (c Config) GetIndexerListenPort() string {
@@ -525,6 +533,9 @@ func (c Config) Validate() error {
 	if err := c.validatePort(); err != nil {
 		return err
 	}
+	if err := c.validateRecvBuffersize(); err != nil {
+		return err
+	}
 	if err := c.validateIndexerPort(); err != nil {
 		return err
 	}
@@ -553,6 +564,14 @@ func (c Config) validatePort() error {
 	}
 	if port, err := strconv.Atoi(c.listenPort); err != nil || port < MinPortNumber || port > MaxPortNumber {
 		return types.NewValidationError("PORT", fmt.Sprintf("must be a valid port number (%d-%d)", MinPortNumber, MaxPortNumber))
+	}
+	return nil
+}
+
+// validateRecvBuffersize validates the size of the receive buffer used by fiber/fasthttp
+func (c Config) validateRecvBuffersize() error {
+	if c.recvBufSize == 0 {
+		return types.NewValidationError("RECV_BUFFER_SIZE", "must be positive")
 	}
 	return nil
 }
