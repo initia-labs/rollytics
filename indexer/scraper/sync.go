@@ -85,7 +85,7 @@ func (s *Scraper) fastSync(ctx context.Context, client *fiber.Client, height int
 				default:
 				}
 
-				block, err := scrapeBlock(client, h, s.cfg)
+				block, err := scrapeBlock(ctx, client, h, s.cfg, s.querier)
 
 				// if no error, cache the scraped block to block map and return
 				if err == nil {
@@ -134,7 +134,7 @@ func (s *Scraper) slowSync(ctx context.Context, client *fiber.Client, height int
 		for i := range commontypes.BatchScrapSize {
 			h := height + int64(i)
 			g.Go(func() error {
-				block, err := scrapeBlock(client, h, s.cfg)
+				block, err := scrapeBlock(ctx, client, h, s.cfg, s.querier)
 				result := ScrapResult{
 					Height: h,
 					Err:    err,

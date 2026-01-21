@@ -1,10 +1,9 @@
 package scraper
 
 import (
+	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"regexp"
 	"time"
 
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -16,9 +15,10 @@ import (
 	"github.com/initia-labs/rollytics/config"
 	"github.com/initia-labs/rollytics/indexer/types"
 	"github.com/initia-labs/rollytics/metrics"
+	"github.com/initia-labs/rollytics/util/querier"
 )
 
-func scrapeBlock(client *fiber.Client, height int64, cfg *config.Config) (types.ScrapedBlock, error) {
+func scrapeBlock(ctx context.Context, client *fiber.Client, height int64, cfg *config.Config, q *querier.Querier) (types.ScrapedBlock, error) {
 	start := time.Now()
 
 	var g errgroup.Group
@@ -27,12 +27,12 @@ func scrapeBlock(client *fiber.Client, height int64, cfg *config.Config) (types.
 
 	g.Go(func() error {
 		defer close(getBlockRes)
-		return fetchBlock(client, height, cfg, getBlockRes)
+		return fetchBlock(ctx, client, height, cfg, q.RpcUrls, getBlockRes)
 	})
 
 	g.Go(func() error {
 		defer close(getBlockResultsRes)
-		return fetchBlockResults(client, height, cfg, getBlockResultsRes)
+		return fetchBlockResults(ctx, client, height, cfg, q.RpcUrls, getBlockResultsRes)
 	})
 
 	indexerMetrics := metrics.GetMetrics().IndexerMetrics()
@@ -58,9 +58,8 @@ func scrapeBlock(client *fiber.Client, height int64, cfg *config.Config) (types.
 	return scrapedBlock, nil
 }
 
-func fetchBlock(client *fiber.Client, height int64, cfg *config.Config, getBlockRes chan<- GetBlockResponse) error {
-	url := fmt.Sprintf("%s/block?height=%d", cfg.GetChainConfig().GetRpcUrl(), height)
-	body, err := fetchFromRpc(client, cfg.GetQueryTimeout(), url)
+func fetchBlock(ctx context.Context, client *fiber.Client, height int64, cfg *config.Config, rpcURLs []string, getBlockRes chan<- GetBlockResponse) error {
+	body, err := querier.FetchRPCWithRotation(ctx, client, rpcURLs, fmt.Sprintf("/block?height=%d", height), cfg.GetQueryTimeout())
 	if err != nil {
 		return err
 	}
@@ -74,9 +73,8 @@ func fetchBlock(client *fiber.Client, height int64, cfg *config.Config, getBlock
 	return nil
 }
 
-func fetchBlockResults(client *fiber.Client, height int64, cfg *config.Config, getBlockResultsRes chan<- GetBlockResultsResponse) error {
-	url := fmt.Sprintf("%s/block_results?height=%d", cfg.GetChainConfig().GetRpcUrl(), height)
-	body, err := fetchFromRpc(client, cfg.GetQueryTimeout(), url)
+func fetchBlockResults(ctx context.Context, client *fiber.Client, height int64, cfg *config.Config, rpcURLs []string, getBlockResultsRes chan<- GetBlockResultsResponse) error {
+	body, err := querier.FetchRPCWithRotation(ctx, client, rpcURLs, fmt.Sprintf("/block_results?height=%d", height), cfg.GetQueryTimeout())
 	if err != nil {
 		return err
 	}
@@ -88,38 +86,6 @@ func fetchBlockResults(client *fiber.Client, height int64, cfg *config.Config, g
 
 	getBlockResultsRes <- blockResultsRes
 	return nil
-}
-
-func fetchFromRpc(client *fiber.Client, timeout time.Duration, url string) (body []byte, err error) {
-	code, body, errs := client.Get(url).Timeout(timeout).Bytes()
-	if err := errors.Join(errs...); err != nil {
-		return body, err
-	}
-
-	if code == fiber.StatusOK {
-		return body, nil
-	}
-
-	if code == fiber.StatusInternalServerError {
-		var res RpcErrorResponse
-		if err := json.Unmarshal(body, &res); err != nil {
-			return body, err
-		}
-
-		reHeight := regexp.MustCompile(`current blockchain height (\d+)`)
-		heightMatches := reHeight.FindStringSubmatch(res.Error.Data)
-		if len(heightMatches) > 1 {
-			return body, fmt.Errorf("current height: %s", heightMatches[1])
-		}
-
-		reNotFound := regexp.MustCompile(`could not find results for height #(\d+)`)
-		notFoundMatches := reNotFound.FindStringSubmatch(res.Error.Data)
-		if len(notFoundMatches) > 1 {
-			return body, fmt.Errorf("could not find results for height: %s", notFoundMatches[1])
-		}
-	}
-
-	return body, fmt.Errorf("http response: %d, body: %s", code, string(body))
 }
 
 func parseScrapedBlock(block GetBlockResponse, blockResults GetBlockResultsResponse, height int64) (scrapedBlock types.ScrapedBlock, err error) {
