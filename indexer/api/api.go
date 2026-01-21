@@ -24,6 +24,7 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Api {
 		AppName:               "Rollytics Indexer API",
 		DisableStartupMessage: true,
 		ErrorHandler:          createErrorHandler(logger),
+		ReadBufferSize:        int(cfg.GetRecvBufferSize()),
 	})
 
 	handler.Register(app, db, cfg, logger)

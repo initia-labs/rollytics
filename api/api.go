@@ -32,6 +32,7 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Api {
 		AppName:               "Rollytics API",
 		DisableStartupMessage: true,
 		ErrorHandler:          createErrorHandler(logger),
+		ReadBufferSize:        int(cfg.GetRecvBufferSize()), //nolint:gosec
 	})
 
 	addCORS(app, cfg, logger)
