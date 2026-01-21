@@ -49,6 +49,8 @@ func sanityCheckBalances(
 			return fmt.Errorf("failed to fetch on-chain balances for %s: %w", addr, err)
 		}
 
+		// TODO: Remove this
+		fmt.Println(onChainBalances)
 		onChainMap := make(map[string]sdkmath.Int, len(onChainBalances))
 		for _, coin := range onChainBalances {
 			if coin.Amount.IsZero() {
