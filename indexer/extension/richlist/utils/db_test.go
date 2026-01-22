@@ -82,6 +82,6 @@ func TestGetLatestCollectedBlock_EmptyDB(t *testing.T) {
 	chainId := "test-chain"
 
 	height, err := GetLatestCollectedBlock(context.Background(), db, chainId)
-	assert.NoError(t, err)
+	assert.ErrorIs(t, err, gorm.ErrRecordNotFound)
 	assert.Equal(t, int64(0), height)
 }
