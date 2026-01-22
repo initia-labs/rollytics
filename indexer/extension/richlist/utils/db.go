@@ -58,7 +58,9 @@ func GetCollectedBlock(ctx context.Context, db *gorm.DB, chainId string, height 
 			if err != nil {
 				// If we can't get the latest height, we should probably retry or error out.
 				// For now, let's treat it as a transient error and retry.
-				ExponentialBackoff(attempt)
+				if err := ExponentialBackoff(ctx, attempt); err != nil {
+					return nil, err
+				}
 				continue
 			}
 
@@ -67,12 +69,16 @@ func GetCollectedBlock(ctx context.Context, db *gorm.DB, chainId string, height 
 			}
 
 			// Block is too recent, wait and retry
-			ExponentialBackoff(attempt)
+			if err := ExponentialBackoff(ctx, attempt); err != nil {
+				return nil, err
+			}
 			continue
 		}
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			// Record not found, retry with exponential backoff
-			ExponentialBackoff(attempt)
+			if err := ExponentialBackoff(ctx, attempt); err != nil {
+				return nil, err
+			}
 			continue
 		} else {
 			// For other errors, return immediately

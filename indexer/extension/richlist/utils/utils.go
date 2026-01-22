@@ -28,7 +28,8 @@ const MAX_ATTEMPTS = 10
 // ExponentialBackoff sleeps for an exponentially increasing duration based on the attempt number.
 // The sleep duration is calculated as: min(2^attempt * 100ms, maxDuration)
 // Maximum sleep duration is capped at 5 seconds.
-func ExponentialBackoff(attempt int) {
+// Returns the context error if the context is cancelled during the sleep.
+func ExponentialBackoff(ctx context.Context, attempt int) error {
 	const maxDuration = 5 * time.Second
 	const baseDelay = 100 * time.Millisecond
 
@@ -38,7 +39,12 @@ func ExponentialBackoff(attempt int) {
 	// Cap at maximum duration
 	delay = min(delay, maxDuration)
 
-	time.Sleep(delay)
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.After(delay):
+		return nil
+	}
 }
 
 // parseHexAmountToSDKInt converts a hex string to sdkmath.Int.
