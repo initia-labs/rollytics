@@ -23,6 +23,7 @@ var (
 	nftCache              *cache.Cache[NftKey, int64]
 	msgTypeCache          *cache.Cache[string, int64]
 	typeTagCache          *cache.Cache[string, int64]
+	moveDenomCache        *cache.Cache[string, string]
 	evmTxHashCache        *cache.Cache[string, int64]
 	evmDenomContractCache *cache.Cache[string, string]
 	validatorCache        *cache.Cache[string, *types.Validator]
@@ -39,6 +40,7 @@ func InitializeCaches(cfg *config.CacheConfig) {
 		nftCache = cache.New[NftKey, int64](cfg.NftCacheSize)
 		msgTypeCache = cache.New[string, int64](cfg.MsgTypeCacheSize)
 		typeTagCache = cache.New[string, int64](cfg.TypeTagCacheSize)
+		moveDenomCache = cache.New[string, string](cfg.MoveDenomCacheSize)
 		evmTxHashCache = cache.New[string, int64](cfg.EvmTxHashCacheSize)
 		evmDenomContractCache = cache.New[string, string](cfg.EvmDenomContractCacheSize)
 		validatorCache = cache.New[string, *types.Validator](cfg.ValidatorCacheSize)
@@ -399,6 +401,17 @@ func GetOrCreateTypeTagIds(db *gorm.DB, typeTags []string, createNew bool) (idMa
 	}
 
 	return idMap, nil
+}
+
+func GetMoveDenomCache(metadataAddr string) (denom string, ok bool) {
+	if denom, ok := moveDenomCache.Get(metadataAddr); ok {
+		return denom, true
+	}
+	return "", false
+}
+
+func SetMoveDenomCache(metadataAddr string, denom string) {
+	moveDenomCache.Set(metadataAddr, denom)
 }
 
 func GetOrCreateEvmTxHashIds(db *gorm.DB, hashes [][]byte, createNew bool) (idMap map[string]int64, err error) {

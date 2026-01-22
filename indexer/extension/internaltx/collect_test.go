@@ -119,6 +119,7 @@ func TestIndexer_CollectInternalTxs(t *testing.T) {
 		NftCacheSize:              1000,
 		MsgTypeCacheSize:          100,
 		TypeTagCacheSize:          100,
+		MoveDenomCacheSize:        1000,
 		EvmTxHashCacheSize:        1000,
 		EvmDenomContractCacheSize: 1000,
 		ValidatorCacheSize:        100,

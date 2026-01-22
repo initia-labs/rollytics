@@ -17,16 +17,19 @@ const RICH_LIST_BLOCK_DELAY = 5
 
 // GetLatestCollectedBlock retrieves the latest block height from the database for a given chain ID.
 func GetLatestCollectedBlock(ctx context.Context, db *gorm.DB, chainId string) (int64, error) {
-	var latestHeight int64
+	var latestHeight *int64
 	err := db.WithContext(ctx).
 		Model(&types.CollectedBlock{}).
 		Where("chain_id = ?", chainId).
-		Select("COALESCE(MAX(height), 0)").
+		Select("MAX(height)").
 		Scan(&latestHeight).Error
 	if err != nil {
 		return 0, err
 	}
-	return latestHeight, nil
+	if latestHeight == nil {
+		return 0, gorm.ErrRecordNotFound
+	}
+	return *latestHeight, nil
 }
 
 // GetCollectedBlock retrieves a block from the database by chain ID and height.
@@ -55,7 +58,9 @@ func GetCollectedBlock(ctx context.Context, db *gorm.DB, chainId string, height 
 			if err != nil {
 				// If we can't get the latest height, we should probably retry or error out.
 				// For now, let's treat it as a transient error and retry.
-				ExponentialBackoff(attempt)
+				if err := ExponentialBackoff(ctx, attempt); err != nil {
+					return nil, err
+				}
 				continue
 			}
 
@@ -64,12 +69,16 @@ func GetCollectedBlock(ctx context.Context, db *gorm.DB, chainId string, height 
 			}
 
 			// Block is too recent, wait and retry
-			ExponentialBackoff(attempt)
+			if err := ExponentialBackoff(ctx, attempt); err != nil {
+				return nil, err
+			}
 			continue
 		}
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			// Record not found, retry with exponential backoff
-			ExponentialBackoff(attempt)
+			if err := ExponentialBackoff(ctx, attempt); err != nil {
+				return nil, err
+			}
 			continue
 		} else {
 			// For other errors, return immediately
@@ -103,9 +112,6 @@ func UpdateBalanceChanges(ctx context.Context, db *gorm.DB, balanceMap map[Balan
 	// Step 1: Collect all unique addresses that need account ID conversion
 	addressSet := make(map[string]bool)
 	for key := range balanceMap {
-		if len(key.Addr) > 44 {
-			continue
-		}
 		addressSet[key.Addr] = true
 	}
 
@@ -239,9 +245,6 @@ func UpdateBalances(ctx context.Context, db *gorm.DB, denom string, addressBalan
 
 	// Update balances in the database using raw SQL for atomic updates
 	for addrWithID, balance := range addressBalances {
-		if len(addrWithID.BechAddress) > 44 {
-			continue
-		}
 		// Use raw SQL to insert or update with ON CONFLICT
 		result := db.WithContext(ctx).Exec(`
 			INSERT INTO rich_list (id, denom, amount)

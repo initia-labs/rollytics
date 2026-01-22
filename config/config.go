@@ -49,6 +49,7 @@ const (
 	DefaultNftCacheSize              = 40960
 	DefaultMsgTypeCacheSize          = 1024
 	DefaultTypeTagCacheSize          = 1024
+	DefaultMoveDenomCacheSize        = 10240
 	DefaultEvmTxHashCacheSize        = 40960
 	DefaultEvmDenomContractCacheSize = 10240
 
@@ -107,6 +108,7 @@ type CacheConfig struct {
 	NftCacheSize              int `json:"nft_cache_size"`
 	MsgTypeCacheSize          int `json:"msg_type_cache_size"`
 	TypeTagCacheSize          int `json:"type_tag_cache_size"`
+	MoveDenomCacheSize        int `json:"move_denom_cache_size"`
 	EvmTxHashCacheSize        int `json:"evm_tx_hash_cache_size"`
 	EvmDenomContractCacheSize int `json:"evm_denom_contract_cache_size"`
 	ValidatorCacheSize        int `json:"validator_cache_size"`
@@ -199,6 +201,7 @@ func setDefaults() {
 	viper.SetDefault("NFT_CACHE_SIZE", DefaultNftCacheSize)
 	viper.SetDefault("MSG_TYPE_CACHE_SIZE", DefaultMsgTypeCacheSize)
 	viper.SetDefault("TYPE_TAG_CACHE_SIZE", DefaultTypeTagCacheSize)
+	viper.SetDefault("MOVE_DENOM_CACHE_SIZE", DefaultMoveDenomCacheSize)
 	viper.SetDefault("EVM_TX_HASH_CACHE_SIZE", DefaultEvmTxHashCacheSize)
 	viper.SetDefault("EVM_DENOM_CONTRACT_CACHE_SIZE", DefaultEvmDenomContractCacheSize)
 
@@ -304,6 +307,7 @@ func loadConfig() (*Config, error) {
 			NftCacheSize:              viper.GetInt("NFT_CACHE_SIZE"),
 			MsgTypeCacheSize:          viper.GetInt("MSG_TYPE_CACHE_SIZE"),
 			TypeTagCacheSize:          viper.GetInt("TYPE_TAG_CACHE_SIZE"),
+			MoveDenomCacheSize:        viper.GetInt("MOVE_DENOM_CACHE_SIZE"),
 			EvmTxHashCacheSize:        viper.GetInt("EVM_TX_HASH_CACHE_SIZE"),
 			EvmDenomContractCacheSize: viper.GetInt("EVM_DENOM_CONTRACT_CACHE_SIZE"),
 			// TODO: revisit
@@ -448,6 +452,10 @@ func (c Config) GetInternalTxConfig() *InternalTxConfig {
 }
 
 func (c Config) GetRichListEnabled() bool {
+	// TODO: remove VM check
+	if c.GetVmType() == types.WasmVM {
+		return false
+	}
 	return c.richListConfig.Enabled
 }
 

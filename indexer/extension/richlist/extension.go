@@ -5,11 +5,15 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"gorm.io/gorm"
 
 	"github.com/initia-labs/rollytics/config"
-	evmrichlist "github.com/initia-labs/rollytics/indexer/extension/richlist/evmrichlist"
+	"github.com/initia-labs/rollytics/indexer/extension/richlist/evmrichlist"
+	"github.com/initia-labs/rollytics/indexer/extension/richlist/moverichlist"
+
+	richlistutils "github.com/initia-labs/rollytics/indexer/extension/richlist/utils"
 	exttypes "github.com/initia-labs/rollytics/indexer/extension/types"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
@@ -30,8 +34,7 @@ type RichListExtension struct {
 }
 
 func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *RichListExtension {
-	// TODO: remove EVM check after all implementation
-	if cfg.GetVmType() != types.EVM || !cfg.GetRichListEnabled() {
+	if !cfg.GetRichListEnabled() {
 		return nil
 	}
 
@@ -50,22 +53,29 @@ func (r *RichListExtension) Initialize(ctx context.Context) error {
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			// If no richlist status found, use the latest block height
-			var lastBlock types.CollectedBlock
-			if err := r.db.WithContext(ctx).
-				Where("chain_id = ?", r.cfg.GetChainId()).
-				Order("height DESC").
-				Limit(1).
-				First(&lastBlock).Error; err != nil {
-				if errors.Is(err, gorm.ErrRecordNotFound) {
-					r.logger.Warn("no blocks found in database, starting from height 1")
-					r.startHeight = 1
-					return nil
+			var lastBlockHeight int64
+			for {
+				if ctx.Err() != nil {
+					return ctx.Err()
 				}
-				r.logger.Error("failed to get the latest block height", slog.Any("error", err))
-				return err
+				if lastBlockHeight, err = richlistutils.GetLatestCollectedBlock(ctx, r.db.DB, r.cfg.GetChainId()); err != nil {
+					if errors.Is(err, gorm.ErrRecordNotFound) {
+						r.logger.Warn("no blocks found in database, waiting for blocks to be indexed")
+						select {
+						case <-time.After(5 * time.Second):
+							continue
+						case <-ctx.Done():
+							return ctx.Err()
+						}
+					}
+					r.logger.Error("failed to get the latest block height", slog.Any("error", err))
+					return err
+				}
+				break
 			}
-			r.logger.Info("no richlist status found, using latest block height", slog.Int64("height", lastBlock.Height))
-			r.startHeight = lastBlock.Height
+
+			r.logger.Info("no richlist status found, using latest block height", slog.Int64("height", lastBlockHeight))
+			r.startHeight = lastBlockHeight
 			r.requireInit = true
 			return nil
 		}
@@ -89,6 +99,10 @@ func (r *RichListExtension) Run(ctx context.Context) error {
 	}
 
 	switch r.cfg.GetVmType() {
+	case types.MoveVM:
+		if err := moverichlist.Run(ctx, r.cfg, r.logger, r.db, r.startHeight, moduleAccounts, r.requireInit); err != nil {
+			return err
+		}
 	case types.EVM:
 		if err := evmrichlist.Run(ctx, r.cfg, r.logger, r.db, r.startHeight, moduleAccounts, r.requireInit); err != nil {
 			return err
