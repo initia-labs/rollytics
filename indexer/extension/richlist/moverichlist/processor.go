@@ -128,7 +128,7 @@ func processMoveTransferEvents(ctx context.Context, q *querier.Querier, logger *
 			}
 			amount, ok := sdkmath.NewIntFromString(withdrawEvent.Amount)
 			if !ok {
-				logger.Error("failed to parse coin", "coin", withdrawEvent.Amount, "error", err)
+				logger.Error("failed to parse coin", "coin", withdrawEvent.Amount)
 				continue
 			}
 
