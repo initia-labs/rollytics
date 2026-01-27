@@ -10,8 +10,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/initia-labs/rollytics/config"
-	"github.com/initia-labs/rollytics/indexer/extension/richlist/evmrichlist"
-	"github.com/initia-labs/rollytics/indexer/extension/richlist/moverichlist"
+	"github.com/initia-labs/rollytics/indexer/extension/richlist/scraper"
 
 	richlistutils "github.com/initia-labs/rollytics/indexer/extension/richlist/utils"
 	exttypes "github.com/initia-labs/rollytics/indexer/extension/types"
@@ -47,6 +46,7 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *RichListExt
 }
 
 func (r *RichListExtension) Initialize(ctx context.Context) error {
+	r.logger.Info("initializing rich list extension")
 	var lastHeight types.CollectedRichListStatus
 	err := r.db.WithContext(ctx).
 		Model(types.CollectedRichListStatus{}).Limit(1).First(&lastHeight).Error
@@ -63,6 +63,7 @@ func (r *RichListExtension) Initialize(ctx context.Context) error {
 						r.logger.Warn("no blocks found in database, waiting for blocks to be indexed")
 						select {
 						case <-time.After(5 * time.Second):
+							r.logger.Warn("waiting for blocks to be indexed", slog.Int64("delay", 5))
 							continue
 						case <-ctx.Done():
 							return ctx.Err()
@@ -98,17 +99,13 @@ func (r *RichListExtension) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to fetch module accounts: %w", err)
 	}
 
-	switch r.cfg.GetVmType() {
-	case types.MoveVM:
-		if err := moverichlist.Run(ctx, r.cfg, r.logger, r.db, r.startHeight, moduleAccounts, r.requireInit); err != nil {
-			return err
-		}
-	case types.EVM:
-		if err := evmrichlist.Run(ctx, r.cfg, r.logger, r.db, r.startHeight, moduleAccounts, r.requireInit); err != nil {
-			return err
-		}
-	default:
-		return fmt.Errorf("rich list not supported: %v", r.cfg.GetVmType())
+	richListProcessor, err := scraper.New(r.cfg, r.logger, r.db, r.querier)
+	if err != nil {
+		return err
+	}
+
+	if err := richListProcessor.Run(ctx, r.startHeight, r.requireInit, moduleAccounts); err != nil {
+		return err
 	}
 
 	r.logger.Info("rich list extension shut down gracefully")
