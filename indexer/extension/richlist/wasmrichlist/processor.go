@@ -3,7 +3,6 @@ package wasmrichlist
 import (
 	"context"
 	"log/slog"
-	"strings"
 
 	sdkmath "cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -59,29 +58,6 @@ func (r *RichList) AfterProcess(_ context.Context, _ *gorm.DB, _ int64, _ []stri
 	return nil
 }
 
-// parseCoinsNormalizedDenom parses a coin amount string and normalizes the denomination.
-// For EVM chains, it converts the denom to the contract address if available.
-func parseCoinsNormalizedDenom(ctx context.Context, q *querier.Querier, cfg *config.Config, amount string) (sdk.Coins, error) {
-	coins, err := sdk.ParseCoinsNormalized(amount)
-	if err != nil {
-		return nil, err
-	}
-
-	for i := range coins {
-		denom := strings.ToLower(coins[i].Denom)
-		if cfg.GetChainConfig().VmType == rollytypes.EVM {
-			contract, err := q.GetEvmContractByDenom(ctx, denom)
-			if err != nil {
-				continue
-			}
-			denom = contract
-		}
-		coins[i].Denom = denom
-	}
-
-	return coins, nil
-}
-
 func processCosmosMintEvent(ctx context.Context, q *querier.Querier, logger *slog.Logger, cfg *config.Config, event sdk.Event, balanceMap map[richlistutils.BalanceChangeKey]sdkmath.Int) {
 	var minter sdk.AccAddress
 	var coins sdk.Coins
@@ -93,7 +69,7 @@ func processCosmosMintEvent(ctx context.Context, q *querier.Querier, logger *slo
 				logger.Error("failed to parse minter", "minter", attr.Value, "error", err)
 			}
 		case "amount":
-			if coins, err = parseCoinsNormalizedDenom(ctx, q, cfg, attr.Value); err != nil {
+			if coins, err = richlistutils.ParseCoinsNormalizedDenom(ctx, q, cfg, attr.Value); err != nil {
 				logger.Error("failed to parse minted coins", "amount", attr.Value, "error", err)
 				return
 			}
@@ -121,7 +97,7 @@ func processCosmosBurnEvent(ctx context.Context, q *querier.Querier, logger *slo
 				logger.Error("failed to parse burner", "burner", attr.Value, "error", err)
 			}
 		case "amount":
-			if coins, err = parseCoinsNormalizedDenom(ctx, q, cfg, attr.Value); err != nil {
+			if coins, err = richlistutils.ParseCoinsNormalizedDenom(ctx, q, cfg, attr.Value); err != nil {
 				logger.Error("failed to parse burned coins", "amount", attr.Value, "error", err)
 				return
 			}
@@ -155,7 +131,7 @@ func processCosmosTransferEvent(ctx context.Context, q *querier.Querier, logger 
 				logger.Error("failed to parse sender", "sender", attr.Value, "error", err)
 			}
 		case "amount":
-			if coins, err = parseCoinsNormalizedDenom(ctx, q, cfg, attr.Value); err != nil {
+			if coins, err = richlistutils.ParseCoinsNormalizedDenom(ctx, q, cfg, attr.Value); err != nil {
 				logger.Error("failed to parse transferred coins", "amount", attr.Value, "error", err)
 				return
 			}

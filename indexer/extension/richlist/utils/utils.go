@@ -89,6 +89,29 @@ func ApplyBalanceChange(balanceMap map[BalanceChangeKey]sdkmath.Int, denom strin
 	}
 }
 
+// ParseCoinsNormalizedDenom parses a coin amount string and normalizes the denomination.
+// For EVM chains, it converts the denom to the contract address if available.
+func ParseCoinsNormalizedDenom(ctx context.Context, q *querier.Querier, cfg *config.Config, amount string) (sdk.Coins, error) {
+	coins, err := sdk.ParseCoinsNormalized(amount)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range coins {
+		denom := strings.ToLower(coins[i].Denom)
+		if cfg.GetChainConfig().VmType == rollytypes.EVM {
+			contract, err := q.GetEvmContractByDenom(ctx, denom)
+			if err != nil {
+				continue
+			}
+			denom = contract
+		}
+		coins[i].Denom = denom
+	}
+
+	return coins, nil
+}
+
 // FetchAndUpdateBalances fetches balances for a list of addresses, accumulates them by
 // denomination, and updates the rich_list table in the database.
 //
