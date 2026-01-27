@@ -41,7 +41,7 @@ func (r *RichList) ProcessBalanceChanges(
 ) map[richlistutils.BalanceChangeKey]sdkmath.Int {
 	balanceMap := make(map[richlistutils.BalanceChangeKey]sdkmath.Int)
 
-	forEachTxEvents(txs, func(events sdk.Events) {
+	richlistutils.ForEachTxEvents(txs, func(events sdk.Events) {
 		processEvmTransferEvents(logger, events, balanceMap)
 	})
 
@@ -79,22 +79,6 @@ func (r *RichList) AfterProcess(ctx context.Context, dbTx *gorm.DB, currentHeigh
 	return nil
 }
 
-func forEachTxEvents(txs []rollytypes.CollectedTx, handle func(events sdk.Events)) {
-	for _, tx := range txs {
-		var txData rollytypes.Tx
-		if err := json.Unmarshal(tx.Data, &txData); err != nil {
-			continue
-		}
-
-		var events sdk.Events
-		if err := json.Unmarshal(txData.Events, &events); err != nil {
-			continue
-		}
-
-		handle(events)
-	}
-}
-
 // processEvmTransferEvents processes EVM events and updates the balance map.
 // It extracts the EVM log from the event's "log" attribute, parses the JSON-encoded log,
 // validates it's an ERC20 Transfer event (by checking the transfer topic), and updates balances
@@ -127,21 +111,11 @@ func processEvmTransferEvents(logger *slog.Logger, events sdk.Events, balanceMap
 			}
 
 			if fromAccAddr, err := util.AccAddressFromString(fromAddr); fromAddr != rollytypes.EvmEmptyAddress && err == nil {
-				fromKey := richlistutils.NewBalanceChangeKey(denom, fromAccAddr)
-				if balance, exists := balanceMap[fromKey]; !exists {
-					balanceMap[fromKey] = amount.Neg()
-				} else {
-					balanceMap[fromKey] = balance.Sub(amount)
-				}
+				richlistutils.ApplyBalanceChange(balanceMap, denom, fromAccAddr, amount.Neg())
 			}
 
 			if toAccAddr, err := util.AccAddressFromString(toAddr); toAddr != rollytypes.EvmEmptyAddress && err == nil {
-				toKey := richlistutils.NewBalanceChangeKey(denom, toAccAddr)
-				if balance, exists := balanceMap[toKey]; !exists {
-					balanceMap[toKey] = amount
-				} else {
-					balanceMap[toKey] = balance.Add(amount)
-				}
+				richlistutils.ApplyBalanceChange(balanceMap, denom, toAccAddr, amount)
 			}
 		}
 	}

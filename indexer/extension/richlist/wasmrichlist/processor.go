@@ -2,7 +2,6 @@ package wasmrichlist
 
 import (
 	"context"
-	"encoding/json"
 	"log/slog"
 	"strings"
 
@@ -40,7 +39,7 @@ func (r *RichList) ProcessBalanceChanges(
 ) map[richlistutils.BalanceChangeKey]sdkmath.Int {
 	balanceMap := make(map[richlistutils.BalanceChangeKey]sdkmath.Int)
 
-	forEachTxEvents(txs, func(events sdk.Events) {
+	richlistutils.ForEachTxEvents(txs, func(events sdk.Events) {
 		for _, event := range events {
 			switch event.Type {
 			case banktypes.EventTypeCoinMint:
@@ -58,31 +57,6 @@ func (r *RichList) ProcessBalanceChanges(
 
 func (r *RichList) AfterProcess(_ context.Context, _ *gorm.DB, _ int64, _ []string, _ *querier.Querier) error {
 	return nil
-}
-
-func forEachTxEvents(txs []rollytypes.CollectedTx, handle func(events sdk.Events)) {
-	for _, tx := range txs {
-		var txData rollytypes.Tx
-		if err := json.Unmarshal(tx.Data, &txData); err != nil {
-			continue
-		}
-
-		var events sdk.Events
-		if err := json.Unmarshal(txData.Events, &events); err != nil {
-			continue
-		}
-
-		handle(events)
-	}
-}
-
-func containsAddress(addresses []sdk.AccAddress, target sdk.AccAddress) bool {
-	for _, addr := range addresses {
-		if addr.Equals(target) {
-			return true
-		}
-	}
-	return false
 }
 
 // parseCoinsNormalizedDenom parses a coin amount string and normalizes the denomination.
@@ -132,12 +106,7 @@ func processCosmosMintEvent(ctx context.Context, q *querier.Querier, logger *slo
 	}
 
 	for _, coin := range coins {
-		minterKey := richlistutils.NewBalanceChangeKey(coin.Denom, minter)
-		if balance, ok := balanceMap[minterKey]; !ok {
-			balanceMap[minterKey] = coin.Amount
-		} else {
-			balanceMap[minterKey] = balance.Add(coin.Amount)
-		}
+		richlistutils.ApplyBalanceChange(balanceMap, coin.Denom, minter, coin.Amount)
 	}
 }
 
@@ -165,12 +134,7 @@ func processCosmosBurnEvent(ctx context.Context, q *querier.Querier, logger *slo
 	}
 
 	for _, coin := range coins {
-		burnerKey := richlistutils.NewBalanceChangeKey(coin.Denom, burner)
-		if balance, ok := balanceMap[burnerKey]; !ok {
-			balanceMap[burnerKey] = coin.Amount.Neg()
-		} else {
-			balanceMap[burnerKey] = balance.Sub(coin.Amount)
-		}
+		richlistutils.ApplyBalanceChange(balanceMap, coin.Denom, burner, coin.Amount.Neg())
 	}
 }
 
@@ -204,22 +168,12 @@ func processCosmosTransferEvent(ctx context.Context, q *querier.Querier, logger 
 	}
 
 	for _, coin := range coins {
-		if !containsAddress(moduleAccounts, sender) {
-			senderKey := richlistutils.NewBalanceChangeKey(coin.Denom, sender)
-			if balance, ok := balanceMap[senderKey]; !ok {
-				balanceMap[senderKey] = coin.Amount.Neg()
-			} else {
-				balanceMap[senderKey] = balance.Sub(coin.Amount)
-			}
+		if !richlistutils.ContainsAddress(moduleAccounts, sender) {
+			richlistutils.ApplyBalanceChange(balanceMap, coin.Denom, sender, coin.Amount.Neg())
 		}
 
-		if !containsAddress(moduleAccounts, recipient) {
-			recipientKey := richlistutils.NewBalanceChangeKey(coin.Denom, recipient)
-			if balance, ok := balanceMap[recipientKey]; !ok {
-				balanceMap[recipientKey] = coin.Amount
-			} else {
-				balanceMap[recipientKey] = balance.Add(coin.Amount)
-			}
+		if !richlistutils.ContainsAddress(moduleAccounts, recipient) {
+			richlistutils.ApplyBalanceChange(balanceMap, coin.Denom, recipient, coin.Amount)
 		}
 	}
 }

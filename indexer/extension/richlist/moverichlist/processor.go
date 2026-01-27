@@ -38,7 +38,7 @@ func (r *RichList) ProcessBalanceChanges(
 ) map[richlistutils.BalanceChangeKey]sdkmath.Int {
 	balanceMap := make(map[richlistutils.BalanceChangeKey]sdkmath.Int)
 
-	forEachTxEvents(txs, func(events sdk.Events) {
+	richlistutils.ForEachTxEvents(txs, func(events sdk.Events) {
 		processMoveTransferEvents(ctx, q, logger, events, balanceMap, moduleAccounts)
 	})
 
@@ -51,31 +51,6 @@ func (r *RichList) AfterProcess(_ context.Context, _ *gorm.DB, _ int64, negative
 	}
 
 	return nil
-}
-
-func forEachTxEvents(txs []rollytypes.CollectedTx, handle func(events sdk.Events)) {
-	for _, tx := range txs {
-		var txData rollytypes.Tx
-		if err := json.Unmarshal(tx.Data, &txData); err != nil {
-			continue
-		}
-
-		var events sdk.Events
-		if err := json.Unmarshal(txData.Events, &events); err != nil {
-			continue
-		}
-
-		handle(events)
-	}
-}
-
-func containsAddress(addresses []sdk.AccAddress, target sdk.AccAddress) bool {
-	for _, addr := range addresses {
-		if addr.Equals(target) {
-			return true
-		}
-	}
-	return false
 }
 
 // processMoveTransferEvents processes Move VM transfer events (deposit/withdraw) and updates the balance map.
@@ -121,13 +96,8 @@ func processMoveTransferEvents(ctx context.Context, q *querier.Querier, logger *
 				continue
 			}
 
-			if !containsAddress(moduleAccounts, recipient) {
-				recipientKey := richlistutils.NewBalanceChangeKey(denom, recipient)
-				if balance, ok := balanceMap[recipientKey]; !ok {
-					balanceMap[recipientKey] = amount
-				} else {
-					balanceMap[recipientKey] = balance.Add(amount)
-				}
+			if !richlistutils.ContainsAddress(moduleAccounts, recipient) {
+				richlistutils.ApplyBalanceChange(balanceMap, denom, recipient, amount)
 			}
 		}
 
@@ -162,13 +132,8 @@ func processMoveTransferEvents(ctx context.Context, q *querier.Querier, logger *
 				continue
 			}
 
-			if !containsAddress(moduleAccounts, sender) {
-				senderKey := richlistutils.NewBalanceChangeKey(denom, sender)
-				if balance, ok := balanceMap[senderKey]; !ok {
-					balanceMap[senderKey] = amount.Neg()
-				} else {
-					balanceMap[senderKey] = balance.Sub(amount)
-				}
+			if !richlistutils.ContainsAddress(moduleAccounts, sender) {
+				richlistutils.ApplyBalanceChange(balanceMap, denom, sender, amount.Neg())
 			}
 		}
 	}

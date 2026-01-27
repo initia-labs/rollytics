@@ -2,6 +2,7 @@ package utils
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"math"
@@ -14,6 +15,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/initia-labs/rollytics/config"
+	rollytypes "github.com/initia-labs/rollytics/types"
 	"github.com/initia-labs/rollytics/util"
 	"github.com/initia-labs/rollytics/util/cache"
 	"github.com/initia-labs/rollytics/util/querier"
@@ -74,6 +76,16 @@ func NewBalanceChangeKey(denom string, addr sdk.AccAddress) BalanceChangeKey {
 	return BalanceChangeKey{
 		Denom: denom,
 		Addr:  addr.String(),
+	}
+}
+
+// ApplyBalanceChange adds the amount to the balance map for the denom/address key.
+func ApplyBalanceChange(balanceMap map[BalanceChangeKey]sdkmath.Int, denom string, addr sdk.AccAddress, amount sdkmath.Int) {
+	key := NewBalanceChangeKey(denom, addr)
+	if balance, ok := balanceMap[key]; !ok {
+		balanceMap[key] = amount
+	} else {
+		balanceMap[key] = balance.Add(amount)
 	}
 }
 
@@ -207,4 +219,31 @@ func getOrCreateAccountIds(db *gorm.DB, accounts []sdk.AccAddress, createNew boo
 		addresses = append(addresses, account.String())
 	}
 	return cache.GetOrCreateAccountIds(db, addresses, createNew)
+}
+
+// ForEachTxEvents parses tx events and invokes the handler for each tx.
+func ForEachTxEvents(txs []rollytypes.CollectedTx, handle func(events sdk.Events)) {
+	for _, tx := range txs {
+		var txData rollytypes.Tx
+		if err := json.Unmarshal(tx.Data, &txData); err != nil {
+			continue
+		}
+
+		var events sdk.Events
+		if err := json.Unmarshal(txData.Events, &events); err != nil {
+			continue
+		}
+
+		handle(events)
+	}
+}
+
+// ContainsAddress checks whether the target address exists in the slice.
+func ContainsAddress(addresses []sdk.AccAddress, target sdk.AccAddress) bool {
+	for _, addr := range addresses {
+		if addr.Equals(target) {
+			return true
+		}
+	}
+	return false
 }
