@@ -97,7 +97,7 @@ func (r *RichListExtension) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to fetch module accounts: %w", err)
 	}
 
-	richListProcessor, err := scraper.New(r.cfg, r.logger, r.db)
+	richListProcessor, err := scraper.New(r.cfg, r.logger, r.db, r.querier)
 	if err != nil {
 		return err
 	}

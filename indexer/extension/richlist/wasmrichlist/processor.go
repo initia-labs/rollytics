@@ -20,19 +20,21 @@ import (
 var _ richlisttypes.RichListProcessor = (*RichList)(nil)
 
 type RichList struct {
-	cfg *config.Config
+	cfg    *config.Config
+	logger *slog.Logger
+	q      *querier.Querier
 }
 
-func New(cfg *config.Config) *RichList {
+func New(cfg *config.Config, logger *slog.Logger, q *querier.Querier) *RichList {
 	return &RichList{
-		cfg: cfg,
+		cfg:    cfg,
+		logger: logger,
+		q:      q,
 	}
 }
 
 func (r *RichList) ProcessBalanceChanges(
 	ctx context.Context,
-	q *querier.Querier,
-	logger *slog.Logger,
 	txs []rollytypes.CollectedTx,
 	moduleAccounts []sdk.AccAddress,
 ) map[richlistutils.BalanceChangeKey]sdkmath.Int {
@@ -42,11 +44,11 @@ func (r *RichList) ProcessBalanceChanges(
 		for _, event := range events {
 			switch event.Type {
 			case banktypes.EventTypeCoinMint:
-				processCosmosMintEvent(ctx, q, logger, r.cfg, event, balanceMap)
+				processCosmosMintEvent(ctx, r.q, r.logger, r.cfg, event, balanceMap)
 			case banktypes.EventTypeCoinBurn:
-				processCosmosBurnEvent(ctx, q, logger, r.cfg, event, balanceMap)
+				processCosmosBurnEvent(ctx, r.q, r.logger, r.cfg, event, balanceMap)
 			case banktypes.EventTypeTransfer:
-				processCosmosTransferEvent(ctx, q, logger, r.cfg, event, balanceMap, moduleAccounts)
+				processCosmosTransferEvent(ctx, r.q, r.logger, r.cfg, event, balanceMap, moduleAccounts)
 			}
 		}
 	})

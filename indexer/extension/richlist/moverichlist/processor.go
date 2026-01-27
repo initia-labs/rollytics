@@ -9,7 +9,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"gorm.io/gorm"
 
-	"github.com/initia-labs/rollytics/config"
 	richlisttypes "github.com/initia-labs/rollytics/indexer/extension/richlist/types"
 	richlistutils "github.com/initia-labs/rollytics/indexer/extension/richlist/utils"
 	rollytypes "github.com/initia-labs/rollytics/types"
@@ -21,25 +20,25 @@ var _ richlisttypes.RichListProcessor = (*RichList)(nil)
 
 type RichList struct {
 	logger *slog.Logger
+	q      *querier.Querier
 }
 
-func New(_ *config.Config, logger *slog.Logger) *RichList {
+func New(logger *slog.Logger, q *querier.Querier) *RichList {
 	return &RichList{
 		logger: logger,
+		q:      q,
 	}
 }
 
 func (r *RichList) ProcessBalanceChanges(
 	ctx context.Context,
-	q *querier.Querier,
-	logger *slog.Logger,
 	txs []rollytypes.CollectedTx,
 	moduleAccounts []sdk.AccAddress,
 ) map[richlistutils.BalanceChangeKey]sdkmath.Int {
 	balanceMap := make(map[richlistutils.BalanceChangeKey]sdkmath.Int)
 
 	richlistutils.ForEachTxEvents(txs, func(events sdk.Events) {
-		processMoveTransferEvents(ctx, q, logger, events, balanceMap, moduleAccounts)
+		processMoveTransferEvents(ctx, r.q, r.logger, events, balanceMap, moduleAccounts)
 	})
 
 	return balanceMap

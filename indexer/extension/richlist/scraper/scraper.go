@@ -23,18 +23,19 @@ type Processor struct {
 	cfg      *config.Config
 	logger   *slog.Logger
 	db       *orm.Database
+	q        *querier.Querier
 	richlist richlisttypes.RichListProcessor
 }
 
-func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) (*Processor, error) {
+func New(cfg *config.Config, logger *slog.Logger, db *orm.Database, q *querier.Querier) (*Processor, error) {
 	var richlist richlisttypes.RichListProcessor
 	switch cfg.GetVmType() {
 	case types.MoveVM:
-		richlist = moverichlist.New(cfg, logger)
+		richlist = moverichlist.New(logger, q)
 	case types.EVM:
 		richlist = evmrichlist.New(cfg, logger)
 	case types.WasmVM:
-		richlist = wasmrichlist.New(cfg)
+		richlist = wasmrichlist.New(cfg, logger, q)
 	default:
 		return nil, fmt.Errorf("rich list not supported: %v", cfg.GetVmType())
 	}
@@ -43,18 +44,18 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) (*Processor,
 		cfg:      cfg,
 		logger:   logger,
 		db:       db,
+		q:        q,
 		richlist: richlist,
 	}, nil
 }
 
 func (s *Processor) Run(ctx context.Context, startHeight int64, requireInit bool, moduleAccounts []sdk.AccAddress) error {
 	currentHeight := startHeight
-	q := querier.NewQuerier(s.cfg.GetChainConfig())
 
 	if requireInit {
 		s.logger.Info("reinitializing rich list", slog.Int64("start_height", currentHeight))
 		if err := s.db.Transaction(func(tx *gorm.DB) error {
-			return richlistutils.InitializeBalances(ctx, q, s.logger, tx, s.cfg, currentHeight)
+			return richlistutils.InitializeBalances(ctx, s.q, s.logger, tx, s.cfg, currentHeight)
 		}); err != nil {
 			return err
 		}
@@ -81,14 +82,14 @@ func (s *Processor) Run(ctx context.Context, startHeight int64, requireInit bool
 				return err
 			}
 
-			balanceMap := s.richlist.ProcessBalanceChanges(ctx, q, s.logger, cosmosTxs, moduleAccounts)
+			balanceMap := s.richlist.ProcessBalanceChanges(ctx, cosmosTxs, moduleAccounts)
 			negativeDenoms, err := richlistutils.UpdateBalanceChanges(ctx, dbTx, balanceMap)
 			if err != nil {
 				s.logger.Error("failed to update balance changes", slog.Any("error", err))
 				return err
 			}
 
-			if err := s.richlist.AfterProcess(ctx, dbTx, currentHeight, negativeDenoms, q); err != nil {
+			if err := s.richlist.AfterProcess(ctx, dbTx, currentHeight, negativeDenoms, s.q); err != nil {
 				return err
 			}
 

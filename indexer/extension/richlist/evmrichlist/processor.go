@@ -34,15 +34,13 @@ func New(cfg *config.Config, logger *slog.Logger) *RichList {
 
 func (r *RichList) ProcessBalanceChanges(
 	_ context.Context,
-	_ *querier.Querier,
-	logger *slog.Logger,
 	txs []rollytypes.CollectedTx,
 	_ []sdk.AccAddress,
 ) map[richlistutils.BalanceChangeKey]sdkmath.Int {
 	balanceMap := make(map[richlistutils.BalanceChangeKey]sdkmath.Int)
 
 	richlistutils.ForEachTxEvents(txs, func(events sdk.Events) {
-		processEvmTransferEvents(logger, events, balanceMap)
+		processEvmTransferEvents(r.logger, events, balanceMap)
 	})
 
 	return balanceMap

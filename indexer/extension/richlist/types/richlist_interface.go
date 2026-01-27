@@ -2,7 +2,6 @@ package types
 
 import (
 	"context"
-	"log/slog"
 
 	sdkmath "cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -14,6 +13,6 @@ import (
 )
 
 type RichListProcessor interface {
-	ProcessBalanceChanges(ctx context.Context, q *querier.Querier, logger *slog.Logger, txs []rollytypes.CollectedTx, moduleAccounts []sdk.AccAddress) map[richlistutils.BalanceChangeKey]sdkmath.Int
+	ProcessBalanceChanges(ctx context.Context, txs []rollytypes.CollectedTx, moduleAccounts []sdk.AccAddress) map[richlistutils.BalanceChangeKey]sdkmath.Int
 	AfterProcess(ctx context.Context, dbTx *gorm.DB, currentHeight int64, negativeDenoms []string, q *querier.Querier) error
 }
