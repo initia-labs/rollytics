@@ -46,6 +46,7 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *RichListExt
 }
 
 func (r *RichListExtension) Initialize(ctx context.Context) error {
+	r.logger.Info("initializing rich list extension")
 	var lastHeight types.CollectedRichListStatus
 	err := r.db.WithContext(ctx).
 		Model(types.CollectedRichListStatus{}).Limit(1).First(&lastHeight).Error
@@ -62,6 +63,7 @@ func (r *RichListExtension) Initialize(ctx context.Context) error {
 						r.logger.Warn("no blocks found in database, waiting for blocks to be indexed")
 						select {
 						case <-time.After(5 * time.Second):
+							r.logger.Warn("waiting for blocks to be indexed", slog.Int64("delay", 5))
 							continue
 						case <-ctx.Done():
 							return ctx.Err()
