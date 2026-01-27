@@ -10,8 +10,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/initia-labs/rollytics/config"
-	"github.com/initia-labs/rollytics/indexer/extension/richlist/evmrichlist"
-	"github.com/initia-labs/rollytics/indexer/extension/richlist/moverichlist"
+	"github.com/initia-labs/rollytics/indexer/extension/richlist/scraper"
 
 	richlistutils "github.com/initia-labs/rollytics/indexer/extension/richlist/utils"
 	exttypes "github.com/initia-labs/rollytics/indexer/extension/types"
@@ -98,17 +97,13 @@ func (r *RichListExtension) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to fetch module accounts: %w", err)
 	}
 
-	switch r.cfg.GetVmType() {
-	case types.MoveVM:
-		if err := moverichlist.Run(ctx, r.cfg, r.logger, r.db, r.startHeight, moduleAccounts, r.requireInit); err != nil {
-			return err
-		}
-	case types.EVM:
-		if err := evmrichlist.Run(ctx, r.cfg, r.logger, r.db, r.startHeight, moduleAccounts, r.requireInit); err != nil {
-			return err
-		}
-	default:
-		return fmt.Errorf("rich list not supported: %v", r.cfg.GetVmType())
+	richListProcessor, err := scraper.New(r.cfg, r.logger, r.db)
+	if err != nil {
+		return err
+	}
+
+	if err := richListProcessor.Run(ctx, r.startHeight, r.requireInit, moduleAccounts); err != nil {
+		return err
 	}
 
 	r.logger.Info("rich list extension shut down gracefully")
