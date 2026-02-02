@@ -169,9 +169,10 @@ func (i *InternalTxExtension) runProducer(ctx context.Context) error {
 					i.logger.Error("failed to produce batch work",
 						slog.Any("error", err),
 						slog.Int64("last_height", i.lastProducedHeight))
-
-					time.Sleep(i.cfg.GetInternalTxConfig().GetPollInterval())
 				}
+
+				// wait for the configured poll interval before checking for new heights again
+				time.Sleep(i.cfg.GetInternalTxConfig().GetPollInterval())
 			} else {
 				// Queue is full, wait a bit before checking again
 				time.Sleep(100 * time.Millisecond)
