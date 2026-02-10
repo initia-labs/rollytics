@@ -10,7 +10,7 @@ require (
 	github.com/cometbft/cometbft v0.38.17
 	github.com/cosmos/cosmos-sdk v0.50.13
 	github.com/getsentry/sentry-go v0.27.0
-	github.com/gofiber/fiber/v2 v2.52.9
+	github.com/gofiber/fiber/v2 v2.52.11
 	github.com/gofiber/swagger v1.1.1
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/initia-labs/initia v1.1.2
