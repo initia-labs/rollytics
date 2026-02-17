@@ -9,7 +9,7 @@ on:
       - "**.go"
       - "go.mod"
       - "go.sum"
-      
+
   push:
     branches:
       - main
@@ -30,27 +30,27 @@ jobs:
     steps:
       - uses: actions/setup-go@v6
         with:
-          go-version: 1.23
-          
+          go-version: 1.24
+
       - uses: actions/checkout@v6
-      
+
       - uses: technote-space/get-diff-action@v6
         with:
           PATTERNS: |
             **/**.go
             go.mod
             go.sum
-            
+
       - name: Install golangci-lint
         run: |
           curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.9.0
         if: env.GIT_DIFF
-        
+
       - name: Run linter
         run: |
           make lint
         if: env.GIT_DIFF
-        
+
       - name: Check for differences
         run: |
           if [[ -n $(git status --porcelain) ]]; then
@@ -66,22 +66,22 @@ jobs:
     steps:
       - uses: actions/setup-go@v6
         with:
-          go-version: 1.23
-          
+          go-version: 1.24
+
       - uses: actions/checkout@v6
-      
+
       - uses: technote-space/get-diff-action@v6
         with:
           PATTERNS: |
             **/**.go
             go.mod
             go.sum
-            
+
       - name: build
         run: |
           make build
         if: env.GIT_DIFF
-          
+
       - name: test
         run: |
           go test ./... -mod=readonly -timeout 12m
