@@ -8,7 +8,7 @@ import (
 	"github.com/initia-labs/rollytics/util/querier"
 )
 
-func getValidator(ctx context.Context, querier *querier.Querier, validatorAddr string) (*types.Validator, error) {
+func getValidator(ctx context.Context, querier *querier.Querier, validatorAddr string) (*types.ValidatorResponse, error) {
 	cached, ok := cache.GetValidatorCache(validatorAddr)
 	if ok {
 		return cached, nil
