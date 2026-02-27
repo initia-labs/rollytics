@@ -508,5 +508,11 @@ func GetValidatorCache(validatorAddr string) (*types.ValidatorResponse, bool) {
 }
 
 func SetValidatorCache(validator *types.ValidatorResponse) {
+	if validator == nil {
+		return
+	}
+	if validator.Validator.OperatorAddress == "" {
+		return
+	}
 	validatorCache.Set(validator.Validator.OperatorAddress, validator)
 }
