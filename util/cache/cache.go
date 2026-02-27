@@ -26,7 +26,7 @@ var (
 	moveDenomCache        *cache.Cache[string, string]
 	evmTxHashCache        *cache.Cache[string, int64]
 	evmDenomContractCache *cache.Cache[string, string]
-	validatorCache        *cache.Cache[string, *types.Validator]
+	validatorCache        *cache.Cache[string, *types.ValidatorResponse]
 
 	// Singleton initialization
 	cacheInitOnce sync.Once
@@ -43,7 +43,7 @@ func InitializeCaches(cfg *config.CacheConfig) {
 		moveDenomCache = cache.New[string, string](cfg.MoveDenomCacheSize)
 		evmTxHashCache = cache.New[string, int64](cfg.EvmTxHashCacheSize)
 		evmDenomContractCache = cache.New[string, string](cfg.EvmDenomContractCacheSize)
-		validatorCache = cache.New[string, *types.Validator](cfg.ValidatorCacheSize)
+		validatorCache = cache.New[string, *types.ValidatorResponse](cfg.ValidatorCacheSize)
 	})
 }
 
@@ -500,13 +500,19 @@ func GetAccountCache(account string) (int64, bool) {
 	return 0, false
 }
 
-func GetValidatorCache(validatorAddr string) (*types.Validator, bool) {
+func GetValidatorCache(validatorAddr string) (*types.ValidatorResponse, bool) {
 	if cached, ok := validatorCache.Get(validatorAddr); ok {
 		return cached, true
 	}
 	return nil, false
 }
 
-func SetValidatorCache(validator *types.Validator) {
-	validatorCache.Set(validator.OperatorAddress, validator)
+func SetValidatorCache(validator *types.ValidatorResponse) {
+	if validator == nil {
+		return
+	}
+	if validator.Validator.OperatorAddress == "" {
+		return
+	}
+	validatorCache.Set(validator.Validator.OperatorAddress, validator)
 }

@@ -145,13 +145,13 @@ func (q *Querier) GetLatestHeight(ctx context.Context) (int64, error) {
 	return height, nil
 }
 
-func fetchValidator(validatorAddr string) func(ctx context.Context, endpointURL string) (*types.Validator, error) {
-	return func(ctx context.Context, endpointURL string) (*types.Validator, error) {
+func fetchValidator(validatorAddr string) func(ctx context.Context, endpointURL string) (*types.ValidatorResponse, error) {
+	return func(ctx context.Context, endpointURL string) (*types.ValidatorResponse, error) {
 		body, err := Get(ctx, endpointURL, fmt.Sprintf("/opinit/opchild/v1/validator/%s", validatorAddr), nil, nil, queryTimeout)
 		if err != nil {
 			return nil, err
 		}
-		response, err := extractResponse[types.Validator](body)
+		response, err := extractResponse[types.ValidatorResponse](body)
 		if err != nil {
 			return nil, err
 		}
@@ -159,7 +159,7 @@ func fetchValidator(validatorAddr string) func(ctx context.Context, endpointURL 
 	}
 }
 
-func (q *Querier) GetValidator(ctx context.Context, validatorAddr string) (*types.Validator, error) {
+func (q *Querier) GetValidator(ctx context.Context, validatorAddr string) (*types.ValidatorResponse, error) {
 	res, err := executeWithEndpointRotation(ctx, q.RestUrls, fetchValidator(validatorAddr))
 	if err != nil {
 		return nil, err

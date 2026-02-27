@@ -68,7 +68,7 @@ func ToBlockResponse(ctx context.Context, cb types.CollectedBlock, querier *quer
 		return block, err
 	}
 
-	validator, err := getValidator(ctx, querier, cb.Proposer)
+	validatorResponse, err := getValidator(ctx, querier, cb.Proposer)
 	if err != nil {
 		return block, err
 	}
@@ -84,8 +84,8 @@ func ToBlockResponse(ctx context.Context, cb types.CollectedBlock, querier *quer
 		TxCount:   fmt.Sprintf("%d", cb.TxCount),
 		TotalFee:  fees,
 		Proposer: Proposer{
-			Moniker:         validator.Moniker,
-			OperatorAddress: validator.OperatorAddress,
+			Moniker:         validatorResponse.Validator.Moniker,
+			OperatorAddress: validatorResponse.Validator.OperatorAddress,
 		},
 	}, nil
 }
