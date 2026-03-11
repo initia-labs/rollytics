@@ -25,6 +25,10 @@ type ScrapedBlock struct {
 	PreBlock   []abci.Event
 	BeginBlock []abci.Event
 	EndBlock   []abci.Event
+
+	// RawTxs, when non-nil, holds raw tx bytes for each tx (e.g. when block was recovered from DA layer).
+	// The tx prepare step will build RestTx from these instead of calling the REST API.
+	RawTxs [][]byte
 }
 
 type ParsedEvent struct {

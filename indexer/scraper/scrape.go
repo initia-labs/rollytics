@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"time"
 
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -13,6 +14,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/initia-labs/rollytics/config"
+	"github.com/initia-labs/rollytics/indexer/da"
 	"github.com/initia-labs/rollytics/indexer/types"
 	"github.com/initia-labs/rollytics/metrics"
 	"github.com/initia-labs/rollytics/util/querier"
@@ -20,7 +22,37 @@ import (
 
 func scrapeBlock(ctx context.Context, client *fiber.Client, height int64, cfg *config.Config, q *querier.Querier) (types.ScrapedBlock, error) {
 	start := time.Now()
+	indexerMetrics := metrics.GetMetrics().IndexerMetrics()
 
+	scrapedBlock, err := scrapeBlockFromRPC(ctx, client, height, cfg, q)
+	if err == nil {
+		duration := time.Since(start).Seconds()
+		indexerMetrics.BlockProcessingTime.WithLabelValues("scrape").Observe(duration)
+		return scrapedBlock, nil
+	}
+
+	// Optionally try DA layer when RPC fails (e.g. node does not have this height)
+	cc := cfg.GetChainConfig()
+	if cc != nil && cc.DaFallbackEnabled && cc.DaRpcUrl != "" {
+		rec, daErr := da.RecoverBlockAtHeight(ctx, cc.DaRpcUrl, cc.ChainId, cc.DaSenderAddr, height)
+		if daErr == nil {
+			block := rec.Scraped
+			block.RawTxs = rec.RawTxs
+			duration := time.Since(start).Seconds()
+			indexerMetrics.BlockProcessingTime.WithLabelValues("scrape").Observe(duration)
+			slog.Info("recovered block from DA layer", slog.Int64("height", height))
+			return block, nil
+		}
+		if ctx.Err() != nil {
+			return types.ScrapedBlock{}, ctx.Err()
+		}
+	}
+
+	indexerMetrics.ProcessingErrors.WithLabelValues("scrape", "network_error").Inc()
+	return types.ScrapedBlock{}, err
+}
+
+func scrapeBlockFromRPC(ctx context.Context, client *fiber.Client, height int64, cfg *config.Config, q *querier.Querier) (types.ScrapedBlock, error) {
 	var g errgroup.Group
 	getBlockRes := make(chan GetBlockResponse, 1)
 	getBlockResultsRes := make(chan GetBlockResultsResponse, 1)
@@ -35,10 +67,7 @@ func scrapeBlock(ctx context.Context, client *fiber.Client, height int64, cfg *c
 		return fetchBlockResults(ctx, client, height, cfg, q.RpcUrls, getBlockResultsRes)
 	})
 
-	indexerMetrics := metrics.GetMetrics().IndexerMetrics()
-
 	if err := g.Wait(); err != nil {
-		indexerMetrics.ProcessingErrors.WithLabelValues("scrape", "network_error").Inc()
 		return types.ScrapedBlock{}, err
 	}
 
@@ -47,14 +76,8 @@ func scrapeBlock(ctx context.Context, client *fiber.Client, height int64, cfg *c
 
 	scrapedBlock, err := parseScrapedBlock(block, blockResults, height)
 	if err != nil {
-		indexerMetrics.ProcessingErrors.WithLabelValues("scrape", "parse_error").Inc()
 		return types.ScrapedBlock{}, err
 	}
-
-	// Track scrape metrics
-	duration := time.Since(start).Seconds()
-	indexerMetrics.BlockProcessingTime.WithLabelValues("scrape").Observe(duration)
-
 	return scrapedBlock, nil
 }
 

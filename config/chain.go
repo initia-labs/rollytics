@@ -15,6 +15,11 @@ type ChainConfig struct {
 	JsonRpcUrls          []string
 	AccountAddressPrefix string
 	Environment          string
+
+	// DA layer fallback: when RPC block fetch fails, try to recover block from Celestia DA.
+	DaFallbackEnabled bool     // enable fallback to DA layer
+	DaRpcUrl          string   // Celestia RPC endpoint (e.g. https://rpc.celestia.testnet.dteam.tech)
+	DaSenderAddr      string   // optional Celestia sender address to filter MsgPayForBlobs (recommended)
 }
 
 func (cc ChainConfig) Validate() error {
@@ -34,6 +39,9 @@ func (cc ChainConfig) Validate() error {
 		return err
 	}
 	if err := cc.validateAccountPrefix(); err != nil {
+		return err
+	}
+	if err := cc.validateDaConfig(); err != nil {
 		return err
 	}
 	return nil
@@ -150,4 +158,21 @@ func (cc ChainConfig) GetJsonRpcUrl() string {
 		return ""
 	}
 	return cc.JsonRpcUrls[0]
+}
+
+func (cc ChainConfig) validateDaConfig() error {
+	if !cc.DaFallbackEnabled {
+		return nil
+	}
+	if cc.DaRpcUrl == "" {
+		return types.NewValidationError("DA_RPC_URL", "required when DA fallback is enabled")
+	}
+	u, err := url.Parse(cc.DaRpcUrl)
+	if err != nil {
+		return types.NewInvalidValueError("DA_RPC_URL", cc.DaRpcUrl, err.Error())
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return types.NewInvalidValueError("DA_RPC_URL", cc.DaRpcUrl, "must use http or https scheme")
+	}
+	return nil
 }

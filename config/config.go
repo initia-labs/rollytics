@@ -269,6 +269,9 @@ func loadConfig() (*Config, error) {
 		RestUrls:             splitAndTrim(viper.GetString("REST_URL")),
 		JsonRpcUrls:          splitAndTrim(viper.GetString("JSON_RPC_URL")),
 		AccountAddressPrefix: viper.GetString("ACCOUNT_ADDRESS_PREFIX"),
+		DaFallbackEnabled:   viper.GetBool("DA_FALLBACK_ENABLED"),
+		DaRpcUrl:            strings.TrimSpace(viper.GetString("DA_RPC_URL")),
+		DaSenderAddr:        strings.TrimSpace(viper.GetString("DA_SENDER_ADDR")),
 	}
 
 	config := &Config{

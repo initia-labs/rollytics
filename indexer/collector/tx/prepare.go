@@ -15,11 +15,19 @@ func (sub *TxSubmodule) prepare(ctx context.Context, block indexertypes.ScrapedB
 	var evmTxs []types.EvmTx
 
 	g.Go(func() error {
+		if len(block.RawTxs) > 0 {
+			// Block was recovered from DA layer; build RestTx from raw bytes
+			var err error
+			restTxs, err = RestTxsFromRaw(sub.cdc, block.RawTxs)
+			if err != nil {
+				return err
+			}
+			return nil
+		}
 		txs, err := sub.querier.GetCosmosTxs(ctx, block.Height, len(block.Txs))
 		if err != nil {
 			return err
 		}
-
 		restTxs = txs
 		return nil
 	})
