@@ -82,7 +82,15 @@ func (s *Scraper) fastSync(ctx context.Context, client *fiber.Client, height int
 
 		// spin up new goroutine for scraping block with incrementing height
 		h := height
-		sem <- struct{}{}
+		select {
+		case sem <- struct{}{}:
+			// acquired a slot; safe to spawn and account in wg
+		case <-ctx.Done():
+			s.logger.Info("fastSync() shutting down gracefully")
+			wg.Wait()
+			return syncedHeight
+		}
+
 		wg.Add(1)
 		go func(errCount int) {
 			defer wg.Done()
