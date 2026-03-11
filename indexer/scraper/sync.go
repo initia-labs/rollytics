@@ -108,7 +108,11 @@ func (s *Scraper) fastSync(ctx context.Context, client *fiber.Client, height int
 				// if no error, cache the scraped block to block map and return
 				if err == nil {
 					s.logger.Info("scraped block", slog.Int64("height", block.Height))
-					blockChan <- block
+					select {
+					case blockChan <- block:
+					case <-ctx.Done():
+						return
+					}
 					s.trackScrapedBlock()
 
 					s.mtx.Lock()
@@ -164,7 +168,11 @@ func (s *Scraper) slowSync(ctx context.Context, client *fiber.Client, height int
 
 				if err == nil {
 					s.logger.Info("scraped block", slog.Int64("height", block.Height))
-					blockChan <- block
+					select {
+					case blockChan <- block:
+					case <-ctx.Done():
+						return nil
+					}
 					s.trackScrapedBlock()
 				} else if !reachedLatestHeight(fmt.Sprintf("%+v", err)) {
 					// log only if it is not related to reached latest height error
