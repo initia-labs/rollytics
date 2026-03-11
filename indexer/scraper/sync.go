@@ -30,6 +30,14 @@ func (s *Scraper) fastSync(ctx context.Context, client *fiber.Client, height int
 		wg           sync.WaitGroup
 	)
 
+	// Limit the number of concurrent scraping goroutines.
+	// This prevents unbounded goroutine growth when downstream (prepare/collect/DB) is slow.
+	maxConc := s.cfg.GetMaxConcurrentRequests()
+	if maxConc < 1 {
+		maxConc = 1
+	}
+	sem := make(chan struct{}, maxConc)
+
 	go func() {
 		for signal := range controlChan {
 			switch signal {
@@ -74,9 +82,11 @@ func (s *Scraper) fastSync(ctx context.Context, client *fiber.Client, height int
 
 		// spin up new goroutine for scraping block with incrementing height
 		h := height
+		sem <- struct{}{}
 		wg.Add(1)
 		go func(errCount int) {
 			defer wg.Done()
+			defer func() { <-sem }()
 
 			for {
 				select {

@@ -52,9 +52,11 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Indexer {
 		collector:        collector.New(cfg, logger, db),
 		extensionManager: extension.New(cfg, logger, db),
 		blockMap:         make(map[int64]indexertypes.ScrapedBlock),
-		blockChan:        make(chan indexertypes.ScrapedBlock),
-		controlChan:      make(chan string),
-		querier:          querier.NewQuerier(cfg.GetChainConfig()),
+		// Buffering reduces backpressure stalls between scraper -> prepare when downstream is briefly slow.
+		// It also prevents fastSync goroutines from piling up solely because the channel is unbuffered.
+		blockChan:   make(chan indexertypes.ScrapedBlock, types.MaxInflightBlocks),
+		controlChan: make(chan string, 1),
+		querier:     querier.NewQuerier(cfg.GetChainConfig()),
 	}
 }
 
