@@ -30,6 +30,14 @@ func (s *Scraper) fastSync(ctx context.Context, client *fiber.Client, height int
 		wg           sync.WaitGroup
 	)
 
+	// Limit the number of concurrent scraping goroutines.
+	// This prevents unbounded goroutine growth when downstream (prepare/collect/DB) is slow.
+	maxConc := s.cfg.GetMaxConcurrentRequests()
+	if maxConc < 1 {
+		maxConc = 1
+	}
+	sem := make(chan struct{}, maxConc)
+
 	go func() {
 		for signal := range controlChan {
 			switch signal {
@@ -74,9 +82,19 @@ func (s *Scraper) fastSync(ctx context.Context, client *fiber.Client, height int
 
 		// spin up new goroutine for scraping block with incrementing height
 		h := height
+		select {
+		case sem <- struct{}{}:
+			// acquired a slot; safe to spawn and account in wg
+		case <-ctx.Done():
+			s.logger.Info("fastSync() shutting down gracefully")
+			wg.Wait()
+			return syncedHeight
+		}
+
 		wg.Add(1)
 		go func(errCount int) {
 			defer wg.Done()
+			defer func() { <-sem }()
 
 			for {
 				select {
@@ -90,7 +108,11 @@ func (s *Scraper) fastSync(ctx context.Context, client *fiber.Client, height int
 				// if no error, cache the scraped block to block map and return
 				if err == nil {
 					s.logger.Info("scraped block", slog.Int64("height", block.Height))
-					blockChan <- block
+					select {
+					case blockChan <- block:
+					case <-ctx.Done():
+						return
+					}
 					s.trackScrapedBlock()
 
 					s.mtx.Lock()
@@ -146,7 +168,11 @@ func (s *Scraper) slowSync(ctx context.Context, client *fiber.Client, height int
 
 				if err == nil {
 					s.logger.Info("scraped block", slog.Int64("height", block.Height))
-					blockChan <- block
+					select {
+					case blockChan <- block:
+					case <-ctx.Done():
+						return nil
+					}
 					s.trackScrapedBlock()
 				} else if !reachedLatestHeight(fmt.Sprintf("%+v", err)) {
 					// log only if it is not related to reached latest height error
