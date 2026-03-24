@@ -22,18 +22,20 @@ type txDataWithEvents struct {
 	Events []abci.Event `json:"events"`
 }
 
-func ProcessBatch(ctx context.Context, db *gorm.DB, cfg *config.Config, logger *slog.Logger, startSeq, endSeq int64) (totalDeleted, totalInserted int64, err error) {
+func ProcessBatch(ctx context.Context, db *gorm.DB, cfg *config.Config, logger *slog.Logger, startSeq, endSeq int64) (lastProcessedSeq, totalDeleted, totalInserted int64, err error) {
+	lastProcessedSeq = startSeq - 1
+
 	// Query txs in sequence range
 	var txs []types.CollectedTx
 	if err := db.WithContext(ctx).
 		Where("sequence >= ? AND sequence <= ?", startSeq, endSeq).
 		Order("sequence ASC").
 		Find(&txs).Error; err != nil {
-		return 0, 0, fmt.Errorf("failed to query transactions: %w", err)
+		return lastProcessedSeq, 0, 0, fmt.Errorf("failed to query transactions: %w", err)
 	}
 
 	if len(txs) == 0 {
-		return 0, 0, nil
+		return endSeq, 0, 0, nil
 	}
 
 	// Query actual tx_accounts in sequence range
@@ -41,7 +43,7 @@ func ProcessBatch(ctx context.Context, db *gorm.DB, cfg *config.Config, logger *
 	if err := db.WithContext(ctx).
 		Where("sequence >= ? AND sequence <= ?", startSeq, endSeq).
 		Find(&actualEntries).Error; err != nil {
-		return 0, 0, fmt.Errorf("failed to query tx_accounts: %w", err)
+		return lastProcessedSeq, 0, 0, fmt.Errorf("failed to query tx_accounts: %w", err)
 	}
 
 	// Group actual entries by sequence
@@ -55,25 +57,22 @@ func ProcessBatch(ctx context.Context, db *gorm.DB, cfg *config.Config, logger *
 	for _, collectedTx := range txs {
 		select {
 		case <-ctx.Done():
-			return totalDeleted, totalInserted, ctx.Err()
+			return lastProcessedSeq, totalDeleted, totalInserted, ctx.Err()
 		default:
 		}
 
 		deleted, inserted, err := reconcileTx(ctx, db, logger, collectedTx, actualBySeq[collectedTx.Sequence], isEVM)
 		if err != nil {
 			hashStr := hex.EncodeToString(collectedTx.Hash)
-			logger.Warn("failed to reconcile tx",
-				slog.String("tx_hash", hashStr),
-				slog.Int64("sequence", collectedTx.Sequence),
-				slog.Any("error", err))
-			continue
+			return lastProcessedSeq, totalDeleted, totalInserted, fmt.Errorf("failed to reconcile tx %s at sequence %d: %w", hashStr, collectedTx.Sequence, err)
 		}
 
 		totalDeleted += deleted
 		totalInserted += inserted
+		lastProcessedSeq = collectedTx.Sequence
 	}
 
-	return totalDeleted, totalInserted, nil
+	return endSeq, totalDeleted, totalInserted, nil
 }
 
 func reconcileTx(ctx context.Context, db *gorm.DB, logger *slog.Logger, collectedTx types.CollectedTx, actual []types.CollectedTxAccount, isEVM bool) (deleted, inserted int64, err error) {

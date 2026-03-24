@@ -106,27 +106,31 @@ func (e *TxAccountCleanupExtension) Run(ctx context.Context) error {
 
 		endSeq := min(currentSeq+BatchSize-1, maxSeq)
 
-		deleted, inserted, err := ProcessBatch(ctx, e.db.DB, e.cfg, e.logger, currentSeq, endSeq)
-		if err != nil {
-			return fmt.Errorf("failed to process batch [%d-%d]: %w", currentSeq, endSeq, err)
+		lastProcessedSeq, deleted, inserted, batchErr := ProcessBatch(ctx, e.db.DB, e.cfg, e.logger, currentSeq, endSeq)
+
+		// Checkpoint progress if any sequences were successfully processed
+		if lastProcessedSeq >= currentSeq {
+			status.LastCleanedSequence = lastProcessedSeq
+			status.DeletedRecords += deleted
+			status.InsertedRecords += inserted
+
+			if err := e.updateStatus(ctx, status); err != nil {
+				return fmt.Errorf("failed to update status: %w", err)
+			}
+
+			if deleted > 0 || inserted > 0 {
+				e.logger.Info("tx account cleanup processed batch",
+					slog.Int64("end_sequence", lastProcessedSeq),
+					slog.Int64("batch_deleted", deleted),
+					slog.Int64("batch_inserted", inserted))
+			}
+
+			currentSeq = lastProcessedSeq + 1
 		}
 
-		status.LastCleanedSequence = endSeq
-		status.DeletedRecords += deleted
-		status.InsertedRecords += inserted
-
-		if err := e.updateStatus(ctx, status); err != nil {
-			return fmt.Errorf("failed to update status: %w", err)
+		if batchErr != nil {
+			return fmt.Errorf("failed to process batch [%d-%d]: %w", currentSeq, endSeq, batchErr)
 		}
-
-		if deleted > 0 || inserted > 0 {
-			e.logger.Info("tx account cleanup processed batch",
-				slog.Int64("end_sequence", endSeq),
-				slog.Int64("batch_deleted", deleted),
-				slog.Int64("batch_inserted", inserted))
-		}
-
-		currentSeq = endSeq + 1
 	}
 }
 
