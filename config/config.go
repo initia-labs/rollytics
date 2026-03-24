@@ -129,27 +129,27 @@ func SetBuildInfo(v, commit string) {
 }
 
 type Config struct {
-	listenPort            string
-	recvBufSize           uint
-	indexerListenPort     string
-	dbConfig              *dbconfig.Config
-	chainConfig           *ChainConfig
-	logLevel              string
-	logFormat             string
-	coolingDuration       time.Duration // for indexer only
-	queryTimeout          time.Duration // for indexer only
-	maxConcurrentRequests int           // for indexer only
-	cacheSize             int
-	cacheTTL              time.Duration // for api only
-	pollingInterval       time.Duration // for api only
-	internalTxConfig      *InternalTxConfig
-	richListConfig        *RichListConfig
-	evmRetCleanupConfig      *EvmRetCleanupConfig
-	txAccountCleanupConfig   *TxAccountCleanupConfig
-	metricsConfig            *MetricsConfig
-	cacheConfig           *CacheConfig
-	sentryConfig          *SentryConfig
-	corsConfig            *CORSConfig
+	listenPort             string
+	recvBufSize            uint
+	indexerListenPort      string
+	dbConfig               *dbconfig.Config
+	chainConfig            *ChainConfig
+	logLevel               string
+	logFormat              string
+	coolingDuration        time.Duration // for indexer only
+	queryTimeout           time.Duration // for indexer only
+	maxConcurrentRequests  int           // for indexer only
+	cacheSize              int
+	cacheTTL               time.Duration // for api only
+	pollingInterval        time.Duration // for api only
+	internalTxConfig       *InternalTxConfig
+	richListConfig         *RichListConfig
+	evmRetCleanupConfig    *EvmRetCleanupConfig
+	txAccountCleanupConfig *TxAccountCleanupConfig
+	metricsConfig          *MetricsConfig
+	cacheConfig            *CacheConfig
+	sentryConfig           *SentryConfig
+	corsConfig             *CORSConfig
 
 	// Start height configuration
 	startHeight    int64 // explicit start height when set
