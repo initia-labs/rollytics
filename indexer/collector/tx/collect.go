@@ -128,7 +128,7 @@ func (sub *TxSubmodule) collect(block indexertypes.ScrapedBlock, tx *gorm.DB) er
 		}
 
 		// grep addresses from events
-		addrs, err := grepAddressesFromTx(res.Events, tx)
+		addrs, err := GrepAddressesFromTx(res.Events, tx)
 		if err != nil {
 			return err
 		}

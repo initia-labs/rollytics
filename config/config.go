@@ -144,8 +144,9 @@ type Config struct {
 	pollingInterval       time.Duration // for api only
 	internalTxConfig      *InternalTxConfig
 	richListConfig        *RichListConfig
-	evmRetCleanupConfig   *EvmRetCleanupConfig
-	metricsConfig         *MetricsConfig
+	evmRetCleanupConfig      *EvmRetCleanupConfig
+	txAccountCleanupConfig   *TxAccountCleanupConfig
+	metricsConfig            *MetricsConfig
 	cacheConfig           *CacheConfig
 	sentryConfig          *SentryConfig
 	corsConfig            *CORSConfig
@@ -296,6 +297,9 @@ func loadConfig() (*Config, error) {
 		},
 		evmRetCleanupConfig: &EvmRetCleanupConfig{
 			Enabled: viper.GetBool("EVM_RET_CLEANUP"),
+		},
+		txAccountCleanupConfig: &TxAccountCleanupConfig{
+			Enabled: viper.GetBool("TX_ACCOUNT_CLEANUP"),
 		},
 		metricsConfig: &MetricsConfig{
 			Enabled: viper.GetBool("METRICS_ENABLED"),
@@ -469,6 +473,10 @@ func (c Config) GetEvmRetCleanupConfig() *EvmRetCleanupConfig {
 
 func (c *Config) SetEvmRetCleanupConfig(evmRetCleanCgf *EvmRetCleanupConfig) {
 	c.evmRetCleanupConfig = evmRetCleanCgf
+}
+
+func (c Config) TxAccountCleanupEnabled() bool {
+	return c.txAccountCleanupConfig.Enabled
 }
 
 func (c Config) GetSentryConfig() *SentryConfig {

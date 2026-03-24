@@ -11,6 +11,7 @@ import (
 	evmret "github.com/initia-labs/rollytics/indexer/extension/evmret"
 	internaltx "github.com/initia-labs/rollytics/indexer/extension/internaltx"
 	richlist "github.com/initia-labs/rollytics/indexer/extension/richlist"
+	txaccountcleanup "github.com/initia-labs/rollytics/indexer/extension/txaccountcleanup"
 	"github.com/initia-labs/rollytics/indexer/extension/types"
 	"github.com/initia-labs/rollytics/orm"
 )
@@ -35,6 +36,10 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *ExtensionMa
 	// EVM Ret Cleanup
 	if retCleanup := evmret.New(cfg, logger, db); retCleanup != nil {
 		extensions = append(extensions, retCleanup)
+	}
+	// TX Account Cleanup
+	if taCleanup := txaccountcleanup.New(cfg, logger, db); taCleanup != nil {
+		extensions = append(extensions, taCleanup)
 	}
 	return &ExtensionManager{
 		cfg:        cfg,
