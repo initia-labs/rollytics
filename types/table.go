@@ -182,6 +182,12 @@ type CollectedEvmRetCleanupStatus struct {
 	CorrectedRecords  int64 `gorm:"type:bigint;column:corrected_records"`
 }
 
+type CollectedTxAccountCleanupStatus struct {
+	LastCleanedSequence int64 `gorm:"type:bigint;column:last_cleaned_sequence"`
+	DeletedRecords      int64 `gorm:"type:bigint;column:deleted_records"`
+	InsertedRecords     int64 `gorm:"type:bigint;column:inserted_records"`
+}
+
 func (CollectedUpgradeHistory) TableName() string {
 	return "upgrade_history"
 }
@@ -272,6 +278,10 @@ func (CollectedRichList) TableName() string {
 
 func (CollectedEvmRetCleanupStatus) TableName() string {
 	return "evm_ret_cleanup_status"
+}
+
+func (CollectedTxAccountCleanupStatus) TableName() string {
+	return "tx_account_cleanup_status"
 }
 
 // CursorRecord interface implementations

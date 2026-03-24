@@ -39,7 +39,7 @@ func findAllMoveHexAddress(attr string) []string {
 	return regexMoveHex.FindAllString(attr, -1)
 }
 
-func grepAddressesFromTx(events []abci.Event, tx *gorm.DB) (grepped []string, err error) {
+func GrepAddressesFromTx(events []abci.Event, tx *gorm.DB) (grepped []string, err error) {
 	storeAddrMap := make(map[string]interface{}) // set of fa store addrs
 
 	for _, event := range events {
