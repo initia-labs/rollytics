@@ -178,6 +178,7 @@ func setDefaults() {
 	viper.SetDefault("INTERNAL_TX_BATCH_SIZE", DefaultInternalTxBatchSize)
 	viper.SetDefault("INTERNAL_TX_QUEUE_SIZE", DefaultInternalTxQueueSize)
 	viper.SetDefault("RICH_LIST", true)
+	viper.SetDefault("TX_ACCOUNT_CLEANUP", true)
 	viper.SetDefault("METRICS_ENABLED", false)
 	viper.SetDefault("METRICS_PATH", DefaultMetricsPath)
 	viper.SetDefault("METRICS_PORT", DefaultMetricsPort)
