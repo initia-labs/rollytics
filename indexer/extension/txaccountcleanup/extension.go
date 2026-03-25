@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"time"
 
 	"gorm.io/gorm"
 
@@ -49,8 +48,10 @@ func (e *TxAccountCleanupExtension) Initialize(ctx context.Context) (*types.Coll
 	err := e.db.WithContext(ctx).First(&status).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// Initialize with -1 to indicate no cleanup has been done yet;
+			// Run() will set it to max(sequence) on first iteration.
 			status = types.CollectedTxAccountCleanupStatus{
-				LastCleanedSequence: 0,
+				LastCleanedSequence: -1,
 				DeletedRecords:      0,
 				InsertedRecords:     0,
 			}
@@ -72,8 +73,25 @@ func (e *TxAccountCleanupExtension) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to initialize: %w", err)
 	}
 
-	currentSeq := status.LastCleanedSequence + 1
-	e.logger.Info("starting tx account cleanup",
+	// Determine starting point: scan from max sequence down to 0
+	currentSeq := status.LastCleanedSequence
+	if currentSeq < 0 {
+		// First run: start from the current max sequence
+		var maxSeq int64
+		if err := e.db.WithContext(ctx).
+			Model(&types.CollectedTx{}).
+			Select("COALESCE(MAX(sequence), 0)").
+			Scan(&maxSeq).Error; err != nil {
+			return fmt.Errorf("failed to get max sequence: %w", err)
+		}
+		currentSeq = maxSeq
+		status.LastCleanedSequence = currentSeq
+		if err := e.updateStatus(ctx, status); err != nil {
+			return fmt.Errorf("failed to update status: %w", err)
+		}
+	}
+
+	e.logger.Info("starting tx account cleanup (reverse)",
 		slog.Int64("start_sequence", currentSeq))
 
 	for {
@@ -87,30 +105,20 @@ func (e *TxAccountCleanupExtension) Run(ctx context.Context) error {
 		default:
 		}
 
-		var maxSeq int64
-		if err := e.db.WithContext(ctx).
-			Model(&types.CollectedTx{}).
-			Select("COALESCE(MAX(sequence), 0)").
-			Scan(&maxSeq).Error; err != nil {
-			return fmt.Errorf("failed to get max sequence: %w", err)
+		if currentSeq <= 0 {
+			e.logger.Info("cleanup complete",
+				slog.Int64("deleted_records", status.DeletedRecords),
+				slog.Int64("inserted_records", status.InsertedRecords))
+			return nil
 		}
 
-		if currentSeq > maxSeq {
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-time.After(1 * time.Second):
-			}
-			continue
-		}
+		startSeq := max(currentSeq-BatchSize+1, 1)
 
-		endSeq := min(currentSeq+BatchSize-1, maxSeq)
-
-		lastProcessedSeq, deleted, inserted, batchErr := ProcessBatch(ctx, e.db.DB, e.cfg, e.logger, currentSeq, endSeq)
+		lastProcessedSeq, deleted, inserted, batchErr := ProcessBatch(ctx, e.db.DB, e.logger, startSeq, currentSeq)
 
 		// Checkpoint progress if any sequences were successfully processed
-		if lastProcessedSeq >= currentSeq {
-			status.LastCleanedSequence = lastProcessedSeq
+		if lastProcessedSeq >= startSeq {
+			status.LastCleanedSequence = startSeq - 1
 			status.DeletedRecords += deleted
 			status.InsertedRecords += inserted
 
@@ -120,16 +128,17 @@ func (e *TxAccountCleanupExtension) Run(ctx context.Context) error {
 
 			if deleted > 0 || inserted > 0 {
 				e.logger.Info("tx account cleanup processed batch",
-					slog.Int64("end_sequence", lastProcessedSeq),
+					slog.Int64("start_sequence", startSeq),
+					slog.Int64("end_sequence", currentSeq),
 					slog.Int64("batch_deleted", deleted),
 					slog.Int64("batch_inserted", inserted))
 			}
 
-			currentSeq = lastProcessedSeq + 1
+			currentSeq = startSeq - 1
 		}
 
 		if batchErr != nil {
-			return fmt.Errorf("failed to process batch [%d-%d]: %w", currentSeq, endSeq, batchErr)
+			return fmt.Errorf("failed to process batch [%d-%d]: %w", startSeq, currentSeq, batchErr)
 		}
 	}
 }
@@ -138,7 +147,7 @@ func (e *TxAccountCleanupExtension) updateStatus(ctx context.Context, status *ty
 	return e.db.WithContext(ctx).
 		Model(&types.CollectedTxAccountCleanupStatus{}).
 		Where("1 = 1").
-		Updates(map[string]interface{}{
+		Updates(map[string]any{
 			"last_cleaned_sequence": status.LastCleanedSequence,
 			"deleted_records":       status.DeletedRecords,
 			"inserted_records":      status.InsertedRecords,
