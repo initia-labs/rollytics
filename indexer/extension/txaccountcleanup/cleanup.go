@@ -10,9 +10,7 @@ import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	"gorm.io/gorm"
 
-	"github.com/initia-labs/rollytics/config"
 	tx "github.com/initia-labs/rollytics/indexer/collector/tx"
-	"github.com/initia-labs/rollytics/indexer/extension/evmret"
 	"github.com/initia-labs/rollytics/orm"
 	"github.com/initia-labs/rollytics/types"
 	"github.com/initia-labs/rollytics/util/cache"
@@ -22,7 +20,7 @@ type txDataWithEvents struct {
 	Events []abci.Event `json:"events"`
 }
 
-func ProcessBatch(ctx context.Context, db *gorm.DB, cfg *config.Config, logger *slog.Logger, startSeq, endSeq int64) (lastProcessedSeq, totalDeleted, totalInserted int64, err error) {
+func ProcessBatch(ctx context.Context, db *gorm.DB, logger *slog.Logger, startSeq, endSeq int64) (lastProcessedSeq, totalDeleted, totalInserted int64, err error) {
 	lastProcessedSeq = startSeq - 1
 
 	// Query txs in sequence range
@@ -52,8 +50,6 @@ func ProcessBatch(ctx context.Context, db *gorm.DB, cfg *config.Config, logger *
 		actualBySeq[entry.Sequence] = append(actualBySeq[entry.Sequence], entry)
 	}
 
-	isEVM := cfg.GetVmType() == types.EVM
-
 	for _, collectedTx := range txs {
 		select {
 		case <-ctx.Done():
@@ -61,7 +57,7 @@ func ProcessBatch(ctx context.Context, db *gorm.DB, cfg *config.Config, logger *
 		default:
 		}
 
-		deleted, inserted, err := reconcileTx(ctx, db, logger, collectedTx, actualBySeq[collectedTx.Sequence], isEVM)
+		deleted, inserted, err := reconcileTx(ctx, db, logger, collectedTx, actualBySeq[collectedTx.Sequence])
 		if err != nil {
 			hashStr := hex.EncodeToString(collectedTx.Hash)
 			return lastProcessedSeq, totalDeleted, totalInserted, fmt.Errorf("failed to reconcile tx %s at sequence %d: %w", hashStr, collectedTx.Sequence, err)
@@ -75,7 +71,9 @@ func ProcessBatch(ctx context.Context, db *gorm.DB, cfg *config.Config, logger *
 	return endSeq, totalDeleted, totalInserted, nil
 }
 
-func reconcileTx(ctx context.Context, db *gorm.DB, logger *slog.Logger, collectedTx types.CollectedTx, actual []types.CollectedTxAccount, isEVM bool) (deleted, inserted int64, err error) {
+func reconcileTx(ctx context.Context, db *gorm.DB, logger *slog.Logger, collectedTx types.CollectedTx, actual []types.CollectedTxAccount) (deleted, inserted int64, err error) {
+	ctxDB := db.WithContext(ctx)
+
 	// Parse events from stored tx data
 	var txData txDataWithEvents
 	if err := json.Unmarshal(collectedTx.Data, &txData); err != nil {
@@ -83,23 +81,13 @@ func reconcileTx(ctx context.Context, db *gorm.DB, logger *slog.Logger, collecte
 	}
 
 	// Re-derive addresses from events
-	addrs, err := tx.GrepAddressesFromTx(txData.Events, db)
+	addrs, err := tx.GrepAddressesFromTx(txData.Events, ctxDB)
 	if err != nil {
 		return 0, 0, fmt.Errorf("failed to grep addresses: %w", err)
 	}
 
-	// Deduplicate addresses
-	addrMap := make(map[string]struct{})
-	for _, addr := range addrs {
-		addrMap[addr] = struct{}{}
-	}
-	var uniqueAddrs []string
-	for addr := range addrMap {
-		uniqueAddrs = append(uniqueAddrs, addr)
-	}
-
 	// Convert to account IDs (don't create new accounts)
-	accountIdMap, err := cache.GetOrCreateAccountIds(db, uniqueAddrs, false)
+	accountIdMap, err := cache.GetOrCreateAccountIds(ctxDB, addrs, false)
 	if err != nil {
 		return 0, 0, fmt.Errorf("failed to get account IDs: %w", err)
 	}
@@ -112,24 +100,7 @@ func reconcileTx(ctx context.Context, db *gorm.DB, logger *slog.Logger, collecte
 		}
 	}
 
-	// EVM ret-only safety: remove ret-only addresses from expected set before insert
-	if isEVM {
-		retOnlyAddrs, err := evmret.FindRetOnlyAddresses(collectedTx.Data)
-		if err != nil {
-			return 0, 0, fmt.Errorf("failed to find ret-only addresses: %w", err)
-		}
-		if len(retOnlyAddrs) > 0 {
-			retAccountIds, err := cache.GetOrCreateAccountIds(db, retOnlyAddrs, false)
-			if err != nil {
-				return 0, 0, fmt.Errorf("failed to get ret-only account IDs: %w", err)
-			}
-			for _, id := range retAccountIds {
-				delete(expectedSet, id)
-			}
-		}
-	}
-
-	// Add signer AFTER ret-only filtering (signer is always expected)
+	// Add signer (always expected)
 	if collectedTx.SignerId != 0 {
 		expectedSet[collectedTx.SignerId] = struct{}{}
 	}
@@ -160,7 +131,19 @@ func reconcileTx(ctx context.Context, db *gorm.DB, logger *slog.Logger, collecte
 		}
 	}
 
-	if len(extraIds) == 0 && len(missingEntries) == 0 {
+	// Compute stale signer flags (in both sets but wrong Signer value) → UPDATE
+	var staleSigner []int64
+	for accountId, entry := range actualSet {
+		if _, ok := expectedSet[accountId]; !ok {
+			continue
+		}
+		expectedSigner := accountId == collectedTx.SignerId
+		if entry.Signer != expectedSigner {
+			staleSigner = append(staleSigner, accountId)
+		}
+	}
+
+	if len(extraIds) == 0 && len(missingEntries) == 0 && len(staleSigner) == 0 {
 		return 0, 0, nil
 	}
 
@@ -195,6 +178,25 @@ func reconcileTx(ctx context.Context, db *gorm.DB, logger *slog.Logger, collecte
 				slog.String("tx_hash", hashStr),
 				slog.Int64("sequence", collectedTx.Sequence),
 				slog.Int64("count", inserted))
+		}
+
+		// Fix stale signer flags
+		if len(staleSigner) > 0 {
+			for _, accountId := range staleSigner {
+				expectedSigner := accountId == collectedTx.SignerId
+				result := txDB.
+					Model(&types.CollectedTxAccount{}).
+					Where("account_id = ? AND sequence = ?", accountId, collectedTx.Sequence).
+					Update("signer", expectedSigner)
+				if result.Error != nil {
+					return fmt.Errorf("failed to update signer flag: %w", result.Error)
+				}
+			}
+
+			logger.Info("fixed stale signer flags",
+				slog.String("tx_hash", hashStr),
+				slog.Int64("sequence", collectedTx.Sequence),
+				slog.Int("count", len(staleSigner)))
 		}
 
 		return nil
