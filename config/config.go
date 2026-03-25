@@ -477,7 +477,7 @@ func (c *Config) SetEvmRetCleanupConfig(evmRetCleanCgf *EvmRetCleanupConfig) {
 }
 
 func (c Config) TxAccountCleanupEnabled() bool {
-	return c.txAccountCleanupConfig.Enabled
+	return c.txAccountCleanupConfig != nil && c.txAccountCleanupConfig.Enabled
 }
 
 func (c Config) GetSentryConfig() *SentryConfig {
