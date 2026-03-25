@@ -141,8 +141,18 @@ func updateAccountCacheAndResult(uncached []string, accountIdMap map[string]int6
 }
 
 func GetOrCreateAccountIds(db *gorm.DB, accounts []string, createNew bool) (idMap map[string]int64, err error) {
+	// Deduplicate input accounts
+	seen := make(map[string]struct{}, len(accounts))
+	deduped := make([]string, 0, len(accounts))
+	for _, account := range accounts {
+		if _, ok := seen[account]; !ok {
+			seen[account] = struct{}{}
+			deduped = append(deduped, account)
+		}
+	}
+
 	// Check cache and collect uncached accounts
-	idMap, uncached := checkAccountCache(accounts)
+	idMap, uncached := checkAccountCache(deduped)
 
 	if len(uncached) == 0 {
 		return idMap, nil

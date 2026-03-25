@@ -1465,6 +1465,10 @@ const docTemplate = `{
                     "type": "string",
                     "x-order:1": true
                 },
+                "evm_ret_cleanup_height": {
+                    "type": "integer",
+                    "x-order:6": true
+                },
                 "height": {
                     "type": "integer",
                     "x-order:3": true
@@ -1476,6 +1480,18 @@ const docTemplate = `{
                 "rich_list_height": {
                     "type": "integer",
                     "x-order:5": true
+                },
+                "tx_account_cleanup_deleted": {
+                    "type": "integer",
+                    "x-order:8": true
+                },
+                "tx_account_cleanup_inserted": {
+                    "type": "integer",
+                    "x-order:9": true
+                },
+                "tx_account_cleanup_sequence": {
+                    "type": "integer",
+                    "x-order:7": true
                 },
                 "version": {
                     "type": "string",

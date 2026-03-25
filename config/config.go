@@ -129,26 +129,27 @@ func SetBuildInfo(v, commit string) {
 }
 
 type Config struct {
-	listenPort            string
-	recvBufSize           uint
-	indexerListenPort     string
-	dbConfig              *dbconfig.Config
-	chainConfig           *ChainConfig
-	logLevel              string
-	logFormat             string
-	coolingDuration       time.Duration // for indexer only
-	queryTimeout          time.Duration // for indexer only
-	maxConcurrentRequests int           // for indexer only
-	cacheSize             int
-	cacheTTL              time.Duration // for api only
-	pollingInterval       time.Duration // for api only
-	internalTxConfig      *InternalTxConfig
-	richListConfig        *RichListConfig
-	evmRetCleanupConfig   *EvmRetCleanupConfig
-	metricsConfig         *MetricsConfig
-	cacheConfig           *CacheConfig
-	sentryConfig          *SentryConfig
-	corsConfig            *CORSConfig
+	listenPort             string
+	recvBufSize            uint
+	indexerListenPort      string
+	dbConfig               *dbconfig.Config
+	chainConfig            *ChainConfig
+	logLevel               string
+	logFormat              string
+	coolingDuration        time.Duration // for indexer only
+	queryTimeout           time.Duration // for indexer only
+	maxConcurrentRequests  int           // for indexer only
+	cacheSize              int
+	cacheTTL               time.Duration // for api only
+	pollingInterval        time.Duration // for api only
+	internalTxConfig       *InternalTxConfig
+	richListConfig         *RichListConfig
+	evmRetCleanupConfig    *EvmRetCleanupConfig
+	txAccountCleanupConfig *TxAccountCleanupConfig
+	metricsConfig          *MetricsConfig
+	cacheConfig            *CacheConfig
+	sentryConfig           *SentryConfig
+	corsConfig             *CORSConfig
 
 	// Start height configuration
 	startHeight    int64 // explicit start height when set
@@ -177,6 +178,7 @@ func setDefaults() {
 	viper.SetDefault("INTERNAL_TX_BATCH_SIZE", DefaultInternalTxBatchSize)
 	viper.SetDefault("INTERNAL_TX_QUEUE_SIZE", DefaultInternalTxQueueSize)
 	viper.SetDefault("RICH_LIST", true)
+	viper.SetDefault("TX_ACCOUNT_CLEANUP", true)
 	viper.SetDefault("METRICS_ENABLED", false)
 	viper.SetDefault("METRICS_PATH", DefaultMetricsPath)
 	viper.SetDefault("METRICS_PORT", DefaultMetricsPort)
@@ -296,6 +298,9 @@ func loadConfig() (*Config, error) {
 		},
 		evmRetCleanupConfig: &EvmRetCleanupConfig{
 			Enabled: viper.GetBool("EVM_RET_CLEANUP"),
+		},
+		txAccountCleanupConfig: &TxAccountCleanupConfig{
+			Enabled: viper.GetBool("TX_ACCOUNT_CLEANUP"),
 		},
 		metricsConfig: &MetricsConfig{
 			Enabled: viper.GetBool("METRICS_ENABLED"),
@@ -469,6 +474,10 @@ func (c Config) GetEvmRetCleanupConfig() *EvmRetCleanupConfig {
 
 func (c *Config) SetEvmRetCleanupConfig(evmRetCleanCgf *EvmRetCleanupConfig) {
 	c.evmRetCleanupConfig = evmRetCleanCgf
+}
+
+func (c Config) TxAccountCleanupEnabled() bool {
+	return c.txAccountCleanupConfig != nil && c.txAccountCleanupConfig.Enabled
 }
 
 func (c Config) GetSentryConfig() *SentryConfig {
