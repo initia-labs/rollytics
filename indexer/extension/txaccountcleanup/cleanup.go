@@ -182,14 +182,25 @@ func reconcileTx(ctx context.Context, db *gorm.DB, logger *slog.Logger, collecte
 
 		// Fix stale signer flags
 		if len(staleSigner) > 0 {
-			for _, accountId := range staleSigner {
-				expectedSigner := accountId == collectedTx.SignerId
-				result := txDB.
-					Model(&types.CollectedTxAccount{}).
-					Where("account_id = ? AND sequence = ?", accountId, collectedTx.Sequence).
-					Update("signer", expectedSigner)
-				if result.Error != nil {
-					return fmt.Errorf("failed to update signer flag: %w", result.Error)
+			// Set signer=false for all stale entries
+			if err := txDB.
+				Model(&types.CollectedTxAccount{}).
+				Where("account_id IN ? AND sequence = ?", staleSigner, collectedTx.Sequence).
+				Update("signer", false).Error; err != nil {
+				return fmt.Errorf("failed to clear stale signer flags: %w", err)
+			}
+			// Set signer=true for the actual signer if it was in the stale list
+			if collectedTx.SignerId != 0 {
+				for _, id := range staleSigner {
+					if id == collectedTx.SignerId {
+						if err := txDB.
+							Model(&types.CollectedTxAccount{}).
+							Where("account_id = ? AND sequence = ?", collectedTx.SignerId, collectedTx.Sequence).
+							Update("signer", true).Error; err != nil {
+							return fmt.Errorf("failed to set signer flag: %w", err)
+						}
+						break
+					}
 				}
 			}
 
