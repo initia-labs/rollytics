@@ -13,9 +13,10 @@ import (
 )
 
 var (
-	lastEvmInternalTxHeight atomic.Int64
-	lastRichListHeight      atomic.Int64
-	lastEvmRetCleanupHeight atomic.Int64
+	lastEvmInternalTxHeight    atomic.Int64
+	lastRichListHeight         atomic.Int64
+	lastEvmRetCleanupHeight    atomic.Int64
+	lastTxAccountCleanupStatus atomic.Pointer[types.CollectedTxAccountCleanupStatus]
 )
 
 // status handles GET /status
@@ -68,14 +69,26 @@ func (h *StatusHandler) GetStatus(c *fiber.Ctx) error {
 		evmRetCleanupHeight = height
 	}
 
+	var txAccountCleanupStatus types.CollectedTxAccountCleanupStatus
+	if h.isTxAccountCleanupEnabled() {
+		status, err := h.getTxAccountCleanupStatus(tx)
+		if err != nil {
+			return err
+		}
+		txAccountCleanupStatus = *status
+	}
+
 	return c.JSON(&StatusResponse{
-		Version:             config.Version,
-		CommitHash:          config.CommitHash,
-		ChainId:             h.GetChainId(),
-		Height:              lastBlock.Height,
-		InternalTxHeight:    internalTxHeight,
-		RichListHeight:      richListHeight,
-		EvmRetCleanupHeight: evmRetCleanupHeight,
+		Version:                  config.Version,
+		CommitHash:               config.CommitHash,
+		ChainId:                  h.GetChainId(),
+		Height:                   lastBlock.Height,
+		InternalTxHeight:         internalTxHeight,
+		RichListHeight:           richListHeight,
+		EvmRetCleanupHeight:      evmRetCleanupHeight,
+		TxAccountCleanupSequence: txAccountCleanupStatus.LastCleanedSequence,
+		TxAccountCleanupDeleted:  txAccountCleanupStatus.DeletedRecords,
+		TxAccountCleanupInserted: txAccountCleanupStatus.InsertedRecords,
 	})
 }
 
@@ -145,6 +158,32 @@ func (h *StatusHandler) getRichListHeight(tx *gorm.DB) (int64, error) {
 
 func (h *StatusHandler) isEvmRetCleanupEnabled() bool {
 	return (h.GetChainConfig().VmType == types.EVM) && h.GetConfig().EvmRetCleanupEnabled()
+}
+
+func (h *StatusHandler) isTxAccountCleanupEnabled() bool {
+	return h.GetConfig().TxAccountCleanupEnabled()
+}
+
+func (h *StatusHandler) getTxAccountCleanupStatus(tx *gorm.DB) (*types.CollectedTxAccountCleanupStatus, error) {
+	var cleanupStatus types.CollectedTxAccountCleanupStatus
+	err := tx.Model(&types.CollectedTxAccountCleanupStatus{}).First(&cleanupStatus).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return &types.CollectedTxAccountCleanupStatus{
+				LastCleanedSequence: -1,
+				DeletedRecords:      -1,
+				InsertedRecords:     -1,
+			}, nil
+		}
+		return nil, fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	cached := lastTxAccountCleanupStatus.Load()
+	if cached == nil || cleanupStatus.LastCleanedSequence < cached.LastCleanedSequence {
+		lastTxAccountCleanupStatus.Store(&cleanupStatus)
+	}
+
+	return &cleanupStatus, nil
 }
 
 func (h *StatusHandler) getEvmRetCleanupStatus(tx *gorm.DB) (int64, error) {
