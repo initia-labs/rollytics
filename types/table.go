@@ -60,7 +60,7 @@ type CollectedTx struct {
 
 type CollectedTxAccount struct {
 	AccountId int64 `gorm:"type:bigint;primaryKey"`
-	Sequence  int64 `gorm:"type:bigint;primaryKey;index"`
+	Sequence  int64 `gorm:"type:bigint;primaryKey;index:idx_tx_accounts_sequence"`
 	Signer    bool  `gorm:"type:boolean"`
 }
 
@@ -71,7 +71,7 @@ type CollectedTxNft struct {
 
 type CollectedTxMsgType struct {
 	MsgTypeId int64 `gorm:"type:bigint;primaryKey"`
-	Sequence  int64 `gorm:"type:bigint;primaryKey"`
+	Sequence  int64 `gorm:"type:bigint;primaryKey;index:idx_tx_msg_types_sequence"`
 }
 
 type CollectedTxTypeTag struct {
