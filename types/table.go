@@ -60,7 +60,7 @@ type CollectedTx struct {
 
 type CollectedTxAccount struct {
 	AccountId int64 `gorm:"type:bigint;primaryKey"`
-	Sequence  int64 `gorm:"type:bigint;primaryKey"`
+	Sequence  int64 `gorm:"type:bigint;primaryKey;index"`
 	Signer    bool  `gorm:"type:boolean"`
 }
 
