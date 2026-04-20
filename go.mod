@@ -1,6 +1,6 @@
 module github.com/initia-labs/rollytics
 
-go 1.24.0
+go 1.25.0
 
 require (
 	ariga.io/atlas-go-sdk v0.7.2
@@ -15,7 +15,7 @@ require (
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/initia-labs/initia v1.1.2
 	github.com/initia-labs/minievm v1.1.4
-	github.com/jackc/pgx/v5 v5.7.4
+	github.com/jackc/pgx/v5 v5.9.0
 	github.com/joho/godotenv v1.5.1
 	github.com/lib/pq v1.10.9
 	github.com/orandin/slog-gorm v1.4.0
@@ -24,7 +24,7 @@ require (
 	github.com/samber/slog-zerolog v1.0.0
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.19.0
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 	github.com/swaggo/swag v1.16.4
 	golang.org/x/mod v0.29.0
 	golang.org/x/sync v0.18.0
