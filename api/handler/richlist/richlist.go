@@ -54,6 +54,23 @@ func (h *RichListHandler) GetTokenHolders(c *fiber.Ctx) error {
 	tx := h.GetDatabase().Begin(&sql.TxOptions{ReadOnly: true})
 	defer tx.Rollback()
 
+	// Move richlist may store FA symbol (e.g. "cbl iusd-slp") instead of bank denom ("move/...").
+	// Only switch to the symbol when the original move/<addr> denom has no rows at all —
+	// not when a paginated page is empty due to offset.
+	if h.cfg.GetVmType() == types.MoveVM && strings.HasPrefix(denom, moveDenomPrefix) {
+		var existCount int64
+		if err := tx.Model(&types.CollectedRichList{}).
+			Where("denom = ?", denom).
+			Count(&existCount).Error; err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, "failed to fetch token holders")
+		}
+		if existCount == 0 {
+			if symbolDenom, ok := h.resolveMoveSymbolDenom(c.Context(), denom); ok {
+				denom = symbolDenom
+			}
+		}
+	}
+
 	// Query rich list ordered by amount with pagination
 	var richListRecords []types.CollectedRichList
 	if err := tx.Model(&types.CollectedRichList{}).
@@ -63,22 +80,6 @@ func (h *RichListHandler) GetTokenHolders(c *fiber.Ctx) error {
 		Offset(pagination.Offset).
 		Find(&richListRecords).Error; err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "failed to fetch token holders")
-	}
-
-	// Move richlist may store FA symbol (e.g. "cbl iusd-slp") instead of bank denom ("move/...").
-	// If no rows for move/<addr>, resolve metadata symbol and retry.
-	if len(richListRecords) == 0 && h.cfg.GetVmType() == types.MoveVM {
-		if symbolDenom, ok := h.resolveMoveSymbolDenom(c.Context(), denom); ok {
-			denom = symbolDenom
-			if err := tx.Model(&types.CollectedRichList{}).
-				Where("denom = ?", denom).
-				Order(pagination.OrderBy("amount")).
-				Limit(pagination.Limit).
-				Offset(pagination.Offset).
-				Find(&richListRecords).Error; err != nil {
-				return fiber.NewError(fiber.StatusInternalServerError, "failed to fetch token holders")
-			}
-		}
 	}
 
 	// Extract unique account IDs
