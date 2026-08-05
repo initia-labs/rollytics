@@ -2,6 +2,7 @@ package richlist
 
 import (
 	"database/sql"
+	"net/url"
 	"strings"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -12,13 +13,13 @@ import (
 	"github.com/initia-labs/rollytics/util/common-handler/common"
 )
 
-// GetTokenHolders handles GET /indexer/richlist/v1/:denom
+// GetTokenHolders handles GET /indexer/richlist/v1/*
 // @Summary Get token holders
-// @Description Get a list of token holders for a specific denomination, ordered by amount in descending order
+// @Description Get a list of token holders for a specific denomination, ordered by amount in descending order. Denoms may contain '/' (e.g. move/..., ibc/...) or spaces (URL-encode as %20).
 // @Tags Rich List
 // @Accept json
 // @Produce json
-// @Param denom path string true "Token denomination"
+// @Param denom path string true "Token denomination (supports '/', encode spaces as %20)"
 // @Param pagination.key query string false "Pagination key"
 // @Param pagination.offset query int false "Pagination offset"
 // @Param pagination.limit query int false "Pagination limit, default is 100" default is 100
@@ -27,13 +28,10 @@ import (
 // @Success 200 {object} TokenHoldersResponse
 // @Router /indexer/richlist/v1/{denom} [get]
 func (h *RichListHandler) GetTokenHolders(c *fiber.Ctx) error {
-	denom := c.Params("denom")
-	if denom == "" {
-		return fiber.NewError(fiber.StatusBadRequest, "denom parameter is required")
+	denom, err := parseDenomFromPath(c)
+	if err != nil {
+		return err
 	}
-
-	denom = strings.ReplaceAll(denom, "%2F", "/")
-	denom = strings.ToLower(denom)
 	if h.cfg.GetVmType() == types.EVM {
 		contract, err := h.querier.GetEvmContractByDenom(c.Context(), denom)
 		if err != nil {
@@ -116,4 +114,24 @@ func (h *RichListHandler) GetTokenHolders(c *fiber.Ctx) error {
 		Holders:    holders,
 		Pagination: paginationResp,
 	})
+}
+
+// parseDenomFromPath extracts and normalizes the denom from the wildcard path.
+// Supports raw slashes (move/..., ibc/...) and percent-encoding (%20, %2F).
+func parseDenomFromPath(c *fiber.Ctx) (string, error) {
+	raw := c.Params("*")
+	if raw == "" {
+		// Fallback for older :denom route style if ever remounted.
+		raw = c.Params("denom")
+	}
+	raw = strings.TrimPrefix(raw, "/")
+	if raw == "" {
+		return "", fiber.NewError(fiber.StatusBadRequest, "denom parameter is required")
+	}
+
+	decoded, err := url.PathUnescape(raw)
+	if err != nil {
+		return "", fiber.NewError(fiber.StatusBadRequest, "invalid denom encoding")
+	}
+	return strings.ToLower(decoded), nil
 }

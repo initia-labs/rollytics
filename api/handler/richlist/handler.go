@@ -29,5 +29,6 @@ func NewRichListHandler(base *common.BaseHandler, cfg *config.Config) *RichListH
 
 func (h *RichListHandler) Register(router fiber.Router) {
 	richlist := router.Group("indexer/richlist/v1")
-	richlist.Get("/:denom", cache.WithExpiration(10*time.Second), h.GetTokenHolders)
+	// Wildcard so denoms with '/' (move/..., ibc/...) work without requiring %2F.
+	richlist.Get("/*", cache.WithExpiration(10*time.Second), h.GetTokenHolders)
 }
