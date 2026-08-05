@@ -1,6 +1,7 @@
 package richlist
 
 import (
+	"context"
 	"database/sql"
 	"strings"
 
@@ -11,6 +12,8 @@ import (
 	"github.com/initia-labs/rollytics/util"
 	"github.com/initia-labs/rollytics/util/common-handler/common"
 )
+
+const moveDenomPrefix = "move/"
 
 // GetTokenHolders handles GET /indexer/richlist/v1/:denom
 // @Summary Get token holders
@@ -50,6 +53,23 @@ func (h *RichListHandler) GetTokenHolders(c *fiber.Ctx) error {
 	// Start read-only transaction
 	tx := h.GetDatabase().Begin(&sql.TxOptions{ReadOnly: true})
 	defer tx.Rollback()
+
+	// Move richlist may store FA symbol (e.g. "cbl iusd-slp") instead of bank denom ("move/...").
+	// Only switch to the symbol when the original move/<addr> denom has no rows at all —
+	// not when a paginated page is empty due to offset.
+	if h.cfg.GetVmType() == types.MoveVM && strings.HasPrefix(denom, moveDenomPrefix) {
+		var existCount int64
+		if err := tx.Model(&types.CollectedRichList{}).
+			Where("denom = ?", denom).
+			Count(&existCount).Error; err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, "failed to fetch token holders")
+		}
+		if existCount == 0 {
+			if symbolDenom, ok := h.resolveMoveSymbolDenom(c.Context(), denom); ok {
+				denom = symbolDenom
+			}
+		}
+	}
 
 	// Query rich list ordered by amount with pagination
 	var richListRecords []types.CollectedRichList
@@ -116,4 +136,19 @@ func (h *RichListHandler) GetTokenHolders(c *fiber.Ctx) error {
 		Holders:    holders,
 		Pagination: paginationResp,
 	})
+}
+
+// resolveMoveSymbolDenom maps bank denom "move/<hex>" to the richlist denom via FA metadata.
+// Returns false if denom is not a move/ denom or metadata resolution fails / is unchanged.
+func (h *RichListHandler) resolveMoveSymbolDenom(ctx context.Context, denom string) (string, bool) {
+	if !strings.HasPrefix(denom, moveDenomPrefix) {
+		return "", false
+	}
+
+	metadataAddr := "0x" + strings.TrimPrefix(denom, moveDenomPrefix)
+	resolved, err := h.querier.GetMoveDenomByMetadataAddr(ctx, metadataAddr)
+	if err != nil || resolved == "" || resolved == denom {
+		return "", false
+	}
+	return resolved, true
 }
