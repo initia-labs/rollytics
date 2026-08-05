@@ -1,6 +1,7 @@
 package richlist
 
 import (
+	"context"
 	"database/sql"
 	"strings"
 
@@ -11,6 +12,8 @@ import (
 	"github.com/initia-labs/rollytics/util"
 	"github.com/initia-labs/rollytics/util/common-handler/common"
 )
+
+const moveDenomPrefix = "move/"
 
 // GetTokenHolders handles GET /indexer/richlist/v1/:denom
 // @Summary Get token holders
@@ -60,6 +63,22 @@ func (h *RichListHandler) GetTokenHolders(c *fiber.Ctx) error {
 		Offset(pagination.Offset).
 		Find(&richListRecords).Error; err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "failed to fetch token holders")
+	}
+
+	// Move richlist may store FA symbol (e.g. "cbl iusd-slp") instead of bank denom ("move/...").
+	// If no rows for move/<addr>, resolve metadata symbol and retry.
+	if len(richListRecords) == 0 && h.cfg.GetVmType() == types.MoveVM {
+		if symbolDenom, ok := h.resolveMoveSymbolDenom(c.Context(), denom); ok {
+			denom = symbolDenom
+			if err := tx.Model(&types.CollectedRichList{}).
+				Where("denom = ?", denom).
+				Order(pagination.OrderBy("amount")).
+				Limit(pagination.Limit).
+				Offset(pagination.Offset).
+				Find(&richListRecords).Error; err != nil {
+				return fiber.NewError(fiber.StatusInternalServerError, "failed to fetch token holders")
+			}
+		}
 	}
 
 	// Extract unique account IDs
@@ -116,4 +135,19 @@ func (h *RichListHandler) GetTokenHolders(c *fiber.Ctx) error {
 		Holders:    holders,
 		Pagination: paginationResp,
 	})
+}
+
+// resolveMoveSymbolDenom maps bank denom "move/<hex>" to the richlist denom via FA metadata.
+// Returns false if denom is not a move/ denom or metadata resolution fails / is unchanged.
+func (h *RichListHandler) resolveMoveSymbolDenom(ctx context.Context, denom string) (string, bool) {
+	if !strings.HasPrefix(denom, moveDenomPrefix) {
+		return "", false
+	}
+
+	metadataAddr := "0x" + strings.TrimPrefix(denom, moveDenomPrefix)
+	resolved, err := h.querier.GetMoveDenomByMetadataAddr(ctx, metadataAddr)
+	if err != nil || resolved == "" || resolved == denom {
+		return "", false
+	}
+	return resolved, true
 }
