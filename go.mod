@@ -7,6 +7,7 @@ require (
 	ariga.io/atlas-provider-gorm v0.5.3
 	cosmossdk.io/math v1.4.0
 	github.com/DATA-DOG/go-sqlmock v1.5.2
+	github.com/KimMachineGun/automemlimit v1.0.0
 	github.com/cometbft/cometbft v0.38.17
 	github.com/cosmos/cosmos-sdk v0.50.13
 	github.com/getsentry/sentry-go v0.27.0
@@ -174,6 +175,7 @@ require (
 	github.com/oklog/run v1.1.0 // indirect
 	github.com/olekukonko/tablewriter v0.0.5 // indirect
 	github.com/onsi/gomega v1.36.2 // indirect
+	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.3 // indirect
 	github.com/petermattis/goid v0.0.0-20240813172612-4fcff4a6cae7 // indirect
 	github.com/philhofer/fwd v1.1.3-0.20240916144458-20a13a1f6b7c // indirect
