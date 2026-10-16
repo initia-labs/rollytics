@@ -14,6 +14,10 @@ type TxHandler struct {
 	*common.BaseHandler
 }
 
+// Four internal transaction routes retain at most 32 MiB of cached response bodies.
+// This excludes cache metadata and memory used by in-flight requests.
+const internalTxCacheMaxBytes = 8 * 1024 * 1024
+
 var _ common.HandlerRegistrar = (*TxHandler)(nil)
 
 func NewTxHandler(base *common.BaseHandler) *TxHandler {
@@ -40,10 +44,10 @@ func (h *TxHandler) Register(router fiber.Router) {
 
 	itxs := txs.Group("/evm-internal-txs")
 	if h.GetChainConfig().VmType == types.EVM && h.GetConfig().GetInternalTxConfig().Enabled {
-		itxs.Get("", cache.WithExpiration(time.Second), h.GetEvmInternalTxs)
-		itxs.Get("/by_height/:height", cache.WithExpiration(time.Second), h.GetEvmInternalTxsByHeight)
-		itxs.Get("/:tx_hash", cache.WithExpiration(10*time.Second), h.GetEvmInternalTxsByHash)
-		itxs.Get("/by_account/:account", cache.WithExpiration(time.Second), h.GetEvmInternalTxsByAccount)
+		itxs.Get("", cache.WithExpirationAndMaxBytes(time.Second, internalTxCacheMaxBytes), h.GetEvmInternalTxs)
+		itxs.Get("/by_height/:height", cache.WithExpirationAndMaxBytes(time.Second, internalTxCacheMaxBytes), h.GetEvmInternalTxsByHeight)
+		itxs.Get("/:tx_hash", cache.WithExpirationAndMaxBytes(10*time.Second, internalTxCacheMaxBytes), h.GetEvmInternalTxsByHash)
+		itxs.Get("/by_account/:account", cache.WithExpirationAndMaxBytes(time.Second, internalTxCacheMaxBytes), h.GetEvmInternalTxsByAccount)
 	} else {
 		itxs.All("/*", h.NotFound)
 	}
