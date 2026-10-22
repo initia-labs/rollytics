@@ -51,7 +51,7 @@ func runTxsByAccountBenchmark(b *testing.B, handler *TxHandler, accountHex strin
 	app := fiber.New()
 	app.Get("/indexer/tx/v1/txs/by_account/:account", handler.GetTxsByAccount)
 
-	req := httptest.NewRequest(
+	req := httptest.NewRequestWithContext(b.Context(),
 		fiber.MethodGet,
 		"/indexer/tx/v1/txs/by_account/"+accountHex+"?pagination.limit=1000",
 		nil,

@@ -146,7 +146,7 @@ func TestAccountHandlersByAccount(t *testing.T) {
 			app := fiber.New()
 			app.Get(tc.route, tc.handler(handler))
 
-			req := httptest.NewRequest(fiber.MethodGet, tc.requestPath(), nil)
+			req := httptest.NewRequestWithContext(t.Context(), fiber.MethodGet, tc.requestPath(), nil)
 			resp, err := app.Test(req, -1)
 			require.NoError(t, err)
 			require.Equal(t, fiber.StatusOK, resp.StatusCode)
@@ -191,7 +191,7 @@ func TestGetTxs_EdgePathWithMsgFilter(t *testing.T) {
 	app := fiber.New()
 	app.Get("/indexer/tx/v1/txs", handler.GetTxs)
 
-	req := httptest.NewRequest(fiber.MethodGet, route, nil)
+	req := httptest.NewRequestWithContext(t.Context(), fiber.MethodGet, route, nil)
 	resp, err := app.Test(req, -1)
 	require.NoError(t, err)
 	require.Equal(t, fiber.StatusOK, resp.StatusCode)
@@ -236,7 +236,7 @@ func TestGetTxs_EdgePathWithMsgFilter_CustomLimit(t *testing.T) {
 	app := fiber.New()
 	app.Get("/indexer/tx/v1/txs", handler.GetTxs)
 
-	req := httptest.NewRequest(fiber.MethodGet, route, nil)
+	req := httptest.NewRequestWithContext(t.Context(), fiber.MethodGet, route, nil)
 	resp, err := app.Test(req, -1)
 	require.NoError(t, err)
 	require.Equal(t, fiber.StatusOK, resp.StatusCode)
@@ -281,7 +281,7 @@ func TestGetTxsByHeight_EdgePathWithMsgFilter(t *testing.T) {
 	app := fiber.New()
 	app.Get("/indexer/tx/v1/txs/by_height/:height", handler.GetTxsByHeight)
 
-	req := httptest.NewRequest(fiber.MethodGet, route, nil)
+	req := httptest.NewRequestWithContext(t.Context(), fiber.MethodGet, route, nil)
 	resp, err := app.Test(req, -1)
 	require.NoError(t, err)
 	require.Equal(t, fiber.StatusOK, resp.StatusCode)
@@ -328,7 +328,7 @@ func TestGetTxsByHeight_EdgePathWithMsgFilter_CustomLimit(t *testing.T) {
 	app := fiber.New()
 	app.Get("/indexer/tx/v1/txs/by_height/:height", handler.GetTxsByHeight)
 
-	req := httptest.NewRequest(fiber.MethodGet, route, nil)
+	req := httptest.NewRequestWithContext(t.Context(), fiber.MethodGet, route, nil)
 	resp, err := app.Test(req, -1)
 	require.NoError(t, err)
 	require.Equal(t, fiber.StatusOK, resp.StatusCode)
@@ -372,7 +372,7 @@ func TestGetTxs_LegacyPathWithMsgFilter(t *testing.T) {
 	app := fiber.New()
 	app.Get("/indexer/tx/v1/txs", handler.GetTxs)
 
-	req := httptest.NewRequest(fiber.MethodGet, route, nil)
+	req := httptest.NewRequestWithContext(t.Context(), fiber.MethodGet, route, nil)
 	resp, err := app.Test(req, -1)
 	require.NoError(t, err)
 	require.Equal(t, fiber.StatusOK, resp.StatusCode)
@@ -408,7 +408,7 @@ func TestGetTxs_NoFilterLegacyPath(t *testing.T) {
 	app := fiber.New()
 	app.Get("/indexer/tx/v1/txs", handler.GetTxs)
 
-	req := httptest.NewRequest(fiber.MethodGet, route, nil)
+	req := httptest.NewRequestWithContext(t.Context(), fiber.MethodGet, route, nil)
 	resp, err := app.Test(req, -1)
 	require.NoError(t, err)
 	require.Equal(t, fiber.StatusOK, resp.StatusCode)
