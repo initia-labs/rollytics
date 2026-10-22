@@ -1,6 +1,6 @@
 module github.com/initia-labs/rollytics
 
-go 1.25.0
+go 1.27.3
 
 require (
 	ariga.io/atlas-go-sdk v0.7.2

@@ -12,7 +12,7 @@ Rollytics is an analytics and indexing tool designed for the Minitia ecosystem. 
 
 ## Requirements
 
-- Go 1.24+
+- Go 1.27.3+ (includes the eMudhra certificate distrust mitigation)
 - Docker (optional, for containerized deployment)
 - PostgreSQL 15+ compatible
 

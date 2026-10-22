@@ -1,4 +1,4 @@
-FROM golang:1.25-alpine AS builder
+FROM golang:1.27.3-alpine AS builder
 
 # Set build info
 ARG VERSION
@@ -6,7 +6,7 @@ ARG VERSION
 ARG COMMIT_HASH
 
 # Install build dependencies
-RUN apk add --no-cache git ca-certificates tzdata make
+RUN apk add --no-cache git 'ca-certificates>=20261020-r0' tzdata make
 
 # Set working directory
 WORKDIR /app
@@ -26,7 +26,7 @@ RUN make build
 FROM alpine:latest
 
 # Install runtime dependencies
-RUN apk add --no-cache ca-certificates tzdata
+RUN apk add --no-cache 'ca-certificates>=20261020-r0' tzdata
 
 # Create non-root user
 RUN addgroup -g 1001 -S rollytics && \

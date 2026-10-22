@@ -75,7 +75,7 @@ func TestGetTokenHolders_MoveDenomKeepsOriginalOnEmptyOffsetPage(t *testing.T) {
 	app := fiber.New()
 	app.Get("/indexer/richlist/v1/:denom", h.GetTokenHolders)
 
-	req := httptest.NewRequest(
+	req := httptest.NewRequestWithContext(t.Context(),
 		fiber.MethodGet,
 		"/indexer/richlist/v1/move%2F4e11c0a219f362e4d0e1f131699aa83bee40ebc8701b424373a8517d0c9e85fb?pagination.limit=1&pagination.offset=1",
 		nil,
@@ -122,7 +122,7 @@ func TestGetTokenHolders_MoveDenomFallsBackToSymbolWhenMissing(t *testing.T) {
 	app := fiber.New()
 	app.Get("/indexer/richlist/v1/:denom", h.GetTokenHolders)
 
-	req := httptest.NewRequest(
+	req := httptest.NewRequestWithContext(t.Context(),
 		fiber.MethodGet,
 		"/indexer/richlist/v1/move%2F4e11c0a219f362e4d0e1f131699aa83bee40ebc8701b424373a8517d0c9e85fb",
 		nil,
