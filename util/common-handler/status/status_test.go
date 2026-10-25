@@ -75,7 +75,7 @@ func TestGetStatus(t *testing.T) {
 		app := fiber.New()
 		app.Get("/status", h.GetStatus)
 
-		req, _ := http.NewRequestWithContext(context.Background(), "GET", "/status", nil)
+		req, _ := http.NewRequestWithContext(context.Background(), "GET", "http://rollytics.test/status", nil)
 		resp, err := app.Test(req)
 		defer closeBody(resp)
 		require.NoError(t, err)
@@ -112,7 +112,7 @@ func TestGetStatus(t *testing.T) {
 		app := fiber.New()
 		app.Get("/status", h.GetStatus)
 
-		req, _ := http.NewRequestWithContext(context.Background(), "GET", "/status", nil)
+		req, _ := http.NewRequestWithContext(context.Background(), "GET", "http://rollytics.test/status", nil)
 		resp, err := app.Test(req)
 		defer closeBody(resp)
 		require.NoError(t, err)
@@ -151,7 +151,7 @@ func TestGetStatus(t *testing.T) {
 		app := fiber.New()
 		app.Get("/status", h.GetStatus)
 
-		req, _ := http.NewRequestWithContext(context.Background(), "GET", "/status", nil)
+		req, _ := http.NewRequestWithContext(context.Background(), "GET", "http://rollytics.test/status", nil)
 		resp, err := app.Test(req)
 		defer closeBody(resp)
 		require.NoError(t, err)
@@ -181,7 +181,7 @@ func TestGetStatus(t *testing.T) {
 		app := fiber.New()
 		app.Get("/status", h.GetStatus)
 
-		req, _ := http.NewRequestWithContext(context.Background(), "GET", "/status", nil)
+		req, _ := http.NewRequestWithContext(context.Background(), "GET", "http://rollytics.test/status", nil)
 		resp, err := app.Test(req)
 		defer closeBody(resp)
 		require.NoError(t, err)
@@ -207,7 +207,7 @@ func TestGetStatus(t *testing.T) {
 		mock.ExpectQuery(`SELECT .* FROM "block"`).WillReturnRows(rows1)
 		mock.ExpectRollback()
 
-		req1, _ := http.NewRequestWithContext(context.Background(), "GET", "/status", nil)
+		req1, _ := http.NewRequestWithContext(context.Background(), "GET", "http://rollytics.test/status", nil)
 		resp1, err := app.Test(req1, -1)
 		defer closeBody(resp1)
 		require.NoError(t, err)
@@ -218,7 +218,7 @@ func TestGetStatus(t *testing.T) {
 		// 2. Wait shorter than expiration - should be a cache hit
 		time.Sleep(100 * time.Millisecond)
 
-		req2, _ := http.NewRequestWithContext(context.Background(), "GET", "/status", nil)
+		req2, _ := http.NewRequestWithContext(context.Background(), "GET", "http://rollytics.test/status", nil)
 		resp2, err := app.Test(req2, -1)
 		defer closeBody(resp2)
 		require.NoError(t, err)
@@ -228,7 +228,7 @@ func TestGetStatus(t *testing.T) {
 		// 3. Wait longer than expiration - SHOULD be a miss
 		time.Sleep(time.Second)
 
-		req3, _ := http.NewRequestWithContext(context.Background(), "GET", "/status", nil)
+		req3, _ := http.NewRequestWithContext(context.Background(), "GET", "http://rollytics.test/status", nil)
 		resp3, err := app.Test(req3, -1)
 		defer closeBody(resp3)
 		require.NoError(t, err)
@@ -254,7 +254,7 @@ func TestGetStatus(t *testing.T) {
 		app := fiber.New()
 		app.Get("/status", h.GetStatus)
 
-		req, _ := http.NewRequestWithContext(context.Background(), "GET", "/status", nil)
+		req, _ := http.NewRequestWithContext(context.Background(), "GET", "http://rollytics.test/status", nil)
 		resp, err := app.Test(req)
 		defer closeBody(resp)
 		require.NoError(t, err)
@@ -289,7 +289,7 @@ func TestGetStatus(t *testing.T) {
 		app := fiber.New()
 		app.Get("/status", h.GetStatus)
 
-		req, _ := http.NewRequestWithContext(context.Background(), "GET", "/status", nil)
+		req, _ := http.NewRequestWithContext(context.Background(), "GET", "http://rollytics.test/status", nil)
 		resp, err := app.Test(req)
 		defer closeBody(resp)
 		require.NoError(t, err)
@@ -323,7 +323,7 @@ func TestGetStatus(t *testing.T) {
 		app := fiber.New()
 		app.Get("/status", h.GetStatus)
 
-		req, _ := http.NewRequestWithContext(context.Background(), "GET", "/status", nil)
+		req, _ := http.NewRequestWithContext(context.Background(), "GET", "http://rollytics.test/status", nil)
 		resp, err := app.Test(req)
 		defer closeBody(resp)
 		require.NoError(t, err)
@@ -361,7 +361,7 @@ func TestGetStatus(t *testing.T) {
 		app := fiber.New()
 		app.Get("/status", h.GetStatus)
 
-		req, _ := http.NewRequestWithContext(context.Background(), "GET", "/status", nil)
+		req, _ := http.NewRequestWithContext(context.Background(), "GET", "http://rollytics.test/status", nil)
 		resp, err := app.Test(req)
 		defer closeBody(resp)
 		require.NoError(t, err)
@@ -399,7 +399,7 @@ func TestGetStatus(t *testing.T) {
 		app := fiber.New()
 		app.Get("/status", h.GetStatus)
 
-		req, _ := http.NewRequestWithContext(context.Background(), "GET", "/status", nil)
+		req, _ := http.NewRequestWithContext(context.Background(), "GET", "http://rollytics.test/status", nil)
 		resp, err := app.Test(req)
 		defer closeBody(resp)
 		require.NoError(t, err)
@@ -433,7 +433,7 @@ func TestGetStatus(t *testing.T) {
 		app := fiber.New()
 		app.Get("/status", h.GetStatus)
 
-		req, _ := http.NewRequestWithContext(context.Background(), "GET", "/status", nil)
+		req, _ := http.NewRequestWithContext(context.Background(), "GET", "http://rollytics.test/status", nil)
 		resp, err := app.Test(req)
 		defer closeBody(resp)
 		require.NoError(t, err)
@@ -471,7 +471,7 @@ func TestGetStatus(t *testing.T) {
 		app := fiber.New()
 		app.Get("/status", h.GetStatus)
 
-		req, _ := http.NewRequestWithContext(context.Background(), "GET", "/status", nil)
+		req, _ := http.NewRequestWithContext(context.Background(), "GET", "http://rollytics.test/status", nil)
 		resp, err := app.Test(req)
 		defer closeBody(resp)
 		require.NoError(t, err)

@@ -5,8 +5,8 @@ ARG VERSION
 
 ARG COMMIT_HASH
 
-# Install build dependencies
-RUN apk add --no-cache git 'ca-certificates>=20261020-r0' tzdata make
+# Git pulls in native Brotli through libcurl. Require the patched decoder.
+RUN apk add --no-cache git 'brotli-libs>=1.2.1-r0' 'ca-certificates>=20261020-r0' tzdata make
 
 # Set working directory
 WORKDIR /app

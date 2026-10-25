@@ -32,7 +32,7 @@ func TestCORS_WildcardOrigin(t *testing.T) {
 		AllowCredentials: false, // explicit: credentials are false for this test
 	})
 
-	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "/ping", nil)
+	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://rollytics.test/ping", nil)
 	req.Header.Set("Origin", "https://moro.example")
 	resp, err := app.Test(req)
 	if err != nil {
@@ -54,7 +54,7 @@ func TestCORS_ExactOriginAllowed(t *testing.T) {
 		AllowHeaders: []string{"Content-Type"},
 	})
 
-	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "/ping", nil)
+	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://rollytics.test/ping", nil)
 	req.Header.Set("Origin", "https://example.com")
 	resp, err := app.Test(req)
 	if err != nil {
@@ -76,7 +76,7 @@ func TestCORS_SubdomainPattern(t *testing.T) {
 	})
 
 	// subdomain should be allowed
-	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "/ping", nil)
+	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://rollytics.test/ping", nil)
 	req.Header.Set("Origin", "https://app.initia.xyz")
 	resp, err := app.Test(req)
 	if err != nil {
@@ -89,7 +89,7 @@ func TestCORS_SubdomainPattern(t *testing.T) {
 	}
 
 	// bare domain should NOT be allowed when only a subdomain pattern is provided
-	req2, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "/ping", nil)
+	req2, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://rollytics.test/ping", nil)
 	req2.Header.Set("Origin", "https://initia.xyz")
 	resp2, err := app.Test(req2)
 	if err != nil {
@@ -110,7 +110,7 @@ func TestCORS_DisallowedOrigin(t *testing.T) {
 		AllowHeaders: []string{"Content-Type"},
 	})
 
-	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "/ping", nil)
+	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://rollytics.test/ping", nil)
 	req.Header.Set("Origin", "https://moro.com")
 	resp, err := app.Test(req)
 	if err != nil {
@@ -132,7 +132,7 @@ func TestCORS_EmptyOriginAllowed(t *testing.T) {
 	})
 
 	// No Origin header simulates non-browser or same-origin request; should succeed without CORS headers
-	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "/ping", nil)
+	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://rollytics.test/ping", nil)
 	resp, err := app.Test(req)
 	if err != nil {
 		t.Fatalf("request failed: %v", err)
@@ -156,7 +156,7 @@ func TestCORS_PreflightOPTIONS(t *testing.T) {
 		MaxAge:       600,
 	})
 
-	req, _ := http.NewRequestWithContext(context.Background(), http.MethodOptions, "/ping", nil)
+	req, _ := http.NewRequestWithContext(context.Background(), http.MethodOptions, "http://rollytics.test/ping", nil)
 	req.Header.Set("Origin", "https://example.com")
 	req.Header.Set("Access-Control-Request-Method", "GET")
 	req.Header.Set("Access-Control-Request-Headers", "Authorization")
@@ -187,7 +187,7 @@ func TestCORS_MaxAgeHeader_Custom(t *testing.T) {
 		MaxAge:           1234,
 	})
 
-	req, _ := http.NewRequestWithContext(context.Background(), http.MethodOptions, "/ping", nil)
+	req, _ := http.NewRequestWithContext(context.Background(), http.MethodOptions, "http://rollytics.test/ping", nil)
 	req.Header.Set("Origin", "https://example.com")
 	req.Header.Set("Access-Control-Request-Method", "GET")
 	resp, err := app.Test(req)
@@ -213,7 +213,7 @@ func TestCORS_Defaults_Disabled_NoHeaders(t *testing.T) {
 		MaxAge:       0,
 	})
 
-	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "/ping", nil)
+	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://rollytics.test/ping", nil)
 	req.Header.Set("Origin", "https://any.example")
 	resp, err := app.Test(req)
 	if err != nil {
@@ -238,7 +238,7 @@ func TestCORS_Defaults_Enabled_AllOrigins_NoCredentials(t *testing.T) {
 		MaxAge:           0,                                                                                 // default
 	})
 
-	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "/ping", nil)
+	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://rollytics.test/ping", nil)
 	req.Header.Set("Origin", "https://anything.example")
 	resp, err := app.Test(req)
 	if err != nil {
@@ -265,7 +265,7 @@ func TestCORS_WildcardWithCredentialsEcho(t *testing.T) {
 		AllowCredentials: true,
 	})
 
-	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "/ping", nil)
+	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://rollytics.test/ping", nil)
 	req.Header.Set("Origin", "https://echo.me")
 	resp, err := app.Test(req)
 	if err != nil {
@@ -293,7 +293,7 @@ func TestCORS_MixedExactAndPattern(t *testing.T) {
 	})
 
 	// exact allowed
-	req1, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "/ping", nil)
+	req1, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://rollytics.test/ping", nil)
 	req1.Header.Set("Origin", "https://doi.com")
 	resp1, err := app.Test(req1)
 	if err != nil {
@@ -306,7 +306,7 @@ func TestCORS_MixedExactAndPattern(t *testing.T) {
 	}
 
 	// pattern subdomain allowed
-	req2, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "/ping", nil)
+	req2, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://rollytics.test/ping", nil)
 	req2.Header.Set("Origin", "https://app.initia.xyz")
 	resp2, err := app.Test(req2)
 	if err != nil {
@@ -319,7 +319,7 @@ func TestCORS_MixedExactAndPattern(t *testing.T) {
 	}
 
 	// non-matching origin denied
-	req3, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "/ping", nil)
+	req3, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://rollytics.test/ping", nil)
 	req3.Header.Set("Origin", "https://not-allowed.com")
 	resp3, err := app.Test(req3)
 	if err != nil {
