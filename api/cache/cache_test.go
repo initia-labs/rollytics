@@ -45,7 +45,7 @@ func TestCacheExpiration(t *testing.T) {
 			})
 
 			// 1. First request - should be a cache miss
-			req1, err := http.NewRequestWithContext(context.Background(), "GET", "/test", nil)
+			req1, err := http.NewRequestWithContext(context.Background(), "GET", "http://rollytics.test/test", nil)
 			require.NoError(t, err)
 			resp1, err := app.Test(req1, -1) // -1 disables timeout
 			require.NoError(t, err)
@@ -55,7 +55,7 @@ func TestCacheExpiration(t *testing.T) {
 
 			// 2. Wait for a duration shorter than expiration and make a second request
 			time.Sleep(tc.waitBeforeHit)
-			req2, err := http.NewRequestWithContext(context.Background(), "GET", "/test", nil)
+			req2, err := http.NewRequestWithContext(context.Background(), "GET", "http://rollytics.test/test", nil)
 			require.NoError(t, err)
 			resp2, err := app.Test(req2, -1)
 			require.NoError(t, err)
@@ -66,7 +66,7 @@ func TestCacheExpiration(t *testing.T) {
 
 			// 3. Wait for a duration longer than expiration and make a third request
 			time.Sleep(tc.waitAfterExpire)
-			req3, err := http.NewRequestWithContext(context.Background(), "GET", "/test", nil)
+			req3, err := http.NewRequestWithContext(context.Background(), "GET", "http://rollytics.test/test", nil)
 			require.NoError(t, err)
 			resp3, err := app.Test(req3, -1)
 			require.NoError(t, err)
