@@ -83,6 +83,17 @@ You can configure rollytics using environment variables. All settings can be con
 
 ### Cache Settings
 
+The four EVM internal transaction API routes share a startup sizing policy: a total
+response-body budget of 1/32 (3.125%) of the container memory limit, capped at
+256 MiB and divided equally among their independent caches. For example, a 1 GiB
+pod gets 8 MiB per route; a 2 GiB pod gets 16 MiB per route. Detection uses Linux
+cgroup v1/v2 limits, or system RAM when no cgroup limit applies. Detection failures
+use a fixed 32 MiB total budget. The selected budget and source are logged at startup.
+Restart the API after changing its memory limit to recalculate the budget.
+Existing TTLs remain 1 second for list/account/height and 10 seconds for hash lookups.
+Oversized responses are served intact without caching. These limits cover cached
+response bodies only, excluding metadata, in-flight allocations, and other caches.
+
 - `CACHE_SIZE`: General cache size (optional, default: `1000`)
 - `CACHE_TTL`: Cache time-to-live (optional, default: `10m`)
 - `ACCOUNT_CACHE_SIZE`: Account cache size (optional, default: `40960`)
