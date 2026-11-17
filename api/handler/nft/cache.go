@@ -108,7 +108,11 @@ func getCollectionByName(tx *gorm.DB, cfg *config.Config, name string, paginatio
 }
 
 func tryUpdateCollectionCache(db *gorm.DB, cfg *config.Config) {
-	if time.Since(time.Unix(0, lastUpdatedTime.Load())) < cfg.GetPollingInterval() {
+	interval := cfg.GetPollingInterval()
+	if interval <= 0 {
+		interval = config.DefaultPollingInterval
+	}
+	if time.Since(time.Unix(0, lastUpdatedTime.Load())) < interval {
 		return
 	}
 	// check if already updated
@@ -124,7 +128,11 @@ func tryUpdateCollectionCache(db *gorm.DB, cfg *config.Config) {
 }
 
 func updateCollectionCache(tx *gorm.DB) {
-	defer updating.Store(false)
+	defer func() {
+		// Empty and failed refreshes must also wait until the next polling interval.
+		lastUpdatedTime.Store(time.Now().UnixNano())
+		updating.Store(false)
+	}()
 
 	var cols []cachedCol
 	err := tx.Model(&types.CollectedNftCollection{}).
@@ -144,5 +152,4 @@ func updateCollectionCache(tx *gorm.DB) {
 	defer cacheMtx.Unlock()
 	collectionCacheByName = append(collectionCacheByName, cols...)
 	lastUpdatedHeight = cols[len(cols)-1].Height
-	lastUpdatedTime.Store(time.Now().UnixNano())
 }
