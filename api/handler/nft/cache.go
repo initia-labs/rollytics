@@ -112,11 +112,12 @@ func tryUpdateCollectionCache(db *gorm.DB, cfg *config.Config) {
 	if interval <= 0 {
 		interval = config.DefaultPollingInterval
 	}
-	if time.Since(time.Unix(0, lastUpdatedTime.Load())) < interval {
+	// Check the interval while owning the refresh so another caller cannot refresh between checks.
+	if !updating.CompareAndSwap(false, true) {
 		return
 	}
-	// check if already updated
-	if !updating.CompareAndSwap(false, true) {
+	if time.Since(time.Unix(0, lastUpdatedTime.Load())) < interval {
+		updating.Store(false)
 		return
 	}
 
