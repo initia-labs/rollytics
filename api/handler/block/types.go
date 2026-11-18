@@ -72,6 +72,11 @@ func ToBlockResponse(ctx context.Context, cb types.CollectedBlock, querier *quer
 	if err != nil {
 		return block, err
 	}
+	var proposer Proposer
+	if validatorResponse != nil {
+		proposer.Moniker = validatorResponse.Validator.Moniker
+		proposer.OperatorAddress = validatorResponse.Validator.OperatorAddress
+	}
 
 	return Block{
 		ChainID:   cb.ChainId,
@@ -83,9 +88,6 @@ func ToBlockResponse(ctx context.Context, cb types.CollectedBlock, querier *quer
 		GasWanted: fmt.Sprintf("%d", cb.GasWanted),
 		TxCount:   fmt.Sprintf("%d", cb.TxCount),
 		TotalFee:  fees,
-		Proposer: Proposer{
-			Moniker:         validatorResponse.Validator.Moniker,
-			OperatorAddress: validatorResponse.Validator.OperatorAddress,
-		},
+		Proposer:  proposer,
 	}, nil
 }

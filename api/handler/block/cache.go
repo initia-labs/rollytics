@@ -18,7 +18,7 @@ func getValidator(ctx context.Context, querier *querier.Querier, validatorAddr s
 		return nil, err
 	}
 
-	cache.SetValidatorCache(validator)
+	cache.SetValidatorCache(validatorAddr, validator)
 
 	return validator, nil
 }

@@ -517,12 +517,12 @@ func GetValidatorCache(validatorAddr string) (*types.ValidatorResponse, bool) {
 	return nil, false
 }
 
-func SetValidatorCache(validator *types.ValidatorResponse) {
+func SetValidatorCache(proposerAddr string, validator *types.ValidatorResponse) {
 	if validator == nil {
 		return
 	}
 	if validator.Validator.OperatorAddress == "" {
 		return
 	}
-	validatorCache.Set(validator.Validator.OperatorAddress, validator)
+	validatorCache.Set(proposerAddr, validator)
 }
