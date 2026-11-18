@@ -1,12 +1,9 @@
 package cache
 
 import (
-	"fmt"
 	"sync"
-	"time"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/hashicorp/golang-lru/v2/simplelru"
 	"gorm.io/gorm"
 
 	"github.com/initia-labs/rollytics/cache"
@@ -21,13 +18,6 @@ type NftKey struct {
 	TokenId        string
 }
 
-const validatorCacheTTL = time.Minute
-
-type validatorCacheEntry struct {
-	validator *types.ValidatorResponse
-	expiresAt time.Time
-}
-
 var (
 	accountCache          *cache.Cache[string, int64]
 	nftCache              *cache.Cache[NftKey, int64]
@@ -36,8 +26,7 @@ var (
 	moveDenomCache        *cache.Cache[string, string]
 	evmTxHashCache        *cache.Cache[string, int64]
 	evmDenomContractCache *cache.Cache[string, string]
-	validatorCache        *simplelru.LRU[string, validatorCacheEntry]
-	validatorCacheMu      sync.Mutex
+	validatorCache        *cache.Cache[string, *types.ValidatorResponse]
 
 	// Singleton initialization
 	cacheInitOnce sync.Once
@@ -54,11 +43,7 @@ func InitializeCaches(cfg *config.CacheConfig) {
 		moveDenomCache = cache.New[string, string](cfg.MoveDenomCacheSize)
 		evmTxHashCache = cache.New[string, int64](cfg.EvmTxHashCacheSize)
 		evmDenomContractCache = cache.New[string, string](cfg.EvmDenomContractCacheSize)
-		var err error
-		validatorCache, err = simplelru.NewLRU[string, validatorCacheEntry](cfg.ValidatorCacheSize, nil)
-		if err != nil {
-			panic(fmt.Sprintf("failed to initialize validator cache: %s", err.Error()))
-		}
+		validatorCache = cache.New[string, *types.ValidatorResponse](cfg.ValidatorCacheSize)
 	})
 }
 
@@ -526,31 +511,18 @@ func GetAccountCache(account string) (int64, bool) {
 }
 
 func GetValidatorCache(validatorAddr string) (*types.ValidatorResponse, bool) {
-	validatorCacheMu.Lock()
-	defer validatorCacheMu.Unlock()
-	cached, ok := validatorCache.Peek(validatorAddr)
-	if !ok {
-		return nil, false
+	if cached, ok := validatorCache.Get(validatorAddr); ok {
+		return cached, true
 	}
-	if !time.Now().Before(cached.expiresAt) {
-		validatorCache.Remove(validatorAddr)
-		return nil, false
-	}
-	validatorCache.Get(validatorAddr)
-	return cached.validator, true
+	return nil, false
 }
 
-func SetValidatorCache(proposerAddr string, validator *types.ValidatorResponse) {
+func SetValidatorCache(validator *types.ValidatorResponse) {
 	if validator == nil {
 		return
 	}
 	if validator.Validator.OperatorAddress == "" {
 		return
 	}
-	validatorCacheMu.Lock()
-	defer validatorCacheMu.Unlock()
-	validatorCache.Add(proposerAddr, validatorCacheEntry{
-		validator: validator,
-		expiresAt: time.Now().Add(validatorCacheTTL),
-	})
+	validatorCache.Set(validator.Validator.OperatorAddress, validator)
 }

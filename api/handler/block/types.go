@@ -75,7 +75,7 @@ func toBlockResponse(ctx context.Context, cb types.CollectedBlock, querier *quer
 
 	proposer, ok := proposers[cb.Proposer]
 	if !ok {
-		validatorResponse, err := getValidator(ctx, querier, cb.Proposer)
+		validatorResponse, err := querier.GetValidator(ctx, cb.Proposer)
 		if err != nil {
 			return block, err
 		}
