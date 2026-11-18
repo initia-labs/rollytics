@@ -112,14 +112,10 @@ func (h *NftHandler) GetCollectionsByAccount(c *fiber.Ctx) error {
 		Joins("INNER JOIN nft ON nft_collection.addr = nft.collection_addr").
 		Where("nft.owner_id = ?", accountIds[0])
 
-	var total int64
-	if !pagination.CountTotal {
-		total = 0
-	} else if err := tx.Raw(`
-		SELECT COUNT(DISTINCT nft_collection.addr) 
-		FROM nft_collection 
-		INNER JOIN nft ON nft_collection.addr = nft.collection_addr 
-		WHERE nft.owner_id = ?`, accountIds[0]).Scan(&total).Error; err != nil {
+	total, err := common.GetCountWithTimeout(
+		query.Session(&gorm.Session{}).Distinct("nft_collection.addr"), pagination.CountTotal,
+	)
+	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 

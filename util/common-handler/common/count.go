@@ -11,11 +11,21 @@ import (
 	"github.com/initia-labs/rollytics/types"
 )
 
+// Limit expensive exact counts per process. When all slots are busy, return
+// the existing unknown-total value rather than queueing more database scans.
+var exactCountSlots = make(chan struct{}, 4)
+
 func GetCountWithTimeout(countQuery *gorm.DB, countTotal bool) (int64, error) {
 	var total int64
 
 	if !countTotal {
 		return 0, nil
+	}
+	select {
+	case exactCountSlots <- struct{}{}:
+		defer func() { <-exactCountSlots }()
+	default:
+		return -1, nil
 	}
 
 	// Use a transaction with statement_timeout to avoid connection corruption
@@ -25,17 +35,14 @@ func GetCountWithTimeout(countQuery *gorm.DB, countTotal bool) (int64, error) {
 			return err
 		}
 
-		countErr := tx.Count(&total).Error
-
-		// Reset timeout before committing to prevent leakage to parent transaction
-		if resetErr := tx.Exec("RESET statement_timeout").Error; resetErr != nil {
-			// Log the reset error but don't override the count error
-			if countErr == nil {
-				return resetErr
-			}
+		if err := tx.Count(&total).Error; err != nil {
+			// Roll back the transaction/savepoint before any further SQL. A
+			// statement timeout leaves PostgreSQL's transaction in an error state.
+			return err
 		}
 
-		return countErr
+		// Nested transactions must restore the page query's timeout on success.
+		return tx.Exec("RESET statement_timeout").Error
 	}); err != nil {
 		// Check for statement timeout
 		if strings.Contains(err.Error(), "statement timeout") {

@@ -63,7 +63,9 @@ func New(cfg *config.Config, logger *slog.Logger, db *orm.Database) *Indexer {
 func (i *Indexer) Run(ctx context.Context) error {
 	i.ctx = ctx
 	// wait for the chain to be ready
-	i.wait()
+	if !i.wait() {
+		return nil
+	}
 
 	var lastBlock types.CollectedBlock
 	if err := i.db.
@@ -148,18 +150,19 @@ func (i *Indexer) Run(ctx context.Context) error {
 	return nil
 }
 
-func (i *Indexer) wait() {
+func (i *Indexer) wait() bool {
 	for {
 		chainHeight, err := i.querier.GetLatestHeight(i.ctx)
 		if err != nil {
 			i.logger.Error("failed to get chain height", slog.Any("error", err))
-			time.Sleep(5 * time.Second)
-			continue
+		} else if chainHeight > types.MinChainHeightToStart {
+			return i.ctx.Err() == nil
 		}
-		if chainHeight > types.MinChainHeightToStart {
-			break
+		select {
+		case <-i.ctx.Done():
+			return false
+		case <-time.After(types.ChainCheckInterval):
 		}
-		time.Sleep(types.ChainCheckInterval)
 	}
 }
 
