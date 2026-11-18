@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/lib/pq"
 	"gorm.io/gorm"
 
 	"github.com/initia-labs/rollytics/config"
@@ -44,33 +46,48 @@ func (p *MoveNFTPatcher) Run() error {
 		return nil
 	}
 
-	p.logger.Info("[Patch v1.0.2] Step 2: Querying NFT event transactions")
-	// Read the archived events directly: legacy upgrades may not have backfilled
-	// account or type-tag edges before this replay runs.
-	query := p.db.Model(&types.CollectedTx{})
-	for _, typeTag := range []string{
-		"0x1::collection::MintEvent",
-		"0x1::object::TransferEvent",
-		"0x1::nft::MutationEvent",
-		"0x1::collection::BurnEvent",
-	} {
-		event := fmt.Sprintf(`{"events":[{"type":"move","attributes":[{"key":"type_tag","value":%q}]}]}`, typeTag)
-		query = query.Or("data @> ?", event)
+	p.logger.Info("[Patch v1.0.2] Step 2: Building account ID mappings")
+	nftAccountMap := make(map[string]int64) // nft_addr -> account_id
+	var nftAddresses []string
+
+	// Collect NFT addresses
+	for _, nft := range existingNFTs {
+		accAddr := sdk.AccAddress(nft.Addr)
+		nftAddresses = append(nftAddresses, accAddr.String())
+	}
+
+	// Get or create account IDs for NFT addresses
+	accountIdMap, err := cache.GetOrCreateAccountIds(p.db, nftAddresses, true)
+	if err != nil {
+		return fmt.Errorf("failed to get account IDs: %w", err)
+	}
+
+	for _, nft := range existingNFTs {
+		accAddr := sdk.AccAddress(nft.Addr)
+		if accountId, ok := accountIdMap[accAddr.String()]; ok {
+			nftAccountMap[util.BytesToHexWithPrefix(nft.Addr)] = accountId
+		}
+	}
+
+	p.logger.Info("[Patch v1.0.2] Step 3: Querying related transactions")
+	var accountIds []int64
+	for _, id := range nftAccountMap {
+		accountIds = append(accountIds, id)
 	}
 
 	var txs []types.CollectedTx
-	if err := query.
+	if err := p.db.Where("account_ids && ?", pq.Array(accountIds)).
 		Order("sequence ASC").
 		Find(&txs).Error; err != nil {
 		return fmt.Errorf("failed to query NFT transactions: %w", err)
 	}
 
-	p.logger.Info("[Patch v1.0.2] Step 3: Clearing NFT data only")
+	p.logger.Info("[Patch v1.0.2] Step 4: Clearing NFT data only")
 	if err := p.clearNFT(); err != nil {
 		return err
 	}
 
-	p.logger.Info("[Patch v1.0.2] Step 4: Processing transactions in batches",
+	p.logger.Info("[Patch v1.0.2] Step 5: Processing transactions in batches",
 		slog.Int("total", len(txs)))
 	batchSize := 100
 	for i := 0; i < len(txs); i += batchSize {
