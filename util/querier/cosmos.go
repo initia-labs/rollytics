@@ -1,6 +1,7 @@
 package querier
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -10,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	cryptoencoding "github.com/cometbft/cometbft/crypto/encoding"
+	cryptoproto "github.com/cometbft/cometbft/proto/tendermint/crypto"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/initia-labs/rollytics/types"
@@ -145,13 +148,17 @@ func (q *Querier) GetLatestHeight(ctx context.Context) (int64, error) {
 	return height, nil
 }
 
-func fetchValidator(validatorAddr string) func(ctx context.Context, endpointURL string) (*types.ValidatorResponse, error) {
-	return func(ctx context.Context, endpointURL string) (*types.ValidatorResponse, error) {
-		body, err := Get(ctx, endpointURL, fmt.Sprintf("/opinit/opchild/v1/validator/%s", validatorAddr), nil, nil, queryTimeout)
+func fetchValidators(nextKey []byte) func(ctx context.Context, endpointURL string) (*types.ValidatorsResponse, error) {
+	return func(ctx context.Context, endpointURL string) (*types.ValidatorsResponse, error) {
+		params := map[string]string{"pagination.limit": paginationLimit}
+		if len(nextKey) > 0 {
+			params["pagination.key"] = base64.StdEncoding.EncodeToString(nextKey)
+		}
+		body, err := Get(ctx, endpointURL, "/opinit/opchild/v1/validators", params, nil, queryTimeout)
 		if err != nil {
 			return nil, err
 		}
-		response, err := extractResponse[types.ValidatorResponse](body)
+		response, err := extractResponse[types.ValidatorsResponse](body)
 		if err != nil {
 			return nil, err
 		}
@@ -159,12 +166,55 @@ func fetchValidator(validatorAddr string) func(ctx context.Context, endpointURL 
 	}
 }
 
-func (q *Querier) GetValidator(ctx context.Context, validatorAddr string) (*types.ValidatorResponse, error) {
-	res, err := executeWithEndpointRotation(ctx, q.RestUrls, fetchValidator(validatorAddr))
+// GetValidator resolves a block proposer, stored as a valoper-encoded consensus
+// address, using the validator's consensus key rather than its operator address.
+// A proposer absent from the current validator set returns nil without an error.
+func (q *Querier) GetValidator(ctx context.Context, proposerAddr string) (*types.ValidatorResponse, error) {
+	proposer, err := sdk.ValAddressFromBech32(proposerAddr)
 	if err != nil {
 		return nil, err
 	}
-	return res, nil
+	var nextKey []byte
+	for {
+		res, err := executeWithEndpointRotation(ctx, q.RestUrls, fetchValidators(nextKey))
+		if err != nil {
+			return nil, err
+		}
+		for _, validator := range res.Validators {
+			address, err := consensusAddress(validator.ConsensusPubkey)
+			if err != nil {
+				return nil, err
+			}
+			if bytes.Equal(address, proposer) {
+				return &types.ValidatorResponse{Validator: validator}, nil
+			}
+		}
+		nextKey = res.Pagination.NextKey
+		if len(nextKey) == 0 {
+			return nil, nil
+		}
+	}
+}
+
+func consensusAddress(key types.ConsensusPubkey) ([]byte, error) {
+	keyBytes, err := base64.StdEncoding.DecodeString(key.Key)
+	if err != nil {
+		return nil, err
+	}
+	var protoKey cryptoproto.PublicKey
+	switch key.Type {
+	case "/cosmos.crypto.ed25519.PubKey":
+		protoKey.Sum = &cryptoproto.PublicKey_Ed25519{Ed25519: keyBytes}
+	case "/cosmos.crypto.secp256k1.PubKey":
+		protoKey.Sum = &cryptoproto.PublicKey_Secp256K1{Secp256K1: keyBytes}
+	default:
+		return nil, fmt.Errorf("unsupported consensus public key type %q", key.Type)
+	}
+	pubKey, err := cryptoencoding.PubKeyFromProto(protoKey)
+	if err != nil {
+		return nil, err
+	}
+	return pubKey.Address(), nil
 }
 
 func fetchMinterBurnerModuleAccounts() func(ctx context.Context, endpointURL string) (*types.QueryModuleAccountsResponse, error) {

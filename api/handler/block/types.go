@@ -52,8 +52,9 @@ type Proposer struct {
 
 func ToBlocksResponse(ctx context.Context, cbs []types.CollectedBlock, querier *querier.Querier) ([]Block, error) {
 	blocks := make([]Block, 0, len(cbs))
+	proposers := make(map[string]Proposer)
 	for _, cb := range cbs {
-		block, err := ToBlockResponse(ctx, cb, querier)
+		block, err := toBlockResponse(ctx, cb, querier, proposers)
 		if err != nil {
 			return nil, err
 		}
@@ -63,14 +64,28 @@ func ToBlocksResponse(ctx context.Context, cbs []types.CollectedBlock, querier *
 }
 
 func ToBlockResponse(ctx context.Context, cb types.CollectedBlock, querier *querier.Querier) (block Block, err error) {
+	return toBlockResponse(ctx, cb, querier, nil)
+}
+
+func toBlockResponse(ctx context.Context, cb types.CollectedBlock, querier *querier.Querier, proposers map[string]Proposer) (block Block, err error) {
 	var fees []Fee
 	if err := json.Unmarshal(cb.TotalFee, &fees); err != nil {
 		return block, err
 	}
 
-	validatorResponse, err := getValidator(ctx, querier, cb.Proposer)
-	if err != nil {
-		return block, err
+	proposer, ok := proposers[cb.Proposer]
+	if !ok {
+		validatorResponse, err := querier.GetValidator(ctx, cb.Proposer)
+		if err != nil {
+			return block, err
+		}
+		if validatorResponse != nil {
+			proposer.Moniker = validatorResponse.Validator.Moniker
+			proposer.OperatorAddress = validatorResponse.Validator.OperatorAddress
+		}
+		if proposers != nil {
+			proposers[cb.Proposer] = proposer
+		}
 	}
 
 	return Block{
@@ -83,9 +98,6 @@ func ToBlockResponse(ctx context.Context, cb types.CollectedBlock, querier *quer
 		GasWanted: fmt.Sprintf("%d", cb.GasWanted),
 		TxCount:   fmt.Sprintf("%d", cb.TxCount),
 		TotalFee:  fees,
-		Proposer: Proposer{
-			Moniker:         validatorResponse.Validator.Moniker,
-			OperatorAddress: validatorResponse.Validator.OperatorAddress,
-		},
+		Proposer:  proposer,
 	}, nil
 }
