@@ -43,7 +43,7 @@ func TestBlockProposerLookup(t *testing.T) {
 		{name: "missing consensus key", missing: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			pubKey := ed25519.GenPrivKeyFromSecret([]byte(tc.name)).PubKey()
+			pubKey := ed25519.GenPrivKey().PubKey()
 			proposerAddr := sdk.ValAddress(pubKey.Address()).String()
 			otherKey := ed25519.GenPrivKeyFromSecret([]byte("other")).PubKey()
 			validator := types.Validator{
@@ -60,6 +60,7 @@ func TestBlockProposerLookup(t *testing.T) {
 				validator.ConsensusPubkey.Key = base64.StdEncoding.EncodeToString(otherKey.Bytes())
 			}
 			var requests atomic.Int32
+			var registered atomic.Bool
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				requests.Add(1)
 				if r.URL.Path != "/opinit/opchild/v1/validators" {
@@ -68,6 +69,9 @@ func TestBlockProposerLookup(t *testing.T) {
 					return
 				}
 				response := types.ValidatorsResponse{Validators: []types.Validator{validator}}
+				if registered.Load() {
+					response.Validators[0].ConsensusPubkey.Key = base64.StdEncoding.EncodeToString(pubKey.Bytes())
+				}
 				if tc.paginate && r.URL.Query().Get("pagination.key") == "" {
 					response.Validators = nil
 					response.Pagination.NextKey = []byte("next")
@@ -109,9 +113,17 @@ func TestBlockProposerLookup(t *testing.T) {
 			if tc.paginate {
 				wantRequests = 2
 			} else if tc.missing {
-				wantRequests = 3 // Each miss completes in one request without retrying.
+				wantRequests = 2 // Reuse the miss within the block-list request.
 			}
 			require.Equal(t, wantRequests, requests.Load())
+			if tc.missing {
+				registered.Store(true)
+				blocks, err := ToBlocksResponse(ctx, []types.CollectedBlock{cb, cb}, q)
+				require.NoError(t, err)
+				require.Equal(t, validator.OperatorAddress, blocks[0].Proposer.OperatorAddress)
+				require.Equal(t, blocks[0].Proposer, blocks[1].Proposer)
+				require.Equal(t, wantRequests+1, requests.Load())
+			}
 		})
 	}
 }

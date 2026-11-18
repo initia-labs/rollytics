@@ -2,6 +2,7 @@ package cache
 
 import (
 	"sync"
+	"time"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"gorm.io/gorm"
@@ -18,6 +19,13 @@ type NftKey struct {
 	TokenId        string
 }
 
+const validatorCacheTTL = time.Minute
+
+type validatorCacheEntry struct {
+	validator *types.ValidatorResponse
+	expiresAt time.Time
+}
+
 var (
 	accountCache          *cache.Cache[string, int64]
 	nftCache              *cache.Cache[NftKey, int64]
@@ -26,7 +34,7 @@ var (
 	moveDenomCache        *cache.Cache[string, string]
 	evmTxHashCache        *cache.Cache[string, int64]
 	evmDenomContractCache *cache.Cache[string, string]
-	validatorCache        *cache.Cache[string, *types.ValidatorResponse]
+	validatorCache        *cache.Cache[string, validatorCacheEntry]
 
 	// Singleton initialization
 	cacheInitOnce sync.Once
@@ -43,7 +51,7 @@ func InitializeCaches(cfg *config.CacheConfig) {
 		moveDenomCache = cache.New[string, string](cfg.MoveDenomCacheSize)
 		evmTxHashCache = cache.New[string, int64](cfg.EvmTxHashCacheSize)
 		evmDenomContractCache = cache.New[string, string](cfg.EvmDenomContractCacheSize)
-		validatorCache = cache.New[string, *types.ValidatorResponse](cfg.ValidatorCacheSize)
+		validatorCache = cache.New[string, validatorCacheEntry](cfg.ValidatorCacheSize)
 	})
 }
 
@@ -511,8 +519,8 @@ func GetAccountCache(account string) (int64, bool) {
 }
 
 func GetValidatorCache(validatorAddr string) (*types.ValidatorResponse, bool) {
-	if cached, ok := validatorCache.Get(validatorAddr); ok {
-		return cached, true
+	if cached, ok := validatorCache.Get(validatorAddr); ok && time.Now().Before(cached.expiresAt) {
+		return cached.validator, true
 	}
 	return nil, false
 }
@@ -524,5 +532,8 @@ func SetValidatorCache(proposerAddr string, validator *types.ValidatorResponse) 
 	if validator.Validator.OperatorAddress == "" {
 		return
 	}
-	validatorCache.Set(proposerAddr, validator)
+	validatorCache.Set(proposerAddr, validatorCacheEntry{
+		validator: validator,
+		expiresAt: time.Now().Add(validatorCacheTTL),
+	})
 }
