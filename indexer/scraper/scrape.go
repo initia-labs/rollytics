@@ -89,6 +89,10 @@ func fetchBlockResults(ctx context.Context, client *fiber.Client, height int64, 
 }
 
 func parseScrapedBlock(block GetBlockResponse, blockResults GetBlockResultsResponse, height int64) (scrapedBlock types.ScrapedBlock, err error) {
+	if len(block.Result.Block.Data.Txs) != len(blockResults.Result.TxsResults) {
+		return scrapedBlock, fmt.Errorf("block %d has %d transactions but %d transaction results", height, len(block.Result.Block.Data.Txs), len(blockResults.Result.TxsResults))
+	}
+
 	timestamp, err := time.Parse(layout, block.Result.Block.Header.Time)
 	if err != nil {
 		return scrapedBlock, err
