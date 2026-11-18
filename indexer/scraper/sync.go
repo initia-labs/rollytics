@@ -4,29 +4,21 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"golang.org/x/sync/errgroup"
 
 	"github.com/initia-labs/rollytics/indexer/types"
 	commontypes "github.com/initia-labs/rollytics/types"
 )
 
-const (
-	running int32 = iota
-	paused
-	stopped
-)
-
-func (s *Scraper) fastSync(ctx context.Context, client *fiber.Client, height int64, blockChan chan<- types.ScrapedBlock, controlChan <-chan string) int64 {
+func (s *Scraper) fastSync(ctx context.Context, client *fiber.Client, height int64, blockChan chan<- types.ScrapedBlock, paused *atomic.Bool) int64 {
 	var (
 		syncedHeight = height - 1
-		status       atomic.Int32
+		stopped      atomic.Bool
 		wg           sync.WaitGroup
 	)
 
@@ -38,25 +30,10 @@ func (s *Scraper) fastSync(ctx context.Context, client *fiber.Client, height int
 	}
 	sem := make(chan struct{}, maxConc)
 
-	go func() {
-		for signal := range controlChan {
-			switch signal {
-			case "pause":
-				if status.Load() == running {
-					status.Store(paused)
-				}
-			case "start":
-				if status.Load() == paused {
-					status.Store(running)
-				}
-			}
-		}
-	}()
-
-	defer func() {
-		// wait for all goroutines to finish
-		wg.Wait()
-	}()
+	// Keep each worker's slot until its predecessor has finished delivery.
+	// This bounds buffered work and prevents publishing past a missing height.
+	previous := make(chan struct{})
+	close(previous)
 
 	for {
 		select {
@@ -66,17 +43,18 @@ func (s *Scraper) fastSync(ctx context.Context, client *fiber.Client, height int
 			return syncedHeight
 		default:
 		}
-		currentState := status.Load()
-
 		// exit if stopped (reached latest height)
-		if currentState == stopped {
+		if stopped.Load() {
 			wg.Wait()
 			return syncedHeight
 		}
 
 		// continue if paused
-		if currentState == paused {
-			time.Sleep(1 * time.Second)
+		if paused.Load() {
+			select {
+			case <-ctx.Done():
+			case <-time.After(s.cfg.GetCoolingDuration()):
+			}
 			continue
 		}
 
@@ -90,11 +68,22 @@ func (s *Scraper) fastSync(ctx context.Context, client *fiber.Client, height int
 			wg.Wait()
 			return syncedHeight
 		}
+		// A pause or head response may arrive while waiting for a slot.
+		if stopped.Load() || paused.Load() {
+			<-sem
+			continue
+		}
 
+		before, done := previous, make(chan struct{})
+		previous = done
 		wg.Add(1)
-		go func(errCount int) {
+		go func() {
 			defer wg.Done()
 			defer func() { <-sem }()
+			defer close(done)
+			// Every exit must wait for the predecessor, including a head error,
+			// so later workers cannot overtake an earlier unfinished height.
+			defer func() { <-before }()
 
 			for {
 				select {
@@ -105,8 +94,16 @@ func (s *Scraper) fastSync(ctx context.Context, client *fiber.Client, height int
 
 				block, err := scrapeBlock(ctx, client, h, s.cfg, s.querier)
 
-				// if no error, cache the scraped block to block map and return
+				// Publish successes in order, stopping at the first missing height.
 				if err == nil {
+					select {
+					case <-before:
+					case <-ctx.Done():
+						return
+					}
+					if h != syncedHeight+1 {
+						return
+					}
 					s.logger.Info("scraped block", slog.Int64("height", block.Height))
 					select {
 					case blockChan <- block:
@@ -115,32 +112,35 @@ func (s *Scraper) fastSync(ctx context.Context, client *fiber.Client, height int
 					}
 					s.trackScrapedBlock()
 
-					s.mtx.Lock()
-					if block.Height > syncedHeight {
-						syncedHeight = block.Height
-					}
-					s.mtx.Unlock()
+					syncedHeight = h
 
 					return
 				}
 
 				// stop fast syncing after reaching latest height
 				if reachedLatestHeight(fmt.Sprintf("%+v", err)) {
-					status.Store(stopped)
+					stopped.Store(true)
 					return
 				}
 
 				s.logger.Info("error while scraping block", slog.Int64("height", h), slog.Any("error", err))
-				time.Sleep(s.cfg.GetCoolingDuration())
+				select {
+				case <-ctx.Done():
+					return
+				case <-time.After(s.cfg.GetCoolingDuration()):
+				}
 			}
-		}(0)
+		}()
 
 		height++
-		time.Sleep(s.cfg.GetCoolingDuration())
+		select {
+		case <-ctx.Done():
+		case <-time.After(s.cfg.GetCoolingDuration()):
+		}
 	}
 }
 
-func (s *Scraper) slowSync(ctx context.Context, client *fiber.Client, height int64, blockChan chan<- types.ScrapedBlock) {
+func (s *Scraper) slowSync(ctx context.Context, client *fiber.Client, height int64, blockChan chan<- types.ScrapedBlock, paused *atomic.Bool) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -148,66 +148,58 @@ func (s *Scraper) slowSync(ctx context.Context, client *fiber.Client, height int
 			return
 		default:
 		}
-		var (
-			results []ScrapResult
-			g       errgroup.Group
-		)
+		// Finish an admitted batch, but do not start another while paused.
+		if paused.Load() {
+			select {
+			case <-ctx.Done():
+			case <-time.After(s.cfg.GetCoolingDuration()):
+			}
+			continue
+		}
+		var results [commontypes.BatchScrapSize]struct {
+			block types.ScrapedBlock
+			err   error
+		}
+		var wg sync.WaitGroup
 
 		for i := range commontypes.BatchScrapSize {
 			h := height + int64(i)
-			g.Go(func() error {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
 				block, err := scrapeBlock(ctx, client, h, s.cfg, s.querier)
-				result := ScrapResult{
-					Height: h,
-					Err:    err,
-				}
-
-				s.mtx.Lock()
-				results = append(results, result)
-				s.mtx.Unlock()
+				results[i].block, results[i].err = block, err
 
 				if err == nil {
 					s.logger.Info("scraped block", slog.Int64("height", block.Height))
-					select {
-					case blockChan <- block:
-					case <-ctx.Done():
-						return nil
-					}
-					s.trackScrapedBlock()
 				} else if !reachedLatestHeight(fmt.Sprintf("%+v", err)) {
 					// log only if it is not related to reached latest height error
 					s.logger.Info("error while scraping block", slog.Int64("height", h), slog.Any("error", err))
 				}
-
-				return nil
-			})
+			}()
 		}
 
-		if err := g.Wait(); err != nil {
-			s.logger.Error("error while scraping blocks", slog.Any("error", err))
-			time.Sleep(s.cfg.GetCoolingDuration())
-			continue
-		}
+		wg.Wait()
 
-		sort.Slice(results, func(i, j int) bool {
-			return results[i].Height < results[j].Height
-		})
-
-		// update height
-		var errorHeight int64 = -1
+		// Deliver only the contiguous prefix; retry from the first failure.
+		// Successful higher blocks have not been delivered and cannot be replayed.
 		for _, res := range results {
-			if res.Err != nil {
-				errorHeight = res.Height
+			if res.err != nil {
 				break
 			}
-		}
-		if errorHeight == -1 {
-			height += commontypes.BatchScrapSize
-		} else {
-			height = errorHeight
+			select {
+			case blockChan <- res.block:
+				s.trackScrapedBlock()
+				height++
+			case <-ctx.Done():
+				return
+			}
 		}
 
-		time.Sleep(s.cfg.GetCoolingDuration())
+		select {
+		case <-ctx.Done():
+		case <-time.After(s.cfg.GetCoolingDuration()):
+		}
 	}
 }
 

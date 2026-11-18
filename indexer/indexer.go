@@ -281,10 +281,20 @@ func (i *Indexer) collect() {
 
 		switch {
 		case inflightCount > types.MaxInflightBlocks && !i.paused:
-			i.controlChan <- "pause"
+			select {
+			case i.controlChan <- "pause":
+			case <-i.ctx.Done():
+				i.mtx.Unlock()
+				return
+			}
 			i.paused = true
 		case inflightCount < types.MinInflightBlocks && i.paused:
-			i.controlChan <- "start"
+			select {
+			case i.controlChan <- "start":
+			case <-i.ctx.Done():
+				i.mtx.Unlock()
+				return
+			}
 			i.paused = false
 		}
 

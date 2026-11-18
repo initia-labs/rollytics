@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -39,25 +40,52 @@ func New(cfg *config.Config, logger *slog.Logger) *Scraper {
 }
 
 func (s *Scraper) Run(ctx context.Context, height int64, blockChan chan<- types.ScrapedBlock, controlChan <-chan string) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	client := fiber.AcquireClient()
 	defer fiber.ReleaseClient(client)
 
+	var paused atomic.Bool
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case signal, ok := <-controlChan:
+				if !ok {
+					return
+				}
+				switch signal {
+				case "pause":
+					paused.Store(true)
+				case "start":
+					paused.Store(false)
+				}
+			}
+		}
+	}()
+
 	// Start metrics updater
-	go s.updateScrapeSpeedMetrics()
+	go s.updateScrapeSpeedMetrics(ctx)
 
 	s.logger.Info("fast syncing until fully synced")
-	syncedHeight := s.fastSync(ctx, client, height, blockChan, controlChan)
+	syncedHeight := s.fastSync(ctx, client, height, blockChan, &paused)
 
 	s.logger.Info("switching to slow syncing")
-	s.slowSync(ctx, client, syncedHeight+1, blockChan)
+	s.slowSync(ctx, client, syncedHeight+1, blockChan, &paused)
 }
 
 // updateScrapeSpeedMetrics periodically updates scrape speed metrics
-func (s *Scraper) updateScrapeSpeedMetrics() {
+func (s *Scraper) updateScrapeSpeedMetrics(ctx context.Context) {
 	ticker := time.NewTicker(commontypes.ScrapeSpeedUpdateInterval)
 	defer ticker.Stop()
 
-	for range ticker.C {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
 		s.mtx.Lock()
 		now := time.Now()
 		elapsed := now.Sub(s.lastScrapeTime).Seconds()
