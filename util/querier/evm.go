@@ -154,11 +154,6 @@ func (q *Querier) GetEvmContractByDenom(ctx context.Context, denom string) (stri
 		return denom, nil
 	}
 
-	// Check cache first
-	if address, ok := cache.GetEvmDenomContractCache(denom); ok {
-		return address, nil
-	}
-
 	// ibc/UPPERCASE
 	// l2/lowercase
 	// evm/AnyCase
@@ -166,6 +161,10 @@ func (q *Querier) GetEvmContractByDenom(ctx context.Context, denom string) (stri
 		denom = fmt.Sprintf("ibc/%s", strings.ToUpper(denom[4:]))
 	} else if strings.ToLower(denom) == "gas" {
 		denom = "GAS"
+	}
+
+	if address, ok := cache.GetEvmDenomContractCache(denom); ok {
+		return address, nil
 	}
 
 	response, err := executeWithEndpointRotation(ctx, q.RestUrls, fetchEvmContractByDenom(denom))

@@ -129,6 +129,11 @@ func parseJSONCursor(decoded []byte, pagination *Pagination) error {
 	if json.Unmarshal(decoded, &cursorData) == nil {
 		pagination.CursorValue = cursorData
 		pagination.CursorType = detectCursorType(cursorData)
+		if pagination.CursorType == CursorTypeHeight {
+			if _, err := pagination.safeGetInt64("height"); err != nil {
+				return err
+			}
+		}
 		return nil
 	}
 

@@ -1,13 +1,42 @@
 package nft
 
 import (
+	"encoding/base64"
+	"io"
+	"net/http/httptest"
+	"net/url"
 	"testing"
 
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/initia-labs/rollytics/types"
 	"github.com/initia-labs/rollytics/util/common-handler/common"
 )
+
+func TestGetCollectionsByAccountRejectsMalformedHeightCursor(t *testing.T) {
+	app := fiber.New()
+	app.Use(recover.New())
+	// Invalid cursors must be rejected before the handler accesses the database.
+	h := &NftHandler{}
+	app.Get("/collections/by_account/:account", h.GetCollectionsByAccount)
+	for _, cursor := range []string{`{"height":null}`, `{"height":"123"}`, `{"height":{}}`} {
+		t.Run(cursor, func(t *testing.T) {
+			key := base64.StdEncoding.EncodeToString([]byte(cursor))
+			req := httptest.NewRequestWithContext(t.Context(), fiber.MethodGet,
+				"/collections/by_account/0x1111111111111111111111111111111111111111?pagination.key="+url.QueryEscape(key), nil)
+			resp, err := app.Test(req)
+			require.NoError(t, err)
+			defer func() { require.NoError(t, resp.Body.Close()) }()
+			require.Equal(t, fiber.StatusBadRequest, resp.StatusCode)
+			body, err := io.ReadAll(resp.Body)
+			require.NoError(t, err)
+			require.Contains(t, string(body), "height")
+		})
+	}
+}
 
 func TestToCollectionsResponse(t *testing.T) {
 	collections := []types.CollectedNftCollection{
