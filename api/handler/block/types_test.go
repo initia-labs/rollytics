@@ -130,51 +130,111 @@ func TestBlockProposerLookup(t *testing.T) {
 		})
 	}
 
-	t.Run("concurrent lookups share a refresh", func(t *testing.T) {
-		pubKey := ed25519.GenPrivKey().PubKey()
-		proposerAddr := sdk.ValAddress(pubKey.Address()).String()
-		validator := types.Validator{
-			Moniker: "sequencer", OperatorAddress: "operator",
-			ConsensusPubkey: types.ConsensusPubkey{
-				Type: "/cosmos.crypto.ed25519.PubKey", Key: base64.StdEncoding.EncodeToString(pubKey.Bytes()),
-			},
+	for _, cancelFirst := range []bool{false, true} {
+		name := "waiter cancellation"
+		if cancelFirst {
+			name = "first caller cancellation"
 		}
+		t.Run(name, func(t *testing.T) {
+			proposerAddr := sdk.ValAddress(ed25519.GenPrivKey().PubKey().Address()).String()
+			var requests atomic.Int32
+			release := make(chan struct{})
+			var releaseOnce sync.Once
+			unblock := func() { releaseOnce.Do(func() { close(release) }) }
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				requests.Add(1)
+				<-release
+				// A miss is not positively cached, so both callers must share the flight.
+				if err := json.NewEncoder(w).Encode(types.ValidatorsResponse{}); err != nil {
+					t.Error(err)
+				}
+			}))
+			defer server.Close()
+			defer unblock()
+			q := &querier.Querier{RestUrls: []string{server.URL}}
+			ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
+			defer cancel()
+			first, cancelFirstCaller := context.WithCancel(ctx)
+			defer cancelFirstCaller()
+			second, cancelSecondCaller := context.WithCancel(ctx)
+			defer cancelSecondCaller()
+			firstJoined := &joinedLookupContext{Context: first, joined: make(chan struct{})}
+			secondJoined := &joinedLookupContext{Context: second, joined: make(chan struct{})}
+			firstResult := make(chan error, 1)
+			secondResult := make(chan error, 1)
+			lookup := func(ctx context.Context, result chan<- error) {
+				validator, err := getValidator(ctx, q, proposerAddr)
+				if validator != nil {
+					t.Error("expected a proposer miss")
+				}
+				result <- err
+			}
+			go lookup(firstJoined, firstResult)
+			select {
+			case <-firstJoined.joined:
+			case <-ctx.Done():
+				t.Fatal("first caller did not join the refresh")
+			}
+			go lookup(secondJoined, secondResult)
+			select {
+			case <-secondJoined.joined:
+			case <-ctx.Done():
+				t.Fatal("second caller did not join the refresh")
+			}
+
+			canceledResult, activeResult := secondResult, firstResult
+			if cancelFirst {
+				cancelFirstCaller()
+				canceledResult, activeResult = firstResult, secondResult
+			} else {
+				cancelSecondCaller()
+			}
+			select {
+			case err := <-canceledResult:
+				require.ErrorIs(t, err, context.Canceled)
+			case <-ctx.Done():
+				t.Fatal("canceled caller remained blocked on the refresh")
+			}
+			unblock()
+			select {
+			case err := <-activeResult:
+				require.NoError(t, err)
+			case <-ctx.Done():
+				t.Fatal("active caller did not finish")
+			}
+			require.EqualValues(t, 1, requests.Load())
+		})
+	}
+
+	t.Run("failed refresh remains retryable", func(t *testing.T) {
+		proposerAddr := sdk.ValAddress(ed25519.GenPrivKey().PubKey().Address()).String()
+		q := &querier.Querier{}
+		_, err := getValidator(t.Context(), q, proposerAddr)
+		require.Error(t, err)
 		var requests atomic.Int32
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			requests.Add(1)
-			// Slow the upstream response so concurrent cache misses overlap.
-			time.Sleep(20 * time.Millisecond)
-			if err := json.NewEncoder(w).Encode(types.ValidatorsResponse{Validators: []types.Validator{validator}}); err != nil {
+			if err := json.NewEncoder(w).Encode(types.ValidatorsResponse{}); err != nil {
 				t.Error(err)
 			}
 		}))
 		defer server.Close()
-		ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
-		defer cancel()
-		q := &querier.Querier{}
-		_, err := getValidator(ctx, q, proposerAddr)
-		require.Error(t, err) // Failed refreshes must remain retryable.
 		q.RestUrls = []string{server.URL}
-
-		const callers = 20
-		results := make([]*types.ValidatorResponse, callers)
-		errs := make([]error, callers)
-		start := make(chan struct{})
-		var wg sync.WaitGroup
-		for i := range callers {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				<-start
-				results[i], errs[i] = getValidator(ctx, q, proposerAddr)
-			}()
-		}
-		close(start)
-		wg.Wait()
-		for i := range callers {
-			require.NoError(t, errs[i])
-			require.Equal(t, &types.ValidatorResponse{Validator: validator}, results[i])
-		}
+		got, err := getValidator(t.Context(), q, proposerAddr)
+		require.NoError(t, err)
+		require.Nil(t, got)
 		require.EqualValues(t, 1, requests.Load())
 	})
+}
+
+// Done is evaluated by the caller's select after DoChan has joined the flight.
+type joinedLookupContext struct {
+	context.Context
+	joined chan struct{}
+	once   sync.Once
+}
+
+func (c *joinedLookupContext) Done() <-chan struct{} {
+	c.once.Do(func() { close(c.joined) })
+	return c.Context.Done()
 }
