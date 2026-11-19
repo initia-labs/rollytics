@@ -13,6 +13,8 @@ type Config struct {
 	Expiration time.Duration
 	// IncludeQueryParams determines if query parameters should be included in cache key
 	IncludeQueryParams bool
+	// MaxBytes limits cached response body bytes per middleware instance; zero is unlimited.
+	MaxBytes uint
 }
 
 // DefaultConfig returns a default cache configuration
@@ -32,6 +34,7 @@ func New(cfg Config) fiber.Handler {
 
 	cacheConfig := cache.Config{
 		Expiration: cfg.Expiration,
+		MaxBytes:   cfg.MaxBytes,
 	}
 
 	// If query parameters should be included, use custom KeyGenerator
@@ -57,5 +60,14 @@ func New(cfg Config) fiber.Handler {
 func WithExpiration(expiration time.Duration) fiber.Handler {
 	cfg := DefaultConfig()
 	cfg.Expiration = expiration
+	return New(cfg)
+}
+
+// WithExpirationAndMaxBytes limits response body storage for one middleware instance.
+// Responses larger than maxBytes are served without being cached.
+func WithExpirationAndMaxBytes(expiration time.Duration, maxBytes uint) fiber.Handler {
+	cfg := DefaultConfig()
+	cfg.Expiration = expiration
+	cfg.MaxBytes = maxBytes
 	return New(cfg)
 }

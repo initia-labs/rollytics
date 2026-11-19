@@ -89,3 +89,39 @@ func TestCacheExpiration(t *testing.T) {
 		})
 	}
 }
+
+func TestCacheMaxBytes(t *testing.T) {
+	app := fiber.New()
+	calls := 0
+	app.Get("/test", cache.WithExpirationAndMaxBytes(time.Minute, 8), func(c *fiber.Ctx) error {
+		calls++
+		return c.SendString(c.Query("body"))
+	})
+
+	request := func(body, status string, expectedCalls int) {
+		t.Helper()
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "/test?body="+body, nil)
+		require.NoError(t, err)
+		resp, err := app.Test(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		got, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		require.Equal(t, body, string(got))
+		require.Equal(t, status, resp.Header.Get("X-Cache"))
+		require.Equal(t, expectedCalls, calls)
+	}
+
+	// A body exactly at the limit is cached.
+	request("12345678", "miss", 1)
+	request("12345678", "hit", 1)
+	// Oversized responses are delivered intact without being retained.
+	request("123456789", "unreachable", 2)
+	request("123456789", "unreachable", 3)
+	request("12345678", "hit", 3)
+	// A different query key must evict the previous body to fit the budget.
+	request("abcdefgh", "miss", 4)
+	request("abcdefgh", "hit", 4)
+	request("12345678", "miss", 5)
+}
